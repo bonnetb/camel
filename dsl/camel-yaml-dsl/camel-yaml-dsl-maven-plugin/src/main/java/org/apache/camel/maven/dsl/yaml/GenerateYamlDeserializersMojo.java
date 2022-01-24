@@ -440,7 +440,6 @@ public class GenerateYamlDeserializersMojo extends GenerateYamlSupportMojo {
 
         builder.addModifiers(Modifier.PUBLIC, Modifier.STATIC);
 
-
         if (extendsType(info, SEND_DEFINITION_CLASS) || extendsType(info, TO_DYNAMIC_DEFINITION_CLASS)) {
             builder.superclass(ParameterizedTypeName.get(CN_ENDPOINT_AWARE_DESERIALIZER_BASE, targetType));
         } else {
@@ -519,7 +518,11 @@ public class GenerateYamlDeserializersMojo extends GenerateYamlSupportMojo {
                 .filter(mi -> mi.parameters().size() == 1)
                 .filter(mi -> PRIMITIVE_CLASSES.contains(mi.parameters().get(0).name().toString()))
                 .filter(mi -> mi.returnType().kind() == Type.Kind.VOID)
+                .filter(mi -> acceptErrorHandlerBuilderMethod(info, mi))
                 .collect(Collectors.toList());
+
+            // error handler is special so we need to filter out specific methods which we should not include
+
 
             for (MethodInfo method : methods) {
                 if (generateSetValue(setProperty, method, properties)) {
@@ -545,6 +548,15 @@ public class GenerateYamlDeserializersMojo extends GenerateYamlSupportMojo {
             setProperty.addStatement("target.setDescription(val)");
             setProperty.addStatement("break");
             setProperty.endControlFlow();
+
+            properties.add(
+                yamlProperty(
+                        "id",
+                        "string"));
+            properties.add(
+                yamlProperty(
+                        "description",
+                        "string"));
         }
 
         if (implementType(info, OUTPUT_NODE_CLASS)) {
@@ -665,15 +677,6 @@ public class GenerateYamlDeserializersMojo extends GenerateYamlSupportMojo {
                 TypeSpecHolder.put(attributes, "node", value);
             });
 
-        //
-        // Workaround for:
-        //     https://issues.apache.org/jira/browse/CAMEL-16490
-        //
-        if (info.name().equals(TO_DYNAMIC_DEFINITION_CLASS)) {
-            yamlTypeAnnotation.addMember("nodes", "$S", "tod");
-            TypeSpecHolder.put(attributes, "node", "tod");
-        }
-
         properties.stream().sorted(Comparator.comparing(a -> a.members.get("name").toString())).forEach(spec -> {
             yamlTypeAnnotation.addMember("properties", "$L", spec);
         });
@@ -681,6 +684,17 @@ public class GenerateYamlDeserializersMojo extends GenerateYamlSupportMojo {
         builder.addAnnotation(yamlTypeAnnotation.build());
 
         return new TypeSpecHolder(builder.build(), attributes);
+    }
+
+    private boolean acceptErrorHandlerBuilderMethod(ClassInfo ci, MethodInfo mi) {
+        String name = mi.name();
+        if ("supportTransacted".equals(name)) {
+            return false;
+        } else if (name.toLowerCase(Locale.ROOT).contains("deadletter")) {
+            String cn = ci.simpleName();
+            return "DeadLetterChannelBuilder".equals(cn);
+        }
+        return true;
     }
 
     @SuppressWarnings("MethodLength")
@@ -1116,6 +1130,7 @@ public class GenerateYamlDeserializersMojo extends GenerateYamlSupportMojo {
                     cb.addStatement("String val = asText(node)");
                     cb.addStatement("target.$L(val)", method.name());
                     cb.addStatement("break");
+                    annotations.add(yamlProperty(name, "string"));
                     break;
                 case "java.lang.Class":
                     cb.addStatement("java.lang.Class<?> val = asClass(node)");
