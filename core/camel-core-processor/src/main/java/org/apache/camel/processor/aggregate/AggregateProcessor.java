@@ -16,10 +16,7 @@
  */
 package org.apache.camel.processor.aggregate;
 
-import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -76,8 +73,6 @@ import org.apache.camel.util.StopWatch;
 import org.apache.camel.util.TimeUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import fr.fdj.gac.aggregator.JdbcAggregationRepository;
 
 /**
  * An implementation of the <a href="http://camel.apache.org/aggregator2.html">Aggregator</a> pattern where a batch of
@@ -834,7 +829,7 @@ public class AggregateProcessor extends AsyncProcessorSupport
 
         // add this as in progress before we submit the task
         inProgressCompleteExchanges.add(exchange.getExchangeId());
-        if(recoveryInProgress.get()) {
+        if (recoveryInProgress.get()) {
             inProgressCompleteExchangesForRecoveryTask.add(exchange.getExchangeId());
         }
         // invoke the on completion callback
