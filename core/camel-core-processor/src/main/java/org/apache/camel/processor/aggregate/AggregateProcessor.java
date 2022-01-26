@@ -1370,8 +1370,8 @@ public class AggregateProcessor extends AsyncProcessorSupport
             recoveryInProgress.set(true);
             inProgressCompleteExchangesForRecoveryTask.clear();
             inProgressCompleteExchangesForRecoveryTask.addAll(inProgressCompleteExchanges);
-            Set<String> firstExchangeIds = recoverable.scan(camelContext);
-            for (String exchangeId : firstExchangeIds) {
+            final Set<String> exchangeIds = recoverable.scan(camelContext);
+            for (String exchangeId : exchangeIds) {
 
                 // we may shutdown while doing recovery
                 if (!isRunAllowed()) {
@@ -1455,6 +1455,7 @@ public class AggregateProcessor extends AsyncProcessorSupport
                 }
             }
             recoveryInProgress.set(false);
+            inProgressCompleteExchangesForRecoveryTask.clear();
             LOG.trace("Recover check complete");
         }
     }
