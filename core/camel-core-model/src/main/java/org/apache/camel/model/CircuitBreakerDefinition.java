@@ -39,13 +39,11 @@ import org.apache.camel.spi.annotations.DslProperty;
 public class CircuitBreakerDefinition extends OutputDefinition<CircuitBreakerDefinition> {
 
     @XmlElement
-    private HystrixConfigurationDefinition hystrixConfiguration;
-    @XmlElement
     private Resilience4jConfigurationDefinition resilience4jConfiguration;
     @XmlElement
     private FaultToleranceConfigurationDefinition faultToleranceConfiguration;
     @XmlAttribute
-    private String configurationRef;
+    private String configuration;
     @DslProperty
     @XmlTransient
     private OnFallbackDefinition onFallback;
@@ -115,19 +113,6 @@ public class CircuitBreakerDefinition extends OutputDefinition<CircuitBreakerDef
         }
     }
 
-    // Getter/Setter
-    // -------------------------------------------------------------------------
-
-    @Deprecated
-    public HystrixConfigurationDefinition getHystrixConfiguration() {
-        return hystrixConfiguration;
-    }
-
-    @Deprecated
-    public void setHystrixConfiguration(HystrixConfigurationDefinition hystrixConfiguration) {
-        this.hystrixConfiguration = hystrixConfiguration;
-    }
-
     public Resilience4jConfigurationCommon getResilience4jConfiguration() {
         return resilience4jConfiguration;
     }
@@ -144,16 +129,16 @@ public class CircuitBreakerDefinition extends OutputDefinition<CircuitBreakerDef
         this.faultToleranceConfiguration = faultToleranceConfiguration;
     }
 
-    public String getConfigurationRef() {
-        return configurationRef;
+    public String getConfiguration() {
+        return configuration;
     }
 
     /**
      * Refers to a circuit breaker configuration (such as hystrix, resillience4j, or microprofile-fault-tolerance) to
      * use for configuring the circuit breaker EIP.
      */
-    public void setConfigurationRef(String configurationRef) {
-        this.configurationRef = configurationRef;
+    public void setConfiguration(String configuration) {
+        this.configuration = configuration;
     }
 
     public OnFallbackDefinition getOnFallback() {
@@ -166,27 +151,6 @@ public class CircuitBreakerDefinition extends OutputDefinition<CircuitBreakerDef
 
     // Fluent API
     // -------------------------------------------------------------------------
-
-    /**
-     * Configures the circuit breaker to use Hystrix.
-     * <p/>
-     * Use <tt>end</tt> when configuration is complete, to return back to the Circuit Breaker EIP.
-     */
-    @Deprecated
-    public HystrixConfigurationDefinition hystrixConfiguration() {
-        hystrixConfiguration = hystrixConfiguration == null ? new HystrixConfigurationDefinition(this) : hystrixConfiguration;
-        return hystrixConfiguration;
-    }
-
-    /**
-     * Configures the circuit breaker to use Hystrix with the given configuration.
-     */
-    @Deprecated
-    public CircuitBreakerDefinition hystrixConfiguration(HystrixConfigurationDefinition configuration) {
-        hystrixConfiguration = configuration;
-        return this;
-    }
-
     /**
      * Configures the circuit breaker to use Resilience4j.
      * <p/>
@@ -229,7 +193,7 @@ public class CircuitBreakerDefinition extends OutputDefinition<CircuitBreakerDef
      * Refers to a configuration to use for configuring the circuit breaker.
      */
     public CircuitBreakerDefinition configuration(String ref) {
-        configurationRef = ref;
+        configuration = ref;
         return this;
     }
 

@@ -144,6 +144,8 @@ class RoutesTest extends YamlTestSupport {
         loadRoutes '''
                 - route:
                     id: demo-route
+                    stream-caching: true
+                    auto-startup: false
                     from:
                       uri: "direct:info"
                       steps:
@@ -154,6 +156,8 @@ class RoutesTest extends YamlTestSupport {
 
         with(context.routeDefinitions[0], RouteDefinition) {
             routeId == 'demo-route'
+            streamCache == 'true'
+            autoStartup == 'false'
             input.endpointUri == 'direct:info'
 
             with (outputs[0], LogDefinition) {
@@ -180,6 +184,33 @@ class RoutesTest extends YamlTestSupport {
             routeId == 'demo-route'
             description.text == 'something cool'
             input.endpointUri == 'direct:info'
+
+            with (outputs[0], LogDefinition) {
+                message == 'message'
+            }
+        }
+    }
+
+    def "load route description with precondition"() {
+        when:
+        loadRoutes '''
+                - route:
+                    id: demo-route
+                    description: something cool
+                    precondition: "{{?red}}"
+                    from:
+                      uri: "direct:info"
+                      steps:
+                        - log: "message"
+            '''
+        then:
+        context.routeDefinitions.size() == 1
+
+        with(context.routeDefinitions[0], RouteDefinition) {
+            routeId == 'demo-route'
+            description.text == 'something cool'
+            input.endpointUri == 'direct:info'
+            precondition == '{{?red}}'
 
             with (outputs[0], LogDefinition) {
                 message == 'message'

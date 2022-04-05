@@ -195,6 +195,13 @@ public class PrepareCamelMainMojo extends AbstractGeneratorMojo {
                     prefix = "camel.faulttolerance.";
                 } else if (file.getName().contains("Rest")) {
                     prefix = "camel.rest.";
+                } else if (file.getName().contains("AwsVault")) {
+                    prefix = "camel.vault.aws.";
+                } else if (file.getName().contains("GcpVault")) {
+                    prefix = "camel.vault.gcp.";
+                } else if (file.getName().contains("AzureVault")) {
+                    prefix = "camel.vault.azure.";
+                    // TODO: add more vault providers here
                 } else if (file.getName().contains("Health")) {
                     prefix = "camel.health.";
                 } else if (file.getName().contains("Lra")) {
@@ -225,6 +232,34 @@ public class PrepareCamelMainMojo extends AbstractGeneratorMojo {
         } catch (Exception e) {
             throw new MojoFailureException("Error parsing file " + restConfig + " due " + e.getMessage(), e);
         }
+        // include additional vault configuration from camel-api
+        // TODO: add more vault providers here
+        File awsVaultConfig = new File(camelApiDir, "src/main/java/org/apache/camel/vault/AwsVaultConfiguration.java");
+        try {
+            List<MainModel.MainOptionModel> model = parseConfigurationSource(awsVaultConfig);
+            model.forEach(m -> m.setName("camel.vault.aws." + m.getName()));
+            data.addAll(model);
+        } catch (Exception e) {
+            throw new MojoFailureException("Error parsing file " + awsVaultConfig + " due " + e.getMessage(), e);
+        }
+
+        File gcpVaultConfig = new File(camelApiDir, "src/main/java/org/apache/camel/vault/GcpVaultConfiguration.java");
+        try {
+            List<MainModel.MainOptionModel> model = parseConfigurationSource(gcpVaultConfig);
+            model.forEach(m -> m.setName("camel.vault.gcp." + m.getName()));
+            data.addAll(model);
+        } catch (Exception e) {
+            throw new MojoFailureException("Error parsing file " + gcpVaultConfig + " due " + e.getMessage(), e);
+        }
+
+        File azureVaultConfig = new File(camelApiDir, "src/main/java/org/apache/camel/vault/AzureVaultConfiguration.java");
+        try {
+            List<MainModel.MainOptionModel> model = parseConfigurationSource(azureVaultConfig);
+            model.forEach(m -> m.setName("camel.vault.azure." + m.getName()));
+            data.addAll(model);
+        } catch (Exception e) {
+            throw new MojoFailureException("Error parsing file " + azureVaultConfig + " due " + e.getMessage(), e);
+        }
 
         // lets sort so they are always ordered (but camel.main in top)
         data.sort((o1, o2) -> {
@@ -252,6 +287,19 @@ public class PrepareCamelMainMojo extends AbstractGeneratorMojo {
             model.getGroups().add(
                     new MainGroupModel(
                             "camel.rest", "Camel Rest-DSL configurations", "org.apache.camel.spi.RestConfiguration"));
+            model.getGroups().add(
+                    new MainGroupModel(
+                            "camel.vault.aws", "Camel AWS Vault configurations",
+                            "org.apache.camel.vault.AwsVaultConfiguration"));
+            model.getGroups().add(
+                    new MainGroupModel(
+                            "camel.vault.gcp", "Camel GCP Vault configurations",
+                            "org.apache.camel.vault.GcpVaultConfiguration"));
+            model.getGroups().add(
+                    new MainGroupModel(
+                            "camel.vault.azure", "Camel Azure Key Vault configurations",
+                            "org.apache.camel.vault.AzureVaultConfiguration"));
+            // TODO: add more vault providers here
             model.getGroups()
                     .add(new MainGroupModel(
                             "camel.faulttolerance", "Fault Tolerance EIP Circuit Breaker configurations",

@@ -25,7 +25,6 @@ import java.util.stream.Collectors;
 
 import org.apache.camel.component.kafka.KafkaConfiguration;
 import org.apache.camel.component.kafka.consumer.CommitManager;
-import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
@@ -38,24 +37,22 @@ public class PartitionAssignmentListener implements ConsumerRebalanceListener {
 
     private final String threadId;
     private final KafkaConfiguration configuration;
-    private final Consumer consumer;
     private final Map<String, Long> lastProcessedOffset;
     private final KafkaConsumerResumeStrategy resumeStrategy;
     private final CommitManager commitManager;
-    private Supplier<Boolean> stopStateSupplier;
+    private final Supplier<Boolean> stopStateSupplier;
 
     public PartitionAssignmentListener(String threadId, KafkaConfiguration configuration,
-                                       Consumer consumer, Map<String, Long> lastProcessedOffset,
-                                       Supplier<Boolean> stopStateSupplier, CommitManager commitManager) {
+                                       Map<String, Long> lastProcessedOffset,
+                                       Supplier<Boolean> stopStateSupplier, CommitManager commitManager,
+                                       KafkaConsumerResumeStrategy resumeStrategy) {
         this.threadId = threadId;
         this.configuration = configuration;
-        this.consumer = consumer;
         this.lastProcessedOffset = lastProcessedOffset;
         this.commitManager = commitManager;
         this.stopStateSupplier = stopStateSupplier;
+        this.resumeStrategy = resumeStrategy;
 
-        this.resumeStrategy = ResumeStrategyFactory.newResumeStrategy(configuration);
-        resumeStrategy.setConsumer(consumer);
     }
 
     @Override
@@ -74,7 +71,7 @@ public class PartitionAssignmentListener implements ConsumerRebalanceListener {
             }
             try {
                 // only commit offsets if the component has control
-                if (configuration.getAutoCommitEnable()) {
+                if (!configuration.getAutoCommitEnable() && offset != -1L) {
                     if (stopping) {
                         commitManager.commitOffsetOnStop(partition, offset);
                     } else {

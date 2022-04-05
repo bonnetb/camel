@@ -83,6 +83,10 @@ import org.apache.camel.support.SimpleUuidGenerator;
 import org.apache.camel.support.jsse.GlobalSSLContextParametersSupplier;
 import org.apache.camel.support.startup.LoggingStartupStepRecorder;
 import org.apache.camel.util.ObjectHelper;
+import org.apache.camel.vault.AwsVaultConfiguration;
+import org.apache.camel.vault.AzureVaultConfiguration;
+import org.apache.camel.vault.GcpVaultConfiguration;
+import org.apache.camel.vault.VaultConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -229,6 +233,7 @@ public final class DefaultConfigurationConfigurer {
         camelContext.setLoadTypeConverters(config.isLoadTypeConverters());
         camelContext.setLoadHealthChecks(config.isLoadHealthChecks());
         camelContext.setDevConsole(config.isDevConsoleEnabled());
+        camelContext.setModeline(config.isModeline());
         if (config.isRoutesReloadEnabled()) {
             RouteWatcherReloadStrategy reloader = new RouteWatcherReloadStrategy(
                     config.getRoutesReloadDirectory(), config.isRoutesReloadDirectoryRecursive());
@@ -537,6 +542,25 @@ public final class DefaultConfigurationConfigurer {
             for (DevConsole console : consoles) {
                 devConsoleRegistry.register(console);
             }
+        }
+        // vaults
+        // TODO: add more vault providers here
+        AwsVaultConfiguration aws = getSingleBeanOfType(registry, AwsVaultConfiguration.class);
+        if (aws != null) {
+            VaultConfiguration vault = camelContext.getVaultConfiguration();
+            vault.setAwsVaultConfiguration(aws);
+        }
+
+        GcpVaultConfiguration gcp = getSingleBeanOfType(registry, GcpVaultConfiguration.class);
+        if (gcp != null) {
+            VaultConfiguration vault = camelContext.getVaultConfiguration();
+            vault.setGcpVaultConfiguration(gcp);
+        }
+
+        AzureVaultConfiguration azure = getSingleBeanOfType(registry, AzureVaultConfiguration.class);
+        if (gcp != null) {
+            VaultConfiguration vault = camelContext.getVaultConfiguration();
+            vault.setAzureVaultConfiguration(azure);
         }
 
         // set the default thread pool profile if defined

@@ -59,9 +59,6 @@ public class RestConfiguration {
     private int port;
     private String contextPath;
     private String apiContextPath;
-    private String apiContextRouteId;
-    private String apiContextIdPattern;
-    private boolean apiContextListing;
     private boolean apiVendorExtension;
     private RestHostNameResolver hostNameResolver = RestHostNameResolver.allLocalIp;
     private RestBindingMode bindingMode = RestBindingMode.off;
@@ -274,55 +271,6 @@ public class RestConfiguration {
      */
     public void setApiContextPath(String contextPath) {
         this.apiContextPath = contextPath;
-    }
-
-    public String getApiContextRouteId() {
-        return apiContextRouteId;
-    }
-
-    /**
-     * Sets the route id to use for the route that services the REST API.
-     * <p/>
-     * The route will by default use an auto assigned route id.
-     *
-     * @param apiContextRouteId the route id
-     */
-    public void setApiContextRouteId(String apiContextRouteId) {
-        this.apiContextRouteId = apiContextRouteId;
-    }
-
-    @Deprecated
-    public String getApiContextIdPattern() {
-        return apiContextIdPattern;
-    }
-
-    /**
-     * Optional CamelContext id pattern to only allow Rest APIs from rest services within CamelContext's which name
-     * matches the pattern.
-     * <p/>
-     * The pattern <tt>#name#</tt> refers to the CamelContext name, to match on the current CamelContext only. For any
-     * other value, the pattern uses the rules from
-     * {@link org.apache.camel.support.EndpointHelper#matchPattern(String, String)}
-     *
-     * @param apiContextIdPattern the pattern
-     */
-    @Deprecated
-    public void setApiContextIdPattern(String apiContextIdPattern) {
-        this.apiContextIdPattern = apiContextIdPattern;
-    }
-
-    @Deprecated
-    public boolean isApiContextListing() {
-        return apiContextListing;
-    }
-
-    /**
-     * Sets whether listing of all available CamelContext's with REST services in the JVM is enabled. If enabled it
-     * allows to discover these contexts, if <tt>false</tt> then only the current CamelContext is in use.
-     */
-    @Deprecated
-    public void setApiContextListing(boolean apiContextListing) {
-        this.apiContextListing = apiContextListing;
     }
 
     public boolean isApiVendorExtension() {

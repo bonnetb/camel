@@ -18,6 +18,7 @@ package org.apache.camel.maven.packaging;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -140,7 +141,9 @@ public class PrepareExampleMojo extends AbstractMojo {
             if (updated) {
                 getLog().info("Updated readme.adoc file: " + file);
             } else if (exists) {
-                getLog().debug("No changes to readme.adoc file: " + file);
+                if (getLog().isDebugEnabled()) {
+                    getLog().debug("No changes to readme.adoc file: " + file);
+                }
             } else {
                 getLog().warn("No readme.adoc file: " + file);
             }
@@ -190,14 +193,12 @@ public class PrepareExampleMojo extends AbstractMojo {
     }
 
     private String templateExamples(List<ExampleModel> models, long deprecated) throws MojoExecutionException {
-        try {
-            String template = PackageHelper
-                    .loadText(UpdateReadmeMojo.class.getClassLoader().getResourceAsStream("readme-examples.mvel"));
+        try (InputStream templateStream = UpdateReadmeMojo.class.getClassLoader().getResourceAsStream("readme-examples.mvel")) {
+            String template = PackageHelper.loadText(templateStream);
             Map<String, Object> map = new HashMap<>();
             map.put("examples", models);
             map.put("numberOfDeprecated", deprecated);
-            String out = (String) TemplateRuntime.eval(template, map, Collections.singletonMap("util", MvelHelper.INSTANCE));
-            return out;
+            return (String) TemplateRuntime.eval(template, map, Collections.singletonMap("util", MvelHelper.INSTANCE));
         } catch (Exception e) {
             throw new MojoExecutionException("Error processing mvel template. Reason: " + e, e);
         }

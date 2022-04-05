@@ -40,6 +40,9 @@ public class JsonDataFormat extends DataFormatDefinition implements ContentTypeH
     @Metadata(javaType = "java.lang.Boolean", defaultValue = "true")
     private String useDefaultObjectMapper;
     @XmlAttribute
+    @Metadata(javaType = "java.lang.Boolean", defaultValue = "false")
+    private String autoDiscoverObjectMapper;
+    @XmlAttribute
     @Metadata(javaType = "java.lang.Boolean")
     private String prettyPrint;
     @XmlAttribute
@@ -50,15 +53,18 @@ public class JsonDataFormat extends DataFormatDefinition implements ContentTypeH
     @XmlTransient
     private Class<?> unmarshalType;
     @XmlAttribute(name = "jsonView")
+    @Metadata(label = "advanced")
     private String jsonViewTypeName;
     @XmlTransient
     private Class<?> jsonView;
     @XmlAttribute
+    @Metadata(label = "advanced")
     private String include;
     @XmlAttribute
-    @Metadata(javaType = "java.lang.Boolean")
+    @Metadata(label = "advanced", javaType = "java.lang.Boolean")
     private String allowJmsType;
     @XmlAttribute(name = "collectionType")
+    @Metadata(label = "advanced")
     private String collectionTypeName;
     @XmlTransient
     private Class<?> collectionType;
@@ -66,40 +72,44 @@ public class JsonDataFormat extends DataFormatDefinition implements ContentTypeH
     @Metadata(javaType = "java.lang.Boolean")
     private String useList;
     @XmlAttribute
+    @Metadata(label = "advanced")
     private String moduleClassNames;
     @XmlAttribute
+    @Metadata(label = "advanced")
     private String moduleRefs;
     @XmlAttribute
+    @Metadata(label = "advanced")
     private String enableFeatures;
     @XmlAttribute
+    @Metadata(label = "advanced")
     private String disableFeatures;
     @XmlAttribute
+    @Metadata(label = "advanced")
     private String permissions;
     @XmlAttribute
     @Metadata(javaType = "java.lang.Boolean")
     private String allowUnmarshallType;
     @XmlAttribute
+    @Metadata(label = "advanced")
     private String timezone;
     @XmlAttribute
-    @Metadata(javaType = "java.lang.Boolean", defaultValue = "false")
-    private String autoDiscoverObjectMapper;
-    @XmlAttribute
-    @Metadata(javaType = "java.lang.Boolean", defaultValue = "false")
+    @Metadata(label = "advanced", javaType = "java.lang.Boolean", defaultValue = "false")
     private String dropRootNode;
     @XmlAttribute
-    @Metadata(javaType = "java.lang.Boolean", defaultValue = "true",
-              description = "Whether the data format should set the Content-Type header with the type from the data format."
-                            + " For example application/xml for data formats marshalling to XML, or application/json for data formats marshalling to JSON")
-    private String contentTypeHeader;
-    @XmlAttribute
+    @Metadata(label = "advanced")
     private String schemaResolver;
     @XmlAttribute
-    @Metadata(javaType = "java.lang.Boolean", defaultValue = "true")
+    @Metadata(label = "advanced", javaType = "java.lang.Boolean", defaultValue = "true")
     private String autoDiscoverSchemaResolver;
     @XmlAttribute
     @Metadata(description = "If set then Jackson will use the the defined Property Naming Strategy."
                             + "Possible values are: LOWER_CAMEL_CASE, LOWER_DOT_CASE, LOWER_CASE, KEBAB_CASE, SNAKE_CASE and UPPER_CAMEL_CASE")
     private String namingStrategy;
+    @XmlAttribute
+    @Metadata(javaType = "java.lang.Boolean", defaultValue = "true",
+              description = "Whether the data format should set the Content-Type header with the type from the data format."
+                            + " For example application/xml for data formats marshalling to XML, or application/json for data formats marshalling to JSON")
+    private String contentTypeHeader;
 
     public JsonDataFormat() {
         super("json");
@@ -245,7 +255,7 @@ public class JsonDataFormat extends DataFormatDefinition implements ContentTypeH
 
     /**
      * Refers to a custom collection type to lookup in the registry to use. This option should rarely be used, but
-     * allows to use different collection types than java.util.Collection based as default.
+     * allows using different collection types than java.util.Collection based as default.
      */
     public void setCollectionTypeName(String collectionTypeName) {
         this.collectionTypeName = collectionTypeName;
@@ -395,7 +405,7 @@ public class JsonDataFormat extends DataFormatDefinition implements ContentTypeH
     }
 
     /**
-     * If set to true then Jackson will lookup for an objectMapper into the registry
+     * If set to true then Jackson will look for an objectMapper to use from the registry
      */
     public void setAutoDiscoverObjectMapper(String autoDiscoverObjectMapper) {
         this.autoDiscoverObjectMapper = autoDiscoverObjectMapper;

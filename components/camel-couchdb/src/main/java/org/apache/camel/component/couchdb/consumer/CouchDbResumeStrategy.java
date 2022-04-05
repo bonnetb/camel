@@ -22,6 +22,16 @@ import org.apache.camel.ResumeStrategy;
 /**
  * Defines a resumable strategy usable by the CouchDB component
  */
-public interface CouchDbResumeStrategy extends ResumeStrategy<CouchDbResumable> {
+public interface CouchDbResumeStrategy extends ResumeStrategy {
     void setResumable(CouchDbResumable resumable);
+
+    @Override
+    default void start() {
+
+    }
+
+    @Override
+    default void stop() {
+
+    }
 }

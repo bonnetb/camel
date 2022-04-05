@@ -44,6 +44,7 @@ import org.apache.camel.Expression;
 import org.apache.camel.LoggingLevel;
 import org.apache.camel.Predicate;
 import org.apache.camel.Processor;
+import org.apache.camel.ResumeStrategy;
 import org.apache.camel.builder.DataFormatClause;
 import org.apache.camel.builder.EndpointConsumerBuilder;
 import org.apache.camel.builder.EndpointProducerBuilder;
@@ -57,7 +58,6 @@ import org.apache.camel.model.language.ConstantExpression;
 import org.apache.camel.model.language.ExpressionDefinition;
 import org.apache.camel.model.language.LanguageExpression;
 import org.apache.camel.model.language.SimpleExpression;
-import org.apache.camel.model.rest.RestDefinition;
 import org.apache.camel.processor.loadbalancer.LoadBalancer;
 import org.apache.camel.spi.AsEndpointUri;
 import org.apache.camel.spi.AsPredicate;
@@ -67,7 +67,6 @@ import org.apache.camel.spi.InterceptStrategy;
 import org.apache.camel.spi.Policy;
 import org.apache.camel.support.ExpressionAdapter;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Base class for processor types that most XML types extend.
@@ -78,8 +77,6 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
         implements Block {
     @XmlTransient
     private static final AtomicInteger COUNTER = new AtomicInteger();
-    @XmlTransient
-    protected final Logger log = LoggerFactory.getLogger(getClass());
     @XmlAttribute
     protected Boolean inheritErrorHandler;
     @XmlTransient
@@ -180,10 +177,6 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
         if (context != null && (context.isSourceLocationEnabled() || context.isDebugging() || context.isTracing())) {
             // we want to capture source location:line for every output
             ProcessorDefinitionHelper.prepareSourceLocation(output);
-            if (log.isDebugEnabled()) {
-                log.debug("{} located in {}:{}", output.getShortName(), output.getLocation(),
-                        output.getLineNumber());
-            }
         }
 
         // inject context
@@ -1116,22 +1109,6 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
     }
 
     /**
-     * Ends the current block and returns back to the {@link org.apache.camel.model.rest.RestDefinition rest()} DSL.
-     *
-     * @return the builder
-     */
-    public RestDefinition endRest() {
-        ProcessorDefinition<?> def = this;
-
-        RouteDefinition route = ProcessorDefinitionHelper.getRoute(def);
-        if (route != null) {
-            return route.getRestDefinition();
-        }
-
-        throw new IllegalArgumentException("Cannot find RouteDefinition to allow endRest");
-    }
-
-    /**
      * Ends the current block and returns back to the {@link TryDefinition doTry()} DSL.
      *
      * @return the builder
@@ -1474,18 +1451,6 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
     }
 
     /**
-     * An optimized <a href="http://camel.apache.org/content-based-router.html">Content Based Router EIP:</a> Optimized
-     * during startup to select one predicate that will always be used.
-     *
-     * @return the builder for a switch expression
-     */
-    public SwitchDefinition doSwitch() {
-        SwitchDefinition answer = new SwitchDefinition();
-        addOutput(answer);
-        return answer;
-    }
-
-    /**
      * Creates a try/catch block
      *
      * @return the builder for a tryBlock expression
@@ -1677,9 +1642,24 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
      * which only a single exchange is allowed to pass through. All other exchanges will be stopped.
      *
      * @param  samplePeriod this is the sample interval, only one exchange is allowed through in this interval
+     * @return              the builder
+     */
+    public SamplingDefinition sample(String samplePeriod) {
+        SamplingDefinition answer = new SamplingDefinition(samplePeriod);
+        addOutput(answer);
+        return answer;
+    }
+
+    /**
+     * <a href="http://camel.apache.org/sampling.html">Sampling Throttler</a> Creates a sampling throttler allowing you
+     * to extract a sample of exchanges from the traffic through a route. It is configured with a sampling period during
+     * which only a single exchange is allowed to pass through. All other exchanges will be stopped.
+     *
+     * @param  samplePeriod this is the sample interval, only one exchange is allowed through in this interval
      * @param  unit         this is the units for the samplePeriod e.g. Seconds
      * @return              the builder
      */
+    @Deprecated
     public SamplingDefinition sample(long samplePeriod, TimeUnit unit) {
         SamplingDefinition answer = new SamplingDefinition(samplePeriod, unit);
         addOutput(answer);
@@ -3568,7 +3548,7 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
         PollEnrichDefinition pollEnrich = new PollEnrichDefinition();
         pollEnrich.setExpression(expression);
         pollEnrich.setTimeout(Long.toString(timeout));
-        pollEnrich.setAggregationStrategyRef(aggregationStrategyRef);
+        pollEnrich.setAggregationStrategy(aggregationStrategyRef);
         pollEnrich.setAggregateOnException(Boolean.toString(aggregateOnException));
         addOutput(pollEnrich);
         return asType();
@@ -3679,7 +3659,20 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
      * @return                the builder
      */
     public Type unmarshal(DataFormatDefinition dataFormatType) {
-        addOutput(new UnmarshalDefinition(dataFormatType));
+        return unmarshal(dataFormatType, false);
+    }
+
+    /**
+     * <a href="http://camel.apache.org/data-format.html">DataFormat:</a> Unmarshals the in body using the specified
+     * {@link DataFormat} and sets the output on the out message body.
+     *
+     * @param  dataFormatType the dataformat
+     * @param  allowNullBody  {@code true} if {@code null} is allowed as value of a body to unmarshall, {@code false}
+     *                        otherwise
+     * @return                the builder
+     */
+    public Type unmarshal(DataFormatDefinition dataFormatType, boolean allowNullBody) {
+        addOutput(new UnmarshalDefinition(dataFormatType).allowNullBody(allowNullBody));
         return asType();
     }
 
@@ -3691,7 +3684,20 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
      * @return            the builder
      */
     public Type unmarshal(DataFormat dataFormat) {
-        return unmarshal(new DataFormatDefinition(dataFormat));
+        return unmarshal(dataFormat, false);
+    }
+
+    /**
+     * <a href="http://camel.apache.org/data-format.html">DataFormat:</a> Unmarshals the in body using the specified
+     * {@link DataFormat} and sets the output on the out message body.
+     *
+     * @param  dataFormat    the dataformat
+     * @param  allowNullBody {@code true} if {@code null} is allowed as value of a body to unmarshall, {@code false}
+     *                       otherwise
+     * @return               the builder
+     */
+    public Type unmarshal(DataFormat dataFormat, boolean allowNullBody) {
+        return unmarshal(new DataFormatDefinition(dataFormat), allowNullBody);
     }
 
     /**
@@ -3703,7 +3709,19 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
      * @return             the builder
      */
     public Type unmarshal(String dataTypeRef) {
-        return unmarshal(new CustomDataFormat(dataTypeRef));
+        return unmarshal(dataTypeRef, false);
+    }
+
+    /**
+     * <a href="http://camel.apache.org/data-format.html">DataFormat:</a> Unmarshals the in body using the specified
+     * {@link DataFormat} reference in the {@link org.apache.camel.spi.Registry} and sets the output on the out message
+     * body.
+     *
+     * @param  dataTypeRef reference to a {@link DataFormat} to lookup in the registry
+     * @return             the builder
+     */
+    public Type unmarshal(String dataTypeRef, boolean allowNullBody) {
+        return unmarshal(new CustomDataFormat(dataTypeRef), allowNullBody);
     }
 
     /**
@@ -3781,6 +3799,46 @@ public abstract class ProcessorDefinition<Type extends ProcessorDefinition<Type>
     @SuppressWarnings("unchecked")
     Type asType() {
         return (Type) this;
+    }
+
+    /**
+     * This defines the route as resumable, which allows the route to work with the endpoints and components to manage
+     * the state of consumers and resume upon restart.
+     *
+     * @return the builder
+     */
+    public ResumableDefinition resumable() {
+        ResumableDefinition answer = new ResumableDefinition();
+        addOutput(answer);
+        return answer;
+    }
+
+    /**
+     * This defines the route as resumable, which allows the route to work with the endpoints and components to manage
+     * the state of consumers and resume upon restart.
+     *
+     * @param  resumeStrategy the resume strategy
+     * @return                the builder
+     */
+    public Type resumable(ResumeStrategy resumeStrategy) {
+        ResumableDefinition answer = new ResumableDefinition();
+        answer.setResumeStrategy(resumeStrategy);
+        addOutput(answer);
+        return asType();
+    }
+
+    /**
+     * This defines the route as resumable, which allows the route to work with the endpoints and components to manage
+     * the state of consumers and resume upon restart.
+     *
+     * @param  resumeStrategy the resume strategy
+     * @return                the builder
+     */
+    public Type resumable(String resumeStrategy) {
+        ResumableDefinition answer = new ResumableDefinition();
+        answer.setResumeStrategy(resumeStrategy);
+        addOutput(answer);
+        return asType();
     }
 
     // Properties

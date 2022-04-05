@@ -53,6 +53,7 @@ import org.apache.camel.spi.UuidGenerator;
 import org.apache.camel.spi.Validator;
 import org.apache.camel.spi.ValidatorRegistry;
 import org.apache.camel.support.jsse.SSLContextParameters;
+import org.apache.camel.vault.VaultConfiguration;
 
 /**
  * Interface used to represent the CamelContext used to configure routes and the policies to use during message
@@ -673,6 +674,20 @@ public interface CamelContext extends CamelContextLifecycle, RuntimeConfiguratio
     RestConfiguration getRestConfiguration();
 
     /**
+     * Sets a custom {@link VaultConfiguration}
+     *
+     * @param vaultConfiguration the vault configuration
+     */
+    void setVaultConfiguration(VaultConfiguration vaultConfiguration);
+
+    /**
+     * Gets the vault configuration
+     *
+     * @return the configuration, or <tt>null</tt> if none has been configured.
+     */
+    VaultConfiguration getVaultConfiguration();
+
+    /**
      * Gets the {@link org.apache.camel.spi.RestRegistry} to use
      */
     RestRegistry getRestRegistry();
@@ -1202,6 +1217,18 @@ public interface CamelContext extends CamelContextLifecycle, RuntimeConfiguratio
      * This only impact startup, not the performance of the routes at runtime.
      */
     void setSourceLocationEnabled(Boolean sourceLocationEnabled);
+
+    /**
+     * Whether camel-k style modeline is also enabled when not using camel-k. Enabling this allows to use a camel-k like
+     * experience by being able to configure various settings using modeline directly in your route source code.
+     */
+    Boolean isModeline();
+
+    /**
+     * Whether camel-k style modeline is also enabled when not using camel-k. Enabling this allows to use a camel-k like
+     * experience by being able to configure various settings using modeline directly in your route source code.
+     */
+    void setModeline(Boolean modeline);
 
     /**
      * Whether to enable developer console (requires camel-console on classpath).

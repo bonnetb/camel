@@ -162,7 +162,7 @@ public abstract class RedeliveryErrorHandler extends ErrorHandlerSupport
         }
 
         ExceptionPolicyStrategy customExceptionPolicy
-                = CamelContextHelper.findByType(camelContext, ExceptionPolicyStrategy.class);
+                = CamelContextHelper.findSingleByType(camelContext, ExceptionPolicyStrategy.class);
         if (customExceptionPolicy != null) {
             exceptionPolicy = customExceptionPolicy;
         }
@@ -863,6 +863,15 @@ public abstract class RedeliveryErrorHandler extends ErrorHandlerSupport
 
             // letting onRedeliver be executed at first
             deliverToOnRedeliveryProcessor();
+
+            if (exchange.isRouteStop()) {
+                // the on redelivery can mark that the exchange should stop and therefore not perform a redelivery
+                // and if so then we are done so continue callback
+                AsyncCallback cb = callback;
+                taskFactory.release(this);
+                reactiveExecutor.schedule(cb);
+                return;
+            }
 
             if (LOG.isTraceEnabled()) {
                 LOG.trace("Redelivering exchangeId: {} -> {} for Exchange: {}", exchange.getExchangeId(), outputAsync,

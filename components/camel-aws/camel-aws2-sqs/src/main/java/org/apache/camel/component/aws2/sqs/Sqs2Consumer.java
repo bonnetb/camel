@@ -312,26 +312,15 @@ public class Sqs2Consumer extends ScheduledBatchPollingConsumer {
         // Need to apply the SqsHeaderFilterStrategy this time
         HeaderFilterStrategy headerFilterStrategy = getEndpoint().getHeaderFilterStrategy();
         // add all sqs message attributes as camel message headers so that
-        // knowledge of
-        // the Sqs class MessageAttributeValue will not leak to the client
+        // knowledge of the Sqs class MessageAttributeValue will not leak to the client
         for (Map.Entry<String, MessageAttributeValue> entry : msg.messageAttributes().entrySet()) {
             String header = entry.getKey();
-            Object value = translateValue(entry.getValue());
+            Object value = Sqs2MessageHelper.fromMessageAttributeValue(entry.getValue());
             if (!headerFilterStrategy.applyFilterToExternalHeaders(header, value, exchange)) {
                 message.setHeader(header, value);
             }
         }
         return exchange;
-    }
-
-    private static Object translateValue(MessageAttributeValue mav) {
-        Object result = null;
-        if (mav.stringValue() != null) {
-            result = mav.stringValue();
-        } else if (mav.binaryValue() != null) {
-            result = mav.binaryValue();
-        }
-        return result;
     }
 
     @Override
@@ -410,8 +399,9 @@ public class Sqs2Consumer extends ScheduledBatchPollingConsumer {
         }
 
         private void logException(Exception e) {
-            LOG.warn("Extending visibility window failed for exchange " + exchange
+            LOG.warn("Extending visibility window failed for exchange {}"
                      + ". Will not attempt to extend visibility further. This exception will be ignored.",
+                    exchange,
                     e);
         }
     }

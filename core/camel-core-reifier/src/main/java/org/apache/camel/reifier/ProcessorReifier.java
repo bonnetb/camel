@@ -25,7 +25,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.BiFunction;
 
+import org.apache.camel.AggregationStrategy;
 import org.apache.camel.CamelContext;
+import org.apache.camel.CamelContextAware;
 import org.apache.camel.Channel;
 import org.apache.camel.ErrorHandlerFactory;
 import org.apache.camel.ExtendedCamelContext;
@@ -33,6 +35,7 @@ import org.apache.camel.Processor;
 import org.apache.camel.Route;
 import org.apache.camel.StartupStep;
 import org.apache.camel.model.AggregateDefinition;
+import org.apache.camel.model.AggregationStrategyAwareDefinition;
 import org.apache.camel.model.BeanDefinition;
 import org.apache.camel.model.CatchDefinition;
 import org.apache.camel.model.ChoiceDefinition;
@@ -75,6 +78,7 @@ import org.apache.camel.model.RemoveHeadersDefinition;
 import org.apache.camel.model.RemovePropertiesDefinition;
 import org.apache.camel.model.RemovePropertyDefinition;
 import org.apache.camel.model.ResequenceDefinition;
+import org.apache.camel.model.ResumableDefinition;
 import org.apache.camel.model.RollbackDefinition;
 import org.apache.camel.model.RouteDefinition;
 import org.apache.camel.model.RouteDefinitionHelper;
@@ -90,7 +94,6 @@ import org.apache.camel.model.SortDefinition;
 import org.apache.camel.model.SplitDefinition;
 import org.apache.camel.model.StepDefinition;
 import org.apache.camel.model.StopDefinition;
-import org.apache.camel.model.SwitchDefinition;
 import org.apache.camel.model.ThreadsDefinition;
 import org.apache.camel.model.ThrottleDefinition;
 import org.apache.camel.model.ThrowExceptionDefinition;
@@ -107,6 +110,8 @@ import org.apache.camel.model.WireTapDefinition;
 import org.apache.camel.model.cloud.ServiceCallDefinition;
 import org.apache.camel.processor.InterceptEndpointProcessor;
 import org.apache.camel.processor.Pipeline;
+import org.apache.camel.processor.aggregate.AggregationStrategyBeanAdapter;
+import org.apache.camel.processor.aggregate.AggregationStrategyBiFunctionAdapter;
 import org.apache.camel.spi.ErrorHandlerAware;
 import org.apache.camel.spi.ExecutorServiceManager;
 import org.apache.camel.spi.IdAware;
@@ -180,12 +185,7 @@ public abstract class ProcessorReifier<T extends ProcessorDefinition<?>> extends
         } else if (definition instanceof CatchDefinition) {
             return new CatchReifier(route, definition);
         } else if (definition instanceof ChoiceDefinition) {
-            if (definition instanceof SwitchDefinition) {
-                // switch is an optimized choice
-                return new SwitchReifier(route, definition);
-            } else {
-                return new ChoiceReifier(route, definition);
-            }
+            return new ChoiceReifier(route, definition);
         } else if (definition instanceof CircuitBreakerDefinition) {
             return new CircuitBreakerReifier(route, definition);
         } else if (definition instanceof ClaimCheckDefinition) {
@@ -308,6 +308,8 @@ public abstract class ProcessorReifier<T extends ProcessorDefinition<?>> extends
             return new WhenSkipSendToEndpointReifier(route, definition);
         } else if (definition instanceof WhenDefinition) {
             return new WhenReifier(route, definition);
+        } else if (definition instanceof ResumableDefinition) {
+            return new ResumableReifier(route, definition);
         }
         return null;
     }
@@ -328,11 +330,11 @@ public abstract class ProcessorReifier<T extends ProcessorDefinition<?>> extends
         ExecutorServiceManager manager = camelContext.getExecutorServiceManager();
         ObjectHelper.notNull(manager, "ExecutorServiceManager", camelContext);
 
-        if (definition.getExecutorService() != null) {
+        if (definition.getExecutorServiceBean() != null) {
             // no there is a custom thread pool configured
             return false;
         } else if (definition.getExecutorServiceRef() != null) {
-            ExecutorService answer = lookup(definition.getExecutorServiceRef(), ExecutorService.class);
+            ExecutorService answer = lookupByNameAndType(definition.getExecutorServiceRef(), ExecutorService.class);
             // if no existing thread pool, then we will have to create a new
             // thread pool
             return answer == null;
@@ -372,8 +374,8 @@ public abstract class ProcessorReifier<T extends ProcessorDefinition<?>> extends
 
         // prefer to use explicit configured executor on the definition
         String ref = parseString(definition.getExecutorServiceRef());
-        if (definition.getExecutorService() != null) {
-            return definition.getExecutorService();
+        if (definition.getExecutorServiceBean() != null) {
+            return definition.getExecutorServiceBean();
         } else if (ref != null) {
             // lookup in registry first and use existing thread pool if exists
             ExecutorService answer = lookupExecutorServiceRef(name, definition, ref);
@@ -421,8 +423,8 @@ public abstract class ProcessorReifier<T extends ProcessorDefinition<?>> extends
         ObjectHelper.notNull(manager, "ExecutorServiceManager", camelContext);
 
         // prefer to use explicit configured executor on the definition
-        if (definition.getExecutorService() != null) {
-            ExecutorService executorService = definition.getExecutorService();
+        if (definition.getExecutorServiceBean() != null) {
+            ExecutorService executorService = definition.getExecutorServiceBean();
             if (executorService instanceof ScheduledExecutorService) {
                 return (ScheduledExecutorService) executorService;
             }
@@ -463,13 +465,12 @@ public abstract class ProcessorReifier<T extends ProcessorDefinition<?>> extends
      * @return                    the executor service, or <tt>null</tt> if none was found.
      */
     public ScheduledExecutorService lookupScheduledExecutorServiceRef(String name, Object source, String executorServiceRef) {
-
         ExecutorServiceManager manager = camelContext.getExecutorServiceManager();
         ObjectHelper.notNull(manager, "ExecutorServiceManager", camelContext);
         ObjectHelper.notNull(executorServiceRef, "executorServiceRef");
 
         // lookup in registry first and use existing thread pool if exists
-        ScheduledExecutorService answer = lookup(executorServiceRef, ScheduledExecutorService.class);
+        ScheduledExecutorService answer = lookupByNameAndType(executorServiceRef, ScheduledExecutorService.class);
         if (answer == null) {
             // then create a thread pool assuming the ref is a thread pool
             // profile id
@@ -496,13 +497,12 @@ public abstract class ProcessorReifier<T extends ProcessorDefinition<?>> extends
      * @return                    the executor service, or <tt>null</tt> if none was found.
      */
     public ExecutorService lookupExecutorServiceRef(String name, Object source, String executorServiceRef) {
-
         ExecutorServiceManager manager = camelContext.getExecutorServiceManager();
         ObjectHelper.notNull(manager, "ExecutorServiceManager", camelContext);
         ObjectHelper.notNull(executorServiceRef, "executorServiceRef");
 
         // lookup in registry first and use existing thread pool if exists
-        ExecutorService answer = lookup(executorServiceRef, ExecutorService.class);
+        ExecutorService answer = lookupByNameAndType(executorServiceRef, ExecutorService.class);
         if (answer == null) {
             // then create a thread pool assuming the ref is a thread pool
             // profile id
@@ -878,6 +878,54 @@ public abstract class ProcessorReifier<T extends ProcessorDefinition<?>> extends
 
     protected String getId(OptionalIdentifiedDefinition<?> def) {
         return def.idOrCreate(camelContext.adapt(ExtendedCamelContext.class).getNodeIdFactory());
+    }
+
+    /**
+     * Will lookup and get the configured {@link AggregationStrategy} from the given definition.
+     * <p/>
+     * This method will lookup for configured aggregation strategy in the following order
+     * <ul>
+     * <li>from the definition if any explicit configured aggregation strategy.</li>
+     * <li>from the {@link org.apache.camel.spi.Registry} if found</li>
+     * <li>if none found, then <tt>null</tt> is returned.</li>
+     * </ul>
+     * The various {@link AggregationStrategyAwareDefinition} should use this helper method to ensure they support
+     * configured executor services in the same coherent way.
+     *
+     * @param  definition               the node definition which may leverage aggregation strategy
+     * @throws IllegalArgumentException is thrown if lookup of aggregation strategy in {@link org.apache.camel.spi.Registry}
+     *                                  was not found
+     */
+    public AggregationStrategy getConfiguredAggregationStrategy(AggregationStrategyAwareDefinition definition) {
+        AggregationStrategy strategy = definition.getAggregationStrategyBean();
+        if (strategy == null && definition.getAggregationStrategyRef() != null) {
+            Object aggStrategy = lookupByName(definition.getAggregationStrategyRef());
+            if (aggStrategy instanceof AggregationStrategy) {
+                strategy = (AggregationStrategy) aggStrategy;
+            } else if (aggStrategy instanceof BiFunction) {
+                AggregationStrategyBiFunctionAdapter adapter
+                        = new AggregationStrategyBiFunctionAdapter((BiFunction) aggStrategy);
+                if (definition.getAggregationStrategyMethodAllowNull() != null) {
+                    adapter.setAllowNullNewExchange(parseBoolean(definition.getAggregationStrategyMethodAllowNull(), false));
+                    adapter.setAllowNullOldExchange(parseBoolean(definition.getAggregationStrategyMethodAllowNull(), false));
+                }
+                strategy = adapter;
+            } else if (aggStrategy != null) {
+                AggregationStrategyBeanAdapter adapter
+                        = new AggregationStrategyBeanAdapter(aggStrategy, definition.getAggregationStrategyMethodName());
+                if (definition.getAggregationStrategyMethodAllowNull() != null) {
+                    adapter.setAllowNullNewExchange(parseBoolean(definition.getAggregationStrategyMethodAllowNull(), false));
+                    adapter.setAllowNullOldExchange(parseBoolean(definition.getAggregationStrategyMethodAllowNull(), false));
+                }
+                strategy = adapter;
+            } else {
+                throw new IllegalArgumentException(
+                        "Cannot find AggregationStrategy in Registry with name: " + definition.getAggregationStrategyRef());
+            }
+        }
+
+        CamelContextAware.trySetCamelContext(strategy, camelContext);
+        return strategy;
     }
 
 }

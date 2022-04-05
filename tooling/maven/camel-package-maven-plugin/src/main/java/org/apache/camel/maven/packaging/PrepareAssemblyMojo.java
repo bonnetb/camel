@@ -84,7 +84,7 @@ public class PrepareAssemblyMojo extends AbstractMojo {
     }
 
     protected void updatePomAndCommonBin(File allComponentsPom, String groupId, String token)
-            throws MojoExecutionException, MojoFailureException {
+            throws MojoExecutionException {
         SortedSet<String> artifactIds = new TreeSet<>();
 
         final String pomText;
@@ -106,14 +106,16 @@ public class PrepareAssemblyMojo extends AbstractMojo {
             artifactIds.add(matcher.group(2));
         }
 
-        getLog().debug("ArtifactIds: " + artifactIds);
+        if (getLog().isDebugEnabled()) {
+            getLog().debug("ArtifactIds: " + artifactIds);
+        }
 
         // update pom.xml
         StringBuilder sb = new StringBuilder();
         for (String aid : artifactIds) {
             sb.append("    <dependency>\n");
-            sb.append("      <groupId>" + groupId + "</groupId>\n");
-            sb.append("      <artifactId>" + aid + "</artifactId>\n");
+            sb.append("      <groupId>").append(groupId).append("</groupId>\n");
+            sb.append("      <artifactId>").append(aid).append("</artifactId>\n");
             sb.append("      <version>${project.version}</version>\n");
             sb.append("    </dependency>\n");
         }
@@ -130,7 +132,7 @@ public class PrepareAssemblyMojo extends AbstractMojo {
         // update common-bin.xml
         sb = new StringBuilder();
         for (String aid : artifactIds) {
-            sb.append("        <include>" + groupId + ":" + aid + "</include>\n");
+            sb.append("        <include>").append(groupId).append(":").append(aid).append("</include>\n");
         }
         changed = sb.toString();
         updated = updateXmlFile(commonBinXml, token, changed, "        ");

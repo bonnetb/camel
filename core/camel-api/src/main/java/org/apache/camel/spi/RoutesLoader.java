@@ -18,7 +18,6 @@ package org.apache.camel.spi;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.LinkedHashSet;
 import java.util.Set;
 
 import org.apache.camel.CamelContextAware;
@@ -97,17 +96,7 @@ public interface RoutesLoader extends CamelContextAware {
      * @param  resources the resources to be loaded or updated.
      * @return           route ids for the routes that was loaded or updated.
      */
-    default Set<String> updateRoutes(Collection<Resource> resources) throws Exception {
-        Set<String> answer = new LinkedHashSet<>();
-        Collection<RoutesBuilder> builders = findRoutesBuilders(resources);
-        for (RoutesBuilder builder : builders) {
-            // update any existing routes
-            Set<String> ids = builder.updateRoutesToCamelContext(getCamelContext());
-            answer.addAll(ids);
-        }
-
-        return answer;
-    }
+    Set<String> updateRoutes(Collection<Resource> resources) throws Exception;
 
     /**
      * Find {@link RoutesBuilder} from the give list of {@link Resource}.
@@ -126,4 +115,16 @@ public interface RoutesLoader extends CamelContextAware {
      * @return           a collection {@link RoutesBuilder}
      */
     Collection<RoutesBuilder> findRoutesBuilders(Collection<Resource> resources) throws Exception;
+
+    /**
+     * Pre-parses the {@link RoutesBuilder} from {@link Resource}.
+     *
+     * This is used during bootstrap, to eager detect configurations from route DSL resources which makes it possible to
+     * specify configurations that affect the bootstrap, such as by camel-jbang and camel-yaml-dsl.
+     *
+     * @param resource the resource to be pre parsed.
+     */
+    default void preParseRoute(Resource resource) throws Exception {
+        // noop
+    }
 }

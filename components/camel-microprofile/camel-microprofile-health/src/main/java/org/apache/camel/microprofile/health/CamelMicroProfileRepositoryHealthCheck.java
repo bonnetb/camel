@@ -17,10 +17,13 @@
 package org.apache.camel.microprofile.health;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
+import org.apache.camel.CamelContext;
 import org.apache.camel.health.HealthCheck.Result;
 import org.apache.camel.health.HealthCheck.State;
+import org.apache.camel.health.HealthCheckRegistry;
 import org.apache.camel.health.HealthCheckRepository;
 import org.apache.camel.impl.health.AbstractHealthCheck;
 import org.eclipse.microprofile.health.HealthCheck;
@@ -33,10 +36,12 @@ import org.eclipse.microprofile.health.HealthCheckResponseBuilder;
  */
 final class CamelMicroProfileRepositoryHealthCheck implements HealthCheck {
 
+    private final CamelContext camelContext;
     private final HealthCheckRepository repository;
     private final String name;
 
-    CamelMicroProfileRepositoryHealthCheck(HealthCheckRepository repository, String name) {
+    CamelMicroProfileRepositoryHealthCheck(CamelContext camelContext, HealthCheckRepository repository, String name) {
+        this.camelContext = camelContext;
         this.repository = repository;
         this.name = name;
     }
@@ -49,17 +54,18 @@ final class CamelMicroProfileRepositoryHealthCheck implements HealthCheck {
 
         if (repository.isEnabled()) {
             List<Result> results = repository.stream()
-                    .filter(healthCheck -> healthCheck.getConfiguration().isEnabled())
+                    .filter(org.apache.camel.health.HealthCheck::isEnabled)
                     .map(org.apache.camel.health.HealthCheck::call)
-                    .filter(result -> result != null)
+                    .filter(Objects::nonNull)
                     .collect(Collectors.toList());
 
             // If any of the result statuses is DOWN, find the first one and report any error details
+            HealthCheckRegistry registry = HealthCheckRegistry.get(camelContext);
             results.stream()
                     .filter(result -> result.getState().equals(State.DOWN))
                     .findFirst()
                     .ifPresent(result -> {
-                        CamelMicroProfileHealthHelper.applyHealthDetail(builder, result);
+                        CamelMicroProfileHealthHelper.applyHealthDetail(builder, result, registry.getExposureLevel());
                         builder.down();
                     });
         } else {

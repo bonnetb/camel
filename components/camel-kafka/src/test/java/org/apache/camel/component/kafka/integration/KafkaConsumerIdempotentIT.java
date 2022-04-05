@@ -17,8 +17,6 @@
 package org.apache.camel.component.kafka.integration;
 
 import java.util.Arrays;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeoutException;
 
 import org.apache.camel.BindToRegistry;
 import org.apache.camel.Endpoint;
@@ -30,11 +28,11 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
+import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 
 import static org.apache.camel.component.kafka.serde.KafkaSerdeHelper.numericHeader;
 
-@EnabledIfSystemProperty(named = "enable.kafka.consumer.idempotency.tests", matches = "true")
+@DisabledIfSystemProperty(named = "enable.kafka.consumer.idempotency.tests", matches = "false")
 public class KafkaConsumerIdempotentIT extends KafkaConsumerIdempotentTestSupport {
 
     public static final String TOPIC = "idempt";
@@ -57,7 +55,7 @@ public class KafkaConsumerIdempotentIT extends KafkaConsumerIdempotentTestSuppor
     private int size = 200;
 
     @BeforeEach
-    public void before() throws ExecutionException, InterruptedException, TimeoutException {
+    public void before() {
         kafkaAdminClient.deleteTopics(Arrays.asList(TOPIC, "TEST_IDEMPOTENT")).all();
         doSend(size, TOPIC);
     }
@@ -68,15 +66,15 @@ public class KafkaConsumerIdempotentIT extends KafkaConsumerIdempotentTestSuppor
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
 
         return new RouteBuilder() {
 
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from(from).routeId("foo")
                         .idempotentConsumer(numericHeader("id"))
-                        .messageIdRepositoryRef("kafkaIdempotentRepository")
+                        .idempotentRepository("kafkaIdempotentRepository")
                         .to(to);
             }
         };

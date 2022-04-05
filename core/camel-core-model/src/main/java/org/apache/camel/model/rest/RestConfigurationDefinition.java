@@ -31,7 +31,6 @@ import org.apache.camel.CamelContext;
 import org.apache.camel.spi.Metadata;
 import org.apache.camel.spi.RestConfiguration;
 import org.apache.camel.support.CamelContextHelper;
-import org.apache.camel.support.PatternHelper;
 
 /**
  * To configure rest
@@ -42,105 +41,76 @@ import org.apache.camel.support.PatternHelper;
 public class RestConfigurationDefinition {
 
     @XmlAttribute
+    @Metadata(enums = "platform-http,servlet,jetty,undertow,netty-http,coap")
     private String component;
-
     @XmlAttribute
-    @Metadata(label = "consumer")
+    @Metadata(label = "consumer,advanced", enums = "openapi,swagger")
     private String apiComponent;
-
     @XmlAttribute
-    @Metadata(label = "producer")
+    @Metadata(label = "producer,advanced", enums = "vertx-http,http,undertow,netty-http")
     private String producerComponent;
-
     @XmlAttribute
     private String scheme;
-
     @XmlAttribute
     private String host;
-
-    @XmlAttribute
-    private String apiHost;
-
-    @XmlAttribute
-    @Metadata(defaultValue = "true", label = "consumer")
-    private Boolean useXForwardHeaders;
-
     @XmlAttribute
     private String port;
-
     @XmlAttribute
-    @Metadata(label = "producer")
+    @Metadata(label = "consumer,advanced")
+    private String apiHost;
+    @XmlAttribute
+    @Metadata(label = "consumer,advanced", defaultValue = "true")
+    private Boolean useXForwardHeaders;
+    @XmlAttribute
+    @Metadata(label = "producer,advanced")
     private String producerApiDoc;
-
     @XmlAttribute
     @Metadata(label = "consumer")
     private String contextPath;
-
     @XmlAttribute
     @Metadata(label = "consumer")
     private String apiContextPath;
-
     @XmlAttribute
-    @Metadata(label = "consumer")
-    private String apiContextRouteId;
-
-    @XmlAttribute
-    @Metadata(label = "consumer")
-    @Deprecated
-    private String apiContextIdPattern;
-
-    @XmlAttribute
-    @Metadata(label = "consumer")
-    @Deprecated
-    private Boolean apiContextListing;
-
-    @XmlAttribute
-    @Metadata(label = "consumer")
+    @Metadata(label = "consumer,advanced", javaType = "java.lang.Boolean", defaultValue = "false")
     private Boolean apiVendorExtension;
-
     @XmlAttribute
-    @Metadata(label = "consumer")
+    @Metadata(label = "consumer,advanced", defaultValue = "allLocalIp")
     private RestHostNameResolver hostNameResolver;
-
     @XmlAttribute
-    @Metadata(defaultValue = "off")
+    @Metadata(defaultValue = "off", enums = "off,auto,json,xml,json_xml")
     private RestBindingMode bindingMode;
-
     @XmlAttribute
+    @Metadata(label = "advanced", javaType = "java.lang.Boolean", defaultValue = "false")
     private Boolean skipBindingOnErrorCode;
-
     @XmlAttribute
+    @Metadata(label = "consumer,advanced", javaType = "java.lang.Boolean", defaultValue = "false")
     private Boolean clientRequestValidation;
-
     @XmlAttribute
-    @Metadata(label = "consumer")
+    @Metadata(label = "consumer,advanced", javaType = "java.lang.Boolean", defaultValue = "false")
     private Boolean enableCORS;
-
     @XmlAttribute
+    @Metadata(label = "advanced")
     private String jsonDataFormat;
-
     @XmlAttribute
+    @Metadata(label = "advanced")
     private String xmlDataFormat;
-
     @XmlElement(name = "componentProperty")
+    @Metadata(label = "advanced")
     private List<RestPropertyDefinition> componentProperties = new ArrayList<>();
-
     @XmlElement(name = "endpointProperty")
+    @Metadata(label = "advanced")
     private List<RestPropertyDefinition> endpointProperties = new ArrayList<>();
-
     @XmlElement(name = "consumerProperty")
-    @Metadata(label = "consumer")
+    @Metadata(label = "consumer,advanced")
     private List<RestPropertyDefinition> consumerProperties = new ArrayList<>();
-
     @XmlElement(name = "dataFormatProperty")
+    @Metadata(label = "advanced")
     private List<RestPropertyDefinition> dataFormatProperties = new ArrayList<>();
-
     @XmlElement(name = "apiProperty")
-    @Metadata(label = "consumer")
+    @Metadata(label = "consumer,advanced")
     private List<RestPropertyDefinition> apiProperties = new ArrayList<>();
-
     @XmlElement(name = "corsHeaders")
-    @Metadata(label = "consumer")
+    @Metadata(label = "consumer,advanced")
     private List<RestPropertyDefinition> corsHeaders = new ArrayList<>();
 
     public String getComponent() {
@@ -279,50 +249,6 @@ public class RestConfigurationDefinition {
      */
     public void setApiContextPath(String contextPath) {
         this.apiContextPath = contextPath;
-    }
-
-    public String getApiContextRouteId() {
-        return apiContextRouteId;
-    }
-
-    /**
-     * Sets the route id to use for the route that services the REST API.
-     * <p/>
-     * The route will by default use an auto assigned route id.
-     *
-     * @param apiContextRouteId the route id
-     */
-    public void setApiContextRouteId(String apiContextRouteId) {
-        this.apiContextRouteId = apiContextRouteId;
-    }
-
-    public String getApiContextIdPattern() {
-        return apiContextIdPattern;
-    }
-
-    /**
-     * Sets an CamelContext id pattern to only allow Rest APIs from rest services within CamelContext's which name
-     * matches the pattern.
-     * <p/>
-     * The pattern <tt>#name#</tt> refers to the CamelContext name, to match on the current CamelContext only. For any
-     * other value, the pattern uses the rules from {@link PatternHelper#matchPattern(String, String)}
-     *
-     * @param apiContextIdPattern the pattern
-     */
-    public void setApiContextIdPattern(String apiContextIdPattern) {
-        this.apiContextIdPattern = apiContextIdPattern;
-    }
-
-    public Boolean getApiContextListing() {
-        return apiContextListing;
-    }
-
-    /**
-     * Sets whether listing of all available CamelContext's with REST services in the JVM is enabled. If enabled it
-     * allows to discover these contexts, if <tt>false</tt> then only the current CamelContext is in use.
-     */
-    public void setApiContextListing(Boolean apiContextListing) {
-        this.apiContextListing = apiContextListing;
     }
 
     public Boolean getApiVendorExtension() {
@@ -611,40 +537,6 @@ public class RestConfigurationDefinition {
     }
 
     /**
-     * Sets the route id to use for the route that services the REST API.
-     */
-    public RestConfigurationDefinition apiContextRouteId(String routeId) {
-        setApiContextRouteId(routeId);
-        return this;
-    }
-
-    /**
-     * Sets an CamelContext id pattern to only allow Rest APIs from rest services within CamelContext's which name
-     * matches the pattern.
-     * <p/>
-     * The pattern uses the following rules are applied in this order:
-     * <ul>
-     * <li>exact match, returns true</li>
-     * <li>wildcard match (pattern ends with a * and the name starts with the pattern), returns true</li>
-     * <li>regular expression match, returns true</li>
-     * <li>otherwise returns false</li>
-     * </ul>
-     */
-    public RestConfigurationDefinition apiContextIdPattern(String pattern) {
-        setApiContextIdPattern(pattern);
-        return this;
-    }
-
-    /**
-     * Sets whether listing of all available CamelContext's with REST services in the JVM is enabled. If enabled it
-     * allows to discover these contexts, if <tt>false</tt> then only the current CamelContext is in use.
-     */
-    public RestConfigurationDefinition apiContextListing(boolean listing) {
-        setApiContextListing(listing);
-        return this;
-    }
-
-    /**
      * Whether vendor extension is enabled in the Rest APIs. If enabled then Camel will include additional information
      * as vendor extension (eg keys starting with x-) such as route ids, class names etc. Some API tooling may not
      * support vendor extensions and this option can then be turned off.
@@ -877,20 +769,6 @@ public class RestConfigurationDefinition {
         }
         if (apiContextPath != null) {
             target.setApiContextPath(CamelContextHelper.parseText(context, apiContextPath));
-        }
-        if (apiContextRouteId != null) {
-            target.setApiContextRouteId(CamelContextHelper.parseText(context, apiContextRouteId));
-        }
-        if (apiContextIdPattern != null) {
-            // special to allow #name# to refer to itself
-            if ("#name#".equals(apiComponent)) {
-                target.setApiContextIdPattern(context.getName());
-            } else {
-                target.setApiContextIdPattern(CamelContextHelper.parseText(context, apiContextIdPattern));
-            }
-        }
-        if (apiContextListing != null) {
-            target.setApiContextListing(apiContextListing);
         }
         if (apiVendorExtension != null) {
             target.setApiVendorExtension(apiVendorExtension);

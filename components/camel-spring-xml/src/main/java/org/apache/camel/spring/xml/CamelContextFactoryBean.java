@@ -47,7 +47,6 @@ import org.apache.camel.core.xml.CamelStreamCachingStrategyDefinition;
 import org.apache.camel.model.ContextScanDefinition;
 import org.apache.camel.model.FaultToleranceConfigurationDefinition;
 import org.apache.camel.model.GlobalOptionsDefinition;
-import org.apache.camel.model.HystrixConfigurationDefinition;
 import org.apache.camel.model.InterceptDefinition;
 import org.apache.camel.model.InterceptFromDefinition;
 import org.apache.camel.model.InterceptSendToEndpointDefinition;
@@ -63,6 +62,7 @@ import org.apache.camel.model.RouteContextRefDefinition;
 import org.apache.camel.model.RouteDefinition;
 import org.apache.camel.model.RouteTemplateContextRefDefinition;
 import org.apache.camel.model.RouteTemplateDefinition;
+import org.apache.camel.model.TemplatedRouteDefinition;
 import org.apache.camel.model.ThreadPoolProfileDefinition;
 import org.apache.camel.model.cloud.ServiceCallConfigurationDefinition;
 import org.apache.camel.model.dataformat.DataFormatsDefinition;
@@ -225,10 +225,6 @@ public class CamelContextFactoryBean extends AbstractCamelContextFactoryBean<Spr
     private ServiceCallConfigurationDefinition defaultServiceCallConfiguration;
     @XmlElement(name = "serviceCallConfiguration", type = ServiceCallConfigurationDefinition.class)
     private List<ServiceCallConfigurationDefinition> serviceCallConfigurations;
-    @XmlElement(name = "defaultHystrixConfiguration")
-    private HystrixConfigurationDefinition defaultHystrixConfiguration;
-    @XmlElement(name = "hystrixConfiguration", type = HystrixConfigurationDefinition.class)
-    private List<HystrixConfigurationDefinition> hystrixConfigurations;
     @XmlElement(name = "defaultResilience4jConfiguration")
     private Resilience4jConfigurationDefinition defaultResilience4jConfiguration;
     @XmlElement(name = "resilience4jConfiguration", type = Resilience4jConfigurationDefinition.class)
@@ -279,6 +275,8 @@ public class CamelContextFactoryBean extends AbstractCamelContextFactoryBean<Spr
     private List<RouteConfigurationDefinition> routeConfigurations = new ArrayList<>();
     @XmlElement(name = "routeTemplate")
     private List<RouteTemplateDefinition> routeTemplates = new ArrayList<>();
+    @XmlElement(name = "templatedRoute")
+    private List<TemplatedRouteDefinition> templatedRoutes = new ArrayList<>();
     @XmlElement(name = "route")
     private List<RouteDefinition> routes = new ArrayList<>();
     @XmlTransient
@@ -596,6 +594,19 @@ public class CamelContextFactoryBean extends AbstractCamelContextFactoryBean<Spr
     @Override
     public void setRouteTemplates(List<RouteTemplateDefinition> routeTemplates) {
         this.routeTemplates = routeTemplates;
+    }
+
+    @Override
+    public List<TemplatedRouteDefinition> getTemplatedRoutes() {
+        return templatedRoutes;
+    }
+
+    /**
+     * Contains the Camel templated routes
+     */
+    @Override
+    public void setTemplatedRoutes(List<TemplatedRouteDefinition> templatedRoutes) {
+        this.templatedRoutes = templatedRoutes;
     }
 
     @Override
@@ -1421,30 +1432,6 @@ public class CamelContextFactoryBean extends AbstractCamelContextFactoryBean<Spr
      */
     public void setServiceCallConfigurations(List<ServiceCallConfigurationDefinition> serviceCallConfigurations) {
         this.serviceCallConfigurations = serviceCallConfigurations;
-    }
-
-    @Override
-    public List<HystrixConfigurationDefinition> getHystrixConfigurations() {
-        return hystrixConfigurations;
-    }
-
-    @Override
-    public HystrixConfigurationDefinition getDefaultHystrixConfiguration() {
-        return defaultHystrixConfiguration;
-    }
-
-    /**
-     * Hystrix EIP default configuration
-     */
-    public void setDefaultHystrixConfiguration(HystrixConfigurationDefinition defaultHystrixConfiguration) {
-        this.defaultHystrixConfiguration = defaultHystrixConfiguration;
-    }
-
-    /**
-     * Hystrix Circuit Breaker EIP configurations
-     */
-    public void setHystrixConfigurations(List<HystrixConfigurationDefinition> hystrixConfigurations) {
-        this.hystrixConfigurations = hystrixConfigurations;
     }
 
     @Override

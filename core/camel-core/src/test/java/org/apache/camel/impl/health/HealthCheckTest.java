@@ -18,8 +18,10 @@ package org.apache.camel.impl.health;
 
 import java.util.Map;
 
+import org.apache.camel.CamelContext;
 import org.apache.camel.health.HealthCheck;
 import org.apache.camel.health.HealthCheckResultBuilder;
+import org.apache.camel.impl.DefaultCamelContext;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -30,10 +32,13 @@ public class HealthCheckTest {
 
     @Test
     public void testCheck() throws Exception {
+        CamelContext context = new DefaultCamelContext();
+
         MyHealthCheck check = new MyHealthCheck();
+        check.setCamelContext(context);
         check.setState(HealthCheck.State.UP);
         // disable
-        check.getConfiguration().setEnabled(false);
+        check.setEnabled(false);
 
         HealthCheck.Result result;
 
@@ -44,7 +49,7 @@ public class HealthCheckTest {
         assertEquals("Disabled", result.getMessage().get());
         assertEquals(false, result.getDetails().get(AbstractHealthCheck.CHECK_ENABLED));
 
-        check.getConfiguration().setEnabled(true);
+        check.setEnabled(true);
 
         result = check.call();
 

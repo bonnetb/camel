@@ -47,7 +47,7 @@ import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.util.function.Suppliers;
 import org.apache.camel.util.function.ThrowingHelper;
 
-import static org.apache.camel.support.CamelContextHelper.findByType;
+import static org.apache.camel.support.CamelContextHelper.findSingleByType;
 import static org.apache.camel.support.CamelContextHelper.lookup;
 
 public class ServiceCallProcessorFactory extends TypedProcessorFactory<ServiceCallDefinition> {
@@ -158,7 +158,7 @@ public class ServiceCallProcessorFactory extends TypedProcessorFactory<ServiceCa
             // If no default is set either by searching by name or bound to the
             // camel context, assume that if there is a single instance in the
             // registry, that is the default one
-            config = findByType(camelContext, ServiceCallConfigurationDefinition.class);
+            config = findSingleByType(camelContext, ServiceCallConfigurationDefinition.class);
         }
 
         return config;
@@ -213,16 +213,14 @@ public class ServiceCallProcessorFactory extends TypedProcessorFactory<ServiceCa
                         // Default configuration
                         () -> retrieveServiceDiscovery(camelContext, this::retrieveDefaultConfig),
                         // Check if there is a single instance in the registry
-                        () -> findByType(camelContext, ServiceDiscovery.class),
+                        () -> findSingleByType(camelContext, ServiceDiscovery.class),
                         // From registry
                         () -> lookup(camelContext, ServiceCallDefinitionConstants.DEFAULT_SERVICE_DISCOVERY_ID,
                                 ServiceDiscovery.class))
                 .orElseGet(
                         // Default, that's s little ugly but a load balancer may
-                        // live without
-                        // (i.e. the Ribbon one) so let's delegate the null check
-                        // to the actual
-                        // impl.
+                        // live without so let's delegate the null check
+                        // to the actual impl.
                         () -> null);
     }
 
@@ -272,7 +270,7 @@ public class ServiceCallProcessorFactory extends TypedProcessorFactory<ServiceCa
                         () -> retrieveServiceFilter(camelContext, this::retrieveDefaultConfig),
                         // Check if there is a single instance in
                         // the registry
-                        () -> findByType(camelContext, ServiceFilter.class),
+                        () -> findSingleByType(camelContext, ServiceFilter.class),
                         // From registry
                         () -> lookup(camelContext, ServiceCallDefinitionConstants.DEFAULT_SERVICE_FILTER_ID,
                                 ServiceFilter.class))
@@ -320,7 +318,7 @@ public class ServiceCallProcessorFactory extends TypedProcessorFactory<ServiceCa
                 () -> retrieveServiceChooser(camelContext, this::retrieveDefaultConfig),
                 // Check if there is a single instance in
                 // the registry
-                () -> findByType(camelContext, ServiceChooser.class),
+                () -> findSingleByType(camelContext, ServiceChooser.class),
                 // From registry
                 () -> lookup(camelContext, ServiceCallDefinitionConstants.DEFAULT_SERVICE_CHOOSER_ID, ServiceChooser.class))
                 .orElseGet(
@@ -363,7 +361,7 @@ public class ServiceCallProcessorFactory extends TypedProcessorFactory<ServiceCa
                         () -> retrieveLoadBalancer(camelContext, this::retrieveDefaultConfig),
                         // Check if there is a single instance in
                         // the registry
-                        () -> findByType(camelContext, ServiceLoadBalancer.class),
+                        () -> findSingleByType(camelContext, ServiceLoadBalancer.class),
                         // From registry
                         () -> lookup(camelContext, ServiceCallDefinitionConstants.DEFAULT_LOAD_BALANCER_ID,
                                 ServiceLoadBalancer.class))

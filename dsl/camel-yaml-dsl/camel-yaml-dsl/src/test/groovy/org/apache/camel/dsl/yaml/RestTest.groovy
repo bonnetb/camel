@@ -21,8 +21,8 @@ import org.apache.camel.dsl.yaml.support.YamlTestSupport
 import org.apache.camel.dsl.yaml.support.model.MyBean
 import org.apache.camel.dsl.yaml.support.model.MyFooBar
 import org.apache.camel.model.ToDefinition
-import org.apache.camel.model.rest.GetVerbDefinition
-import org.apache.camel.model.rest.PostVerbDefinition
+import org.apache.camel.model.rest.GetDefinition
+import org.apache.camel.model.rest.PostDefinition
 import org.apache.camel.model.rest.RestDefinition
 import org.apache.camel.model.rest.VerbDefinition
 
@@ -50,9 +50,8 @@ class RestTest extends YamlTestSupport {
                   - name: myRestConsumerFactory
                     type: ${MockRestConsumerFactory.name}
                 - rest:
-                    verb:
-                      - method: get
-                        uri: "/foo"
+                    get:
+                      - path: "/foo"
                         type: ${MyFooBar.name}
                         out-type: ${MyBean.name}
                         to: "direct:bar"
@@ -68,7 +67,7 @@ class RestTest extends YamlTestSupport {
                 verbs.size() == 1
 
                 with(verbs[0], VerbDefinition) {
-                    uri == '/foo'
+                    path == '/foo'
                     type == MyFooBar.name
                     outType == MyBean.name
 
@@ -86,13 +85,11 @@ class RestTest extends YamlTestSupport {
                   - name: myRestConsumerFactory
                     type: ${MockRestConsumerFactory.name}
                 - rest:
-                    verb:
-                      - method: get
-                        uri: "/foo"
+                    get:
+                     -  path: "/foo"
                         type: ${MyFooBar.name}
                         out-type: ${MyBean.name}
-                        steps:
-                          - to: "direct:bar"
+                        to: "direct:bar"
                 - from:
                     uri: 'direct:bar'
                     steps:
@@ -105,11 +102,10 @@ class RestTest extends YamlTestSupport {
                 verbs.size() == 1
 
                 with(verbs[0], VerbDefinition) {
-                    uri == '/foo'
+                    path == '/foo'
                     type == MyFooBar.name
                     outType == MyBean.name
-
-                    with (route.outputs[0], ToDefinition) {
+                    with (to, ToDefinition) {
                         endpointUri  == 'direct:bar'
                     }
                 }
@@ -124,14 +120,14 @@ class RestTest extends YamlTestSupport {
                     type: ${MockRestConsumerFactory.name}
                 - rest:
                     post:
-                      - uri: "/foo"
+                      - path: "/foo"
                         type: ${MyFooBar.name}
                         out-type: ${MyBean.name}
                         to: "direct:foo"
-                      - uri: "/baz"
+                      - path: "/baz"
                         to: "direct:baz"
                     get:
-                      - uri: "/getFoo"
+                      - path: "/getFoo"
                         to: "direct:getFoo"
                 - from:
                     uri: 'direct:bar'
@@ -144,8 +140,8 @@ class RestTest extends YamlTestSupport {
             with(context.restDefinitions[0], RestDefinition) {
                 verbs.size() == 3
 
-                with(verbs[0], PostVerbDefinition) {
-                    uri == '/foo'
+                with(verbs[0], PostDefinition) {
+                    path == '/foo'
                     type == MyFooBar.name
                     outType == MyBean.name
 
@@ -153,14 +149,14 @@ class RestTest extends YamlTestSupport {
                         endpointUri == 'direct:foo'
                     }
                 }
-                with(verbs[1], PostVerbDefinition) {
-                    uri == '/baz'
+                with(verbs[1], PostDefinition) {
+                    path == '/baz'
                     with(to, ToDefinition) {
                         endpointUri == 'direct:baz'
                     }
                 }
-                with(verbs[2], GetVerbDefinition) {
-                    uri == '/getFoo'
+                with(verbs[2], GetDefinition) {
+                    path == '/getFoo'
                     with(to, ToDefinition) {
                         endpointUri == 'direct:getFoo'
                     }

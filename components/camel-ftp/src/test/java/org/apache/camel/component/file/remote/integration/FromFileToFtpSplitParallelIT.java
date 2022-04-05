@@ -57,9 +57,9 @@ public class FromFileToFtpSplitParallelIT extends FtpServerTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
-            public void configure() throws Exception {
+            public void configure() {
                 ThreadPoolProfile tpp
                         = new ThreadPoolProfileBuilder("ftp-pool").poolSize(5).maxPoolSize(10).maxQueueSize(1000).build();
                 context.getExecutorServiceManager().registerThreadPoolProfile(tpp);
@@ -67,7 +67,7 @@ public class FromFileToFtpSplitParallelIT extends FtpServerTestSupport {
                 onException().maximumRedeliveries(5).redeliveryDelay(1000);
 
                 from(fileUri()).noAutoStartup().routeId("foo")
-                    .split(body().tokenize("\n")).executorServiceRef("ftp-pool")
+                    .split(body().tokenize("\n")).executorService("ftp-pool")
                         .to(getFtpUrl())
                         .to("log:line?groupSize=100")
                     .end()

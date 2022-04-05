@@ -71,9 +71,10 @@ public class ComplexTypesTest extends CamelTestSupport {
                     .message("Receives a complex object as parameter")
                     .endResponseMessage()
                     .outType(SampleComplexResponseType.InnerClass.class)
-                    .route()
-                    .routeId("complex request type")
-                    .log("/complex request invoked");
+                    .to("direct:request");
+                from("direct:request")
+                        .routeId("complex request type")
+                        .log("/complex request invoked");
 
                 rest().get("/complexResponse")
                     .description("Demo complex response type")
@@ -86,10 +87,12 @@ public class ComplexTypesTest extends CamelTestSupport {
                     .code(200)
                     .message("Returns a complex object")
                     .endResponseMessage()
-                    .route()
-                    .routeId("complex response type")
-                    .log("/complex invoked")
-                    .setBody(constant(new SampleComplexResponseType()));
+                    .to("direct:response");
+
+                from("direct:response")
+                        .routeId("complex response type")
+                        .log("/complex invoked")
+                        .setBody(constant(new SampleComplexResponseType()));
             }
         };
     }
@@ -119,7 +122,7 @@ public class ComplexTypesTest extends CamelTestSupport {
 
         List<RestDefinition> rests = context.getRestDefinitions().stream()
                 // So we get the security schema and the route schema
-                .filter(def -> def.getVerbs().isEmpty() || def.getVerbs().get(0).getUri().equals(uri))
+                .filter(def -> def.getVerbs().isEmpty() || def.getVerbs().get(0).getPath().equals(uri))
                 .collect(Collectors.toList());
 
         RestOpenApiReader reader = new RestOpenApiReader();
@@ -163,7 +166,7 @@ public class ComplexTypesTest extends CamelTestSupport {
         input = input.replaceAll("\"openapi\" : \"3\\..*\",", "\"openapi\" : \"3.x\",");
         input = input.replaceAll("\"swagger\" : \"2\\..*\",", "\"swagger\" : \"2.x\",");
         input = input.replaceAll("\"operationId\" : \"verb.*\",", "\"operationId\" : \"verb\",");
-        input = input.replaceAll("\"x-camelContextId\" : \"camel.*\",", "\"x-camelContextId\" : \"camel\",");
+        input = input.replaceAll("\"x-camelContextId\" : \"camel.*\"", "\"x-camelContextId\" : \"camel\"");
         return input;
     }
 }

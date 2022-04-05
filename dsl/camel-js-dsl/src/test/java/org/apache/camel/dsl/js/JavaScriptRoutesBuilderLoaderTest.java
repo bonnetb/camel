@@ -108,12 +108,12 @@ public class JavaScriptRoutesBuilderLoaderTest {
             context.getRoutesLoader().loadRoutes(resource);
 
             assertThat(context.getRestDefinitions()).hasSize(1);
-            assertThat(context.getRouteDefinitions()).hasSize(1);
+            assertThat(context.getRouteDefinitions()).hasSize(2);
 
             assertThat(context.getRestDefinitions()).first().satisfies(d -> {
                 assertThat(d.getProduces()).isEqualTo("text/plain");
                 assertThat(d.getVerbs()).first().satisfies(v -> {
-                    assertThat(v.getUri()).isEqualTo("/say/hello");
+                    assertThat(v.getPath()).isEqualTo("/say/hello");
                 });
             });
             assertThat(context.getRouteDefinitions()).first().satisfies(d -> {

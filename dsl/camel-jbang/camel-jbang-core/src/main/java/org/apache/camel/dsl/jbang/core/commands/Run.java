@@ -24,6 +24,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.FileSystems;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.StringJoiner;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
@@ -45,6 +46,10 @@ import picocli.CommandLine.Parameters;
 
 @Command(name = "run", description = "Run Camel")
 class Run implements Callable<Integer> {
+
+    private static final String[] ACCEPTED_FILE_EXT
+            = new String[] { "properties", "java", "groovy", "js", "jsh", "kts", "xml", "yaml" };
+
     private CamelContext context;
     private File lockFile;
     private ScheduledExecutorService executor;
@@ -57,8 +62,14 @@ class Run implements Callable<Integer> {
     private boolean helpRequested;
     //CHECKSTYLE:ON
 
+    @Option(names = { "--dep", "--dependency" }, description = "Additional dependencies to add to the classpath", arity = "0")
+    private String[] dependencies;
+
     @Option(names = { "--name" }, defaultValue = "CamelJBang", description = "The name of the Camel application")
     private String name;
+
+    @Option(names = { "--logging" }, description = "Can be used to turn off logging")
+    private boolean logging = true;
 
     @Option(names = { "--logging-level" }, defaultValue = "info", description = "Logging level")
     private String loggingLevel;
@@ -99,17 +110,20 @@ class Run implements Callable<Integer> {
     private String jfrProfile;
 
     @Option(names = { "--local-kamelet-dir" },
-            description = "Local directory to load Kamelets from (take precedence))")
+            description = "Local directory for loading Kamelets (takes precedence)")
     private String localKameletDir;
 
     @Option(names = { "--port" }, description = "Embeds a local HTTP server on this port")
     private int port;
 
-    @Option(names = { "--console" }, description = "Developer console at /dev on local HTTP server (port 8080 by default)")
+    @Option(names = { "--console" }, description = "Developer console at /q/dev on local HTTP server (port 8080 by default)")
     private boolean console;
 
-    @Option(names = { "--health" }, description = "Health check at /health on local HTTP server (port 8080 by default)")
+    @Option(names = { "--health" }, description = "Health check at /q/health on local HTTP server (port 8080 by default)")
     private boolean health;
+
+    @Option(names = { "--modeline" }, description = "Enables Camel-K style modeline")
+    private boolean modeline = true;
 
     @Override
     public Integer call() throws Exception {
@@ -127,9 +141,13 @@ class Run implements Callable<Integer> {
         File[] lockFiles = currentDir.listFiles(f -> f.getName().endsWith(".camel.lock"));
 
         for (File lockFile : lockFiles) {
-            System.out.println("Removing file " + lockFile);
+            if (logging) {
+                System.out.println("Removing file " + lockFile);
+            }
             if (!lockFile.delete()) {
-                System.err.println("Failed to remove lock file " + lockFile);
+                if (logging) {
+                    System.err.println("Failed to remove lock file " + lockFile);
+                }
             }
         }
 
@@ -138,7 +156,11 @@ class Run implements Callable<Integer> {
 
     private int run() throws Exception {
         // configure logging first
-        RuntimeUtil.configureLog(loggingLevel);
+        if (logging) {
+            RuntimeUtil.configureLog(loggingLevel);
+        } else {
+            RuntimeUtil.configureLog("off");
+        }
 
         KameletMain main;
 
@@ -147,6 +169,7 @@ class Run implements Callable<Integer> {
         } else {
             main = new KameletMain("file://" + localKameletDir);
         }
+        main.setAppName("Apache Camel (JBang)");
 
         main.addInitialProperty("camel.main.name", name);
         // shutdown quickly
@@ -155,6 +178,7 @@ class Run implements Callable<Integer> {
         main.addInitialProperty("camel.main.routesReloadEnabled", reload ? "true" : "false");
         main.addInitialProperty("camel.main.sourceLocationEnabled", "true");
         main.addInitialProperty("camel.main.tracing", trace ? "true" : "false");
+        main.addInitialProperty("camel.main.modeline", modeline ? "true" : "false");
 
         if (maxMessages > 0) {
             main.addInitialProperty("camel.main.durationMaxMessages", String.valueOf(maxMessages));
@@ -183,6 +207,9 @@ class Run implements Callable<Integer> {
             main.addInitialProperty("camel.jbang.jfr", "jfr");
             main.addInitialProperty("camel.jbang.jfr-profile", jfrProfile);
         }
+        if (dependencies != null) {
+            main.addInitialProperty("camel.jbang.dependencies", String.join(",", dependencies));
+        }
 
         if (fileLock) {
             lockFile = createLockFile();
@@ -202,7 +229,18 @@ class Run implements Callable<Integer> {
 
         StringJoiner js = new StringJoiner(",");
         StringJoiner sjReload = new StringJoiner(",");
+        StringJoiner sjClasspathFiles = new StringJoiner(",");
+
         for (String file : files) {
+
+            if (!knownFile(file)) {
+                // non known files to be added on classpath
+                sjClasspathFiles.add(file);
+                continue;
+            }
+
+            // process known files as its likely DSLs or configuration files
+
             // check for properties files
             if (file.endsWith(".properties")) {
                 if (!ResourceHelper.hasScheme(file) && !file.startsWith("github:")) {
@@ -271,6 +309,9 @@ class Run implements Callable<Integer> {
             }
         }
         main.addInitialProperty("camel.main.routesIncludePattern", js.toString());
+        if (sjClasspathFiles.length() > 0) {
+            main.addInitialProperty("camel.jbang.classpathFiles", sjClasspathFiles.toString());
+        }
 
         // we can only reload if file based
         if (reload && sjReload.length() > 0) {
@@ -304,7 +345,6 @@ class Run implements Callable<Integer> {
             main.addInitialProperty("camel.component.properties.location", loc);
         }
 
-        System.out.println("Starting CamelJBang");
         main.start();
 
         context = main.getCamelContext();
@@ -318,8 +358,10 @@ class Run implements Callable<Integer> {
     public File createLockFile() throws IOException {
         File lockFile = File.createTempFile(".run", ".camel.lock", new File("."));
 
-        System.out.printf("A new lock file was created, delete the file to stop running:%n%s%n",
-                lockFile.getAbsolutePath());
+        if (logging) {
+            System.out.printf("A new lock file was created, delete the file to stop running:%n%s%n",
+                    lockFile.getAbsolutePath());
+        }
         lockFile.deleteOnExit();
 
         return lockFile;
@@ -419,6 +461,11 @@ class Run implements Callable<Integer> {
                 }
             }
         }
+    }
+
+    private boolean knownFile(String file) {
+        String ext = FileUtil.onlyExt(file, true);
+        return Arrays.stream(ACCEPTED_FILE_EXT).anyMatch(e -> e.equalsIgnoreCase(ext));
     }
 
 }

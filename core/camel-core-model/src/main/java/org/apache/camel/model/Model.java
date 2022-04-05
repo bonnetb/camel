@@ -29,6 +29,7 @@ import org.apache.camel.model.transformer.TransformerDefinition;
 import org.apache.camel.model.validator.ValidatorDefinition;
 import org.apache.camel.spi.ModelReifierFactory;
 import org.apache.camel.support.PatternHelper;
+import org.apache.camel.util.ObjectHelper;
 
 /**
  * Model interface
@@ -219,6 +220,29 @@ public interface Model {
             throws Exception;
 
     /**
+     * Adds a new route from a given templated route definition
+     *
+     * @param  templatedRouteDefinition the templated route definition to add as a route (mandatory)
+     * @throws Exception                is thrown if error creating and adding the new route
+     */
+    void addRouteFromTemplatedRoute(TemplatedRouteDefinition templatedRouteDefinition) throws Exception;
+
+    /**
+     * Adds new routes from a given templated route definitions
+     *
+     * @param  templatedRouteDefinitions the templated route definitions to add as a route (mandatory)
+     * @throws Exception                 is thrown if error creating and adding the new route
+     */
+    default void addRouteFromTemplatedRoutes(
+            Collection<TemplatedRouteDefinition> templatedRouteDefinitions)
+            throws Exception {
+        ObjectHelper.notNull(templatedRouteDefinitions, "templatedRouteDefinitions");
+        for (TemplatedRouteDefinition templatedRouteDefinition : templatedRouteDefinitions) {
+            addRouteFromTemplatedRoute(templatedRouteDefinition);
+        }
+    }
+
+    /**
      * Returns a list of the current REST definitions
      *
      * @return list of the current REST definitions
@@ -280,37 +304,6 @@ public interface Model {
      * @param validators the validators
      */
     void setValidators(List<ValidatorDefinition> validators);
-
-    /**
-     * Gets the Hystrix configuration by the given name. If no name is given the default configuration is returned, see
-     * <tt>setHystrixConfiguration</tt>
-     *
-     * @param  id id of the configuration, or <tt>null</tt> to return the default configuration
-     * @return    the configuration, or <tt>null</tt> if no configuration has been registered
-     */
-    HystrixConfigurationDefinition getHystrixConfiguration(String id);
-
-    /**
-     * Sets the default Hystrix configuration
-     *
-     * @param configuration the configuration
-     */
-    void setHystrixConfiguration(HystrixConfigurationDefinition configuration);
-
-    /**
-     * Sets the Hystrix configurations
-     *
-     * @param configurations the configuration list
-     */
-    void setHystrixConfigurations(List<HystrixConfigurationDefinition> configurations);
-
-    /**
-     * Adds the Hystrix configuration
-     *
-     * @param id            name of the configuration
-     * @param configuration the configuration
-     */
-    void addHystrixConfiguration(String id, HystrixConfigurationDefinition configuration);
 
     /**
      * Gets the Resilience4j configuration by the given name. If no name is given the default configuration is returned,

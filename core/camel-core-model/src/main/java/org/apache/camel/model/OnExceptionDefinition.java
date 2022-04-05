@@ -46,34 +46,7 @@ import org.apache.camel.util.ObjectHelper;
 @XmlRootElement(name = "onException")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class OnExceptionDefinition extends OutputDefinition<OnExceptionDefinition> {
-    @XmlElement(name = "exception", required = true)
-    private List<String> exceptions = new ArrayList<>();
-    @XmlElement(name = "onWhen")
-    @AsPredicate
-    private WhenDefinition onWhen;
-    @XmlElement(name = "retryWhile")
-    @AsPredicate
-    private ExpressionSubElementDefinition retryWhile;
-    @XmlElement(name = "redeliveryPolicy")
-    private RedeliveryPolicyDefinition redeliveryPolicyType;
-    @XmlAttribute(name = "redeliveryPolicyRef")
-    private String redeliveryPolicyRef;
-    @XmlElement(name = "handled")
-    @AsPredicate
-    private ExpressionSubElementDefinition handled;
-    @XmlElement(name = "continued")
-    @AsPredicate
-    private ExpressionSubElementDefinition continued;
-    @XmlAttribute(name = "onRedeliveryRef")
-    private String onRedeliveryRef;
-    @XmlAttribute(name = "onExceptionOccurredRef")
-    private String onExceptionOccurredRef;
-    @XmlAttribute(name = "useOriginalMessage")
-    @Metadata(javaType = "java.lang.Boolean")
-    private String useOriginalMessage;
-    @XmlAttribute(name = "useOriginalBody")
-    @Metadata(javaType = "java.lang.Boolean")
-    private String useOriginalBody;
+
     @XmlTransient
     private Predicate handledPolicy;
     @XmlTransient
@@ -86,6 +59,40 @@ public class OnExceptionDefinition extends OutputDefinition<OnExceptionDefinitio
     private Processor onExceptionOccurred;
     @XmlTransient
     private boolean routeScoped = true;
+
+    @XmlElement(name = "exception", required = true)
+    private List<String> exceptions = new ArrayList<>();
+    @XmlElement(name = "onWhen")
+    @AsPredicate
+    private WhenDefinition onWhen;
+    @XmlElement(name = "retryWhile")
+    @AsPredicate
+    @Metadata(label = "advanced")
+    private ExpressionSubElementDefinition retryWhile;
+    @XmlElement(name = "redeliveryPolicy")
+    private RedeliveryPolicyDefinition redeliveryPolicyType;
+    @XmlAttribute(name = "redeliveryPolicyRef")
+    @Metadata(label = "advanced")
+    private String redeliveryPolicyRef;
+    @XmlElement(name = "handled")
+    @AsPredicate
+    private ExpressionSubElementDefinition handled;
+    @XmlElement(name = "continued")
+    @AsPredicate
+    @Metadata(label = "advanced")
+    private ExpressionSubElementDefinition continued;
+    @XmlAttribute(name = "onRedeliveryRef")
+    @Metadata(label = "advanced")
+    private String onRedeliveryRef;
+    @XmlAttribute(name = "onExceptionOccurredRef")
+    @Metadata(label = "advanced")
+    private String onExceptionOccurredRef;
+    @XmlAttribute(name = "useOriginalMessage")
+    @Metadata(label = "advanced", javaType = "java.lang.Boolean")
+    private String useOriginalMessage;
+    @XmlAttribute(name = "useOriginalBody")
+    @Metadata(label = "advanced", javaType = "java.lang.Boolean")
+    private String useOriginalBody;
 
     public OnExceptionDefinition() {
     }
@@ -365,7 +372,7 @@ public class OnExceptionDefinition extends OutputDefinition<OnExceptionDefinitio
     }
 
     /**
-     * Allow synchronous delayed redelivery.
+     * Allow asynchronous delayed redelivery.
      *
      * @see    RedeliveryPolicy#setAsyncDelayedRedelivery(boolean)
      * @return the builder
@@ -376,7 +383,7 @@ public class OnExceptionDefinition extends OutputDefinition<OnExceptionDefinitio
     }
 
     /**
-     * Sets the logging level to use when retries has exhausted
+     * Sets the logging level to use when retries have been exhausted
      *
      * @param  retriesExhaustedLogLevel the logging level
      * @return                          the builder

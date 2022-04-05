@@ -31,6 +31,7 @@ import java.util.Set;
 import org.apache.camel.Exchange;
 import org.apache.camel.Message;
 import org.apache.camel.Processor;
+import org.apache.camel.ResumeAware;
 import org.apache.camel.component.file.consumer.FileConsumerResumeStrategy;
 import org.apache.camel.component.file.consumer.FileResumeSet;
 import org.apache.camel.component.file.consumer.FileSetResumeStrategy;
@@ -43,10 +44,10 @@ import org.slf4j.LoggerFactory;
 /**
  * File consumer.
  */
-public class FileConsumer extends GenericFileConsumer<File> {
+public class FileConsumer extends GenericFileConsumer<File> implements ResumeAware<FileConsumerResumeStrategy> {
 
     private static final Logger LOG = LoggerFactory.getLogger(FileConsumer.class);
-    private final FileConsumerResumeStrategy resumeStrategy;
+    private FileConsumerResumeStrategy resumeStrategy;
     private String endpointPath;
     private Set<String> extendedAttributes;
 
@@ -59,8 +60,6 @@ public class FileConsumer extends GenericFileConsumer<File> {
             List<String> attributes = Arrays.asList(endpoint.getExtendedAttributes().split(","));
             this.extendedAttributes = new HashSet<>(attributes);
         }
-
-        resumeStrategy = endpoint.getResumeStrategy();
     }
 
     @Override
@@ -104,8 +103,8 @@ public class FileConsumer extends GenericFileConsumer<File> {
             GenericFile<File> gf
                     = asGenericFile(endpointPath, file, getEndpoint().getCharset(), getEndpoint().isProbeContentType());
 
-            if (resumeStrategy != null && resumeStrategy instanceof GenericFileResumeStrategy) {
-                resumeStrategy.resume(gf);
+            if (resumeStrategy instanceof GenericFileResumeStrategy) {
+                ((GenericFileResumeStrategy<File>) resumeStrategy).resume(gf);
             }
 
             if (file.isDirectory()) {
@@ -172,11 +171,11 @@ public class FileConsumer extends GenericFileConsumer<File> {
             }
         }
 
-        if (resumeStrategy != null && resumeStrategy instanceof FileSetResumeStrategy) {
+        if (resumeStrategy instanceof FileSetResumeStrategy) {
             FileResumeSet resumeSet = new FileResumeSet(dirFiles);
             resumeStrategy.resume(resumeSet);
 
-            return resumeSet.hasResumables() ? resumeSet.resumed() : dirFiles;
+            return resumeSet.resumed();
         }
 
         return dirFiles;
@@ -289,10 +288,10 @@ public class FileConsumer extends GenericFileConsumer<File> {
         file.setFileLength(length);
         file.setLastModified(modified);
         if (length >= 0) {
-            message.setHeader(Exchange.FILE_LENGTH, length);
+            message.setHeader(FileConstants.FILE_LENGTH, length);
         }
         if (modified >= 0) {
-            message.setHeader(Exchange.FILE_LAST_MODIFIED, modified);
+            message.setHeader(FileConstants.FILE_LAST_MODIFIED, modified);
         }
     }
 
@@ -306,4 +305,15 @@ public class FileConsumer extends GenericFileConsumer<File> {
         // underlying file is not
         return !file.getFile().getAbsolutePath().equals(file.getAbsoluteFilePath());
     }
+
+    @Override
+    public FileConsumerResumeStrategy getResumeStrategy() {
+        return resumeStrategy;
+    }
+
+    @Override
+    public void setResumeStrategy(FileConsumerResumeStrategy resumeStrategy) {
+        this.resumeStrategy = resumeStrategy;
+    }
+
 }

@@ -31,7 +31,6 @@ import org.apache.camel.model.FilterDefinition;
 import org.apache.camel.model.FinallyDefinition;
 import org.apache.camel.model.GlobalOptionDefinition;
 import org.apache.camel.model.GlobalOptionsDefinition;
-import org.apache.camel.model.HystrixConfigurationDefinition;
 import org.apache.camel.model.IdempotentConsumerDefinition;
 import org.apache.camel.model.InOnlyDefinition;
 import org.apache.camel.model.InOutDefinition;
@@ -40,7 +39,6 @@ import org.apache.camel.model.InterceptDefinition;
 import org.apache.camel.model.InterceptFromDefinition;
 import org.apache.camel.model.InterceptSendToEndpointDefinition;
 import org.apache.camel.model.LoadBalanceDefinition;
-import org.apache.camel.model.LoadBalancerDefinition;
 import org.apache.camel.model.LogDefinition;
 import org.apache.camel.model.LoopDefinition;
 import org.apache.camel.model.MarshalDefinition;
@@ -68,13 +66,13 @@ import org.apache.camel.model.RemovePropertyDefinition;
 import org.apache.camel.model.ResequenceDefinition;
 import org.apache.camel.model.Resilience4jConfigurationDefinition;
 import org.apache.camel.model.RestContextRefDefinition;
+import org.apache.camel.model.ResumableDefinition;
 import org.apache.camel.model.RollbackDefinition;
 import org.apache.camel.model.RouteBuilderDefinition;
 import org.apache.camel.model.RouteConfigurationContextRefDefinition;
 import org.apache.camel.model.RouteContextRefDefinition;
 import org.apache.camel.model.RouteDefinition;
 import org.apache.camel.model.RouteTemplateParameterDefinition;
-import org.apache.camel.model.RouteTemplateScriptDefinition;
 import org.apache.camel.model.RoutingSlipDefinition;
 import org.apache.camel.model.SagaActionUriDefinition;
 import org.apache.camel.model.SagaDefinition;
@@ -88,7 +86,7 @@ import org.apache.camel.model.SortDefinition;
 import org.apache.camel.model.SplitDefinition;
 import org.apache.camel.model.StepDefinition;
 import org.apache.camel.model.StopDefinition;
-import org.apache.camel.model.SwitchDefinition;
+import org.apache.camel.model.TemplatedRouteParameterDefinition;
 import org.apache.camel.model.ThreadPoolProfileDefinition;
 import org.apache.camel.model.ThreadsDefinition;
 import org.apache.camel.model.ThrottleDefinition;
@@ -111,11 +109,9 @@ import org.apache.camel.model.cloud.ConsulServiceCallServiceDiscoveryConfigurati
 import org.apache.camel.model.cloud.CustomServiceCallServiceFilterConfiguration;
 import org.apache.camel.model.cloud.DefaultServiceCallServiceLoadBalancerConfiguration;
 import org.apache.camel.model.cloud.DnsServiceCallServiceDiscoveryConfiguration;
-import org.apache.camel.model.cloud.EtcdServiceCallServiceDiscoveryConfiguration;
 import org.apache.camel.model.cloud.HealthyServiceCallServiceFilterConfiguration;
 import org.apache.camel.model.cloud.KubernetesServiceCallServiceDiscoveryConfiguration;
 import org.apache.camel.model.cloud.PassThroughServiceCallServiceFilterConfiguration;
-import org.apache.camel.model.cloud.RibbonServiceCallServiceLoadBalancerConfiguration;
 import org.apache.camel.model.cloud.ServiceCallConfigurationDefinition;
 import org.apache.camel.model.cloud.ServiceCallDefinition;
 import org.apache.camel.model.cloud.ServiceCallExpressionConfiguration;
@@ -198,30 +194,28 @@ import org.apache.camel.model.loadbalancer.RoundRobinLoadBalancerDefinition;
 import org.apache.camel.model.loadbalancer.StickyLoadBalancerDefinition;
 import org.apache.camel.model.loadbalancer.TopicLoadBalancerDefinition;
 import org.apache.camel.model.loadbalancer.WeightedLoadBalancerDefinition;
-import org.apache.camel.model.rest.DeleteVerbDefinition;
-import org.apache.camel.model.rest.GetVerbDefinition;
-import org.apache.camel.model.rest.HeadVerbDefinition;
-import org.apache.camel.model.rest.PatchVerbDefinition;
-import org.apache.camel.model.rest.PostVerbDefinition;
-import org.apache.camel.model.rest.PutVerbDefinition;
+import org.apache.camel.model.rest.ApiKeyDefinition;
+import org.apache.camel.model.rest.BasicAuthDefinition;
+import org.apache.camel.model.rest.BearerTokenDefinition;
+import org.apache.camel.model.rest.DeleteDefinition;
+import org.apache.camel.model.rest.GetDefinition;
+import org.apache.camel.model.rest.HeadDefinition;
+import org.apache.camel.model.rest.MutualTLSDefinition;
+import org.apache.camel.model.rest.OAuth2Definition;
+import org.apache.camel.model.rest.OpenIdConnectDefinition;
+import org.apache.camel.model.rest.ParamDefinition;
+import org.apache.camel.model.rest.PatchDefinition;
+import org.apache.camel.model.rest.PostDefinition;
+import org.apache.camel.model.rest.PutDefinition;
+import org.apache.camel.model.rest.ResponseHeaderDefinition;
+import org.apache.camel.model.rest.ResponseMessageDefinition;
 import org.apache.camel.model.rest.RestBindingDefinition;
 import org.apache.camel.model.rest.RestConfigurationDefinition;
 import org.apache.camel.model.rest.RestDefinition;
-import org.apache.camel.model.rest.RestOperationParamDefinition;
-import org.apache.camel.model.rest.RestOperationResponseHeaderDefinition;
-import org.apache.camel.model.rest.RestOperationResponseMsgDefinition;
 import org.apache.camel.model.rest.RestPropertyDefinition;
 import org.apache.camel.model.rest.RestSecuritiesDefinition;
-import org.apache.camel.model.rest.RestSecuritiesRequirement;
-import org.apache.camel.model.rest.RestSecurityApiKey;
-import org.apache.camel.model.rest.RestSecurityBasicAuth;
-import org.apache.camel.model.rest.RestSecurityBearerToken;
-import org.apache.camel.model.rest.RestSecurityMutualTLS;
-import org.apache.camel.model.rest.RestSecurityOAuth2;
-import org.apache.camel.model.rest.RestSecurityOpenIdConnect;
 import org.apache.camel.model.rest.RestsDefinition;
 import org.apache.camel.model.rest.SecurityDefinition;
-import org.apache.camel.model.rest.VerbDefinition;
 import org.apache.camel.model.transformer.CustomTransformerDefinition;
 import org.apache.camel.model.transformer.DataFormatTransformerDefinition;
 import org.apache.camel.model.transformer.EndpointTransformerDefinition;
@@ -298,8 +292,11 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
             order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
             nodes = "aggregate",
             properties = {
-                    @YamlProperty(name = "aggregate-controller-ref", type = "string"),
-                    @YamlProperty(name = "aggregation-repository-ref", type = "string"),
+                    @YamlProperty(name = "aggregate-controller", type = "string"),
+                    @YamlProperty(name = "aggregation-repository", type = "string"),
+                    @YamlProperty(name = "aggregation-strategy", type = "string", required = true),
+                    @YamlProperty(name = "aggregation-strategy-method-allow-null", type = "boolean"),
+                    @YamlProperty(name = "aggregation-strategy-method-name", type = "string"),
                     @YamlProperty(name = "close-correlation-key-on-completion", type = "number"),
                     @YamlProperty(name = "complete-all-on-stop", type = "boolean"),
                     @YamlProperty(name = "completion-from-batch-consumer", type = "boolean"),
@@ -316,7 +313,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     @YamlProperty(name = "discard-on-aggregation-failure", type = "boolean"),
                     @YamlProperty(name = "discard-on-completion-timeout", type = "boolean"),
                     @YamlProperty(name = "eager-check-completion", type = "boolean"),
-                    @YamlProperty(name = "executor-service-ref", type = "string"),
+                    @YamlProperty(name = "executor-service", type = "string"),
                     @YamlProperty(name = "force-completion-on-stop", type = "boolean"),
                     @YamlProperty(name = "id", type = "string"),
                     @YamlProperty(name = "ignore-invalid-correlation-keys", type = "boolean"),
@@ -325,10 +322,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     @YamlProperty(name = "optimistic-locking", type = "boolean"),
                     @YamlProperty(name = "parallel-processing", type = "boolean"),
                     @YamlProperty(name = "steps", type = "array:org.apache.camel.model.ProcessorDefinition"),
-                    @YamlProperty(name = "strategy-method-allow-null", type = "boolean"),
-                    @YamlProperty(name = "strategy-method-name", type = "string"),
-                    @YamlProperty(name = "strategy-ref", type = "string"),
-                    @YamlProperty(name = "timeout-checker-executor-service-ref", type = "string")
+                    @YamlProperty(name = "timeout-checker-executor-service", type = "string")
             }
     )
     public static class AggregateDefinitionDeserializer extends YamlDeserializerBase<AggregateDefinition> {
@@ -345,14 +339,29 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
         protected boolean setProperty(AggregateDefinition target, String propertyKey,
                 String propertyName, Node node) {
             switch(propertyKey) {
-                case "aggregate-controller-ref": {
+                case "aggregate-controller": {
                     String val = asText(node);
-                    target.setAggregateControllerRef(val);
+                    target.setAggregateController(val);
                     break;
                 }
-                case "aggregation-repository-ref": {
+                case "aggregation-repository": {
                     String val = asText(node);
-                    target.setAggregationRepositoryRef(val);
+                    target.setAggregationRepository(val);
+                    break;
+                }
+                case "aggregation-strategy": {
+                    String val = asText(node);
+                    target.setAggregationStrategy(val);
+                    break;
+                }
+                case "aggregation-strategy-method-allow-null": {
+                    String val = asText(node);
+                    target.setAggregationStrategyMethodAllowNull(val);
+                    break;
+                }
+                case "aggregation-strategy-method-name": {
+                    String val = asText(node);
+                    target.setAggregationStrategyMethodName(val);
                     break;
                 }
                 case "close-correlation-key-on-completion": {
@@ -430,9 +439,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setEagerCheckCompletion(val);
                     break;
                 }
-                case "executor-service-ref": {
+                case "executor-service": {
                     String val = asText(node);
-                    target.setExecutorServiceRef(val);
+                    target.setExecutorService(val);
                     break;
                 }
                 case "force-completion-on-stop": {
@@ -465,24 +474,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setParallelProcessing(val);
                     break;
                 }
-                case "strategy-method-allow-null": {
+                case "timeout-checker-executor-service": {
                     String val = asText(node);
-                    target.setStrategyMethodAllowNull(val);
-                    break;
-                }
-                case "strategy-method-name": {
-                    String val = asText(node);
-                    target.setStrategyMethodName(val);
-                    break;
-                }
-                case "strategy-ref": {
-                    String val = asText(node);
-                    target.setStrategyRef(val);
-                    break;
-                }
-                case "timeout-checker-executor-service-ref": {
-                    String val = asText(node);
-                    target.setTimeoutCheckerExecutorServiceRef(val);
+                    target.setTimeoutCheckerExecutorService(val);
                     break;
                 }
                 case "id": {
@@ -562,6 +556,74 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 case "output-format": {
                     String val = asText(node);
                     target.setOutputFormat(val);
+                    break;
+                }
+                default: {
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
+
+    @YamlType(
+            types = org.apache.camel.model.rest.ApiKeyDefinition.class,
+            order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
+            nodes = {
+                    "api-key",
+                    "apiKey"
+            },
+            properties = {
+                    @YamlProperty(name = "description", type = "string"),
+                    @YamlProperty(name = "in-cookie", type = "boolean"),
+                    @YamlProperty(name = "in-header", type = "boolean"),
+                    @YamlProperty(name = "in-query", type = "boolean"),
+                    @YamlProperty(name = "key", type = "string", required = true),
+                    @YamlProperty(name = "name", type = "string", required = true)
+            }
+    )
+    public static class ApiKeyDefinitionDeserializer extends YamlDeserializerBase<ApiKeyDefinition> {
+        public ApiKeyDefinitionDeserializer() {
+            super(ApiKeyDefinition.class);
+        }
+
+        @Override
+        protected ApiKeyDefinition newInstance() {
+            return new ApiKeyDefinition();
+        }
+
+        @Override
+        protected boolean setProperty(ApiKeyDefinition target, String propertyKey,
+                String propertyName, Node node) {
+            switch(propertyKey) {
+                case "description": {
+                    String val = asText(node);
+                    target.setDescription(val);
+                    break;
+                }
+                case "in-cookie": {
+                    String val = asText(node);
+                    target.setInCookie(val);
+                    break;
+                }
+                case "in-header": {
+                    String val = asText(node);
+                    target.setInHeader(val);
+                    break;
+                }
+                case "in-query": {
+                    String val = asText(node);
+                    target.setInQuery(val);
+                    break;
+                }
+                case "key": {
+                    String val = asText(node);
+                    target.setKey(val);
+                    break;
+                }
+                case "name": {
+                    String val = asText(node);
+                    target.setName(val);
                     break;
                 }
                 default: {
@@ -845,6 +907,50 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
     }
 
     @YamlType(
+            types = org.apache.camel.model.rest.BasicAuthDefinition.class,
+            order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
+            nodes = {
+                    "basic-auth",
+                    "basicAuth"
+            },
+            properties = {
+                    @YamlProperty(name = "description", type = "string"),
+                    @YamlProperty(name = "key", type = "string", required = true)
+            }
+    )
+    public static class BasicAuthDefinitionDeserializer extends YamlDeserializerBase<BasicAuthDefinition> {
+        public BasicAuthDefinitionDeserializer() {
+            super(BasicAuthDefinition.class);
+        }
+
+        @Override
+        protected BasicAuthDefinition newInstance() {
+            return new BasicAuthDefinition();
+        }
+
+        @Override
+        protected boolean setProperty(BasicAuthDefinition target, String propertyKey,
+                String propertyName, Node node) {
+            switch(propertyKey) {
+                case "description": {
+                    String val = asText(node);
+                    target.setDescription(val);
+                    break;
+                }
+                case "key": {
+                    String val = asText(node);
+                    target.setKey(val);
+                    break;
+                }
+                default: {
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
+
+    @YamlType(
             types = org.apache.camel.model.config.BatchResequencerConfig.class,
             order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
             nodes = "batch-config",
@@ -910,7 +1016,6 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
             nodes = "bean",
             properties = {
                     @YamlProperty(name = "bean-type", type = "string"),
-                    @YamlProperty(name = "cache", type = "boolean"),
                     @YamlProperty(name = "description", type = "string"),
                     @YamlProperty(name = "id", type = "string"),
                     @YamlProperty(name = "inherit-error-handler", type = "boolean"),
@@ -941,11 +1046,6 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 case "bean-type": {
                     String val = asText(node);
                     target.setBeanType(val);
-                    break;
-                }
-                case "cache": {
-                    String val = asText(node);
-                    target.setCache(val);
                     break;
                 }
                 case "inherit-error-handler": {
@@ -1059,6 +1159,56 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 case "unmarshal-single-object": {
                     String val = asText(node);
                     target.setUnmarshalSingleObject(val);
+                    break;
+                }
+                default: {
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
+
+    @YamlType(
+            types = org.apache.camel.model.rest.BearerTokenDefinition.class,
+            order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
+            nodes = {
+                    "bearer-token",
+                    "bearerToken"
+            },
+            properties = {
+                    @YamlProperty(name = "description", type = "string"),
+                    @YamlProperty(name = "format", type = "string"),
+                    @YamlProperty(name = "key", type = "string", required = true)
+            }
+    )
+    public static class BearerTokenDefinitionDeserializer extends YamlDeserializerBase<BearerTokenDefinition> {
+        public BearerTokenDefinitionDeserializer() {
+            super(BearerTokenDefinition.class);
+        }
+
+        @Override
+        protected BearerTokenDefinition newInstance() {
+            return new BearerTokenDefinition();
+        }
+
+        @Override
+        protected boolean setProperty(BearerTokenDefinition target, String propertyKey,
+                String propertyName, Node node) {
+            switch(propertyKey) {
+                case "description": {
+                    String val = asText(node);
+                    target.setDescription(val);
+                    break;
+                }
+                case "format": {
+                    String val = asText(node);
+                    target.setFormat(val);
+                    break;
+                }
+                case "key": {
+                    String val = asText(node);
+                    target.setKey(val);
                     break;
                 }
                 default: {
@@ -1333,7 +1483,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -1358,7 +1508,6 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     @YamlProperty(name = "combined-service-discovery", type = "object:org.apache.camel.model.cloud.CombinedServiceCallServiceDiscoveryConfiguration"),
                     @YamlProperty(name = "consul-service-discovery", type = "object:org.apache.camel.model.cloud.ConsulServiceCallServiceDiscoveryConfiguration"),
                     @YamlProperty(name = "dns-service-discovery", type = "object:org.apache.camel.model.cloud.DnsServiceCallServiceDiscoveryConfiguration"),
-                    @YamlProperty(name = "etcd-service-discovery", type = "object:org.apache.camel.model.cloud.EtcdServiceCallServiceDiscoveryConfiguration"),
                     @YamlProperty(name = "id", type = "string"),
                     @YamlProperty(name = "kubernetes-service-discovery", type = "object:org.apache.camel.model.cloud.KubernetesServiceCallServiceDiscoveryConfiguration"),
                     @YamlProperty(name = "properties", type = "array:org.apache.camel.model.PropertyDefinition"),
@@ -1403,11 +1552,6 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 }
                 case "dns-service-discovery": {
                     org.apache.camel.model.cloud.DnsServiceCallServiceDiscoveryConfiguration val = asType(node, org.apache.camel.model.cloud.DnsServiceCallServiceDiscoveryConfiguration.class);
-                    target.setServiceDiscoveryConfiguration(val);
-                    break;
-                }
-                case "etcd-service-discovery": {
-                    org.apache.camel.model.cloud.EtcdServiceCallServiceDiscoveryConfiguration val = asType(node, org.apache.camel.model.cloud.EtcdServiceCallServiceDiscoveryConfiguration.class);
                     target.setServiceDiscoveryConfiguration(val);
                     break;
                 }
@@ -1520,6 +1664,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     @YamlProperty(name = "id", type = "string"),
                     @YamlProperty(name = "inherit-error-handler", type = "boolean"),
                     @YamlProperty(name = "otherwise", type = "object:org.apache.camel.model.OtherwiseDefinition"),
+                    @YamlProperty(name = "precondition", type = "boolean"),
                     @YamlProperty(name = "steps", type = "array:org.apache.camel.model.ProcessorDefinition"),
                     @YamlProperty(name = "when", type = "array:org.apache.camel.model.WhenDefinition")
             }
@@ -1546,6 +1691,11 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 case "otherwise": {
                     org.apache.camel.model.OtherwiseDefinition val = asType(node, org.apache.camel.model.OtherwiseDefinition.class);
                     target.setOtherwise(val);
+                    break;
+                }
+                case "precondition": {
+                    String val = asText(node);
+                    target.setPrecondition(val);
                     break;
                 }
                 case "when": {
@@ -1583,10 +1733,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     "circuitBreaker"
             },
             properties = {
-                    @YamlProperty(name = "configuration-ref", type = "string"),
+                    @YamlProperty(name = "configuration", type = "string"),
                     @YamlProperty(name = "description", type = "string"),
                     @YamlProperty(name = "fault-tolerance-configuration", type = "object:org.apache.camel.model.FaultToleranceConfigurationDefinition"),
-                    @YamlProperty(name = "hystrix-configuration", type = "object:org.apache.camel.model.HystrixConfigurationDefinition"),
                     @YamlProperty(name = "id", type = "string"),
                     @YamlProperty(name = "inherit-error-handler", type = "boolean"),
                     @YamlProperty(name = "on-fallback", type = "object:org.apache.camel.model.OnFallbackDefinition"),
@@ -1608,19 +1757,14 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
         protected boolean setProperty(CircuitBreakerDefinition target, String propertyKey,
                 String propertyName, Node node) {
             switch(propertyKey) {
-                case "configuration-ref": {
+                case "configuration": {
                     String val = asText(node);
-                    target.setConfigurationRef(val);
+                    target.setConfiguration(val);
                     break;
                 }
                 case "fault-tolerance-configuration": {
                     org.apache.camel.model.FaultToleranceConfigurationDefinition val = asType(node, org.apache.camel.model.FaultToleranceConfigurationDefinition.class);
                     target.setFaultToleranceConfiguration(val);
-                    break;
-                }
-                case "hystrix-configuration": {
-                    org.apache.camel.model.HystrixConfigurationDefinition val = asType(node, org.apache.camel.model.HystrixConfigurationDefinition.class);
-                    target.setHystrixConfiguration(val);
                     break;
                 }
                 case "inherit-error-handler": {
@@ -1668,14 +1812,14 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     "claimCheck"
             },
             properties = {
+                    @YamlProperty(name = "aggregation-strategy", type = "string"),
+                    @YamlProperty(name = "aggregation-strategy-method-name", type = "string"),
                     @YamlProperty(name = "description", type = "string"),
                     @YamlProperty(name = "filter", type = "string"),
                     @YamlProperty(name = "id", type = "string"),
                     @YamlProperty(name = "inherit-error-handler", type = "boolean"),
                     @YamlProperty(name = "key", type = "string"),
-                    @YamlProperty(name = "operation", type = "string", required = true),
-                    @YamlProperty(name = "strategy-method-name", type = "string"),
-                    @YamlProperty(name = "strategy-ref", type = "string")
+                    @YamlProperty(name = "operation", type = "string", required = true)
             }
     )
     public static class ClaimCheckDefinitionDeserializer extends YamlDeserializerBase<ClaimCheckDefinition> {
@@ -1692,14 +1836,14 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
         protected boolean setProperty(ClaimCheckDefinition target, String propertyKey,
                 String propertyName, Node node) {
             switch(propertyKey) {
-                case "strategy-method-name": {
+                case "aggregation-strategy": {
                     String val = asText(node);
-                    target.setAggregationStrategyMethodName(val);
+                    target.setAggregationStrategy(val);
                     break;
                 }
-                case "strategy-ref": {
+                case "aggregation-strategy-method-name": {
                     String val = asText(node);
-                    target.setAggregationStrategyRef(val);
+                    target.setAggregationStrategyMethodName(val);
                     break;
                 }
                 case "filter": {
@@ -1751,7 +1895,6 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     @YamlProperty(name = "caching-service-discovery", type = "object:org.apache.camel.model.cloud.CachingServiceCallServiceDiscoveryConfiguration"),
                     @YamlProperty(name = "consul-service-discovery", type = "object:org.apache.camel.model.cloud.ConsulServiceCallServiceDiscoveryConfiguration"),
                     @YamlProperty(name = "dns-service-discovery", type = "object:org.apache.camel.model.cloud.DnsServiceCallServiceDiscoveryConfiguration"),
-                    @YamlProperty(name = "etcd-service-discovery", type = "object:org.apache.camel.model.cloud.EtcdServiceCallServiceDiscoveryConfiguration"),
                     @YamlProperty(name = "id", type = "string"),
                     @YamlProperty(name = "kubernetes-service-discovery", type = "object:org.apache.camel.model.cloud.KubernetesServiceCallServiceDiscoveryConfiguration"),
                     @YamlProperty(name = "properties", type = "array:org.apache.camel.model.PropertyDefinition"),
@@ -1799,16 +1942,6 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 }
                 case "dns-service-discovery": {
                     org.apache.camel.model.cloud.DnsServiceCallServiceDiscoveryConfiguration val = asType(node, org.apache.camel.model.cloud.DnsServiceCallServiceDiscoveryConfiguration.class);
-                    java.util.List<org.apache.camel.model.cloud.ServiceCallServiceDiscoveryConfiguration> existing = target.getServiceDiscoveryConfigurations();
-                    if (existing == null) {
-                        existing = new java.util.ArrayList<>();
-                    }
-                    existing.add(val);
-                    target.setServiceDiscoveryConfigurations(existing);
-                    break;
-                }
-                case "etcd-service-discovery": {
-                    org.apache.camel.model.cloud.EtcdServiceCallServiceDiscoveryConfiguration val = asType(node, org.apache.camel.model.cloud.EtcdServiceCallServiceDiscoveryConfiguration.class);
                     java.util.List<org.apache.camel.model.cloud.ServiceCallServiceDiscoveryConfiguration> existing = target.getServiceDiscoveryConfigurations();
                     if (existing == null) {
                         existing = new java.util.ArrayList<>();
@@ -2002,7 +2135,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -2245,7 +2378,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
             properties = {
                     @YamlProperty(name = "algorithm", type = "string"),
                     @YamlProperty(name = "algorithm-parameter-ref", type = "string"),
-                    @YamlProperty(name = "buffersize", type = "number"),
+                    @YamlProperty(name = "buffer-size", type = "number"),
                     @YamlProperty(name = "crypto-provider", type = "string"),
                     @YamlProperty(name = "id", type = "string"),
                     @YamlProperty(name = "init-vector-ref", type = "string"),
@@ -2279,9 +2412,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setAlgorithmParameterRef(val);
                     break;
                 }
-                case "buffersize": {
+                case "buffer-size": {
                     String val = asText(node);
-                    target.setBuffersize(val);
+                    target.setBufferSize(val);
                     break;
                 }
                 case "crypto-provider": {
@@ -2856,7 +2989,6 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     @YamlProperty(name = "mime-multipart", type = "object:org.apache.camel.model.dataformat.MimeMultipartDataFormat"),
                     @YamlProperty(name = "pgp", type = "object:org.apache.camel.model.dataformat.PGPDataFormat"),
                     @YamlProperty(name = "protobuf", type = "object:org.apache.camel.model.dataformat.ProtobufDataFormat"),
-                    @YamlProperty(name = "ref", type = "string"),
                     @YamlProperty(name = "rss", type = "object:org.apache.camel.model.dataformat.RssDataFormat"),
                     @YamlProperty(name = "scheme", type = "string"),
                     @YamlProperty(name = "soap", type = "object:org.apache.camel.model.dataformat.SoapDataFormat"),
@@ -3097,11 +3229,6 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 case "from-type": {
                     String val = asText(node);
                     target.setFromType(val);
-                    break;
-                }
-                case "ref": {
-                    String val = asText(node);
-                    target.setRef(val);
                     break;
                 }
                 case "scheme": {
@@ -3665,7 +3792,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -3902,7 +4029,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     @YamlProperty(name = "async-delayed", type = "boolean"),
                     @YamlProperty(name = "caller-runs-when-rejected", type = "boolean"),
                     @YamlProperty(name = "description", type = "string"),
-                    @YamlProperty(name = "executor-service-ref", type = "string"),
+                    @YamlProperty(name = "executor-service", type = "string"),
                     @YamlProperty(name = "expression", type = "object:org.apache.camel.model.language.ExpressionDefinition"),
                     @YamlProperty(name = "id", type = "string"),
                     @YamlProperty(name = "inherit-error-handler", type = "boolean")
@@ -3932,9 +4059,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setCallerRunsWhenRejected(val);
                     break;
                 }
-                case "executor-service-ref": {
+                case "executor-service": {
                     String val = asText(node);
-                    target.setExecutorServiceRef(val);
+                    target.setExecutorService(val);
                     break;
                 }
                 case "expression": {
@@ -3960,7 +4087,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -3975,46 +4102,41 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
     }
 
     @YamlType(
-            types = org.apache.camel.model.rest.DeleteVerbDefinition.class,
+            types = org.apache.camel.model.rest.DeleteDefinition.class,
             order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
             nodes = "delete",
             properties = {
-                    @YamlProperty(name = "api-docs", type = "string"),
+                    @YamlProperty(name = "api-docs", type = "boolean"),
                     @YamlProperty(name = "binding-mode", type = "string"),
-                    @YamlProperty(name = "client-request-validation", type = "string"),
+                    @YamlProperty(name = "client-request-validation", type = "boolean"),
                     @YamlProperty(name = "consumes", type = "string"),
                     @YamlProperty(name = "deprecated", type = "boolean"),
                     @YamlProperty(name = "description", type = "string"),
-                    @YamlProperty(name = "enable-cors", type = "string"),
+                    @YamlProperty(name = "enable-cors", type = "boolean"),
                     @YamlProperty(name = "id", type = "string"),
-                    @YamlProperty(name = "method", type = "string"),
                     @YamlProperty(name = "out-type", type = "string"),
-                    @YamlProperty(name = "param", type = "array:org.apache.camel.model.rest.RestOperationParamDefinition"),
+                    @YamlProperty(name = "param", type = "array:org.apache.camel.model.rest.ParamDefinition"),
+                    @YamlProperty(name = "path", type = "string"),
                     @YamlProperty(name = "produces", type = "string"),
-                    @YamlProperty(name = "response-message", type = "array:org.apache.camel.model.rest.RestOperationResponseMsgDefinition"),
-                    @YamlProperty(name = "route", type = "object:org.apache.camel.model.RouteDefinition"),
-                    @YamlProperty(name = "route-id", type = "string"),
+                    @YamlProperty(name = "response-message", type = "array:org.apache.camel.model.rest.ResponseMessageDefinition"),
                     @YamlProperty(name = "security", type = "array:org.apache.camel.model.rest.SecurityDefinition"),
-                    @YamlProperty(name = "skip-binding-on-error-code", type = "string"),
-                    @YamlProperty(name = "steps", type = "array:org.apache.camel.model.ProcessorDefinition"),
+                    @YamlProperty(name = "skip-binding-on-error-code", type = "boolean"),
                     @YamlProperty(name = "to", type = "object:org.apache.camel.model.ToDefinition"),
-                    @YamlProperty(name = "to-d", type = "object:org.apache.camel.model.ToDynamicDefinition"),
-                    @YamlProperty(name = "type", type = "string"),
-                    @YamlProperty(name = "uri", type = "string")
+                    @YamlProperty(name = "type", type = "string")
             }
     )
-    public static class DeleteVerbDefinitionDeserializer extends YamlDeserializerBase<DeleteVerbDefinition> {
-        public DeleteVerbDefinitionDeserializer() {
-            super(DeleteVerbDefinition.class);
+    public static class DeleteDefinitionDeserializer extends YamlDeserializerBase<DeleteDefinition> {
+        public DeleteDefinitionDeserializer() {
+            super(DeleteDefinition.class);
         }
 
         @Override
-        protected DeleteVerbDefinition newInstance() {
-            return new DeleteVerbDefinition();
+        protected DeleteDefinition newInstance() {
+            return new DeleteDefinition();
         }
 
         @Override
-        protected boolean setProperty(DeleteVerbDefinition target, String propertyKey,
+        protected boolean setProperty(DeleteDefinition target, String propertyKey,
                 String propertyName, Node node) {
             switch(propertyKey) {
                 case "api-docs": {
@@ -4039,17 +4161,12 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 }
                 case "deprecated": {
                     String val = asText(node);
-                    target.setDeprecated(java.lang.Boolean.valueOf(val));
+                    target.setDeprecated(val);
                     break;
                 }
                 case "enable-cors": {
                     String val = asText(node);
                     target.setEnableCORS(val);
-                    break;
-                }
-                case "method": {
-                    String val = asText(node);
-                    target.setMethod(val);
                     break;
                 }
                 case "out-type": {
@@ -4058,8 +4175,13 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     break;
                 }
                 case "param": {
-                    java.util.List<org.apache.camel.model.rest.RestOperationParamDefinition> val = asFlatList(node, org.apache.camel.model.rest.RestOperationParamDefinition.class);
+                    java.util.List<org.apache.camel.model.rest.ParamDefinition> val = asFlatList(node, org.apache.camel.model.rest.ParamDefinition.class);
                     target.setParams(val);
+                    break;
+                }
+                case "path": {
+                    String val = asText(node);
+                    target.setPath(val);
                     break;
                 }
                 case "produces": {
@@ -4068,13 +4190,8 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     break;
                 }
                 case "response-message": {
-                    java.util.List<org.apache.camel.model.rest.RestOperationResponseMsgDefinition> val = asFlatList(node, org.apache.camel.model.rest.RestOperationResponseMsgDefinition.class);
+                    java.util.List<org.apache.camel.model.rest.ResponseMessageDefinition> val = asFlatList(node, org.apache.camel.model.rest.ResponseMessageDefinition.class);
                     target.setResponseMsgs(val);
-                    break;
-                }
-                case "route-id": {
-                    String val = asText(node);
-                    target.setRouteId(val);
                     break;
                 }
                 case "security": {
@@ -4087,34 +4204,14 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setSkipBindingOnErrorCode(val);
                     break;
                 }
-                case "to-or-route": {
-                    MappingNode val = asMappingNode(node);
-                    setProperties(target, val);
-                    break;
-                }
                 case "to": {
                     org.apache.camel.model.ToDefinition val = asType(node, org.apache.camel.model.ToDefinition.class);
-                    target.setToOrRoute(val);
-                    break;
-                }
-                case "to-d": {
-                    org.apache.camel.model.ToDynamicDefinition val = asType(node, org.apache.camel.model.ToDynamicDefinition.class);
-                    target.setToOrRoute(val);
-                    break;
-                }
-                case "route": {
-                    org.apache.camel.model.RouteDefinition val = asType(node, org.apache.camel.model.RouteDefinition.class);
-                    target.setToOrRoute(val);
+                    target.setTo(val);
                     break;
                 }
                 case "type": {
                     String val = asText(node);
                     target.setType(val);
-                    break;
-                }
-                case "uri": {
-                    String val = asText(node);
-                    target.setUri(val);
                     break;
                 }
                 case "id": {
@@ -4125,10 +4222,6 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 case "description": {
                     org.apache.camel.model.DescriptionDefinition val = asType(node, org.apache.camel.model.DescriptionDefinition.class);
                     target.setDescription(val);
-                    break;
-                }
-                case "steps": {
-                    setSteps(target, node);
                     break;
                 }
                 default: {
@@ -4145,7 +4238,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
             order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
             nodes = "description",
             properties = {
-                    @YamlProperty(name = "lang", type = "string"),
+                    @YamlProperty(name = "lang", type = "string", deprecated = true),
                     @YamlProperty(name = "text", type = "string")
             }
     )
@@ -4312,7 +4405,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -4437,6 +4530,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
             properties = {
                     @YamlProperty(name = "__extends", type = "object:org.apache.camel.model.language.ExpressionDefinition"),
                     @YamlProperty(name = "aggregate-on-exception", type = "boolean"),
+                    @YamlProperty(name = "aggregation-strategy", type = "string"),
+                    @YamlProperty(name = "aggregation-strategy-method-allow-null", type = "string"),
+                    @YamlProperty(name = "aggregation-strategy-method-name", type = "string"),
                     @YamlProperty(name = "allow-optimised-components", type = "boolean"),
                     @YamlProperty(name = "cache-size", type = "number"),
                     @YamlProperty(name = "description", type = "string"),
@@ -4444,10 +4540,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     @YamlProperty(name = "id", type = "string"),
                     @YamlProperty(name = "ignore-invalid-endpoint", type = "boolean"),
                     @YamlProperty(name = "inherit-error-handler", type = "boolean"),
-                    @YamlProperty(name = "share-unit-of-work", type = "boolean"),
-                    @YamlProperty(name = "strategy-method-allow-null", type = "string"),
-                    @YamlProperty(name = "strategy-method-name", type = "string"),
-                    @YamlProperty(name = "strategy-ref", type = "string")
+                    @YamlProperty(name = "share-unit-of-work", type = "boolean")
             }
     )
     public static class EnrichDefinitionDeserializer extends YamlDeserializerBase<EnrichDefinition> {
@@ -4469,19 +4562,19 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setAggregateOnException(val);
                     break;
                 }
-                case "strategy-method-allow-null": {
+                case "aggregation-strategy": {
+                    String val = asText(node);
+                    target.setAggregationStrategy(val);
+                    break;
+                }
+                case "aggregation-strategy-method-allow-null": {
                     String val = asText(node);
                     target.setAggregationStrategyMethodAllowNull(val);
                     break;
                 }
-                case "strategy-method-name": {
+                case "aggregation-strategy-method-name": {
                     String val = asText(node);
                     target.setAggregationStrategyMethodName(val);
-                    break;
-                }
-                case "strategy-ref": {
-                    String val = asText(node);
-                    target.setAggregationStrategyRef(val);
                     break;
                 }
                 case "allow-optimised-components": {
@@ -4527,7 +4620,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -4577,86 +4670,6 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 case "support-transacted": {
                     boolean val = asBoolean(node);
                     target.setSupportTransacted(val);
-                    break;
-                }
-                default: {
-                    return false;
-                }
-            }
-            return true;
-        }
-    }
-
-    @YamlType(
-            types = org.apache.camel.model.cloud.EtcdServiceCallServiceDiscoveryConfiguration.class,
-            order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
-            nodes = {
-                    "etcd-service-discovery",
-                    "etcdServiceDiscovery"
-            },
-            properties = {
-                    @YamlProperty(name = "id", type = "string"),
-                    @YamlProperty(name = "password", type = "string"),
-                    @YamlProperty(name = "properties", type = "array:org.apache.camel.model.PropertyDefinition"),
-                    @YamlProperty(name = "service-path", type = "string"),
-                    @YamlProperty(name = "timeout", type = "number"),
-                    @YamlProperty(name = "type", type = "string"),
-                    @YamlProperty(name = "uris", type = "string"),
-                    @YamlProperty(name = "user-name", type = "string")
-            }
-    )
-    public static class EtcdServiceCallServiceDiscoveryConfigurationDeserializer extends YamlDeserializerBase<EtcdServiceCallServiceDiscoveryConfiguration> {
-        public EtcdServiceCallServiceDiscoveryConfigurationDeserializer() {
-            super(EtcdServiceCallServiceDiscoveryConfiguration.class);
-        }
-
-        @Override
-        protected EtcdServiceCallServiceDiscoveryConfiguration newInstance() {
-            return new EtcdServiceCallServiceDiscoveryConfiguration();
-        }
-
-        @Override
-        protected boolean setProperty(EtcdServiceCallServiceDiscoveryConfiguration target,
-                String propertyKey, String propertyName, Node node) {
-            switch(propertyKey) {
-                case "id": {
-                    String val = asText(node);
-                    target.setId(val);
-                    break;
-                }
-                case "password": {
-                    String val = asText(node);
-                    target.setPassword(val);
-                    break;
-                }
-                case "properties": {
-                    java.util.List<org.apache.camel.model.PropertyDefinition> val = asFlatList(node, org.apache.camel.model.PropertyDefinition.class);
-                    target.setProperties(val);
-                    break;
-                }
-                case "service-path": {
-                    String val = asText(node);
-                    target.setServicePath(val);
-                    break;
-                }
-                case "timeout": {
-                    String val = asText(node);
-                    target.setTimeout(val);
-                    break;
-                }
-                case "type": {
-                    String val = asText(node);
-                    target.setType(val);
-                    break;
-                }
-                case "uris": {
-                    String val = asText(node);
-                    target.setUris(val);
-                    break;
-                }
-                case "user-name": {
-                    String val = asText(node);
-                    target.setUserName(val);
                     break;
                 }
                 default: {
@@ -4718,7 +4731,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -4800,10 +4813,10 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
             },
             properties = {
                     @YamlProperty(name = "bulkhead-enabled", type = "boolean"),
-                    @YamlProperty(name = "bulkhead-executor-service-ref", type = "string"),
+                    @YamlProperty(name = "bulkhead-executor-service", type = "string"),
                     @YamlProperty(name = "bulkhead-max-concurrent-calls", type = "number"),
                     @YamlProperty(name = "bulkhead-waiting-task-queue", type = "number"),
-                    @YamlProperty(name = "circuit-breaker-ref", type = "string"),
+                    @YamlProperty(name = "circuit-breaker", type = "string"),
                     @YamlProperty(name = "delay", type = "string"),
                     @YamlProperty(name = "failure-ratio", type = "number"),
                     @YamlProperty(name = "id", type = "string"),
@@ -4812,7 +4825,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     @YamlProperty(name = "timeout-duration", type = "string"),
                     @YamlProperty(name = "timeout-enabled", type = "boolean"),
                     @YamlProperty(name = "timeout-pool-size", type = "number"),
-                    @YamlProperty(name = "timeout-scheduled-executor-service-ref", type = "string")
+                    @YamlProperty(name = "timeout-scheduled-executor-service", type = "string")
             }
     )
     public static class FaultToleranceConfigurationDefinitionDeserializer extends YamlDeserializerBase<FaultToleranceConfigurationDefinition> {
@@ -4834,9 +4847,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setBulkheadEnabled(val);
                     break;
                 }
-                case "bulkhead-executor-service-ref": {
+                case "bulkhead-executor-service": {
                     String val = asText(node);
-                    target.setBulkheadExecutorServiceRef(val);
+                    target.setBulkheadExecutorService(val);
                     break;
                 }
                 case "bulkhead-max-concurrent-calls": {
@@ -4849,9 +4862,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setBulkheadWaitingTaskQueue(val);
                     break;
                 }
-                case "circuit-breaker-ref": {
+                case "circuit-breaker": {
                     String val = asText(node);
-                    target.setCircuitBreakerRef(val);
+                    target.setCircuitBreaker(val);
                     break;
                 }
                 case "delay": {
@@ -4894,9 +4907,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setTimeoutPoolSize(val);
                     break;
                 }
-                case "timeout-scheduled-executor-service-ref": {
+                case "timeout-scheduled-executor-service": {
                     String val = asText(node);
-                    target.setTimeoutScheduledExecutorServiceRef(val);
+                    target.setTimeoutScheduledExecutorService(val);
                     break;
                 }
                 default: {
@@ -5199,7 +5212,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -5352,47 +5365,42 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
     }
 
     @YamlType(
-            types = org.apache.camel.model.rest.GetVerbDefinition.class,
+            types = org.apache.camel.model.rest.GetDefinition.class,
             order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
             nodes = "get",
             properties = {
-                    @YamlProperty(name = "api-docs", type = "string"),
+                    @YamlProperty(name = "api-docs", type = "boolean"),
                     @YamlProperty(name = "binding-mode", type = "string"),
-                    @YamlProperty(name = "client-request-validation", type = "string"),
+                    @YamlProperty(name = "client-request-validation", type = "boolean"),
                     @YamlProperty(name = "consumes", type = "string"),
                     @YamlProperty(name = "deprecated", type = "boolean"),
                     @YamlProperty(name = "description", type = "string"),
-                    @YamlProperty(name = "enable-cors", type = "string"),
+                    @YamlProperty(name = "enable-cors", type = "boolean"),
                     @YamlProperty(name = "id", type = "string"),
-                    @YamlProperty(name = "method", type = "string"),
                     @YamlProperty(name = "out-type", type = "string"),
-                    @YamlProperty(name = "param", type = "array:org.apache.camel.model.rest.RestOperationParamDefinition"),
+                    @YamlProperty(name = "param", type = "array:org.apache.camel.model.rest.ParamDefinition"),
+                    @YamlProperty(name = "path", type = "string"),
                     @YamlProperty(name = "produces", type = "string"),
-                    @YamlProperty(name = "response-message", type = "array:org.apache.camel.model.rest.RestOperationResponseMsgDefinition"),
-                    @YamlProperty(name = "route", type = "object:org.apache.camel.model.RouteDefinition"),
-                    @YamlProperty(name = "route-id", type = "string"),
+                    @YamlProperty(name = "response-message", type = "array:org.apache.camel.model.rest.ResponseMessageDefinition"),
                     @YamlProperty(name = "security", type = "array:org.apache.camel.model.rest.SecurityDefinition"),
-                    @YamlProperty(name = "skip-binding-on-error-code", type = "string"),
-                    @YamlProperty(name = "steps", type = "array:org.apache.camel.model.ProcessorDefinition"),
+                    @YamlProperty(name = "skip-binding-on-error-code", type = "boolean"),
                     @YamlProperty(name = "to", type = "object:org.apache.camel.model.ToDefinition"),
-                    @YamlProperty(name = "to-d", type = "object:org.apache.camel.model.ToDynamicDefinition"),
-                    @YamlProperty(name = "type", type = "string"),
-                    @YamlProperty(name = "uri", type = "string")
+                    @YamlProperty(name = "type", type = "string")
             }
     )
-    public static class GetVerbDefinitionDeserializer extends YamlDeserializerBase<GetVerbDefinition> {
-        public GetVerbDefinitionDeserializer() {
-            super(GetVerbDefinition.class);
+    public static class GetDefinitionDeserializer extends YamlDeserializerBase<GetDefinition> {
+        public GetDefinitionDeserializer() {
+            super(GetDefinition.class);
         }
 
         @Override
-        protected GetVerbDefinition newInstance() {
-            return new GetVerbDefinition();
+        protected GetDefinition newInstance() {
+            return new GetDefinition();
         }
 
         @Override
-        protected boolean setProperty(GetVerbDefinition target, String propertyKey,
-                String propertyName, Node node) {
+        protected boolean setProperty(GetDefinition target, String propertyKey, String propertyName,
+                Node node) {
             switch(propertyKey) {
                 case "api-docs": {
                     String val = asText(node);
@@ -5416,17 +5424,12 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 }
                 case "deprecated": {
                     String val = asText(node);
-                    target.setDeprecated(java.lang.Boolean.valueOf(val));
+                    target.setDeprecated(val);
                     break;
                 }
                 case "enable-cors": {
                     String val = asText(node);
                     target.setEnableCORS(val);
-                    break;
-                }
-                case "method": {
-                    String val = asText(node);
-                    target.setMethod(val);
                     break;
                 }
                 case "out-type": {
@@ -5435,8 +5438,13 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     break;
                 }
                 case "param": {
-                    java.util.List<org.apache.camel.model.rest.RestOperationParamDefinition> val = asFlatList(node, org.apache.camel.model.rest.RestOperationParamDefinition.class);
+                    java.util.List<org.apache.camel.model.rest.ParamDefinition> val = asFlatList(node, org.apache.camel.model.rest.ParamDefinition.class);
                     target.setParams(val);
+                    break;
+                }
+                case "path": {
+                    String val = asText(node);
+                    target.setPath(val);
                     break;
                 }
                 case "produces": {
@@ -5445,13 +5453,8 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     break;
                 }
                 case "response-message": {
-                    java.util.List<org.apache.camel.model.rest.RestOperationResponseMsgDefinition> val = asFlatList(node, org.apache.camel.model.rest.RestOperationResponseMsgDefinition.class);
+                    java.util.List<org.apache.camel.model.rest.ResponseMessageDefinition> val = asFlatList(node, org.apache.camel.model.rest.ResponseMessageDefinition.class);
                     target.setResponseMsgs(val);
-                    break;
-                }
-                case "route-id": {
-                    String val = asText(node);
-                    target.setRouteId(val);
                     break;
                 }
                 case "security": {
@@ -5464,34 +5467,14 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setSkipBindingOnErrorCode(val);
                     break;
                 }
-                case "to-or-route": {
-                    MappingNode val = asMappingNode(node);
-                    setProperties(target, val);
-                    break;
-                }
                 case "to": {
                     org.apache.camel.model.ToDefinition val = asType(node, org.apache.camel.model.ToDefinition.class);
-                    target.setToOrRoute(val);
-                    break;
-                }
-                case "to-d": {
-                    org.apache.camel.model.ToDynamicDefinition val = asType(node, org.apache.camel.model.ToDynamicDefinition.class);
-                    target.setToOrRoute(val);
-                    break;
-                }
-                case "route": {
-                    org.apache.camel.model.RouteDefinition val = asType(node, org.apache.camel.model.RouteDefinition.class);
-                    target.setToOrRoute(val);
+                    target.setTo(val);
                     break;
                 }
                 case "type": {
                     String val = asText(node);
                     target.setType(val);
-                    break;
-                }
-                case "uri": {
-                    String val = asText(node);
-                    target.setUri(val);
                     break;
                 }
                 case "id": {
@@ -5502,10 +5485,6 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 case "description": {
                     org.apache.camel.model.DescriptionDefinition val = asType(node, org.apache.camel.model.DescriptionDefinition.class);
                     target.setDescription(val);
-                    break;
-                }
-                case "steps": {
-                    setSteps(target, node);
                     break;
                 }
                 default: {
@@ -5703,7 +5682,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -5795,46 +5774,41 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
     }
 
     @YamlType(
-            types = org.apache.camel.model.rest.HeadVerbDefinition.class,
+            types = org.apache.camel.model.rest.HeadDefinition.class,
             order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
             nodes = "head",
             properties = {
-                    @YamlProperty(name = "api-docs", type = "string"),
+                    @YamlProperty(name = "api-docs", type = "boolean"),
                     @YamlProperty(name = "binding-mode", type = "string"),
-                    @YamlProperty(name = "client-request-validation", type = "string"),
+                    @YamlProperty(name = "client-request-validation", type = "boolean"),
                     @YamlProperty(name = "consumes", type = "string"),
                     @YamlProperty(name = "deprecated", type = "boolean"),
                     @YamlProperty(name = "description", type = "string"),
-                    @YamlProperty(name = "enable-cors", type = "string"),
+                    @YamlProperty(name = "enable-cors", type = "boolean"),
                     @YamlProperty(name = "id", type = "string"),
-                    @YamlProperty(name = "method", type = "string"),
                     @YamlProperty(name = "out-type", type = "string"),
-                    @YamlProperty(name = "param", type = "array:org.apache.camel.model.rest.RestOperationParamDefinition"),
+                    @YamlProperty(name = "param", type = "array:org.apache.camel.model.rest.ParamDefinition"),
+                    @YamlProperty(name = "path", type = "string"),
                     @YamlProperty(name = "produces", type = "string"),
-                    @YamlProperty(name = "response-message", type = "array:org.apache.camel.model.rest.RestOperationResponseMsgDefinition"),
-                    @YamlProperty(name = "route", type = "object:org.apache.camel.model.RouteDefinition"),
-                    @YamlProperty(name = "route-id", type = "string"),
+                    @YamlProperty(name = "response-message", type = "array:org.apache.camel.model.rest.ResponseMessageDefinition"),
                     @YamlProperty(name = "security", type = "array:org.apache.camel.model.rest.SecurityDefinition"),
-                    @YamlProperty(name = "skip-binding-on-error-code", type = "string"),
-                    @YamlProperty(name = "steps", type = "array:org.apache.camel.model.ProcessorDefinition"),
+                    @YamlProperty(name = "skip-binding-on-error-code", type = "boolean"),
                     @YamlProperty(name = "to", type = "object:org.apache.camel.model.ToDefinition"),
-                    @YamlProperty(name = "to-d", type = "object:org.apache.camel.model.ToDynamicDefinition"),
-                    @YamlProperty(name = "type", type = "string"),
-                    @YamlProperty(name = "uri", type = "string")
+                    @YamlProperty(name = "type", type = "string")
             }
     )
-    public static class HeadVerbDefinitionDeserializer extends YamlDeserializerBase<HeadVerbDefinition> {
-        public HeadVerbDefinitionDeserializer() {
-            super(HeadVerbDefinition.class);
+    public static class HeadDefinitionDeserializer extends YamlDeserializerBase<HeadDefinition> {
+        public HeadDefinitionDeserializer() {
+            super(HeadDefinition.class);
         }
 
         @Override
-        protected HeadVerbDefinition newInstance() {
-            return new HeadVerbDefinition();
+        protected HeadDefinition newInstance() {
+            return new HeadDefinition();
         }
 
         @Override
-        protected boolean setProperty(HeadVerbDefinition target, String propertyKey,
+        protected boolean setProperty(HeadDefinition target, String propertyKey,
                 String propertyName, Node node) {
             switch(propertyKey) {
                 case "api-docs": {
@@ -5859,17 +5833,12 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 }
                 case "deprecated": {
                     String val = asText(node);
-                    target.setDeprecated(java.lang.Boolean.valueOf(val));
+                    target.setDeprecated(val);
                     break;
                 }
                 case "enable-cors": {
                     String val = asText(node);
                     target.setEnableCORS(val);
-                    break;
-                }
-                case "method": {
-                    String val = asText(node);
-                    target.setMethod(val);
                     break;
                 }
                 case "out-type": {
@@ -5878,8 +5847,13 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     break;
                 }
                 case "param": {
-                    java.util.List<org.apache.camel.model.rest.RestOperationParamDefinition> val = asFlatList(node, org.apache.camel.model.rest.RestOperationParamDefinition.class);
+                    java.util.List<org.apache.camel.model.rest.ParamDefinition> val = asFlatList(node, org.apache.camel.model.rest.ParamDefinition.class);
                     target.setParams(val);
+                    break;
+                }
+                case "path": {
+                    String val = asText(node);
+                    target.setPath(val);
                     break;
                 }
                 case "produces": {
@@ -5888,13 +5862,8 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     break;
                 }
                 case "response-message": {
-                    java.util.List<org.apache.camel.model.rest.RestOperationResponseMsgDefinition> val = asFlatList(node, org.apache.camel.model.rest.RestOperationResponseMsgDefinition.class);
+                    java.util.List<org.apache.camel.model.rest.ResponseMessageDefinition> val = asFlatList(node, org.apache.camel.model.rest.ResponseMessageDefinition.class);
                     target.setResponseMsgs(val);
-                    break;
-                }
-                case "route-id": {
-                    String val = asText(node);
-                    target.setRouteId(val);
                     break;
                 }
                 case "security": {
@@ -5907,34 +5876,14 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setSkipBindingOnErrorCode(val);
                     break;
                 }
-                case "to-or-route": {
-                    MappingNode val = asMappingNode(node);
-                    setProperties(target, val);
-                    break;
-                }
                 case "to": {
                     org.apache.camel.model.ToDefinition val = asType(node, org.apache.camel.model.ToDefinition.class);
-                    target.setToOrRoute(val);
-                    break;
-                }
-                case "to-d": {
-                    org.apache.camel.model.ToDynamicDefinition val = asType(node, org.apache.camel.model.ToDynamicDefinition.class);
-                    target.setToOrRoute(val);
-                    break;
-                }
-                case "route": {
-                    org.apache.camel.model.RouteDefinition val = asType(node, org.apache.camel.model.RouteDefinition.class);
-                    target.setToOrRoute(val);
+                    target.setTo(val);
                     break;
                 }
                 case "type": {
                     String val = asText(node);
                     target.setType(val);
-                    break;
-                }
-                case "uri": {
-                    String val = asText(node);
-                    target.setUri(val);
                     break;
                 }
                 case "id": {
@@ -5945,10 +5894,6 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 case "description": {
                     org.apache.camel.model.DescriptionDefinition val = asType(node, org.apache.camel.model.DescriptionDefinition.class);
                     target.setDescription(val);
-                    break;
-                }
-                case "steps": {
-                    setSteps(target, node);
                     break;
                 }
                 default: {
@@ -6007,7 +5952,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -6113,7 +6058,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -6121,230 +6066,6 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     } else {
                         return false;
                     }
-                }
-            }
-            return true;
-        }
-    }
-
-    @YamlType(
-            types = org.apache.camel.model.HystrixConfigurationDefinition.class,
-            order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
-            nodes = {
-                    "hystrix-configuration",
-                    "hystrixConfiguration"
-            },
-            properties = {
-                    @YamlProperty(name = "allow-maximum-size-to-diverge-from-core-size", type = "boolean"),
-                    @YamlProperty(name = "circuit-breaker-enabled", type = "boolean"),
-                    @YamlProperty(name = "circuit-breaker-error-threshold-percentage", type = "number"),
-                    @YamlProperty(name = "circuit-breaker-force-closed", type = "boolean"),
-                    @YamlProperty(name = "circuit-breaker-force-open", type = "boolean"),
-                    @YamlProperty(name = "circuit-breaker-request-volume-threshold", type = "number"),
-                    @YamlProperty(name = "circuit-breaker-sleep-window-in-milliseconds", type = "number"),
-                    @YamlProperty(name = "core-pool-size", type = "number"),
-                    @YamlProperty(name = "execution-isolation-semaphore-max-concurrent-requests", type = "number"),
-                    @YamlProperty(name = "execution-isolation-strategy", type = "string"),
-                    @YamlProperty(name = "execution-isolation-thread-interrupt-on-timeout", type = "boolean"),
-                    @YamlProperty(name = "execution-timeout-enabled", type = "boolean"),
-                    @YamlProperty(name = "execution-timeout-in-milliseconds", type = "number"),
-                    @YamlProperty(name = "fallback-enabled", type = "boolean"),
-                    @YamlProperty(name = "fallback-isolation-semaphore-max-concurrent-requests", type = "number"),
-                    @YamlProperty(name = "group-key", type = "string"),
-                    @YamlProperty(name = "id", type = "string"),
-                    @YamlProperty(name = "keep-alive-time", type = "number"),
-                    @YamlProperty(name = "max-queue-size", type = "number"),
-                    @YamlProperty(name = "maximum-size", type = "number"),
-                    @YamlProperty(name = "metrics-health-snapshot-interval-in-milliseconds", type = "number"),
-                    @YamlProperty(name = "metrics-rolling-percentile-bucket-size", type = "number"),
-                    @YamlProperty(name = "metrics-rolling-percentile-enabled", type = "boolean"),
-                    @YamlProperty(name = "metrics-rolling-percentile-window-buckets", type = "number"),
-                    @YamlProperty(name = "metrics-rolling-percentile-window-in-milliseconds", type = "number"),
-                    @YamlProperty(name = "metrics-rolling-statistical-window-buckets", type = "number"),
-                    @YamlProperty(name = "metrics-rolling-statistical-window-in-milliseconds", type = "number"),
-                    @YamlProperty(name = "queue-size-rejection-threshold", type = "number"),
-                    @YamlProperty(name = "request-log-enabled", type = "boolean"),
-                    @YamlProperty(name = "thread-pool-key", type = "string"),
-                    @YamlProperty(name = "thread-pool-rolling-number-statistical-window-buckets", type = "number"),
-                    @YamlProperty(name = "thread-pool-rolling-number-statistical-window-in-milliseconds", type = "number")
-            }
-    )
-    public static class HystrixConfigurationDefinitionDeserializer extends YamlDeserializerBase<HystrixConfigurationDefinition> {
-        public HystrixConfigurationDefinitionDeserializer() {
-            super(HystrixConfigurationDefinition.class);
-        }
-
-        @Override
-        protected HystrixConfigurationDefinition newInstance() {
-            return new HystrixConfigurationDefinition();
-        }
-
-        @Override
-        protected boolean setProperty(HystrixConfigurationDefinition target, String propertyKey,
-                String propertyName, Node node) {
-            switch(propertyKey) {
-                case "allow-maximum-size-to-diverge-from-core-size": {
-                    String val = asText(node);
-                    target.setAllowMaximumSizeToDivergeFromCoreSize(val);
-                    break;
-                }
-                case "circuit-breaker-enabled": {
-                    String val = asText(node);
-                    target.setCircuitBreakerEnabled(val);
-                    break;
-                }
-                case "circuit-breaker-error-threshold-percentage": {
-                    String val = asText(node);
-                    target.setCircuitBreakerErrorThresholdPercentage(val);
-                    break;
-                }
-                case "circuit-breaker-force-closed": {
-                    String val = asText(node);
-                    target.setCircuitBreakerForceClosed(val);
-                    break;
-                }
-                case "circuit-breaker-force-open": {
-                    String val = asText(node);
-                    target.setCircuitBreakerForceOpen(val);
-                    break;
-                }
-                case "circuit-breaker-request-volume-threshold": {
-                    String val = asText(node);
-                    target.setCircuitBreakerRequestVolumeThreshold(val);
-                    break;
-                }
-                case "circuit-breaker-sleep-window-in-milliseconds": {
-                    String val = asText(node);
-                    target.setCircuitBreakerSleepWindowInMilliseconds(val);
-                    break;
-                }
-                case "core-pool-size": {
-                    String val = asText(node);
-                    target.setCorePoolSize(val);
-                    break;
-                }
-                case "execution-isolation-semaphore-max-concurrent-requests": {
-                    String val = asText(node);
-                    target.setExecutionIsolationSemaphoreMaxConcurrentRequests(val);
-                    break;
-                }
-                case "execution-isolation-strategy": {
-                    String val = asText(node);
-                    target.setExecutionIsolationStrategy(val);
-                    break;
-                }
-                case "execution-isolation-thread-interrupt-on-timeout": {
-                    String val = asText(node);
-                    target.setExecutionIsolationThreadInterruptOnTimeout(val);
-                    break;
-                }
-                case "execution-timeout-enabled": {
-                    String val = asText(node);
-                    target.setExecutionTimeoutEnabled(val);
-                    break;
-                }
-                case "execution-timeout-in-milliseconds": {
-                    String val = asText(node);
-                    target.setExecutionTimeoutInMilliseconds(val);
-                    break;
-                }
-                case "fallback-enabled": {
-                    String val = asText(node);
-                    target.setFallbackEnabled(val);
-                    break;
-                }
-                case "fallback-isolation-semaphore-max-concurrent-requests": {
-                    String val = asText(node);
-                    target.setFallbackIsolationSemaphoreMaxConcurrentRequests(val);
-                    break;
-                }
-                case "group-key": {
-                    String val = asText(node);
-                    target.setGroupKey(val);
-                    break;
-                }
-                case "id": {
-                    String val = asText(node);
-                    target.setId(val);
-                    break;
-                }
-                case "keep-alive-time": {
-                    String val = asText(node);
-                    target.setKeepAliveTime(val);
-                    break;
-                }
-                case "max-queue-size": {
-                    String val = asText(node);
-                    target.setMaxQueueSize(val);
-                    break;
-                }
-                case "maximum-size": {
-                    String val = asText(node);
-                    target.setMaximumSize(val);
-                    break;
-                }
-                case "metrics-health-snapshot-interval-in-milliseconds": {
-                    String val = asText(node);
-                    target.setMetricsHealthSnapshotIntervalInMilliseconds(val);
-                    break;
-                }
-                case "metrics-rolling-percentile-bucket-size": {
-                    String val = asText(node);
-                    target.setMetricsRollingPercentileBucketSize(val);
-                    break;
-                }
-                case "metrics-rolling-percentile-enabled": {
-                    String val = asText(node);
-                    target.setMetricsRollingPercentileEnabled(val);
-                    break;
-                }
-                case "metrics-rolling-percentile-window-buckets": {
-                    String val = asText(node);
-                    target.setMetricsRollingPercentileWindowBuckets(val);
-                    break;
-                }
-                case "metrics-rolling-percentile-window-in-milliseconds": {
-                    String val = asText(node);
-                    target.setMetricsRollingPercentileWindowInMilliseconds(val);
-                    break;
-                }
-                case "metrics-rolling-statistical-window-buckets": {
-                    String val = asText(node);
-                    target.setMetricsRollingStatisticalWindowBuckets(val);
-                    break;
-                }
-                case "metrics-rolling-statistical-window-in-milliseconds": {
-                    String val = asText(node);
-                    target.setMetricsRollingStatisticalWindowInMilliseconds(val);
-                    break;
-                }
-                case "queue-size-rejection-threshold": {
-                    String val = asText(node);
-                    target.setQueueSizeRejectionThreshold(val);
-                    break;
-                }
-                case "request-log-enabled": {
-                    String val = asText(node);
-                    target.setRequestLogEnabled(val);
-                    break;
-                }
-                case "thread-pool-key": {
-                    String val = asText(node);
-                    target.setThreadPoolKey(val);
-                    break;
-                }
-                case "thread-pool-rolling-number-statistical-window-buckets": {
-                    String val = asText(node);
-                    target.setThreadPoolRollingNumberStatisticalWindowBuckets(val);
-                    break;
-                }
-                case "thread-pool-rolling-number-statistical-window-in-milliseconds": {
-                    String val = asText(node);
-                    target.setThreadPoolRollingNumberStatisticalWindowInMilliseconds(val);
-                    break;
-                }
-                default: {
-                    return false;
                 }
             }
             return true;
@@ -6401,13 +6122,13 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
             },
             properties = {
                     @YamlProperty(name = "__extends", type = "object:org.apache.camel.model.language.ExpressionDefinition"),
-                    @YamlProperty(name = "completion-eager", type = "string"),
+                    @YamlProperty(name = "completion-eager", type = "boolean"),
                     @YamlProperty(name = "description", type = "string"),
                     @YamlProperty(name = "eager", type = "boolean"),
                     @YamlProperty(name = "expression", type = "object:org.apache.camel.model.language.ExpressionDefinition"),
                     @YamlProperty(name = "id", type = "string"),
+                    @YamlProperty(name = "idempotent-repository", type = "string", required = true),
                     @YamlProperty(name = "inherit-error-handler", type = "boolean"),
-                    @YamlProperty(name = "message-id-repository-ref", type = "string", required = true),
                     @YamlProperty(name = "remove-on-failure", type = "boolean"),
                     @YamlProperty(name = "skip-duplicate", type = "boolean"),
                     @YamlProperty(name = "steps", type = "array:org.apache.camel.model.ProcessorDefinition")
@@ -6442,14 +6163,14 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setExpression(val);
                     break;
                 }
+                case "idempotent-repository": {
+                    String val = asText(node);
+                    target.setIdempotentRepository(val);
+                    break;
+                }
                 case "inherit-error-handler": {
                     String val = asText(node);
                     target.setInheritErrorHandler(java.lang.Boolean.valueOf(val));
-                    break;
-                }
-                case "message-id-repository-ref": {
-                    String val = asText(node);
-                    target.setMessageIdRepositoryRef(val);
                     break;
                 }
                 case "remove-on-failure": {
@@ -6479,7 +6200,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -6525,9 +6246,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
         }
 
         @Override
-        protected void setEndpointUri(CamelContext camelContext, InOnlyDefinition target,
+        protected void setEndpointUri(CamelContext camelContext, Node node, InOnlyDefinition target,
                 Map<String, Object> parameters) {
-            target.setUri(org.apache.camel.dsl.yaml.common.YamlSupport.createEndpointUri(camelContext, target.getUri(), parameters));
+            target.setUri(org.apache.camel.dsl.yaml.common.YamlSupport.createEndpointUri(camelContext, node, target.getUri(), parameters));
         }
 
         @Override
@@ -6555,14 +6276,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     break;
                 }
                 default: {
-                    String uri = EndpointProducerDeserializersResolver.resolveEndpointUri(propertyKey, node);
-                    if (uri == null) {
-                        return false;
-                    }
-                    if (target.getUri() != null) {
-                        throw new IllegalStateException("url must not be set when using Endpoint DSL");
-                    }
-                    target.setUri(uri);
+                    return false;
                 }
             }
             return true;
@@ -6601,9 +6315,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
         }
 
         @Override
-        protected void setEndpointUri(CamelContext camelContext, InOutDefinition target,
+        protected void setEndpointUri(CamelContext camelContext, Node node, InOutDefinition target,
                 Map<String, Object> parameters) {
-            target.setUri(org.apache.camel.dsl.yaml.common.YamlSupport.createEndpointUri(camelContext, target.getUri(), parameters));
+            target.setUri(org.apache.camel.dsl.yaml.common.YamlSupport.createEndpointUri(camelContext, node, target.getUri(), parameters));
         }
 
         @Override
@@ -6631,14 +6345,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     break;
                 }
                 default: {
-                    String uri = EndpointProducerDeserializersResolver.resolveEndpointUri(propertyKey, node);
-                    if (uri == null) {
-                        return false;
-                    }
-                    if (target.getUri() != null) {
-                        throw new IllegalStateException("url must not be set when using Endpoint DSL");
-                    }
-                    target.setUri(uri);
+                    return false;
                 }
             }
             return true;
@@ -6920,6 +6627,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     @YamlProperty(name = "module-class-names", type = "string"),
                     @YamlProperty(name = "module-refs", type = "string"),
                     @YamlProperty(name = "pretty-print", type = "boolean"),
+                    @YamlProperty(name = "timezone", type = "string"),
                     @YamlProperty(name = "unmarshal-type", type = "string"),
                     @YamlProperty(name = "use-list", type = "boolean"),
                     @YamlProperty(name = "xml-mapper", type = "string")
@@ -7002,6 +6710,11 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 case "pretty-print": {
                     String val = asText(node);
                     target.setPrettyPrint(val);
+                    break;
+                }
+                case "timezone": {
+                    String val = asText(node);
+                    target.setTimezone(val);
                     break;
                 }
                 case "unmarshal-type": {
@@ -7242,7 +6955,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -7567,7 +7280,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -7828,7 +7541,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -7887,6 +7600,11 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     setProperties(target, val);
                     break;
                 }
+                case "custom-load-balancer": {
+                    org.apache.camel.model.loadbalancer.CustomLoadBalancerDefinition val = asType(node, org.apache.camel.model.loadbalancer.CustomLoadBalancerDefinition.class);
+                    target.setLoadBalancerType(val);
+                    break;
+                }
                 case "failover": {
                     org.apache.camel.model.loadbalancer.FailoverLoadBalancerDefinition val = asType(node, org.apache.camel.model.loadbalancer.FailoverLoadBalancerDefinition.class);
                     target.setLoadBalancerType(val);
@@ -7894,11 +7612,6 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 }
                 case "random": {
                     org.apache.camel.model.loadbalancer.RandomLoadBalancerDefinition val = asType(node, org.apache.camel.model.loadbalancer.RandomLoadBalancerDefinition.class);
-                    target.setLoadBalancerType(val);
-                    break;
-                }
-                case "custom-load-balancer": {
-                    org.apache.camel.model.loadbalancer.CustomLoadBalancerDefinition val = asType(node, org.apache.camel.model.loadbalancer.CustomLoadBalancerDefinition.class);
                     target.setLoadBalancerType(val);
                     break;
                 }
@@ -7945,38 +7658,6 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
     }
 
     @YamlType(
-            types = org.apache.camel.model.LoadBalancerDefinition.class,
-            order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
-            properties = @YamlProperty(name = "id", type = "string")
-    )
-    public static class LoadBalancerDefinitionDeserializer extends YamlDeserializerBase<LoadBalancerDefinition> {
-        public LoadBalancerDefinitionDeserializer() {
-            super(LoadBalancerDefinition.class);
-        }
-
-        @Override
-        protected LoadBalancerDefinition newInstance() {
-            return new LoadBalancerDefinition();
-        }
-
-        @Override
-        protected boolean setProperty(LoadBalancerDefinition target, String propertyKey,
-                String propertyName, Node node) {
-            switch(propertyKey) {
-                case "id": {
-                    String val = asText(node);
-                    target.setId(val);
-                    break;
-                }
-                default: {
-                    return false;
-                }
-            }
-            return true;
-        }
-    }
-
-    @YamlType(
             inline = true,
             types = org.apache.camel.model.LogDefinition.class,
             order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
@@ -7986,7 +7667,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     @YamlProperty(name = "id", type = "string"),
                     @YamlProperty(name = "inherit-error-handler", type = "boolean"),
                     @YamlProperty(name = "log-name", type = "string"),
-                    @YamlProperty(name = "logger-ref", type = "string"),
+                    @YamlProperty(name = "logger", type = "string"),
                     @YamlProperty(name = "logging-level", type = "string"),
                     @YamlProperty(name = "marker", type = "string"),
                     @YamlProperty(name = "message", type = "string", required = true)
@@ -8021,9 +7702,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setLogName(val);
                     break;
                 }
-                case "logger-ref": {
+                case "logger": {
                     String val = asText(node);
-                    target.setLoggerRef(val);
+                    target.setLogger(val);
                     break;
                 }
                 case "logging-level": {
@@ -8131,7 +7812,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -8509,7 +8190,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -8596,20 +8277,19 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
             order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
             nodes = "multicast",
             properties = {
+                    @YamlProperty(name = "aggregation-strategy", type = "string"),
+                    @YamlProperty(name = "aggregation-strategy-method-allow-null", type = "boolean"),
+                    @YamlProperty(name = "aggregation-strategy-method-name", type = "string"),
                     @YamlProperty(name = "description", type = "string"),
-                    @YamlProperty(name = "executor-service-ref", type = "string"),
+                    @YamlProperty(name = "executor-service", type = "string"),
                     @YamlProperty(name = "id", type = "string"),
                     @YamlProperty(name = "inherit-error-handler", type = "boolean"),
-                    @YamlProperty(name = "on-prepare-ref", type = "string"),
+                    @YamlProperty(name = "on-prepare", type = "string"),
                     @YamlProperty(name = "parallel-aggregate", type = "boolean"),
                     @YamlProperty(name = "parallel-processing", type = "boolean"),
                     @YamlProperty(name = "share-unit-of-work", type = "boolean"),
                     @YamlProperty(name = "steps", type = "array:org.apache.camel.model.ProcessorDefinition"),
-                    @YamlProperty(name = "stop-on-aggregate-exception", type = "boolean"),
                     @YamlProperty(name = "stop-on-exception", type = "boolean"),
-                    @YamlProperty(name = "strategy-method-allow-null", type = "boolean"),
-                    @YamlProperty(name = "strategy-method-name", type = "string"),
-                    @YamlProperty(name = "strategy-ref", type = "string"),
                     @YamlProperty(name = "streaming", type = "boolean"),
                     @YamlProperty(name = "timeout", type = "string")
             }
@@ -8628,9 +8308,24 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
         protected boolean setProperty(MulticastDefinition target, String propertyKey,
                 String propertyName, Node node) {
             switch(propertyKey) {
-                case "executor-service-ref": {
+                case "aggregation-strategy": {
                     String val = asText(node);
-                    target.setExecutorServiceRef(val);
+                    target.setAggregationStrategy(val);
+                    break;
+                }
+                case "aggregation-strategy-method-allow-null": {
+                    String val = asText(node);
+                    target.setAggregationStrategyMethodAllowNull(val);
+                    break;
+                }
+                case "aggregation-strategy-method-name": {
+                    String val = asText(node);
+                    target.setAggregationStrategyMethodName(val);
+                    break;
+                }
+                case "executor-service": {
+                    String val = asText(node);
+                    target.setExecutorService(val);
                     break;
                 }
                 case "inherit-error-handler": {
@@ -8638,9 +8333,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setInheritErrorHandler(java.lang.Boolean.valueOf(val));
                     break;
                 }
-                case "on-prepare-ref": {
+                case "on-prepare": {
                     String val = asText(node);
-                    target.setOnPrepareRef(val);
+                    target.setOnPrepare(val);
                     break;
                 }
                 case "parallel-aggregate": {
@@ -8658,29 +8353,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setShareUnitOfWork(val);
                     break;
                 }
-                case "stop-on-aggregate-exception": {
-                    String val = asText(node);
-                    target.setStopOnAggregateException(val);
-                    break;
-                }
                 case "stop-on-exception": {
                     String val = asText(node);
                     target.setStopOnException(val);
-                    break;
-                }
-                case "strategy-method-allow-null": {
-                    String val = asText(node);
-                    target.setStrategyMethodAllowNull(val);
-                    break;
-                }
-                case "strategy-method-name": {
-                    String val = asText(node);
-                    target.setStrategyMethodName(val);
-                    break;
-                }
-                case "strategy-ref": {
-                    String val = asText(node);
-                    target.setStrategyRef(val);
                     break;
                 }
                 case "streaming": {
@@ -8705,6 +8380,50 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 }
                 case "steps": {
                     setSteps(target, node);
+                    break;
+                }
+                default: {
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
+
+    @YamlType(
+            types = org.apache.camel.model.rest.MutualTLSDefinition.class,
+            order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
+            nodes = {
+                    "mutual-tls",
+                    "mutualTLS"
+            },
+            properties = {
+                    @YamlProperty(name = "description", type = "string"),
+                    @YamlProperty(name = "key", type = "string", required = true)
+            }
+    )
+    public static class MutualTLSDefinitionDeserializer extends YamlDeserializerBase<MutualTLSDefinition> {
+        public MutualTLSDefinitionDeserializer() {
+            super(MutualTLSDefinition.class);
+        }
+
+        @Override
+        protected MutualTLSDefinition newInstance() {
+            return new MutualTLSDefinition();
+        }
+
+        @Override
+        protected boolean setProperty(MutualTLSDefinition target, String propertyKey,
+                String propertyName, Node node) {
+            switch(propertyKey) {
+                case "description": {
+                    String val = asText(node);
+                    target.setDescription(val);
+                    break;
+                }
+                case "key": {
+                    String val = asText(node);
+                    target.setKey(val);
                     break;
                 }
                 default: {
@@ -8763,7 +8482,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -8799,6 +8518,77 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     return false;
                 }
             }
+        }
+    }
+
+    @YamlType(
+            types = org.apache.camel.model.rest.OAuth2Definition.class,
+            order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
+            nodes = "oauth2",
+            properties = {
+                    @YamlProperty(name = "authorization-url", type = "string"),
+                    @YamlProperty(name = "description", type = "string"),
+                    @YamlProperty(name = "flow", type = "string"),
+                    @YamlProperty(name = "key", type = "string", required = true),
+                    @YamlProperty(name = "refresh-url", type = "string"),
+                    @YamlProperty(name = "scopes", type = "array:org.apache.camel.model.rest.RestPropertyDefinition"),
+                    @YamlProperty(name = "token-url", type = "string")
+            }
+    )
+    public static class OAuth2DefinitionDeserializer extends YamlDeserializerBase<OAuth2Definition> {
+        public OAuth2DefinitionDeserializer() {
+            super(OAuth2Definition.class);
+        }
+
+        @Override
+        protected OAuth2Definition newInstance() {
+            return new OAuth2Definition();
+        }
+
+        @Override
+        protected boolean setProperty(OAuth2Definition target, String propertyKey,
+                String propertyName, Node node) {
+            switch(propertyKey) {
+                case "authorization-url": {
+                    String val = asText(node);
+                    target.setAuthorizationUrl(val);
+                    break;
+                }
+                case "description": {
+                    String val = asText(node);
+                    target.setDescription(val);
+                    break;
+                }
+                case "flow": {
+                    String val = asText(node);
+                    target.setFlow(val);
+                    break;
+                }
+                case "key": {
+                    String val = asText(node);
+                    target.setKey(val);
+                    break;
+                }
+                case "refresh-url": {
+                    String val = asText(node);
+                    target.setRefreshUrl(val);
+                    break;
+                }
+                case "scopes": {
+                    java.util.List<org.apache.camel.model.rest.RestPropertyDefinition> val = asFlatList(node, org.apache.camel.model.rest.RestPropertyDefinition.class);
+                    target.setScopes(val);
+                    break;
+                }
+                case "token-url": {
+                    String val = asText(node);
+                    target.setTokenUrl(val);
+                    break;
+                }
+                default: {
+                    return false;
+                }
+            }
+            return true;
         }
     }
 
@@ -8850,7 +8640,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -8873,7 +8663,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
             },
             properties = {
                     @YamlProperty(name = "description", type = "string"),
-                    @YamlProperty(name = "executor-service-ref", type = "string"),
+                    @YamlProperty(name = "executor-service", type = "string"),
                     @YamlProperty(name = "id", type = "string"),
                     @YamlProperty(name = "inherit-error-handler", type = "boolean"),
                     @YamlProperty(name = "mode", type = "string"),
@@ -8899,9 +8689,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
         protected boolean setProperty(OnCompletionDefinition target, String propertyKey,
                 String propertyName, Node node) {
             switch(propertyKey) {
-                case "executor-service-ref": {
+                case "executor-service": {
                     String val = asText(node);
-                    target.setExecutorServiceRef(val);
+                    target.setExecutorService(val);
                     break;
                 }
                 case "inherit-error-handler": {
@@ -9134,6 +8924,56 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 }
                 case "steps": {
                     setSteps(target, node);
+                    break;
+                }
+                default: {
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
+
+    @YamlType(
+            types = org.apache.camel.model.rest.OpenIdConnectDefinition.class,
+            order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
+            nodes = {
+                    "open-id-connect",
+                    "openIdConnect"
+            },
+            properties = {
+                    @YamlProperty(name = "description", type = "string"),
+                    @YamlProperty(name = "key", type = "string", required = true),
+                    @YamlProperty(name = "url", type = "string", required = true)
+            }
+    )
+    public static class OpenIdConnectDefinitionDeserializer extends YamlDeserializerBase<OpenIdConnectDefinition> {
+        public OpenIdConnectDefinitionDeserializer() {
+            super(OpenIdConnectDefinition.class);
+        }
+
+        @Override
+        protected OpenIdConnectDefinition newInstance() {
+            return new OpenIdConnectDefinition();
+        }
+
+        @Override
+        protected boolean setProperty(OpenIdConnectDefinition target, String propertyKey,
+                String propertyName, Node node) {
+            switch(propertyKey) {
+                case "description": {
+                    String val = asText(node);
+                    target.setDescription(val);
+                    break;
+                }
+                case "key": {
+                    String val = asText(node);
+                    target.setKey(val);
+                    break;
+                }
+                case "url": {
+                    String val = asText(node);
+                    target.setUrl(val);
                     break;
                 }
                 default: {
@@ -9535,6 +9375,99 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
     }
 
     @YamlType(
+            types = org.apache.camel.model.rest.ParamDefinition.class,
+            order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
+            nodes = "param",
+            properties = {
+                    @YamlProperty(name = "array-type", type = "string"),
+                    @YamlProperty(name = "collection-format", type = "enum:csv,multi,pipes,ssv,tsv"),
+                    @YamlProperty(name = "data-format", type = "string"),
+                    @YamlProperty(name = "data-type", type = "string"),
+                    @YamlProperty(name = "default-value", type = "string"),
+                    @YamlProperty(name = "description", type = "string"),
+                    @YamlProperty(name = "examples", type = "array:org.apache.camel.model.rest.RestPropertyDefinition"),
+                    @YamlProperty(name = "name", type = "string", required = true),
+                    @YamlProperty(name = "required", type = "boolean"),
+                    @YamlProperty(name = "type", type = "enum:body,formData,header,path,query", required = true),
+                    @YamlProperty(name = "value", type = "array:string")
+            }
+    )
+    public static class ParamDefinitionDeserializer extends YamlDeserializerBase<ParamDefinition> {
+        public ParamDefinitionDeserializer() {
+            super(ParamDefinition.class);
+        }
+
+        @Override
+        protected ParamDefinition newInstance() {
+            return new ParamDefinition();
+        }
+
+        @Override
+        protected boolean setProperty(ParamDefinition target, String propertyKey,
+                String propertyName, Node node) {
+            switch(propertyKey) {
+                case "value": {
+                    java.util.List<String> val = asStringList(node);
+                    target.setAllowableValues(val);
+                    break;
+                }
+                case "array-type": {
+                    String val = asText(node);
+                    target.setArrayType(val);
+                    break;
+                }
+                case "collection-format": {
+                    target.setCollectionFormat(asEnum(node, org.apache.camel.model.rest.CollectionFormat.class));
+                    break;
+                }
+                case "data-format": {
+                    String val = asText(node);
+                    target.setDataFormat(val);
+                    break;
+                }
+                case "data-type": {
+                    String val = asText(node);
+                    target.setDataType(val);
+                    break;
+                }
+                case "default-value": {
+                    String val = asText(node);
+                    target.setDefaultValue(val);
+                    break;
+                }
+                case "description": {
+                    String val = asText(node);
+                    target.setDescription(val);
+                    break;
+                }
+                case "examples": {
+                    java.util.List<org.apache.camel.model.rest.RestPropertyDefinition> val = asFlatList(node, org.apache.camel.model.rest.RestPropertyDefinition.class);
+                    target.setExamples(val);
+                    break;
+                }
+                case "name": {
+                    String val = asText(node);
+                    target.setName(val);
+                    break;
+                }
+                case "required": {
+                    String val = asText(node);
+                    target.setRequired(java.lang.Boolean.valueOf(val));
+                    break;
+                }
+                case "type": {
+                    target.setType(asEnum(node, org.apache.camel.model.rest.RestParamType.class));
+                    break;
+                }
+                default: {
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
+
+    @YamlType(
             types = org.apache.camel.model.cloud.PassThroughServiceCallServiceFilterConfiguration.class,
             order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
             nodes = {
@@ -9579,46 +9512,41 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
     }
 
     @YamlType(
-            types = org.apache.camel.model.rest.PatchVerbDefinition.class,
+            types = org.apache.camel.model.rest.PatchDefinition.class,
             order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
             nodes = "patch",
             properties = {
-                    @YamlProperty(name = "api-docs", type = "string"),
+                    @YamlProperty(name = "api-docs", type = "boolean"),
                     @YamlProperty(name = "binding-mode", type = "string"),
-                    @YamlProperty(name = "client-request-validation", type = "string"),
+                    @YamlProperty(name = "client-request-validation", type = "boolean"),
                     @YamlProperty(name = "consumes", type = "string"),
                     @YamlProperty(name = "deprecated", type = "boolean"),
                     @YamlProperty(name = "description", type = "string"),
-                    @YamlProperty(name = "enable-cors", type = "string"),
+                    @YamlProperty(name = "enable-cors", type = "boolean"),
                     @YamlProperty(name = "id", type = "string"),
-                    @YamlProperty(name = "method", type = "string"),
                     @YamlProperty(name = "out-type", type = "string"),
-                    @YamlProperty(name = "param", type = "array:org.apache.camel.model.rest.RestOperationParamDefinition"),
+                    @YamlProperty(name = "param", type = "array:org.apache.camel.model.rest.ParamDefinition"),
+                    @YamlProperty(name = "path", type = "string"),
                     @YamlProperty(name = "produces", type = "string"),
-                    @YamlProperty(name = "response-message", type = "array:org.apache.camel.model.rest.RestOperationResponseMsgDefinition"),
-                    @YamlProperty(name = "route", type = "object:org.apache.camel.model.RouteDefinition"),
-                    @YamlProperty(name = "route-id", type = "string"),
+                    @YamlProperty(name = "response-message", type = "array:org.apache.camel.model.rest.ResponseMessageDefinition"),
                     @YamlProperty(name = "security", type = "array:org.apache.camel.model.rest.SecurityDefinition"),
-                    @YamlProperty(name = "skip-binding-on-error-code", type = "string"),
-                    @YamlProperty(name = "steps", type = "array:org.apache.camel.model.ProcessorDefinition"),
+                    @YamlProperty(name = "skip-binding-on-error-code", type = "boolean"),
                     @YamlProperty(name = "to", type = "object:org.apache.camel.model.ToDefinition"),
-                    @YamlProperty(name = "to-d", type = "object:org.apache.camel.model.ToDynamicDefinition"),
-                    @YamlProperty(name = "type", type = "string"),
-                    @YamlProperty(name = "uri", type = "string")
+                    @YamlProperty(name = "type", type = "string")
             }
     )
-    public static class PatchVerbDefinitionDeserializer extends YamlDeserializerBase<PatchVerbDefinition> {
-        public PatchVerbDefinitionDeserializer() {
-            super(PatchVerbDefinition.class);
+    public static class PatchDefinitionDeserializer extends YamlDeserializerBase<PatchDefinition> {
+        public PatchDefinitionDeserializer() {
+            super(PatchDefinition.class);
         }
 
         @Override
-        protected PatchVerbDefinition newInstance() {
-            return new PatchVerbDefinition();
+        protected PatchDefinition newInstance() {
+            return new PatchDefinition();
         }
 
         @Override
-        protected boolean setProperty(PatchVerbDefinition target, String propertyKey,
+        protected boolean setProperty(PatchDefinition target, String propertyKey,
                 String propertyName, Node node) {
             switch(propertyKey) {
                 case "api-docs": {
@@ -9643,17 +9571,12 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 }
                 case "deprecated": {
                     String val = asText(node);
-                    target.setDeprecated(java.lang.Boolean.valueOf(val));
+                    target.setDeprecated(val);
                     break;
                 }
                 case "enable-cors": {
                     String val = asText(node);
                     target.setEnableCORS(val);
-                    break;
-                }
-                case "method": {
-                    String val = asText(node);
-                    target.setMethod(val);
                     break;
                 }
                 case "out-type": {
@@ -9662,8 +9585,13 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     break;
                 }
                 case "param": {
-                    java.util.List<org.apache.camel.model.rest.RestOperationParamDefinition> val = asFlatList(node, org.apache.camel.model.rest.RestOperationParamDefinition.class);
+                    java.util.List<org.apache.camel.model.rest.ParamDefinition> val = asFlatList(node, org.apache.camel.model.rest.ParamDefinition.class);
                     target.setParams(val);
+                    break;
+                }
+                case "path": {
+                    String val = asText(node);
+                    target.setPath(val);
                     break;
                 }
                 case "produces": {
@@ -9672,13 +9600,8 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     break;
                 }
                 case "response-message": {
-                    java.util.List<org.apache.camel.model.rest.RestOperationResponseMsgDefinition> val = asFlatList(node, org.apache.camel.model.rest.RestOperationResponseMsgDefinition.class);
+                    java.util.List<org.apache.camel.model.rest.ResponseMessageDefinition> val = asFlatList(node, org.apache.camel.model.rest.ResponseMessageDefinition.class);
                     target.setResponseMsgs(val);
-                    break;
-                }
-                case "route-id": {
-                    String val = asText(node);
-                    target.setRouteId(val);
                     break;
                 }
                 case "security": {
@@ -9691,34 +9614,14 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setSkipBindingOnErrorCode(val);
                     break;
                 }
-                case "to-or-route": {
-                    MappingNode val = asMappingNode(node);
-                    setProperties(target, val);
-                    break;
-                }
                 case "to": {
                     org.apache.camel.model.ToDefinition val = asType(node, org.apache.camel.model.ToDefinition.class);
-                    target.setToOrRoute(val);
-                    break;
-                }
-                case "to-d": {
-                    org.apache.camel.model.ToDynamicDefinition val = asType(node, org.apache.camel.model.ToDynamicDefinition.class);
-                    target.setToOrRoute(val);
-                    break;
-                }
-                case "route": {
-                    org.apache.camel.model.RouteDefinition val = asType(node, org.apache.camel.model.RouteDefinition.class);
-                    target.setToOrRoute(val);
+                    target.setTo(val);
                     break;
                 }
                 case "type": {
                     String val = asText(node);
                     target.setType(val);
-                    break;
-                }
-                case "uri": {
-                    String val = asText(node);
-                    target.setUri(val);
                     break;
                 }
                 case "id": {
@@ -9729,10 +9632,6 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 case "description": {
                     org.apache.camel.model.DescriptionDefinition val = asType(node, org.apache.camel.model.DescriptionDefinition.class);
                     target.setDescription(val);
-                    break;
-                }
-                case "steps": {
-                    setSteps(target, node);
                     break;
                 }
                 default: {
@@ -9863,15 +9762,15 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
             properties = {
                     @YamlProperty(name = "__extends", type = "object:org.apache.camel.model.language.ExpressionDefinition"),
                     @YamlProperty(name = "aggregate-on-exception", type = "boolean"),
+                    @YamlProperty(name = "aggregation-strategy", type = "string"),
+                    @YamlProperty(name = "aggregation-strategy-method-allow-null", type = "string"),
+                    @YamlProperty(name = "aggregation-strategy-method-name", type = "string"),
                     @YamlProperty(name = "cache-size", type = "number"),
                     @YamlProperty(name = "description", type = "string"),
                     @YamlProperty(name = "expression", type = "object:org.apache.camel.model.language.ExpressionDefinition"),
                     @YamlProperty(name = "id", type = "string"),
-                    @YamlProperty(name = "ignore-invalid-endpoint", type = "number"),
+                    @YamlProperty(name = "ignore-invalid-endpoint", type = "boolean"),
                     @YamlProperty(name = "inherit-error-handler", type = "boolean"),
-                    @YamlProperty(name = "strategy-method-allow-null", type = "boolean"),
-                    @YamlProperty(name = "strategy-method-name", type = "string"),
-                    @YamlProperty(name = "strategy-ref", type = "string"),
                     @YamlProperty(name = "timeout", type = "string")
             }
     )
@@ -9894,19 +9793,19 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setAggregateOnException(val);
                     break;
                 }
-                case "strategy-method-allow-null": {
+                case "aggregation-strategy": {
+                    String val = asText(node);
+                    target.setAggregationStrategy(val);
+                    break;
+                }
+                case "aggregation-strategy-method-allow-null": {
                     String val = asText(node);
                     target.setAggregationStrategyMethodAllowNull(val);
                     break;
                 }
-                case "strategy-method-name": {
+                case "aggregation-strategy-method-name": {
                     String val = asText(node);
                     target.setAggregationStrategyMethodName(val);
-                    break;
-                }
-                case "strategy-ref": {
-                    String val = asText(node);
-                    target.setAggregationStrategyRef(val);
                     break;
                 }
                 case "cache-size": {
@@ -9947,7 +9846,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -9962,46 +9861,41 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
     }
 
     @YamlType(
-            types = org.apache.camel.model.rest.PostVerbDefinition.class,
+            types = org.apache.camel.model.rest.PostDefinition.class,
             order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
             nodes = "post",
             properties = {
-                    @YamlProperty(name = "api-docs", type = "string"),
+                    @YamlProperty(name = "api-docs", type = "boolean"),
                     @YamlProperty(name = "binding-mode", type = "string"),
-                    @YamlProperty(name = "client-request-validation", type = "string"),
+                    @YamlProperty(name = "client-request-validation", type = "boolean"),
                     @YamlProperty(name = "consumes", type = "string"),
                     @YamlProperty(name = "deprecated", type = "boolean"),
                     @YamlProperty(name = "description", type = "string"),
-                    @YamlProperty(name = "enable-cors", type = "string"),
+                    @YamlProperty(name = "enable-cors", type = "boolean"),
                     @YamlProperty(name = "id", type = "string"),
-                    @YamlProperty(name = "method", type = "string"),
                     @YamlProperty(name = "out-type", type = "string"),
-                    @YamlProperty(name = "param", type = "array:org.apache.camel.model.rest.RestOperationParamDefinition"),
+                    @YamlProperty(name = "param", type = "array:org.apache.camel.model.rest.ParamDefinition"),
+                    @YamlProperty(name = "path", type = "string"),
                     @YamlProperty(name = "produces", type = "string"),
-                    @YamlProperty(name = "response-message", type = "array:org.apache.camel.model.rest.RestOperationResponseMsgDefinition"),
-                    @YamlProperty(name = "route", type = "object:org.apache.camel.model.RouteDefinition"),
-                    @YamlProperty(name = "route-id", type = "string"),
+                    @YamlProperty(name = "response-message", type = "array:org.apache.camel.model.rest.ResponseMessageDefinition"),
                     @YamlProperty(name = "security", type = "array:org.apache.camel.model.rest.SecurityDefinition"),
-                    @YamlProperty(name = "skip-binding-on-error-code", type = "string"),
-                    @YamlProperty(name = "steps", type = "array:org.apache.camel.model.ProcessorDefinition"),
+                    @YamlProperty(name = "skip-binding-on-error-code", type = "boolean"),
                     @YamlProperty(name = "to", type = "object:org.apache.camel.model.ToDefinition"),
-                    @YamlProperty(name = "to-d", type = "object:org.apache.camel.model.ToDynamicDefinition"),
-                    @YamlProperty(name = "type", type = "string"),
-                    @YamlProperty(name = "uri", type = "string")
+                    @YamlProperty(name = "type", type = "string")
             }
     )
-    public static class PostVerbDefinitionDeserializer extends YamlDeserializerBase<PostVerbDefinition> {
-        public PostVerbDefinitionDeserializer() {
-            super(PostVerbDefinition.class);
+    public static class PostDefinitionDeserializer extends YamlDeserializerBase<PostDefinition> {
+        public PostDefinitionDeserializer() {
+            super(PostDefinition.class);
         }
 
         @Override
-        protected PostVerbDefinition newInstance() {
-            return new PostVerbDefinition();
+        protected PostDefinition newInstance() {
+            return new PostDefinition();
         }
 
         @Override
-        protected boolean setProperty(PostVerbDefinition target, String propertyKey,
+        protected boolean setProperty(PostDefinition target, String propertyKey,
                 String propertyName, Node node) {
             switch(propertyKey) {
                 case "api-docs": {
@@ -10026,17 +9920,12 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 }
                 case "deprecated": {
                     String val = asText(node);
-                    target.setDeprecated(java.lang.Boolean.valueOf(val));
+                    target.setDeprecated(val);
                     break;
                 }
                 case "enable-cors": {
                     String val = asText(node);
                     target.setEnableCORS(val);
-                    break;
-                }
-                case "method": {
-                    String val = asText(node);
-                    target.setMethod(val);
                     break;
                 }
                 case "out-type": {
@@ -10045,8 +9934,13 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     break;
                 }
                 case "param": {
-                    java.util.List<org.apache.camel.model.rest.RestOperationParamDefinition> val = asFlatList(node, org.apache.camel.model.rest.RestOperationParamDefinition.class);
+                    java.util.List<org.apache.camel.model.rest.ParamDefinition> val = asFlatList(node, org.apache.camel.model.rest.ParamDefinition.class);
                     target.setParams(val);
+                    break;
+                }
+                case "path": {
+                    String val = asText(node);
+                    target.setPath(val);
                     break;
                 }
                 case "produces": {
@@ -10055,13 +9949,8 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     break;
                 }
                 case "response-message": {
-                    java.util.List<org.apache.camel.model.rest.RestOperationResponseMsgDefinition> val = asFlatList(node, org.apache.camel.model.rest.RestOperationResponseMsgDefinition.class);
+                    java.util.List<org.apache.camel.model.rest.ResponseMessageDefinition> val = asFlatList(node, org.apache.camel.model.rest.ResponseMessageDefinition.class);
                     target.setResponseMsgs(val);
-                    break;
-                }
-                case "route-id": {
-                    String val = asText(node);
-                    target.setRouteId(val);
                     break;
                 }
                 case "security": {
@@ -10074,34 +9963,14 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setSkipBindingOnErrorCode(val);
                     break;
                 }
-                case "to-or-route": {
-                    MappingNode val = asMappingNode(node);
-                    setProperties(target, val);
-                    break;
-                }
                 case "to": {
                     org.apache.camel.model.ToDefinition val = asType(node, org.apache.camel.model.ToDefinition.class);
-                    target.setToOrRoute(val);
-                    break;
-                }
-                case "to-d": {
-                    org.apache.camel.model.ToDynamicDefinition val = asType(node, org.apache.camel.model.ToDynamicDefinition.class);
-                    target.setToOrRoute(val);
-                    break;
-                }
-                case "route": {
-                    org.apache.camel.model.RouteDefinition val = asType(node, org.apache.camel.model.RouteDefinition.class);
-                    target.setToOrRoute(val);
+                    target.setTo(val);
                     break;
                 }
                 case "type": {
                     String val = asText(node);
                     target.setType(val);
-                    break;
-                }
-                case "uri": {
-                    String val = asText(node);
-                    target.setUri(val);
                     break;
                 }
                 case "id": {
@@ -10112,10 +9981,6 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 case "description": {
                     org.apache.camel.model.DescriptionDefinition val = asType(node, org.apache.camel.model.DescriptionDefinition.class);
                     target.setDescription(val);
-                    break;
-                }
-                case "steps": {
-                    setSteps(target, node);
                     break;
                 }
                 default: {
@@ -10471,47 +10336,42 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
     }
 
     @YamlType(
-            types = org.apache.camel.model.rest.PutVerbDefinition.class,
+            types = org.apache.camel.model.rest.PutDefinition.class,
             order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
             nodes = "put",
             properties = {
-                    @YamlProperty(name = "api-docs", type = "string"),
+                    @YamlProperty(name = "api-docs", type = "boolean"),
                     @YamlProperty(name = "binding-mode", type = "string"),
-                    @YamlProperty(name = "client-request-validation", type = "string"),
+                    @YamlProperty(name = "client-request-validation", type = "boolean"),
                     @YamlProperty(name = "consumes", type = "string"),
                     @YamlProperty(name = "deprecated", type = "boolean"),
                     @YamlProperty(name = "description", type = "string"),
-                    @YamlProperty(name = "enable-cors", type = "string"),
+                    @YamlProperty(name = "enable-cors", type = "boolean"),
                     @YamlProperty(name = "id", type = "string"),
-                    @YamlProperty(name = "method", type = "string"),
                     @YamlProperty(name = "out-type", type = "string"),
-                    @YamlProperty(name = "param", type = "array:org.apache.camel.model.rest.RestOperationParamDefinition"),
+                    @YamlProperty(name = "param", type = "array:org.apache.camel.model.rest.ParamDefinition"),
+                    @YamlProperty(name = "path", type = "string"),
                     @YamlProperty(name = "produces", type = "string"),
-                    @YamlProperty(name = "response-message", type = "array:org.apache.camel.model.rest.RestOperationResponseMsgDefinition"),
-                    @YamlProperty(name = "route", type = "object:org.apache.camel.model.RouteDefinition"),
-                    @YamlProperty(name = "route-id", type = "string"),
+                    @YamlProperty(name = "response-message", type = "array:org.apache.camel.model.rest.ResponseMessageDefinition"),
                     @YamlProperty(name = "security", type = "array:org.apache.camel.model.rest.SecurityDefinition"),
-                    @YamlProperty(name = "skip-binding-on-error-code", type = "string"),
-                    @YamlProperty(name = "steps", type = "array:org.apache.camel.model.ProcessorDefinition"),
+                    @YamlProperty(name = "skip-binding-on-error-code", type = "boolean"),
                     @YamlProperty(name = "to", type = "object:org.apache.camel.model.ToDefinition"),
-                    @YamlProperty(name = "to-d", type = "object:org.apache.camel.model.ToDynamicDefinition"),
-                    @YamlProperty(name = "type", type = "string"),
-                    @YamlProperty(name = "uri", type = "string")
+                    @YamlProperty(name = "type", type = "string")
             }
     )
-    public static class PutVerbDefinitionDeserializer extends YamlDeserializerBase<PutVerbDefinition> {
-        public PutVerbDefinitionDeserializer() {
-            super(PutVerbDefinition.class);
+    public static class PutDefinitionDeserializer extends YamlDeserializerBase<PutDefinition> {
+        public PutDefinitionDeserializer() {
+            super(PutDefinition.class);
         }
 
         @Override
-        protected PutVerbDefinition newInstance() {
-            return new PutVerbDefinition();
+        protected PutDefinition newInstance() {
+            return new PutDefinition();
         }
 
         @Override
-        protected boolean setProperty(PutVerbDefinition target, String propertyKey,
-                String propertyName, Node node) {
+        protected boolean setProperty(PutDefinition target, String propertyKey, String propertyName,
+                Node node) {
             switch(propertyKey) {
                 case "api-docs": {
                     String val = asText(node);
@@ -10535,17 +10395,12 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 }
                 case "deprecated": {
                     String val = asText(node);
-                    target.setDeprecated(java.lang.Boolean.valueOf(val));
+                    target.setDeprecated(val);
                     break;
                 }
                 case "enable-cors": {
                     String val = asText(node);
                     target.setEnableCORS(val);
-                    break;
-                }
-                case "method": {
-                    String val = asText(node);
-                    target.setMethod(val);
                     break;
                 }
                 case "out-type": {
@@ -10554,8 +10409,13 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     break;
                 }
                 case "param": {
-                    java.util.List<org.apache.camel.model.rest.RestOperationParamDefinition> val = asFlatList(node, org.apache.camel.model.rest.RestOperationParamDefinition.class);
+                    java.util.List<org.apache.camel.model.rest.ParamDefinition> val = asFlatList(node, org.apache.camel.model.rest.ParamDefinition.class);
                     target.setParams(val);
+                    break;
+                }
+                case "path": {
+                    String val = asText(node);
+                    target.setPath(val);
                     break;
                 }
                 case "produces": {
@@ -10564,13 +10424,8 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     break;
                 }
                 case "response-message": {
-                    java.util.List<org.apache.camel.model.rest.RestOperationResponseMsgDefinition> val = asFlatList(node, org.apache.camel.model.rest.RestOperationResponseMsgDefinition.class);
+                    java.util.List<org.apache.camel.model.rest.ResponseMessageDefinition> val = asFlatList(node, org.apache.camel.model.rest.ResponseMessageDefinition.class);
                     target.setResponseMsgs(val);
-                    break;
-                }
-                case "route-id": {
-                    String val = asText(node);
-                    target.setRouteId(val);
                     break;
                 }
                 case "security": {
@@ -10583,34 +10438,14 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setSkipBindingOnErrorCode(val);
                     break;
                 }
-                case "to-or-route": {
-                    MappingNode val = asMappingNode(node);
-                    setProperties(target, val);
-                    break;
-                }
                 case "to": {
                     org.apache.camel.model.ToDefinition val = asType(node, org.apache.camel.model.ToDefinition.class);
-                    target.setToOrRoute(val);
-                    break;
-                }
-                case "to-d": {
-                    org.apache.camel.model.ToDynamicDefinition val = asType(node, org.apache.camel.model.ToDynamicDefinition.class);
-                    target.setToOrRoute(val);
-                    break;
-                }
-                case "route": {
-                    org.apache.camel.model.RouteDefinition val = asType(node, org.apache.camel.model.RouteDefinition.class);
-                    target.setToOrRoute(val);
+                    target.setTo(val);
                     break;
                 }
                 case "type": {
                     String val = asText(node);
                     target.setType(val);
-                    break;
-                }
-                case "uri": {
-                    String val = asText(node);
-                    target.setUri(val);
                     break;
                 }
                 case "id": {
@@ -10621,10 +10456,6 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 case "description": {
                     org.apache.camel.model.DescriptionDefinition val = asType(node, org.apache.camel.model.DescriptionDefinition.class);
                     target.setDescription(val);
-                    break;
-                }
-                case "steps": {
-                    setSteps(target, node);
                     break;
                 }
                 default: {
@@ -10677,23 +10508,22 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
             },
             properties = {
                     @YamlProperty(name = "__extends", type = "object:org.apache.camel.model.language.ExpressionDefinition"),
+                    @YamlProperty(name = "aggregation-strategy", type = "string"),
+                    @YamlProperty(name = "aggregation-strategy-method-allow-null", type = "boolean"),
+                    @YamlProperty(name = "aggregation-strategy-method-name", type = "string"),
                     @YamlProperty(name = "cache-size", type = "number"),
                     @YamlProperty(name = "delimiter", type = "string"),
                     @YamlProperty(name = "description", type = "string"),
-                    @YamlProperty(name = "executor-service-ref", type = "string"),
+                    @YamlProperty(name = "executor-service", type = "string"),
                     @YamlProperty(name = "expression", type = "object:org.apache.camel.model.language.ExpressionDefinition"),
                     @YamlProperty(name = "id", type = "string"),
                     @YamlProperty(name = "ignore-invalid-endpoints", type = "boolean"),
                     @YamlProperty(name = "inherit-error-handler", type = "boolean"),
-                    @YamlProperty(name = "on-prepare-ref", type = "string"),
+                    @YamlProperty(name = "on-prepare", type = "string"),
                     @YamlProperty(name = "parallel-aggregate", type = "boolean"),
                     @YamlProperty(name = "parallel-processing", type = "boolean"),
                     @YamlProperty(name = "share-unit-of-work", type = "boolean"),
-                    @YamlProperty(name = "stop-on-aggregate-exception", type = "boolean"),
                     @YamlProperty(name = "stop-on-exception", type = "boolean"),
-                    @YamlProperty(name = "strategy-method-allow-null", type = "boolean"),
-                    @YamlProperty(name = "strategy-method-name", type = "string"),
-                    @YamlProperty(name = "strategy-ref", type = "string"),
                     @YamlProperty(name = "streaming", type = "boolean"),
                     @YamlProperty(name = "timeout", type = "string")
             }
@@ -10712,6 +10542,21 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
         protected boolean setProperty(RecipientListDefinition target, String propertyKey,
                 String propertyName, Node node) {
             switch(propertyKey) {
+                case "aggregation-strategy": {
+                    String val = asText(node);
+                    target.setAggregationStrategy(val);
+                    break;
+                }
+                case "aggregation-strategy-method-allow-null": {
+                    String val = asText(node);
+                    target.setAggregationStrategyMethodAllowNull(val);
+                    break;
+                }
+                case "aggregation-strategy-method-name": {
+                    String val = asText(node);
+                    target.setAggregationStrategyMethodName(val);
+                    break;
+                }
                 case "cache-size": {
                     String val = asText(node);
                     target.setCacheSize(val);
@@ -10722,9 +10567,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setDelimiter(val);
                     break;
                 }
-                case "executor-service-ref": {
+                case "executor-service": {
                     String val = asText(node);
-                    target.setExecutorServiceRef(val);
+                    target.setExecutorService(val);
                     break;
                 }
                 case "expression": {
@@ -10742,9 +10587,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setInheritErrorHandler(java.lang.Boolean.valueOf(val));
                     break;
                 }
-                case "on-prepare-ref": {
+                case "on-prepare": {
                     String val = asText(node);
-                    target.setOnPrepareRef(val);
+                    target.setOnPrepare(val);
                     break;
                 }
                 case "parallel-aggregate": {
@@ -10762,29 +10607,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setShareUnitOfWork(val);
                     break;
                 }
-                case "stop-on-aggregate-exception": {
-                    String val = asText(node);
-                    target.setStopOnAggregateException(val);
-                    break;
-                }
                 case "stop-on-exception": {
                     String val = asText(node);
                     target.setStopOnException(val);
-                    break;
-                }
-                case "strategy-method-allow-null": {
-                    String val = asText(node);
-                    target.setStrategyMethodAllowNull(val);
-                    break;
-                }
-                case "strategy-method-name": {
-                    String val = asText(node);
-                    target.setStrategyMethodName(val);
-                    break;
-                }
-                case "strategy-ref": {
-                    String val = asText(node);
-                    target.setStrategyRef(val);
                     break;
                 }
                 case "streaming": {
@@ -10810,7 +10635,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -11048,7 +10873,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -11272,7 +11097,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     @YamlProperty(name = "description", type = "string"),
                     @YamlProperty(name = "id", type = "string"),
                     @YamlProperty(name = "inherit-error-handler", type = "boolean"),
-                    @YamlProperty(name = "name", type = "string")
+                    @YamlProperty(name = "name", type = "string", required = true)
             }
     )
     public static class RemovePropertyDefinitionDeserializer extends YamlDeserializerBase<RemovePropertyDefinition> {
@@ -11393,7 +11218,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -11416,8 +11241,8 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
             },
             properties = {
                     @YamlProperty(name = "automatic-transition-from-open-to-half-open-enabled", type = "boolean"),
-                    @YamlProperty(name = "circuit-breaker-ref", type = "string"),
-                    @YamlProperty(name = "config-ref", type = "string"),
+                    @YamlProperty(name = "circuit-breaker", type = "string"),
+                    @YamlProperty(name = "config", type = "string"),
                     @YamlProperty(name = "failure-rate-threshold", type = "number"),
                     @YamlProperty(name = "id", type = "string"),
                     @YamlProperty(name = "minimum-number-of-calls", type = "number"),
@@ -11449,14 +11274,14 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setAutomaticTransitionFromOpenToHalfOpenEnabled(val);
                     break;
                 }
-                case "circuit-breaker-ref": {
+                case "circuit-breaker": {
                     String val = asText(node);
-                    target.setCircuitBreakerRef(val);
+                    target.setCircuitBreaker(val);
                     break;
                 }
-                case "config-ref": {
+                case "config": {
                     String val = asText(node);
-                    target.setConfigRef(val);
+                    target.setConfig(val);
                     break;
                 }
                 case "failure-rate-threshold": {
@@ -11518,6 +11343,147 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
     }
 
     @YamlType(
+            types = org.apache.camel.model.rest.ResponseHeaderDefinition.class,
+            order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
+            nodes = {
+                    "response-header",
+                    "responseHeader"
+            },
+            properties = {
+                    @YamlProperty(name = "array-type", type = "string"),
+                    @YamlProperty(name = "collection-format", type = "enum:csv,multi,pipes,ssv,tsv"),
+                    @YamlProperty(name = "data-format", type = "string"),
+                    @YamlProperty(name = "data-type", type = "string"),
+                    @YamlProperty(name = "description", type = "string"),
+                    @YamlProperty(name = "example", type = "string"),
+                    @YamlProperty(name = "name", type = "string", required = true),
+                    @YamlProperty(name = "value", type = "array:string")
+            }
+    )
+    public static class ResponseHeaderDefinitionDeserializer extends YamlDeserializerBase<ResponseHeaderDefinition> {
+        public ResponseHeaderDefinitionDeserializer() {
+            super(ResponseHeaderDefinition.class);
+        }
+
+        @Override
+        protected ResponseHeaderDefinition newInstance() {
+            return new ResponseHeaderDefinition();
+        }
+
+        @Override
+        protected boolean setProperty(ResponseHeaderDefinition target, String propertyKey,
+                String propertyName, Node node) {
+            switch(propertyKey) {
+                case "value": {
+                    java.util.List<String> val = asStringList(node);
+                    target.setAllowableValues(val);
+                    break;
+                }
+                case "array-type": {
+                    String val = asText(node);
+                    target.setArrayType(val);
+                    break;
+                }
+                case "collection-format": {
+                    target.setCollectionFormat(asEnum(node, org.apache.camel.model.rest.CollectionFormat.class));
+                    break;
+                }
+                case "data-format": {
+                    String val = asText(node);
+                    target.setDataFormat(val);
+                    break;
+                }
+                case "data-type": {
+                    String val = asText(node);
+                    target.setDataType(val);
+                    break;
+                }
+                case "description": {
+                    String val = asText(node);
+                    target.setDescription(val);
+                    break;
+                }
+                case "example": {
+                    String val = asText(node);
+                    target.setExample(val);
+                    break;
+                }
+                case "name": {
+                    String val = asText(node);
+                    target.setName(val);
+                    break;
+                }
+                default: {
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
+
+    @YamlType(
+            types = org.apache.camel.model.rest.ResponseMessageDefinition.class,
+            order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
+            nodes = {
+                    "response-message",
+                    "responseMessage"
+            },
+            properties = {
+                    @YamlProperty(name = "code", type = "string"),
+                    @YamlProperty(name = "examples", type = "array:org.apache.camel.model.rest.RestPropertyDefinition"),
+                    @YamlProperty(name = "header", type = "array:org.apache.camel.model.rest.ResponseHeaderDefinition"),
+                    @YamlProperty(name = "message", type = "string", required = true),
+                    @YamlProperty(name = "response-model", type = "string")
+            }
+    )
+    public static class ResponseMessageDefinitionDeserializer extends YamlDeserializerBase<ResponseMessageDefinition> {
+        public ResponseMessageDefinitionDeserializer() {
+            super(ResponseMessageDefinition.class);
+        }
+
+        @Override
+        protected ResponseMessageDefinition newInstance() {
+            return new ResponseMessageDefinition();
+        }
+
+        @Override
+        protected boolean setProperty(ResponseMessageDefinition target, String propertyKey,
+                String propertyName, Node node) {
+            switch(propertyKey) {
+                case "code": {
+                    String val = asText(node);
+                    target.setCode(val);
+                    break;
+                }
+                case "examples": {
+                    java.util.List<org.apache.camel.model.rest.RestPropertyDefinition> val = asFlatList(node, org.apache.camel.model.rest.RestPropertyDefinition.class);
+                    target.setExamples(val);
+                    break;
+                }
+                case "header": {
+                    java.util.List<org.apache.camel.model.rest.ResponseHeaderDefinition> val = asFlatList(node, org.apache.camel.model.rest.ResponseHeaderDefinition.class);
+                    target.setHeaders(val);
+                    break;
+                }
+                case "message": {
+                    String val = asText(node);
+                    target.setMessage(val);
+                    break;
+                }
+                case "response-model": {
+                    String val = asText(node);
+                    target.setResponseModel(val);
+                    break;
+                }
+                default: {
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
+
+    @YamlType(
             types = org.apache.camel.model.rest.RestBindingDefinition.class,
             order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
             nodes = {
@@ -11526,15 +11492,15 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
             },
             properties = {
                     @YamlProperty(name = "binding-mode", type = "string"),
-                    @YamlProperty(name = "client-request-validation", type = "string"),
+                    @YamlProperty(name = "client-request-validation", type = "boolean"),
                     @YamlProperty(name = "component", type = "string"),
                     @YamlProperty(name = "consumes", type = "string"),
                     @YamlProperty(name = "description", type = "string"),
-                    @YamlProperty(name = "enable-cors", type = "string"),
+                    @YamlProperty(name = "enable-cors", type = "boolean"),
                     @YamlProperty(name = "id", type = "string"),
                     @YamlProperty(name = "out-type", type = "string"),
                     @YamlProperty(name = "produces", type = "string"),
-                    @YamlProperty(name = "skip-binding-on-error-code", type = "string"),
+                    @YamlProperty(name = "skip-binding-on-error-code", type = "boolean"),
                     @YamlProperty(name = "type", type = "string")
             }
     )
@@ -11624,10 +11590,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
             },
             properties = {
                     @YamlProperty(name = "api-component", type = "string"),
-                    @YamlProperty(name = "api-context-id-pattern", type = "string"),
-                    @YamlProperty(name = "api-context-listing", type = "boolean"),
                     @YamlProperty(name = "api-context-path", type = "string"),
-                    @YamlProperty(name = "api-context-route-id", type = "string"),
                     @YamlProperty(name = "api-host", type = "string"),
                     @YamlProperty(name = "api-property", type = "array:org.apache.camel.model.rest.RestPropertyDefinition"),
                     @YamlProperty(name = "api-vendor-extension", type = "boolean"),
@@ -11672,24 +11635,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setApiComponent(val);
                     break;
                 }
-                case "api-context-id-pattern": {
-                    String val = asText(node);
-                    target.setApiContextIdPattern(val);
-                    break;
-                }
-                case "api-context-listing": {
-                    String val = asText(node);
-                    target.setApiContextListing(java.lang.Boolean.valueOf(val));
-                    break;
-                }
                 case "api-context-path": {
                     String val = asText(node);
                     target.setApiContextPath(val);
-                    break;
-                }
-                case "api-context-route-id": {
-                    String val = asText(node);
-                    target.setApiContextRouteId(val);
                     break;
                 }
                 case "api-host": {
@@ -11861,26 +11809,25 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
             order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
             nodes = "rest",
             properties = {
-                    @YamlProperty(name = "api-docs", type = "string"),
+                    @YamlProperty(name = "api-docs", type = "boolean"),
                     @YamlProperty(name = "binding-mode", type = "string"),
-                    @YamlProperty(name = "client-request-validation", type = "string"),
+                    @YamlProperty(name = "client-request-validation", type = "boolean"),
                     @YamlProperty(name = "consumes", type = "string"),
-                    @YamlProperty(name = "delete", type = "array:org.apache.camel.model.rest.DeleteVerbDefinition"),
+                    @YamlProperty(name = "delete", type = "array:org.apache.camel.model.rest.DeleteDefinition"),
                     @YamlProperty(name = "description", type = "string"),
-                    @YamlProperty(name = "enable-cors", type = "string"),
-                    @YamlProperty(name = "get", type = "array:org.apache.camel.model.rest.GetVerbDefinition"),
-                    @YamlProperty(name = "head", type = "array:org.apache.camel.model.rest.HeadVerbDefinition"),
+                    @YamlProperty(name = "enable-cors", type = "boolean"),
+                    @YamlProperty(name = "get", type = "array:org.apache.camel.model.rest.GetDefinition"),
+                    @YamlProperty(name = "head", type = "array:org.apache.camel.model.rest.HeadDefinition"),
                     @YamlProperty(name = "id", type = "string"),
-                    @YamlProperty(name = "patch", type = "array:org.apache.camel.model.rest.PatchVerbDefinition"),
+                    @YamlProperty(name = "patch", type = "array:org.apache.camel.model.rest.PatchDefinition"),
                     @YamlProperty(name = "path", type = "string"),
-                    @YamlProperty(name = "post", type = "array:org.apache.camel.model.rest.PostVerbDefinition"),
+                    @YamlProperty(name = "post", type = "array:org.apache.camel.model.rest.PostDefinition"),
                     @YamlProperty(name = "produces", type = "string"),
-                    @YamlProperty(name = "put", type = "array:org.apache.camel.model.rest.PutVerbDefinition"),
+                    @YamlProperty(name = "put", type = "array:org.apache.camel.model.rest.PutDefinition"),
                     @YamlProperty(name = "security-definitions", type = "object:org.apache.camel.model.rest.RestSecuritiesDefinition"),
-                    @YamlProperty(name = "security-requirements", type = "object:org.apache.camel.model.rest.RestSecuritiesRequirement"),
-                    @YamlProperty(name = "skip-binding-on-error-code", type = "string"),
-                    @YamlProperty(name = "tag", type = "string"),
-                    @YamlProperty(name = "verb", type = "array:org.apache.camel.model.rest.VerbDefinition")
+                    @YamlProperty(name = "security-requirements", type = "array:org.apache.camel.model.rest.SecurityDefinition"),
+                    @YamlProperty(name = "skip-binding-on-error-code", type = "boolean"),
+                    @YamlProperty(name = "tag", type = "string")
             }
     )
     public static class RestDefinitionDeserializer extends YamlDeserializerBase<RestDefinition> {
@@ -11938,7 +11885,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     break;
                 }
                 case "security-requirements": {
-                    org.apache.camel.model.rest.RestSecuritiesRequirement val = asType(node, org.apache.camel.model.rest.RestSecuritiesRequirement.class);
+                    java.util.List<org.apache.camel.model.rest.SecurityDefinition> val = asFlatList(node, org.apache.camel.model.rest.SecurityDefinition.class);
                     target.setSecurityRequirements(val);
                     break;
                 }
@@ -11957,7 +11904,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     if (existing == null) {
                         existing = new java.util.ArrayList<>();
                     }
-                    java.util.List val = asFlatList(node, org.apache.camel.model.rest.DeleteVerbDefinition.class);
+                    java.util.List val = asFlatList(node, org.apache.camel.model.rest.DeleteDefinition.class);
                     existing.addAll(val);
                     target.setVerbs(existing);
                     break;
@@ -11967,7 +11914,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     if (existing == null) {
                         existing = new java.util.ArrayList<>();
                     }
-                    java.util.List val = asFlatList(node, org.apache.camel.model.rest.GetVerbDefinition.class);
+                    java.util.List val = asFlatList(node, org.apache.camel.model.rest.GetDefinition.class);
                     existing.addAll(val);
                     target.setVerbs(existing);
                     break;
@@ -11977,7 +11924,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     if (existing == null) {
                         existing = new java.util.ArrayList<>();
                     }
-                    java.util.List val = asFlatList(node, org.apache.camel.model.rest.HeadVerbDefinition.class);
+                    java.util.List val = asFlatList(node, org.apache.camel.model.rest.HeadDefinition.class);
                     existing.addAll(val);
                     target.setVerbs(existing);
                     break;
@@ -11987,7 +11934,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     if (existing == null) {
                         existing = new java.util.ArrayList<>();
                     }
-                    java.util.List val = asFlatList(node, org.apache.camel.model.rest.PatchVerbDefinition.class);
+                    java.util.List val = asFlatList(node, org.apache.camel.model.rest.PatchDefinition.class);
                     existing.addAll(val);
                     target.setVerbs(existing);
                     break;
@@ -11997,7 +11944,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     if (existing == null) {
                         existing = new java.util.ArrayList<>();
                     }
-                    java.util.List val = asFlatList(node, org.apache.camel.model.rest.PostVerbDefinition.class);
+                    java.util.List val = asFlatList(node, org.apache.camel.model.rest.PostDefinition.class);
                     existing.addAll(val);
                     target.setVerbs(existing);
                     break;
@@ -12007,14 +11954,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     if (existing == null) {
                         existing = new java.util.ArrayList<>();
                     }
-                    java.util.List val = asFlatList(node, org.apache.camel.model.rest.PutVerbDefinition.class);
+                    java.util.List val = asFlatList(node, org.apache.camel.model.rest.PutDefinition.class);
                     existing.addAll(val);
                     target.setVerbs(existing);
-                    break;
-                }
-                case "verb": {
-                    java.util.List<org.apache.camel.model.rest.VerbDefinition> val = asFlatList(node, org.apache.camel.model.rest.VerbDefinition.class);
-                    target.setVerbs(val);
                     break;
                 }
                 case "id": {
@@ -12025,240 +11967,6 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 case "description": {
                     org.apache.camel.model.DescriptionDefinition val = asType(node, org.apache.camel.model.DescriptionDefinition.class);
                     target.setDescription(val);
-                    break;
-                }
-                default: {
-                    return false;
-                }
-            }
-            return true;
-        }
-    }
-
-    @YamlType(
-            types = org.apache.camel.model.rest.RestOperationParamDefinition.class,
-            order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
-            nodes = "param",
-            properties = {
-                    @YamlProperty(name = "array-type", type = "string"),
-                    @YamlProperty(name = "collection-format", type = "enum:csv,multi,pipes,ssv,tsv"),
-                    @YamlProperty(name = "data-format", type = "string"),
-                    @YamlProperty(name = "data-type", type = "string"),
-                    @YamlProperty(name = "default-value", type = "string"),
-                    @YamlProperty(name = "description", type = "string"),
-                    @YamlProperty(name = "examples", type = "array:org.apache.camel.model.rest.RestPropertyDefinition"),
-                    @YamlProperty(name = "name", type = "string", required = true),
-                    @YamlProperty(name = "required", type = "boolean"),
-                    @YamlProperty(name = "type", type = "enum:body,formData,header,path,query", required = true),
-                    @YamlProperty(name = "value", type = "array:string")
-            }
-    )
-    public static class RestOperationParamDefinitionDeserializer extends YamlDeserializerBase<RestOperationParamDefinition> {
-        public RestOperationParamDefinitionDeserializer() {
-            super(RestOperationParamDefinition.class);
-        }
-
-        @Override
-        protected RestOperationParamDefinition newInstance() {
-            return new RestOperationParamDefinition();
-        }
-
-        @Override
-        protected boolean setProperty(RestOperationParamDefinition target, String propertyKey,
-                String propertyName, Node node) {
-            switch(propertyKey) {
-                case "value": {
-                    java.util.List<String> val = asStringList(node);
-                    target.setAllowableValues(val);
-                    break;
-                }
-                case "array-type": {
-                    String val = asText(node);
-                    target.setArrayType(val);
-                    break;
-                }
-                case "collection-format": {
-                    target.setCollectionFormat(asEnum(node, org.apache.camel.model.rest.CollectionFormat.class));
-                    break;
-                }
-                case "data-format": {
-                    String val = asText(node);
-                    target.setDataFormat(val);
-                    break;
-                }
-                case "data-type": {
-                    String val = asText(node);
-                    target.setDataType(val);
-                    break;
-                }
-                case "default-value": {
-                    String val = asText(node);
-                    target.setDefaultValue(val);
-                    break;
-                }
-                case "description": {
-                    String val = asText(node);
-                    target.setDescription(val);
-                    break;
-                }
-                case "examples": {
-                    java.util.List<org.apache.camel.model.rest.RestPropertyDefinition> val = asFlatList(node, org.apache.camel.model.rest.RestPropertyDefinition.class);
-                    target.setExamples(val);
-                    break;
-                }
-                case "name": {
-                    String val = asText(node);
-                    target.setName(val);
-                    break;
-                }
-                case "required": {
-                    String val = asText(node);
-                    target.setRequired(java.lang.Boolean.valueOf(val));
-                    break;
-                }
-                case "type": {
-                    target.setType(asEnum(node, org.apache.camel.model.rest.RestParamType.class));
-                    break;
-                }
-                default: {
-                    return false;
-                }
-            }
-            return true;
-        }
-    }
-
-    @YamlType(
-            types = org.apache.camel.model.rest.RestOperationResponseHeaderDefinition.class,
-            order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
-            nodes = {
-                    "response-header",
-                    "responseHeader"
-            },
-            properties = {
-                    @YamlProperty(name = "array-type", type = "string"),
-                    @YamlProperty(name = "collection-format", type = "enum:csv,multi,pipes,ssv,tsv"),
-                    @YamlProperty(name = "data-format", type = "string"),
-                    @YamlProperty(name = "data-type", type = "string"),
-                    @YamlProperty(name = "description", type = "string"),
-                    @YamlProperty(name = "example", type = "string"),
-                    @YamlProperty(name = "name", type = "string", required = true),
-                    @YamlProperty(name = "value", type = "array:string")
-            }
-    )
-    public static class RestOperationResponseHeaderDefinitionDeserializer extends YamlDeserializerBase<RestOperationResponseHeaderDefinition> {
-        public RestOperationResponseHeaderDefinitionDeserializer() {
-            super(RestOperationResponseHeaderDefinition.class);
-        }
-
-        @Override
-        protected RestOperationResponseHeaderDefinition newInstance() {
-            return new RestOperationResponseHeaderDefinition();
-        }
-
-        @Override
-        protected boolean setProperty(RestOperationResponseHeaderDefinition target,
-                String propertyKey, String propertyName, Node node) {
-            switch(propertyKey) {
-                case "value": {
-                    java.util.List<String> val = asStringList(node);
-                    target.setAllowableValues(val);
-                    break;
-                }
-                case "array-type": {
-                    String val = asText(node);
-                    target.setArrayType(val);
-                    break;
-                }
-                case "collection-format": {
-                    target.setCollectionFormat(asEnum(node, org.apache.camel.model.rest.CollectionFormat.class));
-                    break;
-                }
-                case "data-format": {
-                    String val = asText(node);
-                    target.setDataFormat(val);
-                    break;
-                }
-                case "data-type": {
-                    String val = asText(node);
-                    target.setDataType(val);
-                    break;
-                }
-                case "description": {
-                    String val = asText(node);
-                    target.setDescription(val);
-                    break;
-                }
-                case "example": {
-                    String val = asText(node);
-                    target.setExample(val);
-                    break;
-                }
-                case "name": {
-                    String val = asText(node);
-                    target.setName(val);
-                    break;
-                }
-                default: {
-                    return false;
-                }
-            }
-            return true;
-        }
-    }
-
-    @YamlType(
-            types = org.apache.camel.model.rest.RestOperationResponseMsgDefinition.class,
-            order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
-            nodes = {
-                    "response-message",
-                    "responseMessage"
-            },
-            properties = {
-                    @YamlProperty(name = "code", type = "string"),
-                    @YamlProperty(name = "examples", type = "array:org.apache.camel.model.rest.RestPropertyDefinition"),
-                    @YamlProperty(name = "header", type = "array:org.apache.camel.model.rest.RestOperationResponseHeaderDefinition"),
-                    @YamlProperty(name = "message", type = "string", required = true),
-                    @YamlProperty(name = "response-model", type = "string")
-            }
-    )
-    public static class RestOperationResponseMsgDefinitionDeserializer extends YamlDeserializerBase<RestOperationResponseMsgDefinition> {
-        public RestOperationResponseMsgDefinitionDeserializer() {
-            super(RestOperationResponseMsgDefinition.class);
-        }
-
-        @Override
-        protected RestOperationResponseMsgDefinition newInstance() {
-            return new RestOperationResponseMsgDefinition();
-        }
-
-        @Override
-        protected boolean setProperty(RestOperationResponseMsgDefinition target, String propertyKey,
-                String propertyName, Node node) {
-            switch(propertyKey) {
-                case "code": {
-                    String val = asText(node);
-                    target.setCode(val);
-                    break;
-                }
-                case "examples": {
-                    java.util.List<org.apache.camel.model.rest.RestPropertyDefinition> val = asFlatList(node, org.apache.camel.model.rest.RestPropertyDefinition.class);
-                    target.setExamples(val);
-                    break;
-                }
-                case "header": {
-                    java.util.List<org.apache.camel.model.rest.RestOperationResponseHeaderDefinition> val = asFlatList(node, org.apache.camel.model.rest.RestOperationResponseHeaderDefinition.class);
-                    target.setHeaders(val);
-                    break;
-                }
-                case "message": {
-                    String val = asText(node);
-                    target.setMessage(val);
-                    break;
-                }
-                case "response-model": {
-                    String val = asText(node);
-                    target.setResponseModel(val);
                     break;
                 }
                 default: {
@@ -12321,12 +12029,12 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     "securityDefinitions"
             },
             properties = {
-                    @YamlProperty(name = "api-key", type = "object:org.apache.camel.model.rest.RestSecurityApiKey"),
-                    @YamlProperty(name = "basic-auth", type = "object:org.apache.camel.model.rest.RestSecurityBasicAuth"),
-                    @YamlProperty(name = "bearer", type = "object:org.apache.camel.model.rest.RestSecurityBearerToken"),
-                    @YamlProperty(name = "mutual-tls", type = "object:org.apache.camel.model.rest.RestSecurityMutualTLS"),
-                    @YamlProperty(name = "oauth2", type = "object:org.apache.camel.model.rest.RestSecurityOAuth2"),
-                    @YamlProperty(name = "open-id-connect", type = "object:org.apache.camel.model.rest.RestSecurityOpenIdConnect")
+                    @YamlProperty(name = "api-key", type = "object:org.apache.camel.model.rest.ApiKeyDefinition"),
+                    @YamlProperty(name = "basic-auth", type = "object:org.apache.camel.model.rest.BasicAuthDefinition"),
+                    @YamlProperty(name = "bearer", type = "object:org.apache.camel.model.rest.BearerTokenDefinition"),
+                    @YamlProperty(name = "mutual-tls", type = "object:org.apache.camel.model.rest.MutualTLSDefinition"),
+                    @YamlProperty(name = "oauth2", type = "object:org.apache.camel.model.rest.OAuth2Definition"),
+                    @YamlProperty(name = "open-id-connect", type = "object:org.apache.camel.model.rest.OpenIdConnectDefinition")
             }
     )
     public static class RestSecuritiesDefinitionDeserializer extends YamlDeserializerBase<RestSecuritiesDefinition> {
@@ -12349,7 +12057,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     break;
                 }
                 case "api-key": {
-                    org.apache.camel.model.rest.RestSecurityApiKey val = asType(node, org.apache.camel.model.rest.RestSecurityApiKey.class);
+                    org.apache.camel.model.rest.ApiKeyDefinition val = asType(node, org.apache.camel.model.rest.ApiKeyDefinition.class);
                     java.util.List<org.apache.camel.model.rest.RestSecurityDefinition> existing = target.getSecurityDefinitions();
                     if (existing == null) {
                         existing = new java.util.ArrayList<>();
@@ -12359,7 +12067,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     break;
                 }
                 case "basic-auth": {
-                    org.apache.camel.model.rest.RestSecurityBasicAuth val = asType(node, org.apache.camel.model.rest.RestSecurityBasicAuth.class);
+                    org.apache.camel.model.rest.BasicAuthDefinition val = asType(node, org.apache.camel.model.rest.BasicAuthDefinition.class);
                     java.util.List<org.apache.camel.model.rest.RestSecurityDefinition> existing = target.getSecurityDefinitions();
                     if (existing == null) {
                         existing = new java.util.ArrayList<>();
@@ -12369,7 +12077,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     break;
                 }
                 case "bearer": {
-                    org.apache.camel.model.rest.RestSecurityBearerToken val = asType(node, org.apache.camel.model.rest.RestSecurityBearerToken.class);
+                    org.apache.camel.model.rest.BearerTokenDefinition val = asType(node, org.apache.camel.model.rest.BearerTokenDefinition.class);
                     java.util.List<org.apache.camel.model.rest.RestSecurityDefinition> existing = target.getSecurityDefinitions();
                     if (existing == null) {
                         existing = new java.util.ArrayList<>();
@@ -12379,7 +12087,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     break;
                 }
                 case "oauth2": {
-                    org.apache.camel.model.rest.RestSecurityOAuth2 val = asType(node, org.apache.camel.model.rest.RestSecurityOAuth2.class);
+                    org.apache.camel.model.rest.OAuth2Definition val = asType(node, org.apache.camel.model.rest.OAuth2Definition.class);
                     java.util.List<org.apache.camel.model.rest.RestSecurityDefinition> existing = target.getSecurityDefinitions();
                     if (existing == null) {
                         existing = new java.util.ArrayList<>();
@@ -12389,7 +12097,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     break;
                 }
                 case "open-id-connect": {
-                    org.apache.camel.model.rest.RestSecurityOpenIdConnect val = asType(node, org.apache.camel.model.rest.RestSecurityOpenIdConnect.class);
+                    org.apache.camel.model.rest.OpenIdConnectDefinition val = asType(node, org.apache.camel.model.rest.OpenIdConnectDefinition.class);
                     java.util.List<org.apache.camel.model.rest.RestSecurityDefinition> existing = target.getSecurityDefinitions();
                     if (existing == null) {
                         existing = new java.util.ArrayList<>();
@@ -12399,381 +12107,13 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     break;
                 }
                 case "mutual-tls": {
-                    org.apache.camel.model.rest.RestSecurityMutualTLS val = asType(node, org.apache.camel.model.rest.RestSecurityMutualTLS.class);
+                    org.apache.camel.model.rest.MutualTLSDefinition val = asType(node, org.apache.camel.model.rest.MutualTLSDefinition.class);
                     java.util.List<org.apache.camel.model.rest.RestSecurityDefinition> existing = target.getSecurityDefinitions();
                     if (existing == null) {
                         existing = new java.util.ArrayList<>();
                     }
                     existing.add(val);
                     target.setSecurityDefinitions(existing);
-                    break;
-                }
-                default: {
-                    return false;
-                }
-            }
-            return true;
-        }
-    }
-
-    @YamlType(
-            types = org.apache.camel.model.rest.RestSecuritiesRequirement.class,
-            order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
-            nodes = {
-                    "security-requirements",
-                    "securityRequirements"
-            },
-            properties = @YamlProperty(name = "security-requirement", type = "object:org.apache.camel.model.rest.SecurityDefinition")
-    )
-    public static class RestSecuritiesRequirementDeserializer extends YamlDeserializerBase<RestSecuritiesRequirement> {
-        public RestSecuritiesRequirementDeserializer() {
-            super(RestSecuritiesRequirement.class);
-        }
-
-        @Override
-        protected RestSecuritiesRequirement newInstance() {
-            return new RestSecuritiesRequirement();
-        }
-
-        @Override
-        protected boolean setProperty(RestSecuritiesRequirement target, String propertyKey,
-                String propertyName, Node node) {
-            switch(propertyKey) {
-                case "security-requirement": {
-                    org.apache.camel.model.rest.SecurityDefinition val = asType(node, org.apache.camel.model.rest.SecurityDefinition.class);
-                    java.util.List<org.apache.camel.model.rest.SecurityDefinition> existing = target.getSecurityRequirements();
-                    if (existing == null) {
-                        existing = new java.util.ArrayList<>();
-                    }
-                    existing.add(val);
-                    target.setSecurityRequirements(existing);
-                    break;
-                }
-                default: {
-                    return false;
-                }
-            }
-            return true;
-        }
-    }
-
-    @YamlType(
-            types = org.apache.camel.model.rest.RestSecurityApiKey.class,
-            order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
-            nodes = {
-                    "api-key",
-                    "apiKey"
-            },
-            properties = {
-                    @YamlProperty(name = "description", type = "string"),
-                    @YamlProperty(name = "in-cookie", type = "boolean"),
-                    @YamlProperty(name = "in-header", type = "boolean"),
-                    @YamlProperty(name = "in-query", type = "boolean"),
-                    @YamlProperty(name = "key", type = "string", required = true),
-                    @YamlProperty(name = "name", type = "string", required = true)
-            }
-    )
-    public static class RestSecurityApiKeyDeserializer extends YamlDeserializerBase<RestSecurityApiKey> {
-        public RestSecurityApiKeyDeserializer() {
-            super(RestSecurityApiKey.class);
-        }
-
-        @Override
-        protected RestSecurityApiKey newInstance() {
-            return new RestSecurityApiKey();
-        }
-
-        @Override
-        protected boolean setProperty(RestSecurityApiKey target, String propertyKey,
-                String propertyName, Node node) {
-            switch(propertyKey) {
-                case "description": {
-                    String val = asText(node);
-                    target.setDescription(val);
-                    break;
-                }
-                case "in-cookie": {
-                    String val = asText(node);
-                    target.setInCookie(val);
-                    break;
-                }
-                case "in-header": {
-                    String val = asText(node);
-                    target.setInHeader(val);
-                    break;
-                }
-                case "in-query": {
-                    String val = asText(node);
-                    target.setInQuery(val);
-                    break;
-                }
-                case "key": {
-                    String val = asText(node);
-                    target.setKey(val);
-                    break;
-                }
-                case "name": {
-                    String val = asText(node);
-                    target.setName(val);
-                    break;
-                }
-                default: {
-                    return false;
-                }
-            }
-            return true;
-        }
-    }
-
-    @YamlType(
-            types = org.apache.camel.model.rest.RestSecurityBasicAuth.class,
-            order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
-            nodes = {
-                    "basic-auth",
-                    "basicAuth"
-            },
-            properties = {
-                    @YamlProperty(name = "description", type = "string"),
-                    @YamlProperty(name = "key", type = "string", required = true)
-            }
-    )
-    public static class RestSecurityBasicAuthDeserializer extends YamlDeserializerBase<RestSecurityBasicAuth> {
-        public RestSecurityBasicAuthDeserializer() {
-            super(RestSecurityBasicAuth.class);
-        }
-
-        @Override
-        protected RestSecurityBasicAuth newInstance() {
-            return new RestSecurityBasicAuth();
-        }
-
-        @Override
-        protected boolean setProperty(RestSecurityBasicAuth target, String propertyKey,
-                String propertyName, Node node) {
-            switch(propertyKey) {
-                case "description": {
-                    String val = asText(node);
-                    target.setDescription(val);
-                    break;
-                }
-                case "key": {
-                    String val = asText(node);
-                    target.setKey(val);
-                    break;
-                }
-                default: {
-                    return false;
-                }
-            }
-            return true;
-        }
-    }
-
-    @YamlType(
-            types = org.apache.camel.model.rest.RestSecurityBearerToken.class,
-            order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
-            nodes = {
-                    "bearer-token",
-                    "bearerToken"
-            },
-            properties = {
-                    @YamlProperty(name = "description", type = "string"),
-                    @YamlProperty(name = "format", type = "string"),
-                    @YamlProperty(name = "key", type = "string", required = true)
-            }
-    )
-    public static class RestSecurityBearerTokenDeserializer extends YamlDeserializerBase<RestSecurityBearerToken> {
-        public RestSecurityBearerTokenDeserializer() {
-            super(RestSecurityBearerToken.class);
-        }
-
-        @Override
-        protected RestSecurityBearerToken newInstance() {
-            return new RestSecurityBearerToken();
-        }
-
-        @Override
-        protected boolean setProperty(RestSecurityBearerToken target, String propertyKey,
-                String propertyName, Node node) {
-            switch(propertyKey) {
-                case "description": {
-                    String val = asText(node);
-                    target.setDescription(val);
-                    break;
-                }
-                case "format": {
-                    String val = asText(node);
-                    target.setFormat(val);
-                    break;
-                }
-                case "key": {
-                    String val = asText(node);
-                    target.setKey(val);
-                    break;
-                }
-                default: {
-                    return false;
-                }
-            }
-            return true;
-        }
-    }
-
-    @YamlType(
-            types = org.apache.camel.model.rest.RestSecurityMutualTLS.class,
-            order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
-            nodes = {
-                    "mutual-tls",
-                    "mutualTLS"
-            },
-            properties = {
-                    @YamlProperty(name = "description", type = "string"),
-                    @YamlProperty(name = "key", type = "string", required = true)
-            }
-    )
-    public static class RestSecurityMutualTLSDeserializer extends YamlDeserializerBase<RestSecurityMutualTLS> {
-        public RestSecurityMutualTLSDeserializer() {
-            super(RestSecurityMutualTLS.class);
-        }
-
-        @Override
-        protected RestSecurityMutualTLS newInstance() {
-            return new RestSecurityMutualTLS();
-        }
-
-        @Override
-        protected boolean setProperty(RestSecurityMutualTLS target, String propertyKey,
-                String propertyName, Node node) {
-            switch(propertyKey) {
-                case "description": {
-                    String val = asText(node);
-                    target.setDescription(val);
-                    break;
-                }
-                case "key": {
-                    String val = asText(node);
-                    target.setKey(val);
-                    break;
-                }
-                default: {
-                    return false;
-                }
-            }
-            return true;
-        }
-    }
-
-    @YamlType(
-            types = org.apache.camel.model.rest.RestSecurityOAuth2.class,
-            order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
-            nodes = "oauth2",
-            properties = {
-                    @YamlProperty(name = "authorization-url", type = "string"),
-                    @YamlProperty(name = "description", type = "string"),
-                    @YamlProperty(name = "flow", type = "string"),
-                    @YamlProperty(name = "key", type = "string", required = true),
-                    @YamlProperty(name = "refresh-url", type = "string"),
-                    @YamlProperty(name = "scopes", type = "array:org.apache.camel.model.rest.RestPropertyDefinition"),
-                    @YamlProperty(name = "token-url", type = "string")
-            }
-    )
-    public static class RestSecurityOAuth2Deserializer extends YamlDeserializerBase<RestSecurityOAuth2> {
-        public RestSecurityOAuth2Deserializer() {
-            super(RestSecurityOAuth2.class);
-        }
-
-        @Override
-        protected RestSecurityOAuth2 newInstance() {
-            return new RestSecurityOAuth2();
-        }
-
-        @Override
-        protected boolean setProperty(RestSecurityOAuth2 target, String propertyKey,
-                String propertyName, Node node) {
-            switch(propertyKey) {
-                case "authorization-url": {
-                    String val = asText(node);
-                    target.setAuthorizationUrl(val);
-                    break;
-                }
-                case "description": {
-                    String val = asText(node);
-                    target.setDescription(val);
-                    break;
-                }
-                case "flow": {
-                    String val = asText(node);
-                    target.setFlow(val);
-                    break;
-                }
-                case "key": {
-                    String val = asText(node);
-                    target.setKey(val);
-                    break;
-                }
-                case "refresh-url": {
-                    String val = asText(node);
-                    target.setRefreshUrl(val);
-                    break;
-                }
-                case "scopes": {
-                    java.util.List<org.apache.camel.model.rest.RestPropertyDefinition> val = asFlatList(node, org.apache.camel.model.rest.RestPropertyDefinition.class);
-                    target.setScopes(val);
-                    break;
-                }
-                case "token-url": {
-                    String val = asText(node);
-                    target.setTokenUrl(val);
-                    break;
-                }
-                default: {
-                    return false;
-                }
-            }
-            return true;
-        }
-    }
-
-    @YamlType(
-            types = org.apache.camel.model.rest.RestSecurityOpenIdConnect.class,
-            order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
-            nodes = {
-                    "open-id-connect",
-                    "openIdConnect"
-            },
-            properties = {
-                    @YamlProperty(name = "description", type = "string"),
-                    @YamlProperty(name = "key", type = "string", required = true),
-                    @YamlProperty(name = "url", type = "string", required = true)
-            }
-    )
-    public static class RestSecurityOpenIdConnectDeserializer extends YamlDeserializerBase<RestSecurityOpenIdConnect> {
-        public RestSecurityOpenIdConnectDeserializer() {
-            super(RestSecurityOpenIdConnect.class);
-        }
-
-        @Override
-        protected RestSecurityOpenIdConnect newInstance() {
-            return new RestSecurityOpenIdConnect();
-        }
-
-        @Override
-        protected boolean setProperty(RestSecurityOpenIdConnect target, String propertyKey,
-                String propertyName, Node node) {
-            switch(propertyKey) {
-                case "description": {
-                    String val = asText(node);
-                    target.setDescription(val);
-                    break;
-                }
-                case "key": {
-                    String val = asText(node);
-                    target.setKey(val);
-                    break;
-                }
-                case "url": {
-                    String val = asText(node);
-                    target.setUrl(val);
                     break;
                 }
                 default: {
@@ -12832,38 +12172,38 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
     }
 
     @YamlType(
-            types = org.apache.camel.model.cloud.RibbonServiceCallServiceLoadBalancerConfiguration.class,
+            types = org.apache.camel.model.ResumableDefinition.class,
             order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
-            nodes = {
-                    "ribbon-load-balancer",
-                    "ribbonLoadBalancer"
-            },
+            nodes = "resumable",
             properties = {
-                    @YamlProperty(name = "client-name", type = "string"),
+                    @YamlProperty(name = "description", type = "string"),
                     @YamlProperty(name = "id", type = "string"),
-                    @YamlProperty(name = "namespace", type = "string"),
-                    @YamlProperty(name = "password", type = "string"),
-                    @YamlProperty(name = "properties", type = "array:org.apache.camel.model.PropertyDefinition"),
-                    @YamlProperty(name = "username", type = "string")
+                    @YamlProperty(name = "inherit-error-handler", type = "boolean"),
+                    @YamlProperty(name = "resume-strategy", type = "string", required = true)
             }
     )
-    public static class RibbonServiceCallServiceLoadBalancerConfigurationDeserializer extends YamlDeserializerBase<RibbonServiceCallServiceLoadBalancerConfiguration> {
-        public RibbonServiceCallServiceLoadBalancerConfigurationDeserializer() {
-            super(RibbonServiceCallServiceLoadBalancerConfiguration.class);
+    public static class ResumableDefinitionDeserializer extends YamlDeserializerBase<ResumableDefinition> {
+        public ResumableDefinitionDeserializer() {
+            super(ResumableDefinition.class);
         }
 
         @Override
-        protected RibbonServiceCallServiceLoadBalancerConfiguration newInstance() {
-            return new RibbonServiceCallServiceLoadBalancerConfiguration();
+        protected ResumableDefinition newInstance() {
+            return new ResumableDefinition();
         }
 
         @Override
-        protected boolean setProperty(RibbonServiceCallServiceLoadBalancerConfiguration target,
-                String propertyKey, String propertyName, Node node) {
+        protected boolean setProperty(ResumableDefinition target, String propertyKey,
+                String propertyName, Node node) {
             switch(propertyKey) {
-                case "client-name": {
+                case "inherit-error-handler": {
                     String val = asText(node);
-                    target.setClientName(val);
+                    target.setInheritErrorHandler(java.lang.Boolean.valueOf(val));
+                    break;
+                }
+                case "resume-strategy": {
+                    String val = asText(node);
+                    target.setResumeStrategy(val);
                     break;
                 }
                 case "id": {
@@ -12871,24 +12211,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setId(val);
                     break;
                 }
-                case "namespace": {
-                    String val = asText(node);
-                    target.setNamespace(val);
-                    break;
-                }
-                case "password": {
-                    String val = asText(node);
-                    target.setPassword(val);
-                    break;
-                }
-                case "properties": {
-                    java.util.List<org.apache.camel.model.PropertyDefinition> val = asFlatList(node, org.apache.camel.model.PropertyDefinition.class);
-                    target.setProperties(val);
-                    break;
-                }
-                case "username": {
-                    String val = asText(node);
-                    target.setUsername(val);
+                case "description": {
+                    org.apache.camel.model.DescriptionDefinition val = asType(node, org.apache.camel.model.DescriptionDefinition.class);
+                    target.setDescription(val);
                     break;
                 }
                 default: {
@@ -13256,48 +12581,6 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
 
     @YamlType(
             inline = true,
-            types = org.apache.camel.model.RouteTemplateScriptDefinition.class,
-            order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
-            nodes = {
-                    "template-script",
-                    "templateScript"
-            },
-            properties = @YamlProperty(name = "script", type = "string")
-    )
-    public static class RouteTemplateScriptDefinitionDeserializer extends YamlDeserializerBase<RouteTemplateScriptDefinition> {
-        public RouteTemplateScriptDefinitionDeserializer() {
-            super(RouteTemplateScriptDefinition.class);
-        }
-
-        @Override
-        protected RouteTemplateScriptDefinition newInstance() {
-            return new RouteTemplateScriptDefinition();
-        }
-
-        @Override
-        protected RouteTemplateScriptDefinition newInstance(String value) {
-            return new RouteTemplateScriptDefinition(value);
-        }
-
-        @Override
-        protected boolean setProperty(RouteTemplateScriptDefinition target, String propertyKey,
-                String propertyName, Node node) {
-            switch(propertyKey) {
-                case "script": {
-                    String val = asText(node);
-                    target.setScript(val);
-                    break;
-                }
-                default: {
-                    return false;
-                }
-            }
-            return true;
-        }
-    }
-
-    @YamlType(
-            inline = true,
             types = org.apache.camel.model.RoutingSlipDefinition.class,
             order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
             nodes = {
@@ -13372,7 +12655,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -13447,9 +12730,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
         }
 
         @Override
-        protected void setEndpointUri(CamelContext camelContext, SagaActionUriDefinition target,
-                Map<String, Object> parameters) {
-            target.setUri(org.apache.camel.dsl.yaml.common.YamlSupport.createEndpointUri(camelContext, target.getUri(), parameters));
+        protected void setEndpointUri(CamelContext camelContext, Node node,
+                SagaActionUriDefinition target, Map<String, Object> parameters) {
+            target.setUri(org.apache.camel.dsl.yaml.common.YamlSupport.createEndpointUri(camelContext, node, target.getUri(), parameters));
         }
 
         @Override
@@ -13477,14 +12760,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     break;
                 }
                 default: {
-                    String uri = EndpointProducerDeserializersResolver.resolveEndpointUri(propertyKey, node);
-                    if (uri == null) {
-                        return false;
-                    }
-                    if (target.getUri() != null) {
-                        throw new IllegalStateException("url must not be set when using Endpoint DSL");
-                    }
-                    target.setUri(uri);
+                    return false;
                 }
             }
             return true;
@@ -13504,7 +12780,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     @YamlProperty(name = "inherit-error-handler", type = "boolean"),
                     @YamlProperty(name = "option", type = "array:org.apache.camel.model.PropertyExpressionDefinition"),
                     @YamlProperty(name = "propagation", type = "string"),
-                    @YamlProperty(name = "saga-service-ref", type = "string"),
+                    @YamlProperty(name = "saga-service", type = "string"),
                     @YamlProperty(name = "steps", type = "array:org.apache.camel.model.ProcessorDefinition"),
                     @YamlProperty(name = "timeout", type = "string")
             }
@@ -13553,9 +12829,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setPropagation(val);
                     break;
                 }
-                case "saga-service-ref": {
+                case "saga-service": {
                     String val = asText(node);
-                    target.setSagaServiceRef(val);
+                    target.setSagaService(val);
                     break;
                 }
                 case "timeout": {
@@ -13586,6 +12862,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
     }
 
     @YamlType(
+            inline = true,
             types = org.apache.camel.model.SamplingDefinition.class,
             order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
             nodes = "sample",
@@ -13594,8 +12871,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     @YamlProperty(name = "id", type = "string"),
                     @YamlProperty(name = "inherit-error-handler", type = "boolean"),
                     @YamlProperty(name = "message-frequency", type = "number"),
-                    @YamlProperty(name = "sample-period", type = "string"),
-                    @YamlProperty(name = "units", type = "string")
+                    @YamlProperty(name = "sample-period", type = "string")
             }
     )
     public static class SamplingDefinitionDeserializer extends YamlDeserializerBase<SamplingDefinition> {
@@ -13606,6 +12882,11 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
         @Override
         protected SamplingDefinition newInstance() {
             return new SamplingDefinition();
+        }
+
+        @Override
+        protected SamplingDefinition newInstance(String value) {
+            return new SamplingDefinition(value);
         }
 
         @Override
@@ -13625,11 +12906,6 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 case "sample-period": {
                     String val = asText(node);
                     target.setSamplePeriod(val);
-                    break;
-                }
-                case "units": {
-                    String val = asText(node);
-                    target.setUnits(val);
                     break;
                 }
                 case "id": {
@@ -13699,7 +12975,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -13771,7 +13047,6 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     @YamlProperty(name = "custom-service-filter", type = "object:org.apache.camel.model.cloud.CustomServiceCallServiceFilterConfiguration"),
                     @YamlProperty(name = "default-load-balancer", type = "object:org.apache.camel.model.cloud.DefaultServiceCallServiceLoadBalancerConfiguration"),
                     @YamlProperty(name = "dns-service-discovery", type = "object:org.apache.camel.model.cloud.DnsServiceCallServiceDiscoveryConfiguration"),
-                    @YamlProperty(name = "etcd-service-discovery", type = "object:org.apache.camel.model.cloud.EtcdServiceCallServiceDiscoveryConfiguration"),
                     @YamlProperty(name = "expression", type = "object:org.apache.camel.model.cloud.ServiceCallExpressionConfiguration"),
                     @YamlProperty(name = "expression-ref", type = "string"),
                     @YamlProperty(name = "healthy-service-filter", type = "object:org.apache.camel.model.cloud.HealthyServiceCallServiceFilterConfiguration"),
@@ -13780,7 +13055,6 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     @YamlProperty(name = "load-balancer-ref", type = "string"),
                     @YamlProperty(name = "pass-through-service-filter", type = "object:org.apache.camel.model.cloud.PassThroughServiceCallServiceFilterConfiguration"),
                     @YamlProperty(name = "pattern", type = "string"),
-                    @YamlProperty(name = "ribbon-load-balancer", type = "object:org.apache.camel.model.cloud.RibbonServiceCallServiceLoadBalancerConfiguration"),
                     @YamlProperty(name = "service-chooser-ref", type = "string"),
                     @YamlProperty(name = "service-discovery-ref", type = "string"),
                     @YamlProperty(name = "service-filter-ref", type = "string"),
@@ -13821,16 +13095,6 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 case "id": {
                     String val = asText(node);
                     target.setId(val);
-                    break;
-                }
-                case "load-balancer-configuration": {
-                    MappingNode val = asMappingNode(node);
-                    setProperties(target, val);
-                    break;
-                }
-                case "ribbon-load-balancer": {
-                    org.apache.camel.model.cloud.RibbonServiceCallServiceLoadBalancerConfiguration val = asType(node, org.apache.camel.model.cloud.RibbonServiceCallServiceLoadBalancerConfiguration.class);
-                    target.setLoadBalancerConfiguration(val);
                     break;
                 }
                 case "default-load-balancer": {
@@ -13875,11 +13139,6 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 }
                 case "dns-service-discovery": {
                     org.apache.camel.model.cloud.DnsServiceCallServiceDiscoveryConfiguration val = asType(node, org.apache.camel.model.cloud.DnsServiceCallServiceDiscoveryConfiguration.class);
-                    target.setServiceDiscoveryConfiguration(val);
-                    break;
-                }
-                case "etcd-service-discovery": {
-                    org.apache.camel.model.cloud.EtcdServiceCallServiceDiscoveryConfiguration val = asType(node, org.apache.camel.model.cloud.EtcdServiceCallServiceDiscoveryConfiguration.class);
                     target.setServiceDiscoveryConfiguration(val);
                     break;
                 }
@@ -13971,7 +13230,6 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     @YamlProperty(name = "default-load-balancer", type = "object:org.apache.camel.model.cloud.DefaultServiceCallServiceLoadBalancerConfiguration"),
                     @YamlProperty(name = "description", type = "string"),
                     @YamlProperty(name = "dns-service-discovery", type = "object:org.apache.camel.model.cloud.DnsServiceCallServiceDiscoveryConfiguration"),
-                    @YamlProperty(name = "etcd-service-discovery", type = "object:org.apache.camel.model.cloud.EtcdServiceCallServiceDiscoveryConfiguration"),
                     @YamlProperty(name = "expression", type = "object:org.apache.camel.model.cloud.ServiceCallExpressionConfiguration"),
                     @YamlProperty(name = "expression-ref", type = "string"),
                     @YamlProperty(name = "healthy-service-filter", type = "object:org.apache.camel.model.cloud.HealthyServiceCallServiceFilterConfiguration"),
@@ -13982,7 +13240,6 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     @YamlProperty(name = "name", type = "string", required = true),
                     @YamlProperty(name = "pass-through-service-filter", type = "object:org.apache.camel.model.cloud.PassThroughServiceCallServiceFilterConfiguration"),
                     @YamlProperty(name = "pattern", type = "string"),
-                    @YamlProperty(name = "ribbon-load-balancer", type = "object:org.apache.camel.model.cloud.RibbonServiceCallServiceLoadBalancerConfiguration"),
                     @YamlProperty(name = "service-chooser-ref", type = "string"),
                     @YamlProperty(name = "service-discovery-ref", type = "string"),
                     @YamlProperty(name = "service-filter-ref", type = "string"),
@@ -14035,16 +13292,6 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setInheritErrorHandler(java.lang.Boolean.valueOf(val));
                     break;
                 }
-                case "load-balancer-configuration": {
-                    MappingNode val = asMappingNode(node);
-                    setProperties(target, val);
-                    break;
-                }
-                case "ribbon-load-balancer": {
-                    org.apache.camel.model.cloud.RibbonServiceCallServiceLoadBalancerConfiguration val = asType(node, org.apache.camel.model.cloud.RibbonServiceCallServiceLoadBalancerConfiguration.class);
-                    target.setLoadBalancerConfiguration(val);
-                    break;
-                }
                 case "default-load-balancer": {
                     org.apache.camel.model.cloud.DefaultServiceCallServiceLoadBalancerConfiguration val = asType(node, org.apache.camel.model.cloud.DefaultServiceCallServiceLoadBalancerConfiguration.class);
                     target.setLoadBalancerConfiguration(val);
@@ -14092,11 +13339,6 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 }
                 case "dns-service-discovery": {
                     org.apache.camel.model.cloud.DnsServiceCallServiceDiscoveryConfiguration val = asType(node, org.apache.camel.model.cloud.DnsServiceCallServiceDiscoveryConfiguration.class);
-                    target.setServiceDiscoveryConfiguration(val);
-                    break;
-                }
-                case "etcd-service-discovery": {
-                    org.apache.camel.model.cloud.EtcdServiceCallServiceDiscoveryConfiguration val = asType(node, org.apache.camel.model.cloud.EtcdServiceCallServiceDiscoveryConfiguration.class);
                     target.setServiceDiscoveryConfiguration(val);
                     break;
                 }
@@ -14468,7 +13710,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -14602,7 +13844,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -14674,7 +13916,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -14742,7 +13984,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -14839,7 +14081,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
             nodes = "sort",
             properties = {
                     @YamlProperty(name = "__extends", type = "object:org.apache.camel.model.language.ExpressionDefinition"),
-                    @YamlProperty(name = "comparator-ref", type = "string"),
+                    @YamlProperty(name = "comparator", type = "string"),
                     @YamlProperty(name = "description", type = "string"),
                     @YamlProperty(name = "expression", type = "object:org.apache.camel.model.language.ExpressionDefinition"),
                     @YamlProperty(name = "id", type = "string"),
@@ -14860,9 +14102,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
         protected boolean setProperty(SortDefinition target, String propertyKey,
                 String propertyName, Node node) {
             switch(propertyKey) {
-                case "comparator-ref": {
+                case "comparator": {
                     String val = asText(node);
-                    target.setComparatorRef(val);
+                    target.setComparator(val);
                     break;
                 }
                 case "expression": {
@@ -14888,7 +14130,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -14950,7 +14192,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -14970,22 +14212,21 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
             nodes = "split",
             properties = {
                     @YamlProperty(name = "__extends", type = "object:org.apache.camel.model.language.ExpressionDefinition"),
+                    @YamlProperty(name = "aggregation-strategy", type = "string"),
+                    @YamlProperty(name = "aggregation-strategy-method-allow-null", type = "boolean"),
+                    @YamlProperty(name = "aggregation-strategy-method-name", type = "string"),
                     @YamlProperty(name = "delimiter", type = "string"),
                     @YamlProperty(name = "description", type = "string"),
-                    @YamlProperty(name = "executor-service-ref", type = "string"),
+                    @YamlProperty(name = "executor-service", type = "string"),
                     @YamlProperty(name = "expression", type = "object:org.apache.camel.model.language.ExpressionDefinition"),
                     @YamlProperty(name = "id", type = "string"),
                     @YamlProperty(name = "inherit-error-handler", type = "boolean"),
-                    @YamlProperty(name = "on-prepare-ref", type = "string"),
+                    @YamlProperty(name = "on-prepare", type = "string"),
                     @YamlProperty(name = "parallel-aggregate", type = "boolean"),
                     @YamlProperty(name = "parallel-processing", type = "boolean"),
                     @YamlProperty(name = "share-unit-of-work", type = "boolean"),
                     @YamlProperty(name = "steps", type = "array:org.apache.camel.model.ProcessorDefinition"),
-                    @YamlProperty(name = "stop-on-aggregate-exception", type = "boolean"),
                     @YamlProperty(name = "stop-on-exception", type = "boolean"),
-                    @YamlProperty(name = "strategy-method-allow-null", type = "boolean"),
-                    @YamlProperty(name = "strategy-method-name", type = "string"),
-                    @YamlProperty(name = "strategy-ref", type = "string"),
                     @YamlProperty(name = "streaming", type = "boolean"),
                     @YamlProperty(name = "timeout", type = "string")
             }
@@ -15004,14 +14245,29 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
         protected boolean setProperty(SplitDefinition target, String propertyKey,
                 String propertyName, Node node) {
             switch(propertyKey) {
+                case "aggregation-strategy": {
+                    String val = asText(node);
+                    target.setAggregationStrategy(val);
+                    break;
+                }
+                case "aggregation-strategy-method-allow-null": {
+                    String val = asText(node);
+                    target.setAggregationStrategyMethodAllowNull(val);
+                    break;
+                }
+                case "aggregation-strategy-method-name": {
+                    String val = asText(node);
+                    target.setAggregationStrategyMethodName(val);
+                    break;
+                }
                 case "delimiter": {
                     String val = asText(node);
                     target.setDelimiter(val);
                     break;
                 }
-                case "executor-service-ref": {
+                case "executor-service": {
                     String val = asText(node);
-                    target.setExecutorServiceRef(val);
+                    target.setExecutorService(val);
                     break;
                 }
                 case "expression": {
@@ -15024,9 +14280,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setInheritErrorHandler(java.lang.Boolean.valueOf(val));
                     break;
                 }
-                case "on-prepare-ref": {
+                case "on-prepare": {
                     String val = asText(node);
-                    target.setOnPrepareRef(val);
+                    target.setOnPrepare(val);
                     break;
                 }
                 case "parallel-aggregate": {
@@ -15044,29 +14300,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setShareUnitOfWork(val);
                     break;
                 }
-                case "stop-on-aggregate-exception": {
-                    String val = asText(node);
-                    target.setStopOnAggregateException(val);
-                    break;
-                }
                 case "stop-on-exception": {
                     String val = asText(node);
                     target.setStopOnException(val);
-                    break;
-                }
-                case "strategy-method-allow-null": {
-                    String val = asText(node);
-                    target.setStrategyMethodAllowNull(val);
-                    break;
-                }
-                case "strategy-method-name": {
-                    String val = asText(node);
-                    target.setStrategyMethodName(val);
-                    break;
-                }
-                case "strategy-ref": {
-                    String val = asText(node);
-                    target.setStrategyRef(val);
                     break;
                 }
                 case "streaming": {
@@ -15096,7 +14332,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -15306,7 +14542,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
             nodes = "stream-config",
             properties = {
                     @YamlProperty(name = "capacity", type = "number"),
-                    @YamlProperty(name = "comparator-ref", type = "string"),
+                    @YamlProperty(name = "comparator", type = "string"),
                     @YamlProperty(name = "delivery-attempt-interval", type = "string"),
                     @YamlProperty(name = "ignore-invalid-exchanges", type = "boolean"),
                     @YamlProperty(name = "reject-old", type = "boolean"),
@@ -15332,9 +14568,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setCapacity(val);
                     break;
                 }
-                case "comparator-ref": {
+                case "comparator": {
                     String val = asText(node);
-                    target.setComparatorRef(val);
+                    target.setComparator(val);
                     break;
                 }
                 case "delivery-attempt-interval": {
@@ -15355,73 +14591,6 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 case "timeout": {
                     String val = asText(node);
                     target.setTimeout(val);
-                    break;
-                }
-                default: {
-                    return false;
-                }
-            }
-            return true;
-        }
-    }
-
-    @YamlType(
-            types = org.apache.camel.model.SwitchDefinition.class,
-            order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
-            nodes = {
-                    "do-switch",
-                    "doSwitch"
-            },
-            properties = {
-                    @YamlProperty(name = "description", type = "string"),
-                    @YamlProperty(name = "id", type = "string"),
-                    @YamlProperty(name = "inherit-error-handler", type = "boolean"),
-                    @YamlProperty(name = "otherwise", type = "object:org.apache.camel.model.OtherwiseDefinition"),
-                    @YamlProperty(name = "steps", type = "array:org.apache.camel.model.ProcessorDefinition"),
-                    @YamlProperty(name = "when", type = "array:org.apache.camel.model.WhenDefinition")
-            }
-    )
-    public static class SwitchDefinitionDeserializer extends YamlDeserializerBase<SwitchDefinition> {
-        public SwitchDefinitionDeserializer() {
-            super(SwitchDefinition.class);
-        }
-
-        @Override
-        protected SwitchDefinition newInstance() {
-            return new SwitchDefinition();
-        }
-
-        @Override
-        protected boolean setProperty(SwitchDefinition target, String propertyKey,
-                String propertyName, Node node) {
-            switch(propertyKey) {
-                case "inherit-error-handler": {
-                    String val = asText(node);
-                    target.setInheritErrorHandler(java.lang.Boolean.valueOf(val));
-                    break;
-                }
-                case "otherwise": {
-                    org.apache.camel.model.OtherwiseDefinition val = asType(node, org.apache.camel.model.OtherwiseDefinition.class);
-                    target.setOtherwise(val);
-                    break;
-                }
-                case "when": {
-                    java.util.List<org.apache.camel.model.WhenDefinition> val = asFlatList(node, org.apache.camel.model.WhenDefinition.class);
-                    target.setWhenClauses(val);
-                    break;
-                }
-                case "id": {
-                    String val = asText(node);
-                    target.setId(val);
-                    break;
-                }
-                case "description": {
-                    org.apache.camel.model.DescriptionDefinition val = asType(node, org.apache.camel.model.DescriptionDefinition.class);
-                    target.setDescription(val);
-                    break;
-                }
-                case "steps": {
-                    setSteps(target, node);
                     break;
                 }
                 default: {
@@ -15517,6 +14686,50 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 case "using-iterator": {
                     String val = asText(node);
                     target.setUsingIterator(val);
+                    break;
+                }
+                default: {
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
+
+    @YamlType(
+            types = org.apache.camel.model.TemplatedRouteParameterDefinition.class,
+            order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
+            nodes = {
+                    "templated-route-parameter",
+                    "templatedRouteParameter"
+            },
+            properties = {
+                    @YamlProperty(name = "name", type = "string", required = true),
+                    @YamlProperty(name = "value", type = "string", required = true)
+            }
+    )
+    public static class TemplatedRouteParameterDefinitionDeserializer extends YamlDeserializerBase<TemplatedRouteParameterDefinition> {
+        public TemplatedRouteParameterDefinitionDeserializer() {
+            super(TemplatedRouteParameterDefinition.class);
+        }
+
+        @Override
+        protected TemplatedRouteParameterDefinition newInstance() {
+            return new TemplatedRouteParameterDefinition();
+        }
+
+        @Override
+        protected boolean setProperty(TemplatedRouteParameterDefinition target, String propertyKey,
+                String propertyName, Node node) {
+            switch(propertyKey) {
+                case "name": {
+                    String val = asText(node);
+                    target.setName(val);
+                    break;
+                }
+                case "value": {
+                    String val = asText(node);
+                    target.setValue(val);
                     break;
                 }
                 default: {
@@ -15627,7 +14840,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     @YamlProperty(name = "allow-core-thread-time-out", type = "boolean"),
                     @YamlProperty(name = "caller-runs-when-rejected", type = "string"),
                     @YamlProperty(name = "description", type = "string"),
-                    @YamlProperty(name = "executor-service-ref", type = "string"),
+                    @YamlProperty(name = "executor-service", type = "string"),
                     @YamlProperty(name = "id", type = "string"),
                     @YamlProperty(name = "inherit-error-handler", type = "boolean"),
                     @YamlProperty(name = "keep-alive-time", type = "number"),
@@ -15663,9 +14876,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setCallerRunsWhenRejected(val);
                     break;
                 }
-                case "executor-service-ref": {
+                case "executor-service": {
                     String val = asText(node);
-                    target.setExecutorServiceRef(val);
+                    target.setExecutorService(val);
                     break;
                 }
                 case "inherit-error-handler": {
@@ -15795,7 +15008,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     @YamlProperty(name = "caller-runs-when-rejected", type = "boolean"),
                     @YamlProperty(name = "correlation-expression", type = "object:org.apache.camel.model.ExpressionSubElementDefinition"),
                     @YamlProperty(name = "description", type = "string"),
-                    @YamlProperty(name = "executor-service-ref", type = "string"),
+                    @YamlProperty(name = "executor-service", type = "string"),
                     @YamlProperty(name = "expression", type = "object:org.apache.camel.model.language.ExpressionDefinition"),
                     @YamlProperty(name = "id", type = "string"),
                     @YamlProperty(name = "inherit-error-handler", type = "boolean"),
@@ -15832,9 +15045,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setCorrelationExpression(val);
                     break;
                 }
-                case "executor-service-ref": {
+                case "executor-service": {
                     String val = asText(node);
-                    target.setExecutorServiceRef(val);
+                    target.setExecutorService(val);
                     break;
                 }
                 case "expression": {
@@ -15870,7 +15083,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -16032,9 +15245,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
         }
 
         @Override
-        protected void setEndpointUri(CamelContext camelContext, ToDefinition target,
+        protected void setEndpointUri(CamelContext camelContext, Node node, ToDefinition target,
                 Map<String, Object> parameters) {
-            target.setUri(org.apache.camel.dsl.yaml.common.YamlSupport.createEndpointUri(camelContext, target.getUri(), parameters));
+            target.setUri(org.apache.camel.dsl.yaml.common.YamlSupport.createEndpointUri(camelContext, node, target.getUri(), parameters));
         }
 
         @Override
@@ -16067,14 +15280,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     break;
                 }
                 default: {
-                    String uri = EndpointProducerDeserializersResolver.resolveEndpointUri(propertyKey, node);
-                    if (uri == null) {
-                        return false;
-                    }
-                    if (target.getUri() != null) {
-                        throw new IllegalStateException("url must not be set when using Endpoint DSL");
-                    }
-                    target.setUri(uri);
+                    return false;
                 }
             }
             return true;
@@ -16118,9 +15324,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
         }
 
         @Override
-        protected void setEndpointUri(CamelContext camelContext, ToDynamicDefinition target,
-                Map<String, Object> parameters) {
-            target.setUri(org.apache.camel.dsl.yaml.common.YamlSupport.createEndpointUri(camelContext, target.getUri(), parameters));
+        protected void setEndpointUri(CamelContext camelContext, Node node,
+                ToDynamicDefinition target, Map<String, Object> parameters) {
+            target.setUri(org.apache.camel.dsl.yaml.common.YamlSupport.createEndpointUri(camelContext, node, target.getUri(), parameters));
         }
 
         @Override
@@ -16173,14 +15379,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     break;
                 }
                 default: {
-                    String uri = EndpointProducerDeserializersResolver.resolveEndpointUri(propertyKey, node);
-                    if (uri == null) {
-                        return false;
-                    }
-                    if (target.getUri() != null) {
-                        throw new IllegalStateException("url must not be set when using Endpoint DSL");
-                    }
-                    target.setUri(uri);
+                    return false;
                 }
             }
             return true;
@@ -16295,7 +15494,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -16449,7 +15648,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -17060,6 +16259,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
             order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
             nodes = "unmarshal",
             properties = {
+                    @YamlProperty(name = "allow-null-body", type = "boolean"),
                     @YamlProperty(name = "any23", type = "object:org.apache.camel.model.dataformat.Any23DataFormat"),
                     @YamlProperty(name = "asn1", type = "object:org.apache.camel.model.dataformat.ASN1DataFormat"),
                     @YamlProperty(name = "avro", type = "object:org.apache.camel.model.dataformat.AvroDataFormat"),
@@ -17119,6 +16319,11 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
         protected boolean setProperty(UnmarshalDefinition target, String propertyKey,
                 String propertyName, Node node) {
             switch(propertyKey) {
+                case "allow-null-body": {
+                    String val = asText(node);
+                    target.setAllowNullBody(val);
+                    break;
+                }
                 case "data-format-type": {
                     MappingNode val = asMappingNode(node);
                     setProperties(target, val);
@@ -17402,7 +16607,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -17484,171 +16689,6 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
     }
 
     @YamlType(
-            types = org.apache.camel.model.rest.VerbDefinition.class,
-            order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
-            nodes = "verb",
-            properties = {
-                    @YamlProperty(name = "api-docs", type = "string"),
-                    @YamlProperty(name = "binding-mode", type = "string"),
-                    @YamlProperty(name = "client-request-validation", type = "string"),
-                    @YamlProperty(name = "consumes", type = "string"),
-                    @YamlProperty(name = "deprecated", type = "boolean"),
-                    @YamlProperty(name = "description", type = "string"),
-                    @YamlProperty(name = "enable-cors", type = "string"),
-                    @YamlProperty(name = "id", type = "string"),
-                    @YamlProperty(name = "method", type = "string"),
-                    @YamlProperty(name = "out-type", type = "string"),
-                    @YamlProperty(name = "param", type = "array:org.apache.camel.model.rest.RestOperationParamDefinition"),
-                    @YamlProperty(name = "produces", type = "string"),
-                    @YamlProperty(name = "response-message", type = "array:org.apache.camel.model.rest.RestOperationResponseMsgDefinition"),
-                    @YamlProperty(name = "route", type = "object:org.apache.camel.model.RouteDefinition"),
-                    @YamlProperty(name = "route-id", type = "string"),
-                    @YamlProperty(name = "security", type = "array:org.apache.camel.model.rest.SecurityDefinition"),
-                    @YamlProperty(name = "skip-binding-on-error-code", type = "string"),
-                    @YamlProperty(name = "steps", type = "array:org.apache.camel.model.ProcessorDefinition"),
-                    @YamlProperty(name = "to", type = "object:org.apache.camel.model.ToDefinition"),
-                    @YamlProperty(name = "to-d", type = "object:org.apache.camel.model.ToDynamicDefinition"),
-                    @YamlProperty(name = "type", type = "string"),
-                    @YamlProperty(name = "uri", type = "string")
-            }
-    )
-    public static class VerbDefinitionDeserializer extends YamlDeserializerBase<VerbDefinition> {
-        public VerbDefinitionDeserializer() {
-            super(VerbDefinition.class);
-        }
-
-        @Override
-        protected VerbDefinition newInstance() {
-            return new VerbDefinition();
-        }
-
-        @Override
-        protected boolean setProperty(VerbDefinition target, String propertyKey,
-                String propertyName, Node node) {
-            switch(propertyKey) {
-                case "api-docs": {
-                    String val = asText(node);
-                    target.setApiDocs(val);
-                    break;
-                }
-                case "binding-mode": {
-                    String val = asText(node);
-                    target.setBindingMode(val);
-                    break;
-                }
-                case "client-request-validation": {
-                    String val = asText(node);
-                    target.setClientRequestValidation(val);
-                    break;
-                }
-                case "consumes": {
-                    String val = asText(node);
-                    target.setConsumes(val);
-                    break;
-                }
-                case "deprecated": {
-                    String val = asText(node);
-                    target.setDeprecated(java.lang.Boolean.valueOf(val));
-                    break;
-                }
-                case "enable-cors": {
-                    String val = asText(node);
-                    target.setEnableCORS(val);
-                    break;
-                }
-                case "method": {
-                    String val = asText(node);
-                    target.setMethod(val);
-                    break;
-                }
-                case "out-type": {
-                    String val = asText(node);
-                    target.setOutType(val);
-                    break;
-                }
-                case "param": {
-                    java.util.List<org.apache.camel.model.rest.RestOperationParamDefinition> val = asFlatList(node, org.apache.camel.model.rest.RestOperationParamDefinition.class);
-                    target.setParams(val);
-                    break;
-                }
-                case "produces": {
-                    String val = asText(node);
-                    target.setProduces(val);
-                    break;
-                }
-                case "response-message": {
-                    java.util.List<org.apache.camel.model.rest.RestOperationResponseMsgDefinition> val = asFlatList(node, org.apache.camel.model.rest.RestOperationResponseMsgDefinition.class);
-                    target.setResponseMsgs(val);
-                    break;
-                }
-                case "route-id": {
-                    String val = asText(node);
-                    target.setRouteId(val);
-                    break;
-                }
-                case "security": {
-                    java.util.List<org.apache.camel.model.rest.SecurityDefinition> val = asFlatList(node, org.apache.camel.model.rest.SecurityDefinition.class);
-                    target.setSecurity(val);
-                    break;
-                }
-                case "skip-binding-on-error-code": {
-                    String val = asText(node);
-                    target.setSkipBindingOnErrorCode(val);
-                    break;
-                }
-                case "to-or-route": {
-                    MappingNode val = asMappingNode(node);
-                    setProperties(target, val);
-                    break;
-                }
-                case "to": {
-                    org.apache.camel.model.ToDefinition val = asType(node, org.apache.camel.model.ToDefinition.class);
-                    target.setToOrRoute(val);
-                    break;
-                }
-                case "to-d": {
-                    org.apache.camel.model.ToDynamicDefinition val = asType(node, org.apache.camel.model.ToDynamicDefinition.class);
-                    target.setToOrRoute(val);
-                    break;
-                }
-                case "route": {
-                    org.apache.camel.model.RouteDefinition val = asType(node, org.apache.camel.model.RouteDefinition.class);
-                    target.setToOrRoute(val);
-                    break;
-                }
-                case "type": {
-                    String val = asText(node);
-                    target.setType(val);
-                    break;
-                }
-                case "uri": {
-                    String val = asText(node);
-                    target.setUri(val);
-                    break;
-                }
-                case "id": {
-                    String val = asText(node);
-                    target.setId(val);
-                    break;
-                }
-                case "description": {
-                    org.apache.camel.model.DescriptionDefinition val = asType(node, org.apache.camel.model.DescriptionDefinition.class);
-                    target.setDescription(val);
-                    break;
-                }
-                case "steps": {
-                    setSteps(target, node);
-                    break;
-                }
-                default: {
-                    return false;
-                }
-            }
-            return true;
-        }
-    }
-
-    @YamlType(
             types = org.apache.camel.model.loadbalancer.WeightedLoadBalancerDefinition.class,
             order = org.apache.camel.dsl.yaml.common.YamlDeserializerResolver.ORDER_LOWEST - 1,
             nodes = "weighted",
@@ -17656,7 +16696,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     @YamlProperty(name = "distribution-ratio", type = "string", required = true),
                     @YamlProperty(name = "distribution-ratio-delimiter", type = "string"),
                     @YamlProperty(name = "id", type = "string"),
-                    @YamlProperty(name = "round-robin", type = "string")
+                    @YamlProperty(name = "round-robin", type = "boolean")
             }
     )
     public static class WeightedLoadBalancerDefinitionDeserializer extends YamlDeserializerBase<WeightedLoadBalancerDefinition> {
@@ -17755,7 +16795,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -17826,7 +16866,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -17850,20 +16890,17 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
             properties = {
                     @YamlProperty(name = "allow-optimised-components", type = "boolean"),
                     @YamlProperty(name = "auto-start-components", type = "boolean"),
-                    @YamlProperty(name = "body", type = "object:org.apache.camel.model.ExpressionSubElementDefinition"),
                     @YamlProperty(name = "cache-size", type = "number"),
                     @YamlProperty(name = "copy", type = "boolean"),
                     @YamlProperty(name = "description", type = "string"),
                     @YamlProperty(name = "dynamic-uri", type = "boolean"),
-                    @YamlProperty(name = "executor-service-ref", type = "string"),
+                    @YamlProperty(name = "executor-service", type = "string"),
                     @YamlProperty(name = "id", type = "string"),
                     @YamlProperty(name = "ignore-invalid-endpoint", type = "boolean"),
                     @YamlProperty(name = "inherit-error-handler", type = "boolean"),
-                    @YamlProperty(name = "on-prepare-ref", type = "string"),
+                    @YamlProperty(name = "on-prepare", type = "string"),
                     @YamlProperty(name = "parameters", type = "object"),
                     @YamlProperty(name = "pattern", type = "string"),
-                    @YamlProperty(name = "processor-ref", type = "string"),
-                    @YamlProperty(name = "set-header", type = "array:org.apache.camel.model.SetHeaderDefinition"),
                     @YamlProperty(name = "uri", type = "string", required = true)
             }
     )
@@ -17878,9 +16915,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
         }
 
         @Override
-        protected void setEndpointUri(CamelContext camelContext, WireTapDefinition target,
-                Map<String, Object> parameters) {
-            target.setUri(org.apache.camel.dsl.yaml.common.YamlSupport.createEndpointUri(camelContext, target.getUri(), parameters));
+        protected void setEndpointUri(CamelContext camelContext, Node node,
+                WireTapDefinition target, Map<String, Object> parameters) {
+            target.setUri(org.apache.camel.dsl.yaml.common.YamlSupport.createEndpointUri(camelContext, node, target.getUri(), parameters));
         }
 
         @Override
@@ -17912,14 +16949,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setDynamicUri(val);
                     break;
                 }
-                case "executor-service-ref": {
+                case "executor-service": {
                     String val = asText(node);
-                    target.setExecutorServiceRef(val);
-                    break;
-                }
-                case "set-header": {
-                    java.util.List<org.apache.camel.model.SetHeaderDefinition> val = asFlatList(node, org.apache.camel.model.SetHeaderDefinition.class);
-                    target.setHeaders(val);
+                    target.setExecutorService(val);
                     break;
                 }
                 case "ignore-invalid-endpoint": {
@@ -17932,19 +16964,9 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     target.setInheritErrorHandler(java.lang.Boolean.valueOf(val));
                     break;
                 }
-                case "body": {
-                    org.apache.camel.model.ExpressionSubElementDefinition val = asType(node, org.apache.camel.model.ExpressionSubElementDefinition.class);
-                    target.setNewExchangeExpression(val);
-                    break;
-                }
-                case "processor-ref": {
+                case "on-prepare": {
                     String val = asText(node);
-                    target.setNewExchangeProcessorRef(val);
-                    break;
-                }
-                case "on-prepare-ref": {
-                    String val = asText(node);
-                    target.setOnPrepareRef(val);
+                    target.setOnPrepare(val);
                     break;
                 }
                 case "pattern": {
@@ -17968,14 +16990,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                     break;
                 }
                 default: {
-                    String uri = EndpointProducerDeserializersResolver.resolveEndpointUri(propertyKey, node);
-                    if (uri == null) {
-                        return false;
-                    }
-                    if (target.getUri() != null) {
-                        throw new IllegalStateException("url must not be set when using Endpoint DSL");
-                    }
-                    target.setUri(uri);
+                    return false;
                 }
             }
             return true;
@@ -18158,7 +17173,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -18274,7 +17289,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {
@@ -18354,7 +17369,7 @@ public final class ModelDeserializers extends YamlDeserializerSupport {
                 default: {
                     ExpressionDefinition ed = target.getExpressionType();
                     if (ed != null) {
-                        throw new org.apache.camel.dsl.yaml.common.exception.UnsupportedFieldException(propertyName, "an expression has already been configured (" + ed + ")");
+                        throw new org.apache.camel.dsl.yaml.common.exception.DuplicateFieldException(node, propertyName, "as an expression");
                     }
                     ed = ExpressionDeserializers.constructExpressionType(propertyKey, node);
                     if (ed != null) {

@@ -41,6 +41,7 @@ import org.apache.maven.project.MavenProject;
 import org.apache.maven.project.MavenProjectHelper;
 import org.sonatype.plexus.build.incremental.BuildContext;
 
+import static org.apache.camel.maven.packaging.generics.PackagePluginUtils.joinHeaderAndSource;
 import static org.apache.camel.tooling.util.PackageHelper.findCamelDirectory;
 import static org.apache.camel.tooling.util.PackageHelper.loadText;
 
@@ -142,7 +143,9 @@ public class ComponentDslMojo extends AbstractGeneratorMojo {
 
     private void executeComponent(List<ComponentModel> allModels) throws MojoFailureException {
         if (!allModels.isEmpty()) {
-            getLog().debug("Found " + allModels.size() + " components");
+            if (getLog().isDebugEnabled()) {
+                getLog().debug("Found " + allModels.size() + " components");
+            }
 
             // load license header
             try (InputStream is = getClass().getClassLoader().getResourceAsStream("license-header-java.txt")) {
@@ -222,8 +225,11 @@ public class ComponentDslMojo extends AbstractGeneratorMojo {
         Path target = outputDir.toPath().resolve(filePath).resolve(fileName);
 
         try {
-            String code = licenseHeader + source;
-            getLog().debug("Source code generated:\n" + code);
+            final String code = joinHeaderAndSource(licenseHeader, source);
+
+            if (getLog().isDebugEnabled()) {
+                getLog().debug("Source code generated:\n" + code);
+            }
 
             return updateResource(buildContext, target, code);
         } catch (Exception e) {

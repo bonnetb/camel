@@ -47,7 +47,6 @@ import org.apache.camel.impl.DefaultCamelContext;
 import org.apache.camel.model.ContextScanDefinition;
 import org.apache.camel.model.FaultToleranceConfigurationDefinition;
 import org.apache.camel.model.GlobalOptionsDefinition;
-import org.apache.camel.model.HystrixConfigurationDefinition;
 import org.apache.camel.model.InterceptDefinition;
 import org.apache.camel.model.InterceptFromDefinition;
 import org.apache.camel.model.InterceptSendToEndpointDefinition;
@@ -63,6 +62,7 @@ import org.apache.camel.model.RouteContextRefDefinition;
 import org.apache.camel.model.RouteDefinition;
 import org.apache.camel.model.RouteTemplateContextRefDefinition;
 import org.apache.camel.model.RouteTemplateDefinition;
+import org.apache.camel.model.TemplatedRouteDefinition;
 import org.apache.camel.model.ThreadPoolProfileDefinition;
 import org.apache.camel.model.cloud.ServiceCallConfigurationDefinition;
 import org.apache.camel.model.dataformat.DataFormatsDefinition;
@@ -228,12 +228,6 @@ public class CamelContextFactoryBean extends AbstractCamelContextFactoryBean<Def
     @XmlElement(name = "serviceCallConfiguration", type = ServiceCallConfigurationDefinition.class)
     private List<ServiceCallConfigurationDefinition> serviceCallConfigurations;
 
-    @XmlElement(name = "defaultHystrixConfiguration")
-    private HystrixConfigurationDefinition defaultHystrixConfiguration;
-
-    @XmlElement(name = "hystrixConfiguration", type = HystrixConfigurationDefinition.class)
-    private List<HystrixConfigurationDefinition> hystrixConfigurations;
-
     @XmlElement(name = "defaultResilience4jConfiguration")
     private Resilience4jConfigurationDefinition defaultResilience4jConfiguration;
 
@@ -308,6 +302,9 @@ public class CamelContextFactoryBean extends AbstractCamelContextFactoryBean<Def
 
     @XmlElement(name = "routeTemplate")
     private List<RouteTemplateDefinition> routeTemplates = new ArrayList<>();
+
+    @XmlElement(name = "templatedRoute")
+    private List<TemplatedRouteDefinition> templatedRoutes = new ArrayList<>();
 
     @XmlElement(name = "route")
     private List<RouteDefinition> routes = new ArrayList<>();
@@ -437,24 +434,6 @@ public class CamelContextFactoryBean extends AbstractCamelContextFactoryBean<Def
     }
 
     @Override
-    public HystrixConfigurationDefinition getDefaultHystrixConfiguration() {
-        return defaultHystrixConfiguration;
-    }
-
-    public void setDefaultHystrixConfiguration(HystrixConfigurationDefinition defaultHystrixConfiguration) {
-        this.defaultHystrixConfiguration = defaultHystrixConfiguration;
-    }
-
-    @Override
-    public List<HystrixConfigurationDefinition> getHystrixConfigurations() {
-        return hystrixConfigurations;
-    }
-
-    public void setHystrixConfigurations(List<HystrixConfigurationDefinition> hystrixConfigurations) {
-        this.hystrixConfigurations = hystrixConfigurations;
-    }
-
-    @Override
     public Resilience4jConfigurationDefinition getDefaultResilience4jConfiguration() {
         return defaultResilience4jConfiguration;
     }
@@ -519,6 +498,16 @@ public class CamelContextFactoryBean extends AbstractCamelContextFactoryBean<Def
     @Override
     public void setRouteTemplates(List<RouteTemplateDefinition> routeTemplates) {
         this.routeTemplates = routeTemplates;
+    }
+
+    @Override
+    public List<TemplatedRouteDefinition> getTemplatedRoutes() {
+        return templatedRoutes;
+    }
+
+    @Override
+    public void setTemplatedRoutes(List<TemplatedRouteDefinition> templatedRoutes) {
+        this.templatedRoutes = templatedRoutes;
     }
 
     @Override

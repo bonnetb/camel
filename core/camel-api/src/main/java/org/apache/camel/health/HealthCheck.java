@@ -31,6 +31,7 @@ public interface HealthCheck extends HasGroup, HasId, Ordered {
 
     String CHECK_ID = "check.id";
     String CHECK_GROUP = "check.group";
+    String CHECK_KIND = "check.kind";
     String CHECK_ENABLED = "check.enabled";
     String INVOCATION_COUNT = "invocation.count";
     String INVOCATION_TIME = "invocation.time";
@@ -52,10 +53,26 @@ public interface HealthCheck extends HasGroup, HasId, Ordered {
         UNKNOWN
     }
 
+    enum Kind {
+        READINESS,
+        LIVENESS,
+        ALL,
+    }
+
     @Override
     default int getOrder() {
         return Ordered.LOWEST;
     }
+
+    /**
+     * Whether this health check is enabled
+     */
+    boolean isEnabled();
+
+    /**
+     * Used for enabling or disabling this health check
+     */
+    void setEnabled(boolean enabled);
 
     /**
      * Return metadata associated with this {@link HealthCheck}.
@@ -79,17 +96,30 @@ public interface HealthCheck extends HasGroup, HasId, Ordered {
     }
 
     /**
-     * Return the configuration associated with this {@link HealthCheck}.
-     */
-    HealthCheckConfiguration getConfiguration();
-
-    /**
      * Invoke the check.
      *
      * @see #call(Map)
      */
     default Result call() {
         return call(Collections.emptyMap());
+    }
+
+    /**
+     * Invoke the check as readiness check.
+     *
+     * @see #call(Map)
+     */
+    default Result callReadiness() {
+        return call(Map.of(HealthCheck.CHECK_KIND, Kind.READINESS));
+    }
+
+    /**
+     * Invoke the check as liveness check.
+     *
+     * @see #call(Map)
+     */
+    default Result callLiveness() {
+        return call(Map.of(HealthCheck.CHECK_KIND, Kind.LIVENESS));
     }
 
     /**
@@ -130,7 +160,7 @@ public interface HealthCheck extends HasGroup, HasId, Ordered {
         /**
          * A key/value combination of details.
          *
-         * @return a non null details map
+         * @return a non null details map (empty if no details)
          */
         Map<String, Object> getDetails();
     }

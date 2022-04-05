@@ -92,7 +92,7 @@ public class DefaultAhcBinding implements AhcBinding {
 
     protected String extractMethod(Exchange exchange) {
         // prefer method from header
-        String method = exchange.getIn().getHeader(Exchange.HTTP_METHOD, String.class);
+        String method = exchange.getIn().getHeader(AhcConstants.HTTP_METHOD, String.class);
         if (method != null) {
             return method;
         }
@@ -253,9 +253,9 @@ public class DefaultAhcBinding implements AhcBinding {
         // preserve headers from in by copying any non existing headers
         // to avoid overriding existing headers with old values
         // Just filter the http protocol headers 
-        MessageHelper.copyHeaders(exchange.getIn(), exchange.getOut(), httpProtocolHeaderFilterStrategy, false);
-        exchange.getOut().setHeader(Exchange.HTTP_RESPONSE_CODE, responseStatus.getStatusCode());
-        exchange.getOut().setHeader(Exchange.HTTP_RESPONSE_TEXT, responseStatus.getStatusText());
+        MessageHelper.copyHeaders(exchange.getIn(), exchange.getMessage(), httpProtocolHeaderFilterStrategy, false);
+        exchange.getMessage().setHeader(AhcConstants.HTTP_RESPONSE_CODE, responseStatus.getStatusCode());
+        exchange.getMessage().setHeader(AhcConstants.HTTP_RESPONSE_TEXT, responseStatus.getStatusText());
     }
 
     @Override
@@ -264,9 +264,9 @@ public class DefaultAhcBinding implements AhcBinding {
         for (String name : headers.names()) {
             List<String> values = headers.getAll(name);
             if (values.size() == 1) {
-                exchange.getOut().getHeaders().put(name, values.get(0));
+                exchange.getMessage().getHeaders().put(name, values.get(0));
             } else {
-                exchange.getOut().getHeaders().put(name, values);
+                exchange.getMessage().getHeaders().put(name, values);
             }
             m.put(name, values);
         }
@@ -293,13 +293,13 @@ public class DefaultAhcBinding implements AhcBinding {
         os.close();
         InputStream is = new ByteArrayInputStream(os.toByteArray());
 
-        String contentEncoding = exchange.getOut().getHeader(Exchange.CONTENT_ENCODING, String.class);
+        String contentEncoding = exchange.getMessage().getHeader(AhcConstants.CONTENT_ENCODING, String.class);
         if (!exchange.getProperty(Exchange.SKIP_GZIP_ENCODING, Boolean.FALSE, Boolean.class)) {
             is = GZIPHelper.uncompressGzip(contentEncoding, is);
         }
 
         // Honor the character encoding
-        String contentType = exchange.getOut().getHeader(Exchange.CONTENT_TYPE, String.class);
+        String contentType = exchange.getMessage().getHeader(AhcConstants.CONTENT_TYPE, String.class);
         if (contentType != null) {
             // find the charset and set it to the Exchange
             AhcHelper.setCharsetFromContentType(contentType, exchange);
@@ -340,7 +340,7 @@ public class DefaultAhcBinding implements AhcBinding {
             Object body, int statusCode, String statusText) {
         Exception answer;
 
-        if (endpoint.isTransferException() && body != null && body instanceof Exception) {
+        if (endpoint.isTransferException() && body instanceof Exception) {
             // if the response was a serialized exception then use that
             return (Exception) body;
         }
@@ -354,7 +354,7 @@ public class DefaultAhcBinding implements AhcBinding {
         Map<String, String> headers = extractResponseHeaders(exchange);
 
         if (statusCode >= 300 && statusCode < 400) {
-            String redirectLocation = exchange.getOut().getHeader("Location", String.class);
+            String redirectLocation = exchange.getMessage().getHeader(AhcConstants.LOCATION, String.class);
             if (redirectLocation != null) {
                 answer = new AhcOperationFailedException(url, statusCode, statusText, redirectLocation, headers, copy);
             } else {
@@ -371,7 +371,7 @@ public class DefaultAhcBinding implements AhcBinding {
 
     private Map<String, String> extractResponseHeaders(Exchange exchange) {
         Map<String, String> answer = new LinkedHashMap<>();
-        for (Map.Entry<String, Object> entry : exchange.getOut().getHeaders().entrySet()) {
+        for (Map.Entry<String, Object> entry : exchange.getMessage().getHeaders().entrySet()) {
             String key = entry.getKey();
             String value = exchange.getContext().getTypeConverter().convertTo(String.class, entry.getValue());
             if (value != null) {
@@ -382,7 +382,7 @@ public class DefaultAhcBinding implements AhcBinding {
     }
 
     private void populateResponse(Exchange exchange, Object body, int contentLength) {
-        exchange.getOut().setBody(body);
-        exchange.getOut().setHeader(Exchange.CONTENT_LENGTH, contentLength);
+        exchange.getMessage().setBody(body);
+        exchange.getMessage().setHeader(AhcConstants.CONTENT_LENGTH, contentLength);
     }
 }

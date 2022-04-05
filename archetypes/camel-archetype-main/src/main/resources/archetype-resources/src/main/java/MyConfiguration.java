@@ -18,7 +18,6 @@ package ${package};
 
 import org.apache.camel.BindToRegistry;
 import org.apache.camel.Configuration;
-import org.apache.camel.CamelContext;
 import org.apache.camel.PropertyInject;
 
 /**

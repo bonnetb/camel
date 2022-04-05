@@ -29,7 +29,6 @@ import org.apache.camel.Route;
 import org.apache.camel.model.ProcessorDefinition;
 import org.apache.camel.model.ProcessorDefinitionHelper;
 import org.apache.camel.model.RouteDefinition;
-import org.apache.camel.model.SetHeaderDefinition;
 import org.apache.camel.model.WireTapDefinition;
 import org.apache.camel.processor.SendDynamicProcessor;
 import org.apache.camel.processor.SendProcessor;
@@ -47,12 +46,12 @@ public class WireTapReifier extends ToDynamicReifier<WireTapDefinition<?>> {
 
     @Override
     public Processor createProcessor() throws Exception {
+        // must use InOnly for WireTap
+        definition.setPattern(ExchangePattern.InOnly.name());
+
         // executor service is mandatory for wire tap
         boolean shutdownThreadPool = willCreateNewThreadPool(definition, true);
         ExecutorService threadPool = getConfiguredExecutorService("WireTap", definition, true);
-
-        // must use InOnly for WireTap
-        definition.setPattern(ExchangePattern.InOnly.name());
 
         // optimize to only use dynamic processor if really needed
         String uri;
@@ -97,31 +96,12 @@ public class WireTapReifier extends ToDynamicReifier<WireTapDefinition<?>> {
                 dynamicSendProcessor, target, uri,
                 parse(ExchangePattern.class, definition.getPattern()), isCopy,
                 threadPool, shutdownThreadPool, dynamic);
-        Processor newExchangeProcessor = definition.getNewExchangeProcessor();
-        String ref = parseString(definition.getNewExchangeProcessorRef());
-        if (ref != null) {
-            newExchangeProcessor = mandatoryLookup(ref, Processor.class);
+
+        Processor prepare = definition.getOnPrepareProcessor();
+        if (prepare == null && definition.getOnPrepare() != null) {
+            prepare = mandatoryLookup(definition.getOnPrepare(), Processor.class);
         }
-        if (newExchangeProcessor != null) {
-            answer.addNewExchangeProcessor(newExchangeProcessor);
-        }
-        if (definition.getNewExchangeExpression() != null) {
-            answer.setNewExchangeExpression(createExpression(definition.getNewExchangeExpression()));
-        }
-        if (definition.getHeaders() != null && !definition.getHeaders().isEmpty()) {
-            for (SetHeaderDefinition header : definition.getHeaders()) {
-                Processor processor = createProcessor(header);
-                answer.addNewExchangeProcessor(processor);
-            }
-        }
-        Processor onPrepare = definition.getOnPrepare();
-        ref = parseString(definition.getOnPrepareRef());
-        if (ref != null) {
-            onPrepare = mandatoryLookup(ref, Processor.class);
-        }
-        if (onPrepare != null) {
-            answer.setOnPrepare(onPrepare);
-        }
+        answer.setOnPrepare(prepare);
 
         return answer;
     }

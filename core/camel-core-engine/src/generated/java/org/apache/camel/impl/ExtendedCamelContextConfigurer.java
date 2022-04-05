@@ -127,6 +127,10 @@ public class ExtendedCamelContextConfigurer extends org.apache.camel.support.com
         case "ModelJAXBContextFactory": target.setModelJAXBContextFactory(property(camelContext, org.apache.camel.spi.ModelJAXBContextFactory.class, value)); return true;
         case "modeltoxmldumper":
         case "ModelToXMLDumper": target.setModelToXMLDumper(property(camelContext, org.apache.camel.spi.ModelToXMLDumper.class, value)); return true;
+        case "modeline":
+        case "Modeline": target.setModeline(property(camelContext, java.lang.Boolean.class, value)); return true;
+        case "modelinefactory":
+        case "ModelineFactory": target.setModelineFactory(property(camelContext, org.apache.camel.spi.ModelineFactory.class, value)); return true;
         case "name":
         case "Name": target.setName(property(camelContext, java.lang.String.class, value)); return true;
         case "namestrategy":
@@ -209,6 +213,8 @@ public class ExtendedCamelContextConfigurer extends org.apache.camel.support.com
         case "UseMDCLogging": target.setUseMDCLogging(property(camelContext, java.lang.Boolean.class, value)); return true;
         case "uuidgenerator":
         case "UuidGenerator": target.setUuidGenerator(property(camelContext, org.apache.camel.spi.UuidGenerator.class, value)); return true;
+        case "vaultconfiguration":
+        case "VaultConfiguration": target.setVaultConfiguration(property(camelContext, org.apache.camel.vault.VaultConfiguration.class, value)); return true;
         case "xmlroutesdefinitionloader":
         case "XMLRoutesDefinitionLoader": target.setXMLRoutesDefinitionLoader(property(camelContext, org.apache.camel.spi.XMLRoutesDefinitionLoader.class, value)); return true;
         default: return false;
@@ -324,6 +330,10 @@ public class ExtendedCamelContextConfigurer extends org.apache.camel.support.com
         case "ModelJAXBContextFactory": return org.apache.camel.spi.ModelJAXBContextFactory.class;
         case "modeltoxmldumper":
         case "ModelToXMLDumper": return org.apache.camel.spi.ModelToXMLDumper.class;
+        case "modeline":
+        case "Modeline": return java.lang.Boolean.class;
+        case "modelinefactory":
+        case "ModelineFactory": return org.apache.camel.spi.ModelineFactory.class;
         case "name":
         case "Name": return java.lang.String.class;
         case "namestrategy":
@@ -406,6 +416,8 @@ public class ExtendedCamelContextConfigurer extends org.apache.camel.support.com
         case "UseMDCLogging": return java.lang.Boolean.class;
         case "uuidgenerator":
         case "UuidGenerator": return org.apache.camel.spi.UuidGenerator.class;
+        case "vaultconfiguration":
+        case "VaultConfiguration": return org.apache.camel.vault.VaultConfiguration.class;
         case "xmlroutesdefinitionloader":
         case "XMLRoutesDefinitionLoader": return org.apache.camel.spi.XMLRoutesDefinitionLoader.class;
         default: return null;
@@ -522,6 +534,10 @@ public class ExtendedCamelContextConfigurer extends org.apache.camel.support.com
         case "ModelJAXBContextFactory": return target.getModelJAXBContextFactory();
         case "modeltoxmldumper":
         case "ModelToXMLDumper": return target.getModelToXMLDumper();
+        case "modeline":
+        case "Modeline": return target.isModeline();
+        case "modelinefactory":
+        case "ModelineFactory": return target.getModelineFactory();
         case "name":
         case "Name": return target.getName();
         case "namestrategy":
@@ -604,6 +620,8 @@ public class ExtendedCamelContextConfigurer extends org.apache.camel.support.com
         case "UseMDCLogging": return target.isUseMDCLogging();
         case "uuidgenerator":
         case "UuidGenerator": return target.getUuidGenerator();
+        case "vaultconfiguration":
+        case "VaultConfiguration": return target.getVaultConfiguration();
         case "xmlroutesdefinitionloader":
         case "XMLRoutesDefinitionLoader": return target.getXMLRoutesDefinitionLoader();
         default: return null;

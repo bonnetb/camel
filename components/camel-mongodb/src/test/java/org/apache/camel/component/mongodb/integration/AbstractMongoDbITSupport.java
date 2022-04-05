@@ -45,7 +45,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public abstract class AbstractMongoDbITSupport extends CamelTestSupport {
 
     @RegisterExtension
-    public static MongoDBService service = MongoDBServiceFactory.createService();
+    public static MongoDBService service = MongoDBServiceFactory.createSingletonService();
 
     protected static final String SCHEME = "mongodb";
     protected static final String USER = "test-user";
@@ -112,17 +112,21 @@ public abstract class AbstractMongoDbITSupport extends CamelTestSupport {
      * Useful to simulate the presence of an authenticated user with name {@value #USER} and password {@value #PASSWORD}
      */
     protected void createAuthorizationUser() {
-        MongoDatabase admin = mongo.getDatabase("admin");
-        MongoCollection<Document> usersCollection = admin.getCollection("system.users");
-        if (usersCollection.countDocuments() == 0) {
+        createAuthorizationUser("admin", USER, PASSWORD);
+    }
 
+    protected void createAuthorizationUser(String database, String user, String password) {
+        MongoDatabase adminDb = mongo.getDatabase("admin");
+        MongoCollection<Document> usersCollection = adminDb.getCollection("system.users");
+        if (usersCollection.countDocuments(new Document("user", user)) == 0) {
+            MongoDatabase db = mongo.getDatabase(database);
             Map<String, Object> commandArguments = new LinkedHashMap<>();
-            commandArguments.put("createUser", USER);
-            commandArguments.put("pwd", PASSWORD);
+            commandArguments.put("createUser", user);
+            commandArguments.put("pwd", password);
             String[] roles = { "readWrite" };
             commandArguments.put("roles", roles);
             BasicDBObject command = new BasicDBObject(commandArguments);
-            admin.runCommand(command);
+            db.runCommand(command);
         }
     }
 

@@ -59,7 +59,6 @@ import org.apache.camel.health.HealthCheckResolver;
 import org.apache.camel.impl.DefaultCamelContext;
 import org.apache.camel.model.DataFormatDefinition;
 import org.apache.camel.model.FaultToleranceConfigurationDefinition;
-import org.apache.camel.model.HystrixConfigurationDefinition;
 import org.apache.camel.model.ModelCamelContext;
 import org.apache.camel.model.ModelLifecycleStrategy;
 import org.apache.camel.model.ProcessorDefinition;
@@ -67,6 +66,7 @@ import org.apache.camel.model.Resilience4jConfigurationDefinition;
 import org.apache.camel.model.RouteConfigurationDefinition;
 import org.apache.camel.model.RouteDefinition;
 import org.apache.camel.model.RouteTemplateDefinition;
+import org.apache.camel.model.TemplatedRouteDefinition;
 import org.apache.camel.model.cloud.ServiceCallConfigurationDefinition;
 import org.apache.camel.model.language.ExpressionDefinition;
 import org.apache.camel.model.rest.RestDefinition;
@@ -116,6 +116,7 @@ import org.apache.camel.spi.MessageHistoryFactory;
 import org.apache.camel.spi.ModelJAXBContextFactory;
 import org.apache.camel.spi.ModelReifierFactory;
 import org.apache.camel.spi.ModelToXMLDumper;
+import org.apache.camel.spi.ModelineFactory;
 import org.apache.camel.spi.NodeIdFactory;
 import org.apache.camel.spi.NormalizedEndpointUri;
 import org.apache.camel.spi.PackageScanClassResolver;
@@ -150,6 +151,7 @@ import org.apache.camel.spi.ValidatorRegistry;
 import org.apache.camel.spi.XMLRoutesDefinitionLoader;
 import org.apache.camel.support.DefaultRegistry;
 import org.apache.camel.support.jsse.SSLContextParameters;
+import org.apache.camel.vault.VaultConfiguration;
 
 @Experimental
 public class LightweightCamelContext implements ExtendedCamelContext, CatalogCamelContext, ModelCamelContext {
@@ -587,6 +589,16 @@ public class LightweightCamelContext implements ExtendedCamelContext, CatalogCam
     }
 
     @Override
+    public void setVaultConfiguration(VaultConfiguration vaultConfiguration) {
+        delegate.setVaultConfiguration(vaultConfiguration);
+    }
+
+    @Override
+    public VaultConfiguration getVaultConfiguration() {
+        return delegate.getVaultConfiguration();
+    }
+
+    @Override
     public RestRegistry getRestRegistry() {
         return delegate.getRestRegistry();
     }
@@ -909,6 +921,16 @@ public class LightweightCamelContext implements ExtendedCamelContext, CatalogCam
     @Override
     public void setSourceLocationEnabled(Boolean sourceLocationEnabled) {
         delegate.setSourceLocationEnabled(sourceLocationEnabled);
+    }
+
+    @Override
+    public Boolean isModeline() {
+        return delegate.isModeline();
+    }
+
+    @Override
+    public void setModeline(Boolean modeline) {
+        delegate.setModeline(modeline);
     }
 
     @Override
@@ -1435,6 +1457,16 @@ public class LightweightCamelContext implements ExtendedCamelContext, CatalogCam
     }
 
     @Override
+    public ModelineFactory getModelineFactory() {
+        return getExtendedCamelContext().getModelineFactory();
+    }
+
+    @Override
+    public void setModelineFactory(ModelineFactory modelineFactory) {
+        getExtendedCamelContext().setModelineFactory(modelineFactory);
+    }
+
+    @Override
     public InternalProcessorFactory getInternalProcessorFactory() {
         return getExtendedCamelContext().getInternalProcessorFactory();
     }
@@ -1893,6 +1925,12 @@ public class LightweightCamelContext implements ExtendedCamelContext, CatalogCam
     }
 
     @Override
+    public void addRouteFromTemplatedRoute(TemplatedRouteDefinition templatedRouteDefinition)
+            throws Exception {
+        getModelCamelContext().addRouteFromTemplatedRoute(templatedRouteDefinition);
+    }
+
+    @Override
     public void removeRouteTemplateDefinitions(String pattern) throws Exception {
         getModelCamelContext().removeRouteTemplateDefinitions(pattern);
     }
@@ -1935,26 +1973,6 @@ public class LightweightCamelContext implements ExtendedCamelContext, CatalogCam
     @Override
     public void setValidators(List<ValidatorDefinition> validators) {
         getModelCamelContext().setValidators(validators);
-    }
-
-    @Override
-    public HystrixConfigurationDefinition getHystrixConfiguration(String id) {
-        return getModelCamelContext().getHystrixConfiguration(id);
-    }
-
-    @Override
-    public void setHystrixConfiguration(HystrixConfigurationDefinition configuration) {
-        getModelCamelContext().setHystrixConfiguration(configuration);
-    }
-
-    @Override
-    public void setHystrixConfigurations(List<HystrixConfigurationDefinition> configurations) {
-        getModelCamelContext().setHystrixConfigurations(configurations);
-    }
-
-    @Override
-    public void addHystrixConfiguration(String id, HystrixConfigurationDefinition configuration) {
-        getModelCamelContext().addHystrixConfiguration(id, configuration);
     }
 
     @Override

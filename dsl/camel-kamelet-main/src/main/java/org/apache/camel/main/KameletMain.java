@@ -31,6 +31,7 @@ import org.apache.camel.startup.jfr.FlightRecorderStartupStepRecorder;
  * A Main class for booting up Camel with Kamelet in standalone mode.
  */
 public class KameletMain extends MainCommandLineSupport {
+
     public static final String DEFAULT_KAMELETS_LOCATION = "classpath:/kamelets,github:apache:camel-kamelets/kamelets";
 
     private static ClassLoader kameletClassLoader;
@@ -156,11 +157,23 @@ public class KameletMain extends MainCommandLineSupport {
     protected CamelContext createCamelContext() {
         // do not build/init camel context yet
         DefaultCamelContext answer = new DefaultCamelContext(false);
+
+        // any additional files to add to classpath
+        ClassLoader parentCL = KameletMain.class.getClassLoader();
+        String cpFiles = getInitialProperties().getProperty("camel.jbang.classpathFiles");
+        if (cpFiles != null) {
+            parentCL = new ExtraFilesClassLoader(parentCL, cpFiles.split(","));
+            LOG.info("Additional files added to classpath: {}", cpFiles);
+        }
         if (kameletClassLoader == null) {
-            kameletClassLoader = new GroovyClassLoader(KameletMain.class.getClassLoader());
+            kameletClassLoader = new GroovyClassLoader(parentCL);
         }
         answer.setApplicationContextClassLoader(kameletClassLoader);
         answer.setRegistry(registry);
+        // load camel component and custom health-checks
+        answer.setLoadHealthChecks(true);
+        // annotation based dependency injection for camel/spring/quarkus annotations in DSLs and Java beans
+        AnnotationDependencyInjection.initAnnotationBasedDependencyInjection(answer);
 
         // embed HTTP server if port is specified
         Object port = getInitialProperties().get("camel.jbang.platform-http.port");
@@ -178,6 +191,7 @@ public class KameletMain extends MainCommandLineSupport {
             VertxHttpServer.registerConsole(answer);
         }
         configure().withLoadHealthChecks(true);
+        configure().withModeline(true);
 
         boolean health = "true".equals(getInitialProperties().get("camel.jbang.health"));
         if (health && port == null) {
@@ -185,7 +199,6 @@ public class KameletMain extends MainCommandLineSupport {
             VertxHttpServer.registerServer(answer, 8080);
         }
         if (health) {
-            configure().withLoadHealthChecks(true);
             VertxHttpServer.registerHealthCheck(answer);
         }
 
@@ -202,8 +215,22 @@ public class KameletMain extends MainCommandLineSupport {
         }
 
         if (download) {
+            // use resolvers that can auto downloaded
             try {
-                // use resolver that can auto downloaded
+                // dependencies from CLI
+                Object dependencies = getInitialProperties().get("camel.jbang.dependencies");
+                if (dependencies != null) {
+                    answer.addService(new CommandLineDependencyDownloader(dependencies.toString()));
+                }
+
+                KnownDependenciesResolver known = new KnownDependenciesResolver(answer);
+                known.loadKnownDependencies();
+                DependencyDownloaderPropertyBindingListener listener
+                        = new DependencyDownloaderPropertyBindingListener(answer, known);
+                answer.getRegistry().bind(DependencyDownloaderPropertyBindingListener.class.getName(), listener);
+                answer.getRegistry().bind(DependencyDownloaderStrategy.class.getName(),
+                        new DependencyDownloaderStrategy(answer));
+                answer.setClassResolver(new DependencyDownloaderClassResolver(answer, known));
                 answer.setComponentResolver(new DependencyDownloaderComponentResolver(answer));
                 answer.setDataFormatResolver(new DependencyDownloaderDataFormatResolver(answer));
                 answer.setLanguageResolver(new DependencyDownloaderLanguageResolver(answer));
@@ -222,6 +249,8 @@ public class KameletMain extends MainCommandLineSupport {
      */
     protected void configureInitialProperties(String location) {
         addInitialProperty("camel.component.kamelet.location", location);
+        addInitialProperty("camel.component.rest.consumerComponentName", "platform-http");
+        addInitialProperty("camel.component.rest.producerComponentName", "vertx-http");
     }
 
 }

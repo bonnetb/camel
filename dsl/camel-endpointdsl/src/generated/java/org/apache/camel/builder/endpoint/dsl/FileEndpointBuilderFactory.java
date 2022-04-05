@@ -2393,44 +2393,6 @@ public interface FileEndpointBuilderFactory {
             return this;
         }
         /**
-         * Set a resume strategy for files. This makes it possible to define a
-         * strategy for resuming reading files after the last point before
-         * stopping the application. See the FileConsumerResumeStrategy for
-         * implementation details.
-         * 
-         * The option is a:
-         * &lt;code&gt;org.apache.camel.component.file.consumer.FileConsumerResumeStrategy&lt;/code&gt; type.
-         * 
-         * Group: consumer (advanced)
-         * 
-         * @param resumeStrategy the value to set
-         * @return the dsl builder
-         */
-        default AdvancedFileEndpointConsumerBuilder resumeStrategy(
-                org.apache.camel.component.file.consumer.FileConsumerResumeStrategy resumeStrategy) {
-            doSetProperty("resumeStrategy", resumeStrategy);
-            return this;
-        }
-        /**
-         * Set a resume strategy for files. This makes it possible to define a
-         * strategy for resuming reading files after the last point before
-         * stopping the application. See the FileConsumerResumeStrategy for
-         * implementation details.
-         * 
-         * The option will be converted to a
-         * &lt;code&gt;org.apache.camel.component.file.consumer.FileConsumerResumeStrategy&lt;/code&gt; type.
-         * 
-         * Group: consumer (advanced)
-         * 
-         * @param resumeStrategy the value to set
-         * @return the dsl builder
-         */
-        default AdvancedFileEndpointConsumerBuilder resumeStrategy(
-                String resumeStrategy) {
-            doSetProperty("resumeStrategy", resumeStrategy);
-            return this;
-        }
-        /**
          * Whether the starting directory must exist. Mind that the autoCreate
          * option is default enabled, which means the starting directory is
          * normally auto created if it doesn't exist. You can disable autoCreate
@@ -3237,7 +3199,7 @@ public interface FileEndpointBuilderFactory {
         }
         /**
          * Will keep the last modified timestamp from the source file (if any).
-         * Will use the Exchange.FILE_LAST_MODIFIED header to located the
+         * Will use the FileConstants.FILE_LAST_MODIFIED header to located the
          * timestamp. This header can contain either a java.util.Date or long
          * with the timestamp. If the timestamp exists and the option is enabled
          * it will set this timestamp on the written file. Note: This option
@@ -3259,7 +3221,7 @@ public interface FileEndpointBuilderFactory {
         }
         /**
          * Will keep the last modified timestamp from the source file (if any).
-         * Will use the Exchange.FILE_LAST_MODIFIED header to located the
+         * Will use the FileConstants.FILE_LAST_MODIFIED header to located the
          * timestamp. This header can contain either a java.util.Date or long
          * with the timestamp. If the timestamp exists and the option is enabled
          * it will set this timestamp on the written file. Note: This option

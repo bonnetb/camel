@@ -35,6 +35,7 @@ import org.apache.camel.spi.Metadata;
 @XmlRootElement(name = "propertyExpression")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class PropertyExpressionDefinition {
+
     @XmlAttribute(required = true)
     private String key;
     @XmlElementRef
@@ -63,6 +64,9 @@ public class PropertyExpressionDefinition {
         return expression;
     }
 
+    /**
+     * Property values as an expression
+     */
     public void setExpression(ExpressionDefinition expression) {
         this.expression = expression;
     }

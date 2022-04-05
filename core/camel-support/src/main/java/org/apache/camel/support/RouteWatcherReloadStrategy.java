@@ -21,6 +21,7 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.StringJoiner;
@@ -46,9 +47,17 @@ import org.slf4j.LoggerFactory;
  */
 public class RouteWatcherReloadStrategy extends FileWatcherResourceReloadStrategy {
 
+    /**
+     * Special when reloading routes(s) requires to also ensure other resources are reloaded together such as
+     * camel-java-joor-dsl to ensure all resources are compiled in the same compilation unit.
+     */
+    public static final String RELOAD_RESOURCES = "RouteWatcherReloadResources";
+
     private static final Logger LOG = LoggerFactory.getLogger(RouteWatcherReloadStrategy.class);
 
-    private String pattern = "*";
+    private static final String DEFAULT_PATTERN = "*.yaml,*.xml";
+
+    private String pattern;
     private boolean removeAllRoutes = true;
 
     public RouteWatcherReloadStrategy() {
@@ -95,6 +104,12 @@ public class RouteWatcherReloadStrategy extends FileWatcherResourceReloadStrateg
     protected void doStart() throws Exception {
         ObjectHelper.notNull(getFolder(), "folder", this);
 
+        if (pattern == null || pattern.isBlank()) {
+            pattern = DEFAULT_PATTERN;
+        } else if ("*".equals(pattern)) {
+            pattern = "**"; // use ant style matching to match everything
+        }
+
         final String base = new File(getFolder()).getAbsolutePath();
         final AntPathMatcher matcher = new AntPathMatcher();
 
@@ -106,9 +121,8 @@ public class RouteWatcherReloadStrategy extends FileWatcherResourceReloadStrateg
                     // strip starting directory, so we have a relative name to the starting folder
                     String path = f.getAbsolutePath();
                     if (path.startsWith(base)) {
-                        path = path.substring(path.lastIndexOf("/"));
+                        path = FileUtil.stripPath(path);
                     }
-                    path = FileUtil.stripLeadingSeparator(path);
 
                     boolean result = matcher.match(part, path, false);
                     LOG.trace("Accepting file pattern:{} path:{} -> {}", part, path, result);
@@ -170,6 +184,16 @@ public class RouteWatcherReloadStrategy extends FileWatcherResourceReloadStrateg
 
             if (resource != null && Files.exists(Paths.get(resource.getURI()))) {
                 sources.add(resource);
+            }
+
+            Collection<Resource> extras
+                    = getCamelContext().getRegistry().lookupByNameAndType(RELOAD_RESOURCES, Collection.class);
+            if (extras != null) {
+                for (Resource extra : extras) {
+                    if (!sources.contains(extra)) {
+                        sources.add(extra);
+                    }
+                }
             }
 
             // reload those other routes that was stopped and removed as we want to keep running those

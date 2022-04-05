@@ -61,7 +61,6 @@ import org.apache.camel.model.ContextScanDefinition;
 import org.apache.camel.model.FaultToleranceConfigurationDefinition;
 import org.apache.camel.model.FromDefinition;
 import org.apache.camel.model.GlobalOptionsDefinition;
-import org.apache.camel.model.HystrixConfigurationDefinition;
 import org.apache.camel.model.IdentifiedType;
 import org.apache.camel.model.InterceptDefinition;
 import org.apache.camel.model.InterceptFromDefinition;
@@ -84,6 +83,8 @@ import org.apache.camel.model.RouteDefinitionHelper;
 import org.apache.camel.model.RouteTemplateContainer;
 import org.apache.camel.model.RouteTemplateContextRefDefinition;
 import org.apache.camel.model.RouteTemplateDefinition;
+import org.apache.camel.model.TemplatedRouteContainer;
+import org.apache.camel.model.TemplatedRouteDefinition;
 import org.apache.camel.model.ThreadPoolProfileDefinition;
 import org.apache.camel.model.cloud.ServiceCallConfigurationDefinition;
 import org.apache.camel.model.dataformat.DataFormatsDefinition;
@@ -150,7 +151,8 @@ import org.slf4j.LoggerFactory;
  */
 @XmlAccessorType(XmlAccessType.FIELD)
 public abstract class AbstractCamelContextFactoryBean<T extends ModelCamelContext> extends IdentifiedType
-        implements RouteTemplateContainer, RouteConfigurationContainer, RouteContainer, RestContainer {
+        implements RouteTemplateContainer, RouteConfigurationContainer, RouteContainer, RestContainer,
+        TemplatedRouteContainer {
 
     private static final Logger LOG = LoggerFactory.getLogger(AbstractCamelContextFactoryBean.class);
 
@@ -530,6 +532,9 @@ public abstract class AbstractCamelContextFactoryBean<T extends ModelCamelContex
 
             // and add the routes
             getContext().addRouteDefinitions(getRoutes());
+
+            // Add the templated routes
+            getContext().addRouteFromTemplatedRoutes(getTemplatedRoutes());
 
             LOG.debug("Found JAXB created routes: {}", getRoutes());
 
@@ -951,6 +956,9 @@ public abstract class AbstractCamelContextFactoryBean<T extends ModelCamelContex
     public abstract List<RouteTemplateDefinition> getRouteTemplates();
 
     @Override
+    public abstract List<TemplatedRouteDefinition> getTemplatedRoutes();
+
+    @Override
     public abstract List<RouteConfigurationDefinition> getRouteConfigurations();
 
     @Override
@@ -1090,10 +1098,6 @@ public abstract class AbstractCamelContextFactoryBean<T extends ModelCamelContex
     public abstract ServiceCallConfigurationDefinition getDefaultServiceCallConfiguration();
 
     public abstract List<ServiceCallConfigurationDefinition> getServiceCallConfigurations();
-
-    public abstract HystrixConfigurationDefinition getDefaultHystrixConfiguration();
-
-    public abstract List<HystrixConfigurationDefinition> getHystrixConfigurations();
 
     public abstract Resilience4jConfigurationDefinition getDefaultResilience4jConfiguration();
 
@@ -1240,14 +1244,6 @@ public abstract class AbstractCamelContextFactoryBean<T extends ModelCamelContex
         if (getServiceCallConfigurations() != null) {
             for (ServiceCallConfigurationDefinition bean : getServiceCallConfigurations()) {
                 context.addServiceCallConfiguration(bean.getId(), bean);
-            }
-        }
-        if (getDefaultHystrixConfiguration() != null) {
-            context.setHystrixConfiguration(getDefaultHystrixConfiguration());
-        }
-        if (getHystrixConfigurations() != null) {
-            for (HystrixConfigurationDefinition bean : getHystrixConfigurations()) {
-                context.addHystrixConfiguration(bean.getId(), bean);
             }
         }
         if (getDefaultResilience4jConfiguration() != null) {

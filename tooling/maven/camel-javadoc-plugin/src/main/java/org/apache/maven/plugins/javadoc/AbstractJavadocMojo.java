@@ -2719,7 +2719,11 @@ public abstract class AbstractJavadocMojo
             for ( Dependency dependency : additionalDependencies )
             {
                 Artifact artifact = resolveDependency( dependency );
-                getLog().debug( "add additional artifact with path " + artifact.getFile() );
+
+                if (getLog().isDebugEnabled()) {
+                    getLog().debug("add additional artifact with path " + artifact.getFile());
+                }
+
                 classpathElements.add( artifact.getFile() );
             }
         }
@@ -6229,7 +6233,7 @@ public abstract class AbstractJavadocMojo
             }
             catch ( ProjectBuildingException e )
             {
-                logError( "ProjectBuildingException for " + artifact.toString() + ": " + e.getMessage(), e );
+                logError( "ProjectBuildingException for " + artifact + ": " + e.getMessage(), e );
             }
         }
 

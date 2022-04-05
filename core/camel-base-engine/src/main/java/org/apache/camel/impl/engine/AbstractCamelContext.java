@@ -133,6 +133,7 @@ import org.apache.camel.spi.ManagementStrategyFactory;
 import org.apache.camel.spi.MessageHistoryFactory;
 import org.apache.camel.spi.ModelJAXBContextFactory;
 import org.apache.camel.spi.ModelToXMLDumper;
+import org.apache.camel.spi.ModelineFactory;
 import org.apache.camel.spi.NodeIdFactory;
 import org.apache.camel.spi.NormalizedEndpointUri;
 import org.apache.camel.spi.PackageScanClassResolver;
@@ -187,6 +188,7 @@ import org.apache.camel.util.StopWatch;
 import org.apache.camel.util.StringHelper;
 import org.apache.camel.util.TimeUtils;
 import org.apache.camel.util.URISupport;
+import org.apache.camel.vault.VaultConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -244,6 +246,7 @@ public abstract class AbstractCamelContext extends BaseService
     private ClassLoader applicationContextClassLoader;
     private boolean autoCreateComponents = true;
     private volatile RestConfiguration restConfiguration;
+    private volatile VaultConfiguration vaultConfiguration = new VaultConfiguration();
     private List<InterceptStrategy> interceptStrategies = new ArrayList<>();
     private List<RoutePolicyFactory> routePolicyFactories = new ArrayList<>();
     // special flags to control the first startup which can are special
@@ -256,6 +259,7 @@ public abstract class AbstractCamelContext extends BaseService
     private Boolean traceStandby = Boolean.FALSE;
     private String tracePattern;
     private String tracingLoggingFormat;
+    private Boolean modeline = Boolean.FALSE;
     private Boolean debug = Boolean.FALSE;
     private Boolean messageHistory = Boolean.FALSE;
     private Boolean logMask = Boolean.FALSE;
@@ -319,6 +323,7 @@ public abstract class AbstractCamelContext extends BaseService
     private volatile PackageScanClassResolver packageScanClassResolver;
     private volatile PackageScanResourceResolver packageScanResourceResolver;
     private volatile NodeIdFactory nodeIdFactory;
+    private volatile ModelineFactory modelineFactory;
     private volatile ProcessorFactory processorFactory;
     private volatile InternalProcessorFactory internalProcessorFactory;
     private volatile InterceptEndpointFactory interceptEndpointFactory;
@@ -1212,6 +1217,12 @@ public abstract class AbstractCamelContext extends BaseService
     }
 
     public void stopAllRoutes() throws Exception {
+        RouteController controller = getRouteController();
+        if (controller == null) {
+            // in case we are called during shutdown and controller is null
+            return;
+        }
+
         // stop all routes in reverse order that they were started
         Comparator<RouteStartupOrder> comparator = Comparator.comparingInt(RouteStartupOrder::getStartupOrder);
         if (shutdownStrategy == null || shutdownStrategy.isShutdownRoutesInReverseOrder()) {
@@ -1221,14 +1232,14 @@ public abstract class AbstractCamelContext extends BaseService
         routesOrdered.sort(comparator);
         for (RouteStartupOrder order : routesOrdered) {
             Route route = order.getRoute();
-            boolean stopped = getRouteController().getRouteStatus(route.getRouteId()).isStopped();
+            boolean stopped = controller.getRouteStatus(route.getRouteId()).isStopped();
             if (!stopped) {
                 stopRoute(route.getRouteId(), LoggingLevel.DEBUG);
             }
         }
         // stop any remainder routes
         for (Route route : getRoutes()) {
-            boolean stopped = getRouteController().getRouteStatus(route.getRouteId()).isStopped();
+            boolean stopped = controller.getRouteStatus(route.getRouteId()).isStopped();
             if (!stopped) {
                 stopRoute(route.getRouteId(), LoggingLevel.DEBUG);
             }
@@ -2155,6 +2166,16 @@ public abstract class AbstractCamelContext extends BaseService
     }
 
     @Override
+    public VaultConfiguration getVaultConfiguration() {
+        return vaultConfiguration;
+    }
+
+    @Override
+    public void setVaultConfiguration(VaultConfiguration vaultConfiguration) {
+        this.vaultConfiguration = vaultConfiguration;
+    }
+
+    @Override
     public List<InterceptStrategy> getInterceptStrategies() {
         return interceptStrategies;
     }
@@ -2977,9 +2998,8 @@ public abstract class AbstractCamelContext extends BaseService
     }
 
     protected void doStartContext() throws Exception {
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Apache Camel {} ({}) is starting", getVersion(), getName());
-        }
+        LOG.info("Apache Camel {} ({}) is starting", getVersion(), getName());
+
         vetoed = null;
         startDate = System.currentTimeMillis();
         stopWatch.restart();
@@ -4095,6 +4115,23 @@ public abstract class AbstractCamelContext extends BaseService
     }
 
     @Override
+    public ModelineFactory getModelineFactory() {
+        if (modelineFactory == null) {
+            synchronized (lock) {
+                if (modelineFactory == null) {
+                    setModelineFactory(createModelineFactory());
+                }
+            }
+        }
+        return modelineFactory;
+    }
+
+    @Override
+    public void setModelineFactory(ModelineFactory modelineFactory) {
+        this.modelineFactory = doAddService(modelineFactory);
+    }
+
+    @Override
     public ManagementStrategy getManagementStrategy() {
         return managementStrategy;
     }
@@ -4260,6 +4297,16 @@ public abstract class AbstractCamelContext extends BaseService
     @Override
     public void setLoadHealthChecks(Boolean loadHealthChecks) {
         this.loadHealthChecks = loadHealthChecks;
+    }
+
+    @Override
+    public Boolean isModeline() {
+        return modeline != null && modeline;
+    }
+
+    @Override
+    public void setModeline(Boolean modeline) {
+        this.modeline = modeline;
     }
 
     public Boolean isDevConsole() {
@@ -5157,6 +5204,8 @@ public abstract class AbstractCamelContext extends BaseService
 
     protected abstract NodeIdFactory createNodeIdFactory();
 
+    protected abstract ModelineFactory createModelineFactory();
+
     protected abstract FactoryFinderResolver createFactoryFinderResolver();
 
     protected abstract ClassResolver createClassResolver();
@@ -5242,7 +5291,7 @@ public abstract class AbstractCamelContext extends BaseService
         RestConfiguration conf
                 = CamelContextHelper.lookup(this, RestConfiguration.DEFAULT_REST_CONFIGURATION_ID, RestConfiguration.class);
         if (conf == null) {
-            conf = CamelContextHelper.findByType(this, RestConfiguration.class);
+            conf = CamelContextHelper.findSingleByType(this, RestConfiguration.class);
         }
         if (conf == null) {
             conf = new RestConfiguration();

@@ -16,13 +16,17 @@
  */
 package org.apache.camel.main;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Optional;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpMethod;
@@ -39,8 +43,10 @@ import org.apache.camel.console.DevConsole;
 import org.apache.camel.console.DevConsoleRegistry;
 import org.apache.camel.health.HealthCheck;
 import org.apache.camel.health.HealthCheckHelper;
+import org.apache.camel.health.HealthCheckRegistry;
 import org.apache.camel.spi.CamelEvent;
 import org.apache.camel.support.SimpleEventNotifierSupport;
+import org.apache.camel.util.ObjectHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -142,7 +148,7 @@ public final class VertxHttpServer {
     }
 
     private static void doRegisterConsole(CamelContext context) {
-        Route dev = router.route("/dev");
+        Route dev = router.route("/q/dev");
         dev.method(HttpMethod.GET);
         dev.produces("text/plain");
         dev.handler(new Handler<RoutingContext>() {
@@ -174,7 +180,7 @@ public final class VertxHttpServer {
                 }
             }
         });
-        phc.addHttpEndpoint("/dev");
+        phc.addHttpEndpoint("/q/dev");
     }
 
     public static void registerHealthCheck(CamelContext camelContext) {
@@ -184,13 +190,13 @@ public final class VertxHttpServer {
     }
 
     private static void doRegisterHealthCheck(CamelContext context) {
-        final Route health = router.route("/health");
+        final Route health = router.route("/q/health");
         health.method(HttpMethod.GET);
         health.produces("application/json");
-        final Route live = router.route("/health/live");
+        final Route live = router.route("/q/health/live");
         live.method(HttpMethod.GET);
         live.produces("application/json");
-        final Route ready = router.route("/health/ready");
+        final Route ready = router.route("/q/health/ready");
         ready.method(HttpMethod.GET);
         ready.produces("application/json");
 
@@ -201,9 +207,7 @@ public final class VertxHttpServer {
 
                 boolean all = ctx.currentRoute() == health;
                 boolean liv = ctx.currentRoute() == live;
-
-                StringBuilder sb = new StringBuilder();
-                sb.append("{\n");
+                boolean rdy = ctx.currentRoute() == ready;
 
                 Collection<HealthCheck.Result> res;
                 if (all) {
@@ -214,54 +218,32 @@ public final class VertxHttpServer {
                     res = HealthCheckHelper.invokeReadiness(context);
                 }
 
-                // we just want a brief summary or either UP or DOWN
-                boolean up = res.stream().noneMatch(r -> r.getState().equals(HealthCheck.State.DOWN));
-                if (up) {
-                    sb.append("    \"status\": \"UP\"\n");
+                StringBuilder sb = new StringBuilder();
+                sb.append("{\n");
+
+                HealthCheckRegistry registry = HealthCheckRegistry.get(context);
+                String level = ctx.request().getParam("exposureLevel");
+                if (level == null) {
+                    level = registry.getExposureLevel();
+                }
+
+                // are we UP
+                boolean up = HealthCheckHelper.isResultsUp(res, rdy);
+
+                if ("oneline".equals(level)) {
+                    // only brief status
+                    healthCheckStatus(sb, up);
+                } else if ("full".equals(level)) {
+                    // include all details
+                    List<HealthCheck.Result> list = new ArrayList<>(res);
+                    healthCheckDetails(sb, list, up);
                 } else {
-                    // when we are DOWN then grab the first one to show
-                    Optional<HealthCheck.Result> down
-                            = res.stream().filter(r -> r.getState().equals(HealthCheck.State.DOWN)).findFirst();
-                    sb.append("    \"status\": \"DOWN\"");
-                    if (down.isPresent()) {
-                        sb.append(",\n");
-                        HealthCheck.Result d = down.get();
-                        sb.append("    \"checks\": [\n");
-                        sb.append("        {\n");
-                        sb.append("            \"name\": \"").append(d.getCheck().getId()).append("\",\n");
-                        sb.append("            \"status\": \"").append(d.getState()).append("\",\n");
-                        if (d.getError().isPresent()) {
-                            String msg = d.getError().get().getMessage();
-                            sb.append("            \"error-message\": \"").append(msg)
-                                    .append("\",\n");
-                        }
-                        if (d.getMessage().isPresent()) {
-                            sb.append("            \"message\": \"").append(d.getMessage().get()).append("\",\n");
-                        }
-                        if (d.getDetails() != null && !d.getDetails().isEmpty()) {
-                            // lets use sorted keys
-                            Iterator<String> it = new TreeSet<>(d.getDetails().keySet()).iterator();
-                            sb.append("            \"data\": {\n");
-                            while (it.hasNext()) {
-                                String k = it.next();
-                                Object v = d.getDetails().get(k);
-                                boolean last = !it.hasNext();
-                                sb.append("                 \"").append(k).append("\": \"").append(v).append("\"");
-                                if (!last) {
-                                    sb.append(",");
-                                }
-                                sb.append("\n");
-                            }
-                            sb.append("            }\n");
-                        }
-                        sb.append("        }\n");
-                        sb.append("    ]\n");
-                    } else {
-                        sb.append("\n");
-                    }
+                    // include only DOWN details
+                    List<HealthCheck.Result> downs = res.stream().filter(r -> r.getState().equals(HealthCheck.State.DOWN))
+                            .collect(Collectors.toList());
+                    healthCheckDetails(sb, downs, up);
                 }
                 sb.append("}\n");
-
                 ctx.end(sb.toString());
             }
         };
@@ -269,7 +251,97 @@ public final class VertxHttpServer {
         live.handler(handler);
         ready.handler(handler);
 
-        phc.addHttpEndpoint("/health");
+        phc.addHttpEndpoint("/q/health");
+    }
+
+    private static void healthCheckStatus(StringBuilder sb, boolean up) {
+        if (up) {
+            sb.append("    \"status\": \"UP\"\n");
+        } else {
+            sb.append("    \"status\": \"DOWN\"\n");
+        }
+    }
+
+    private static void healthCheckDetails(StringBuilder sb, List<HealthCheck.Result> checks, boolean up) {
+        healthCheckStatus(sb, up);
+
+        if (!checks.isEmpty()) {
+            sb.append(",\n");
+            sb.append("    \"checks\": [\n");
+            for (int i = 0; i < checks.size(); i++) {
+                HealthCheck.Result d = checks.get(i);
+                sb.append("        {\n");
+                reportHealthCheck(sb, d);
+                if (i < checks.size() - 1) {
+                    sb.append("        },\n");
+                } else {
+                    sb.append("        }\n");
+                }
+            }
+            sb.append("    ]\n");
+        } else {
+            sb.append("\n");
+        }
+    }
+
+    private static void reportHealthCheck(StringBuilder sb, HealthCheck.Result d) {
+        sb.append("            \"name\": \"").append(d.getCheck().getId()).append("\",\n");
+        sb.append("            \"status\": \"").append(d.getState()).append("\",\n");
+        if (d.getError().isPresent()) {
+            String msg = allCausedByErrorMessages(d.getError().get());
+            sb.append("            \"error-message\": \"").append(msg)
+                    .append("\",\n");
+            sb.append("            \"error-stacktrace\": \"").append(errorStackTrace(d.getError().get()))
+                    .append("\",\n");
+        }
+        if (d.getMessage().isPresent()) {
+            sb.append("            \"message\": \"").append(d.getMessage().get()).append("\",\n");
+        }
+        if (d.getDetails() != null && !d.getDetails().isEmpty()) {
+            // lets use sorted keys
+            Iterator<String> it = new TreeSet<>(d.getDetails().keySet()).iterator();
+            sb.append("            \"data\": {\n");
+            while (it.hasNext()) {
+                String k = it.next();
+                Object v = d.getDetails().get(k);
+                boolean last = !it.hasNext();
+                sb.append("                 \"").append(k).append("\": \"").append(v).append("\"");
+                if (!last) {
+                    sb.append(",");
+                }
+                sb.append("\n");
+            }
+            sb.append("            }\n");
+        }
+    }
+
+    private static String allCausedByErrorMessages(Throwable e) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(e.getMessage());
+
+        while (e.getCause() != null) {
+            e = e.getCause();
+            if (e.getMessage() != null) {
+                sb.append("; Caused by: ");
+                sb.append(ObjectHelper.classCanonicalName(e));
+                sb.append(": ");
+                sb.append(e.getMessage());
+            }
+        }
+
+        return sb.toString();
+    }
+
+    private static String errorStackTrace(Throwable e) {
+        StringWriter sw = new StringWriter();
+        e.printStackTrace(new PrintWriter(sw));
+
+        String trace = sw.toString();
+        // because the stacktrace is printed in json we need to make it safe
+        trace = trace.replace('"', '\'');
+        trace = trace.replace('\t', ' ');
+        trace = trace.replace(System.lineSeparator(), " ");
+        return trace;
     }
 
 }

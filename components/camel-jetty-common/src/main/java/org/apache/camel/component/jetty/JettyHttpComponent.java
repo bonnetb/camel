@@ -231,7 +231,7 @@ public abstract class JettyHttpComponent extends HttpCommonComponent
             binding = getHttpBinding();
         }
         if (binding != null) {
-            endpoint.setBinding(binding);
+            endpoint.setHttpBinding(binding);
         }
         if (enableJmx != null) {
             endpoint.setEnableJmx(enableJmx);
@@ -638,9 +638,11 @@ public abstract class JettyHttpComponent extends HttpCommonComponent
 
     private SslContextFactory createSslContextFactory(SSLContextParameters ssl, boolean client)
             throws GeneralSecurityException, IOException {
-        SslContextFactory answer = new SslContextFactory();
+        SslContextFactory answer;
         if (!client) {
-            answer.setEndpointIdentificationAlgorithm(null);
+            answer = new SslContextFactory.Server();
+        } else {
+            answer = new SslContextFactory.Client();
         }
         if (ssl != null) {
             answer.setSslContext(ssl.createSSLContext(getCamelContext()));

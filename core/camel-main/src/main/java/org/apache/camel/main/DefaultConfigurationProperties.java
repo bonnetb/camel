@@ -54,6 +54,7 @@ public abstract class DefaultConfigurationProperties<T> {
     private boolean loadTypeConverters;
     private boolean loadHealthChecks;
     private boolean devConsoleEnabled;
+    private boolean modeline;
     private int logDebugMaxChars;
     private boolean streamCachingEnabled;
     private String streamCachingSpoolDirectory;
@@ -391,6 +392,18 @@ public abstract class DefaultConfigurationProperties<T> {
      */
     public void setDevConsoleEnabled(boolean devConsoleEnabled) {
         this.devConsoleEnabled = devConsoleEnabled;
+    }
+
+    public boolean isModeline() {
+        return modeline;
+    }
+
+    /**
+     * Whether camel-k style modeline is also enabled when not using camel-k. Enabling this allows to use a camel-k like
+     * experience by being able to configure various settings using modeline directly in your route source code.
+     */
+    public void setModeline(boolean modeline) {
+        this.modeline = modeline;
     }
 
     public int getLogDebugMaxChars() {
@@ -1199,7 +1212,7 @@ public abstract class DefaultConfigurationProperties<T> {
      * represented as XML DSL into the log. This is intended for trouble shooting or to assist during development.
      *
      * Sensitive information that may be configured in the route endpoints could potentially be included in the dump
-     * output and is therefore not recommended to be used for production usage.
+     * output and is therefore not recommended being used for production usage.
      *
      * This requires to have camel-xml-jaxb on the classpath to be able to dump the routes as XML.
      */
@@ -1219,6 +1232,19 @@ public abstract class DefaultConfigurationProperties<T> {
      */
     public void setGlobalOptions(Map<String, String> globalOptions) {
         this.globalOptions = globalOptions;
+    }
+
+    /**
+     * Adds a global options that can be referenced in the camel context
+     * <p/>
+     * <b>Important:</b> This has nothing to do with property placeholders, and is just a plain set of key/value pairs
+     * which are used to configure global options on CamelContext, such as a maximum debug logging length etc.
+     */
+    public void addGlobalOption(String key, Object value) {
+        if (this.globalOptions == null) {
+            this.globalOptions = new HashMap<>();
+        }
+        this.globalOptions.put(key, value.toString());
     }
 
     @Deprecated
@@ -1626,6 +1652,15 @@ public abstract class DefaultConfigurationProperties<T> {
      */
     public T withLoadHealthChecks(boolean loadHealthChecks) {
         this.loadHealthChecks = loadHealthChecks;
+        return (T) this;
+    }
+
+    /**
+     * Whether camel-k style modeline is also enabled when not using camel-k. Enabling this allows to use a camel-k like
+     * experience by being able to configure various settings using modeline directly in your route source code.
+     */
+    public T withModeline(boolean modeline) {
+        this.modeline = modeline;
         return (T) this;
     }
 

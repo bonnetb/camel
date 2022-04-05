@@ -64,7 +64,7 @@ public class StreamSystemOutTest extends CamelTestSupport {
             template.sendBody("direct:in", message.getBytes());
 
             // Then
-            assertEquals(message, new String(mockOut.toByteArray()));
+            assertEquals(message + LS, new String(mockOut.toByteArray()));
         } finally {
             System.setOut(stdOut);
         }

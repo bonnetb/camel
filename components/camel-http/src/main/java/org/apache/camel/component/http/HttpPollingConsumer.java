@@ -91,7 +91,7 @@ public class HttpPollingConsumer extends PollingConsumerSupport {
             Object body = HttpHelper.cacheResponseBodyFromInputStream(responseEntity.getContent(), exchange);
 
             // lets store the result in the output message.
-            Message message = exchange.getOut();
+            Message message = exchange.getMessage();
             message.setBody(body);
 
             // lets set the headers
@@ -108,9 +108,9 @@ public class HttpPollingConsumer extends PollingConsumerSupport {
                     message.setHeader(name, value);
                 }
             }
-            message.setHeader(Exchange.HTTP_RESPONSE_CODE, responseCode);
+            message.setHeader(HttpConstants.HTTP_RESPONSE_CODE, responseCode);
             if (response.getStatusLine() != null) {
-                message.setHeader(Exchange.HTTP_RESPONSE_TEXT, response.getStatusLine().getReasonPhrase());
+                message.setHeader(HttpConstants.HTTP_RESPONSE_TEXT, response.getStatusLine().getReasonPhrase());
             }
 
             return exchange;

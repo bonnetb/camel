@@ -17,6 +17,7 @@
 package org.apache.camel.component.kafka.consumer.support;
 
 import org.apache.camel.component.kafka.KafkaConfiguration;
+import org.apache.camel.component.kafka.KafkaConsumer;
 import org.apache.camel.spi.StateRepository;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.slf4j.Logger;
@@ -48,15 +49,21 @@ public final class ResumeStrategyFactory {
     private ResumeStrategyFactory() {
     }
 
-    public static KafkaConsumerResumeStrategy newResumeStrategy(KafkaConfiguration configuration) {
-        if (configuration.getResumeStrategy() != null) {
-            return configuration.getResumeStrategy();
+    public static KafkaConsumerResumeStrategy newResumeStrategy(KafkaConsumer kafkaConsumer) {
+        // When using resumable routes, which register the strategy via service, it takes priority over everything else
+        KafkaConsumerResumeStrategy resumableRouteStrategy = kafkaConsumer.getResumeStrategy();
+
+        if (resumableRouteStrategy != null) {
+            return resumableRouteStrategy;
         }
+
+        KafkaConfiguration configuration = kafkaConsumer.getEndpoint().getConfiguration();
 
         return builtinResumeStrategies(configuration);
     }
 
     private static KafkaConsumerResumeStrategy builtinResumeStrategies(KafkaConfiguration configuration) {
+        LOG.debug("No resume strategy was provided ... checking for built-ins ...");
         StateRepository<String, String> offsetRepository = configuration.getOffsetRepository();
         String seekTo = configuration.getSeekTo();
 

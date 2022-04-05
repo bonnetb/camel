@@ -36,12 +36,12 @@ public class SecretsManagerUpdateSecretProducerLocalstackIT extends AwsSecretsMa
     private MockEndpoint mock;
 
     @Test
-    public void createSecretTest() throws Exception {
+    public void createSecretTest() {
 
         mock.expectedMessageCount(1);
         Exchange exchange = template.request("direct:createSecret", new Processor() {
             @Override
-            public void process(Exchange exchange) throws Exception {
+            public void process(Exchange exchange) {
                 exchange.getIn().setHeader(SecretsManagerConstants.SECRET_NAME, "TestSecret4");
                 exchange.getIn().setBody("Body");
             }
@@ -52,7 +52,7 @@ public class SecretsManagerUpdateSecretProducerLocalstackIT extends AwsSecretsMa
 
         exchange = template.request("direct:updateSecret", new Processor() {
             @Override
-            public void process(Exchange exchange) throws Exception {
+            public void process(Exchange exchange) {
                 exchange.getIn().setHeader(SecretsManagerConstants.SECRET_ID, resultGet.arn());
                 exchange.getIn().setBody("Binary Body");
             }
@@ -64,21 +64,21 @@ public class SecretsManagerUpdateSecretProducerLocalstackIT extends AwsSecretsMa
 
         exchange = template.request("direct:getSecret", new Processor() {
             @Override
-            public void process(Exchange exchange) throws Exception {
+            public void process(Exchange exchange) {
                 exchange.getIn().setHeader(SecretsManagerConstants.SECRET_ID, resultGet.arn());
             }
         });
 
         String secret = exchange.getIn().getBody(String.class);
-        assertEquals("Binary Body", secret);
+        assertEquals("QmluYXJ5IEJvZHk=", secret);
 
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:createSecret")
                         .to("aws-secrets-manager://test?operation=createSecret");
 

@@ -60,14 +60,14 @@ public class DefaultErrorHandlerReifier<T extends DefaultErrorHandlerProperties>
             // camel context will shutdown the executor when it shutdown so no
             // need to shut it down when stopping
             if (executorServiceRef != null) {
-                executorService = lookup(executorServiceRef, ScheduledExecutorService.class);
+                executorService = lookupByNameAndType(executorServiceRef, ScheduledExecutorService.class);
                 if (executorService == null) {
                     ExecutorServiceManager manager = camelContext.getExecutorServiceManager();
                     ThreadPoolProfile profile = manager.getThreadPoolProfile(executorServiceRef);
                     executorService = manager.newScheduledThreadPool(this, executorServiceRef, profile);
                 }
                 if (executorService == null) {
-                    throw new IllegalArgumentException("ExecutorServiceRef " + executorServiceRef + " not found in registry.");
+                    throw new IllegalArgumentException("ExecutorService " + executorServiceRef + " not found in registry.");
                 }
             } else {
                 // no explicit configured thread pool, so leave it up to the

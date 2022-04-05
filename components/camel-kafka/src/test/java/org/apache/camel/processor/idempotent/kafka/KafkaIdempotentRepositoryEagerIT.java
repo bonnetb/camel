@@ -26,18 +26,19 @@ import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.kafka.integration.BaseEmbeddedKafkaTestSupport;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * Test for eager idempotentRepository usage.
  */
+@TestInstance(TestInstance.Lifecycle.PER_METHOD)
 public class KafkaIdempotentRepositoryEagerIT extends BaseEmbeddedKafkaTestSupport {
 
     // Every instance of the repository must use a different topic to guarantee isolation between tests
     @BindToRegistry("kafkaIdempotentRepository")
-    private KafkaIdempotentRepository kafkaIdempotentRepository
-            = new KafkaIdempotentRepository("TEST_EAGER_" + UUID.randomUUID().toString(), getBootstrapServers());
+    private KafkaIdempotentRepository kafkaIdempotentRepository;
 
     @EndpointInject("mock:out")
     private MockEndpoint mockOut;
@@ -46,18 +47,21 @@ public class KafkaIdempotentRepositoryEagerIT extends BaseEmbeddedKafkaTestSuppo
     private MockEndpoint mockBefore;
 
     @Override
-    protected RoutesBuilder createRouteBuilder() throws Exception {
+    protected RoutesBuilder createRouteBuilder() {
+        kafkaIdempotentRepository = new KafkaIdempotentRepository("TEST_EAGER_" + UUID.randomUUID(), getBootstrapServers());
+        context.getRegistry().bind("kafkaIdempotentRepository", kafkaIdempotentRepository);
+
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:in").to("mock:before").idempotentConsumer(header("id"))
-                        .messageIdRepositoryRef("kafkaIdempotentRepository").to("mock:out").end();
+                        .idempotentRepository("kafkaIdempotentRepository").to("mock:out").end();
             }
         };
     }
 
     @Test
-    public void testRemovesDuplicates() throws InterruptedException {
+    public void testRemovesDuplicates() {
         for (int i = 0; i < 10; i++) {
             template.sendBodyAndHeader("direct:in", "Test message", "id", i % 5);
         }
@@ -69,7 +73,7 @@ public class KafkaIdempotentRepositoryEagerIT extends BaseEmbeddedKafkaTestSuppo
     }
 
     @Test
-    public void testRollsBackOnException() throws InterruptedException {
+    public void testRollsBackOnException() {
         mockOut.whenAnyExchangeReceived(exchange -> {
             int id = exchange.getIn().getHeader("id", Integer.class);
             if (id == 0) {
