@@ -68,32 +68,34 @@ public class JdbcAggregationRepository extends ServiceSupport
     protected static final String ID = "id";
     protected static final String BODY = "body";
 
-    // optimistic locking: version identifier needed to avoid the lost update problem
-    private static final String VERSION = "version";
-    private static final String VERSION_PROPERTY = "CamelOptimisticLockVersion";
+    // optimistic locking: version identifier needed to avoid the lost update
+    // problem
+    protected static final String VERSION = "version";
+    protected static final String VERSION_PROPERTY = "CamelOptimisticLockVersion";
 
     private static final Logger LOG = LoggerFactory.getLogger(JdbcAggregationRepository.class);
     private static final Constants PROPAGATION_CONSTANTS = new Constants(TransactionDefinition.class);
+
+    protected JdbcCamelCodec codec = new JdbcCamelCodec();
+    protected JdbcTemplate jdbcTemplate;
+    protected TransactionTemplate transactionTemplate;
+    protected TransactionTemplate transactionTemplateReadOnly;
+    protected boolean allowSerializedHeaders;
 
     private JdbcOptimisticLockingExceptionMapper jdbcOptimisticLockingExceptionMapper
             = new DefaultJdbcOptimisticLockingExceptionMapper();
     private PlatformTransactionManager transactionManager;
     private DataSource dataSource;
-    private TransactionTemplate transactionTemplate;
-    private TransactionTemplate transactionTemplateReadOnly;
     private int propagationBehavior = TransactionDefinition.PROPAGATION_REQUIRED;
-    private JdbcTemplate jdbcTemplate;
     private LobHandler lobHandler = new DefaultLobHandler();
     private String repositoryName;
     private boolean returnOldExchange;
-    private JdbcCamelCodec codec = new JdbcCamelCodec();
     private long recoveryInterval = 5000;
     private boolean useRecovery = true;
     private int maximumRedeliveries;
     private String deadLetterUri;
     private List<String> headersToStoreAsText;
     private boolean storeBodyAsText;
-    private boolean allowSerializedHeaders;
 
     /**
      * Creates an aggregation repository
@@ -133,8 +135,7 @@ public class JdbcAggregationRepository extends ServiceSupport
 
     @Override
     public Exchange add(
-            final CamelContext camelContext, final String correlationId,
-            final Exchange oldExchange, final Exchange newExchange)
+            final CamelContext camelContext, final String correlationId, final Exchange oldExchange, final Exchange newExchange)
             throws OptimisticLockingException {
 
         try {
@@ -168,9 +169,15 @@ public class JdbcAggregationRepository extends ServiceSupport
                     }
 
                     if (present) {
-                        long version = exchange.getProperty(VERSION_PROPERTY, Long.class);
-                        LOG.debug("Updating record with key {} and version {}", key, version);
-                        update(camelContext, correlationId, exchange, getRepositoryName(), version);
+                        Long versionLong = exchange.getProperty(VERSION_PROPERTY, Long.class);
+                        if (versionLong == null) {
+                            LOG.debug("Race while inserting record with key {}", key);
+                            throw new OptimisticLockingException();
+                        } else {
+                            long version = versionLong.longValue();
+                            LOG.debug("Updating record with key {} and version {}", key, version);
+                            update(camelContext, correlationId, exchange, getRepositoryName(), version);
+                        }
                     } else {
                         LOG.debug("Inserting record with key {}", key);
                         insert(camelContext, correlationId, exchange, getRepositoryName(), 1L);
@@ -197,12 +204,9 @@ public class JdbcAggregationRepository extends ServiceSupport
     protected void update(
             final CamelContext camelContext, final String key, final Exchange exchange, String repositoryName, Long version)
             throws Exception {
-        StringBuilder queryBuilder = new StringBuilder()
-                .append("UPDATE ").append(repositoryName)
-                .append(" SET ")
-                .append(EXCHANGE).append(" = ?")
-                .append(", ")
-                .append(VERSION).append(" = ?");
+        StringBuilder queryBuilder = new StringBuilder().append("UPDATE ").append(repositoryName).append(" SET ")
+                .append(EXCHANGE).append(" = ?").append(", ").append(VERSION)
+                .append(" = ?");
         if (storeBodyAsText) {
             queryBuilder.append(", ").append(BODY).append(" = ?");
         }
@@ -213,10 +217,7 @@ public class JdbcAggregationRepository extends ServiceSupport
             }
         }
 
-        queryBuilder.append(" WHERE ")
-                .append(ID).append(" = ?")
-                .append(" AND ")
-                .append(VERSION).append(" = ?");
+        queryBuilder.append(" WHERE ").append(ID).append(" = ?").append(" AND ").append(VERSION).append(" = ?");
 
         String sql = queryBuilder.toString();
         updateHelper(camelContext, key, exchange, sql, version);
@@ -235,13 +236,12 @@ public class JdbcAggregationRepository extends ServiceSupport
             final CamelContext camelContext, final String correlationId, final Exchange exchange, String repositoryName,
             Long version)
             throws Exception {
-        // The default totalParameterIndex is 3 for ID, Exchange and version. Depending on logic this will be increased.
+        // The default totalParameterIndex is 3 for ID, Exchange and version.
+        // Depending on logic this will be increased.
         int totalParameterIndex = 3;
-        StringBuilder queryBuilder = new StringBuilder()
-                .append("INSERT INTO ").append(repositoryName)
-                .append('(').append(EXCHANGE)
-                .append(", ").append(ID)
-                .append(", ").append(VERSION);
+        StringBuilder queryBuilder = new StringBuilder().append("INSERT INTO ").append(repositoryName).append('(')
+                .append(EXCHANGE).append(", ").append(ID).append(", ")
+                .append(VERSION);
 
         if (storeBodyAsText) {
             queryBuilder.append(", ").append(BODY);
@@ -271,25 +271,24 @@ public class JdbcAggregationRepository extends ServiceSupport
             final CamelContext camelContext, final String key, final Exchange exchange, String sql, final Long version)
             throws Exception {
         final byte[] data = codec.marshallExchange(camelContext, exchange, allowSerializedHeaders);
-        Integer insertCount = jdbcTemplate.execute(sql,
-                new AbstractLobCreatingPreparedStatementCallback(getLobHandler()) {
-                    @Override
-                    protected void setValues(PreparedStatement ps, LobCreator lobCreator) throws SQLException {
-                        int totalParameterIndex = 0;
-                        lobCreator.setBlobAsBytes(ps, ++totalParameterIndex, data);
-                        ps.setString(++totalParameterIndex, key);
-                        ps.setLong(++totalParameterIndex, version);
-                        if (storeBodyAsText) {
-                            ps.setString(++totalParameterIndex, exchange.getIn().getBody(String.class));
-                        }
-                        if (hasHeadersToStoreAsText()) {
-                            for (String headerName : headersToStoreAsText) {
-                                String headerValue = exchange.getIn().getHeader(headerName, String.class);
-                                ps.setString(++totalParameterIndex, headerValue);
-                            }
-                        }
+        Integer insertCount = jdbcTemplate.execute(sql, new AbstractLobCreatingPreparedStatementCallback(getLobHandler()) {
+            @Override
+            protected void setValues(PreparedStatement ps, LobCreator lobCreator) throws SQLException {
+                int totalParameterIndex = 0;
+                lobCreator.setBlobAsBytes(ps, ++totalParameterIndex, data);
+                ps.setString(++totalParameterIndex, key);
+                ps.setLong(++totalParameterIndex, version);
+                if (storeBodyAsText) {
+                    ps.setString(++totalParameterIndex, exchange.getIn().getBody(String.class));
+                }
+                if (hasHeadersToStoreAsText()) {
+                    for (String headerName : headersToStoreAsText) {
+                        String headerValue = exchange.getIn().getHeader(headerName, String.class);
+                        ps.setString(++totalParameterIndex, headerValue);
                     }
-                });
+                }
+            }
+        });
         return insertCount == null ? 0 : insertCount;
     }
 
@@ -297,26 +296,25 @@ public class JdbcAggregationRepository extends ServiceSupport
             final CamelContext camelContext, final String key, final Exchange exchange, String sql, final Long version)
             throws Exception {
         final byte[] data = codec.marshallExchange(camelContext, exchange, allowSerializedHeaders);
-        Integer updateCount = jdbcTemplate.execute(sql,
-                new AbstractLobCreatingPreparedStatementCallback(getLobHandler()) {
-                    @Override
-                    protected void setValues(PreparedStatement ps, LobCreator lobCreator) throws SQLException {
-                        int totalParameterIndex = 0;
-                        lobCreator.setBlobAsBytes(ps, ++totalParameterIndex, data);
-                        ps.setLong(++totalParameterIndex, version + 1);
-                        if (storeBodyAsText) {
-                            ps.setString(++totalParameterIndex, exchange.getIn().getBody(String.class));
-                        }
-                        if (hasHeadersToStoreAsText()) {
-                            for (String headerName : headersToStoreAsText) {
-                                String headerValue = exchange.getIn().getHeader(headerName, String.class);
-                                ps.setString(++totalParameterIndex, headerValue);
-                            }
-                        }
-                        ps.setString(++totalParameterIndex, key);
-                        ps.setLong(++totalParameterIndex, version);
+        Integer updateCount = jdbcTemplate.execute(sql, new AbstractLobCreatingPreparedStatementCallback(getLobHandler()) {
+            @Override
+            protected void setValues(PreparedStatement ps, LobCreator lobCreator) throws SQLException {
+                int totalParameterIndex = 0;
+                lobCreator.setBlobAsBytes(ps, ++totalParameterIndex, data);
+                ps.setLong(++totalParameterIndex, version + 1);
+                if (storeBodyAsText) {
+                    ps.setString(++totalParameterIndex, exchange.getIn().getBody(String.class));
+                }
+                if (hasHeadersToStoreAsText()) {
+                    for (String headerName : headersToStoreAsText) {
+                        String headerValue = exchange.getIn().getHeader(headerName, String.class);
+                        ps.setString(++totalParameterIndex, headerValue);
                     }
-                });
+                }
+                ps.setString(++totalParameterIndex, key);
+                ps.setLong(++totalParameterIndex, version);
+            }
+        });
         if (updateCount == 1) {
             return updateCount;
         } else {
@@ -376,6 +374,7 @@ public class JdbcAggregationRepository extends ServiceSupport
                 final String confirmKey = exchange.getExchangeId();
                 final long version = exchange.getProperty(VERSION_PROPERTY, Long.class);
                 try {
+
                     LOG.debug("Removing key {}", key);
 
                     jdbcTemplate.update("DELETE FROM " + getRepositoryName() + " WHERE " + ID + " = ? AND " + VERSION + " = ?",
@@ -396,9 +395,12 @@ public class JdbcAggregationRepository extends ServiceSupport
             protected void doInTransactionWithoutResult(TransactionStatus status) {
                 LOG.debug("Confirming exchangeId {}", exchangeId);
                 final String confirmKey = exchangeId;
-
-                jdbcTemplate.update("DELETE FROM " + getRepositoryNameCompleted() + " WHERE " + ID + " = ?",
-                        confirmKey);
+                final int mustBeOne = jdbcTemplate
+                        .update("DELETE FROM " + getRepositoryNameCompleted() + " WHERE " + ID + " = ?", confirmKey);
+                if (mustBeOne != 1) {
+                    LOG.error("problem removing row " + confirmKey + " from " + getRepositoryNameCompleted()
+                              + " - DELETE statement did not return 1 but " + mustBeOne);
+                }
 
             }
         });
@@ -423,14 +425,13 @@ public class JdbcAggregationRepository extends ServiceSupport
     protected Set<String> getKeys(final String repositoryName) {
         return transactionTemplateReadOnly.execute(new TransactionCallback<LinkedHashSet<String>>() {
             public LinkedHashSet<String> doInTransaction(TransactionStatus status) {
-                List<String> keys = jdbcTemplate.query("SELECT " + ID + " FROM " + repositoryName,
-                        new RowMapper<String>() {
-                            public String mapRow(ResultSet rs, int rowNum) throws SQLException {
-                                String id = rs.getString(ID);
-                                LOG.trace("getKey {}", id);
-                                return id;
-                            }
-                        });
+                List<String> keys = jdbcTemplate.query("SELECT " + ID + " FROM " + repositoryName, new RowMapper<String>() {
+                    public String mapRow(ResultSet rs, int rowNum) throws SQLException {
+                        String id = rs.getString(ID);
+                        LOG.trace("getKey {}", id);
+                        return id;
+                    }
+                });
                 return new LinkedHashSet<>(keys);
             }
         });
@@ -626,13 +627,17 @@ public class JdbcAggregationRepository extends ServiceSupport
         transactionTemplateReadOnly.setReadOnly(true);
     }
 
+    private int rowCount(final String repository) {
+        return jdbcTemplate.queryForObject("SELECT COUNT(1) FROM " + repository, Integer.class);
+    }
+
     @Override
     protected void doStart() throws Exception {
         super.doStart();
 
         // log number of existing exchanges
-        int current = getKeys().size();
-        int completed = scan(null).size();
+        final int current = rowCount(getRepositoryName());
+        final int completed = rowCount(getRepositoryNameCompleted());
 
         if (current > 0) {
             LOG.info("On startup there are {} aggregate exchanges (not completed) in repository: {}", current,
