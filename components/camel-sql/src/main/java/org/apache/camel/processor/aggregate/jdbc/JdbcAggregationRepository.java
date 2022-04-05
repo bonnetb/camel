@@ -133,8 +133,7 @@ public class JdbcAggregationRepository extends ServiceSupport
 
     @Override
     public Exchange add(
-            final CamelContext camelContext, final String correlationId,
-            final Exchange oldExchange, final Exchange newExchange)
+            final CamelContext camelContext, final String correlationId, final Exchange oldExchange, final Exchange newExchange)
             throws OptimisticLockingException {
 
         try {
@@ -203,12 +202,9 @@ public class JdbcAggregationRepository extends ServiceSupport
     protected void update(
             final CamelContext camelContext, final String key, final Exchange exchange, String repositoryName, Long version)
             throws Exception {
-        StringBuilder queryBuilder = new StringBuilder()
-                .append("UPDATE ").append(repositoryName)
-                .append(" SET ")
-                .append(EXCHANGE).append(" = ?")
-                .append(", ")
-                .append(VERSION).append(" = ?");
+        StringBuilder queryBuilder = new StringBuilder().append("UPDATE ").append(repositoryName).append(" SET ")
+                .append(EXCHANGE).append(" = ?").append(", ").append(VERSION)
+                .append(" = ?");
         if (storeBodyAsText) {
             queryBuilder.append(", ").append(BODY).append(" = ?");
         }
@@ -219,10 +215,7 @@ public class JdbcAggregationRepository extends ServiceSupport
             }
         }
 
-        queryBuilder.append(" WHERE ")
-                .append(ID).append(" = ?")
-                .append(" AND ")
-                .append(VERSION).append(" = ?");
+        queryBuilder.append(" WHERE ").append(ID).append(" = ?").append(" AND ").append(VERSION).append(" = ?");
 
         String sql = queryBuilder.toString();
         updateHelper(camelContext, key, exchange, sql, version);
@@ -241,13 +234,12 @@ public class JdbcAggregationRepository extends ServiceSupport
             final CamelContext camelContext, final String correlationId, final Exchange exchange, String repositoryName,
             Long version)
             throws Exception {
-        // The default totalParameterIndex is 3 for ID, Exchange and version. Depending on logic this will be increased.
+        // The default totalParameterIndex is 3 for ID, Exchange and version.
+        // Depending on logic this will be increased.
         int totalParameterIndex = 3;
-        StringBuilder queryBuilder = new StringBuilder()
-                .append("INSERT INTO ").append(repositoryName)
-                .append('(').append(EXCHANGE)
-                .append(", ").append(ID)
-                .append(", ").append(VERSION);
+        StringBuilder queryBuilder = new StringBuilder().append("INSERT INTO ").append(repositoryName).append('(')
+                .append(EXCHANGE).append(", ").append(ID).append(", ")
+                .append(VERSION);
 
         if (storeBodyAsText) {
             queryBuilder.append(", ").append(BODY);
@@ -294,6 +286,7 @@ public class JdbcAggregationRepository extends ServiceSupport
                                 ps.setString(++totalParameterIndex, headerValue);
                             }
                         }
+
                     }
                 });
         return insertCount == null ? 0 : insertCount;
@@ -382,6 +375,7 @@ public class JdbcAggregationRepository extends ServiceSupport
                 final String confirmKey = exchange.getExchangeId();
                 final long version = exchange.getProperty(VERSION_PROPERTY, Long.class);
                 try {
+
                     LOG.debug("Removing key {}", key);
 
                     jdbcTemplate.update("DELETE FROM " + getRepositoryName() + " WHERE " + ID + " = ? AND " + VERSION + " = ?",
@@ -432,14 +426,13 @@ public class JdbcAggregationRepository extends ServiceSupport
     protected Set<String> getKeys(final String repositoryName) {
         return transactionTemplateReadOnly.execute(new TransactionCallback<LinkedHashSet<String>>() {
             public LinkedHashSet<String> doInTransaction(TransactionStatus status) {
-                List<String> keys = jdbcTemplate.query("SELECT " + ID + " FROM " + repositoryName,
-                        new RowMapper<String>() {
-                            public String mapRow(ResultSet rs, int rowNum) throws SQLException {
-                                String id = rs.getString(ID);
-                                LOG.trace("getKey {}", id);
-                                return id;
-                            }
-                        });
+                List<String> keys = jdbcTemplate.query("SELECT " + ID + " FROM " + repositoryName, new RowMapper<String>() {
+                    public String mapRow(ResultSet rs, int rowNum) throws SQLException {
+                        String id = rs.getString(ID);
+                        LOG.trace("getKey {}", id);
+                        return id;
+                    }
+                });
                 return new LinkedHashSet<>(keys);
             }
         });
