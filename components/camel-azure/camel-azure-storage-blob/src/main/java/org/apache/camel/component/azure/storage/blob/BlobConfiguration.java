@@ -31,6 +31,8 @@ import org.apache.camel.spi.UriParam;
 import org.apache.camel.spi.UriParams;
 import org.apache.camel.spi.UriPath;
 
+import static org.apache.camel.component.azure.storage.blob.CredentialType.AZURE_IDENTITY;
+
 @UriParams
 public class BlobConfiguration implements Cloneable {
 
@@ -40,6 +42,8 @@ public class BlobConfiguration implements Cloneable {
     private String containerName;
     @UriParam
     private StorageSharedKeyCredential credentials;
+    @UriParam
+    private String sasToken;
     @UriParam
     @Metadata(autowired = true)
     private BlobServiceClient serviceClient;
@@ -97,6 +101,9 @@ public class BlobConfiguration implements Cloneable {
     private String regex;
     @UriParam(label = "security", secret = true)
     private String sourceBlobAccessKey;
+    @UriParam(label = "common", enums = "SHARED_ACCOUNT_KEY,SHARED_KEY_CREDENTIAL,AZURE_IDENTITY,AZURE_SAS",
+              defaultValue = "AZURE_IDENTITY")
+    private CredentialType credentialType = AZURE_IDENTITY;
 
     /**
      * Azure account name to be used for authentication with azure blob services
@@ -136,7 +143,7 @@ public class BlobConfiguration implements Cloneable {
      * Client to a storage account. This client does not hold any state about a particular storage account but is
      * instead a convenient way of sending off appropriate requests to the resource on the service. It may also be used
      * to construct URLs to blobs and containers.
-     *
+     * <p>
      * This client contains operations on a service account. Operations on a container are available on
      * {@link BlobContainerClient} through {@link BlobServiceClient#getBlobContainerClient(String)}, and operations on a
      * blob are available on {@link BlobClient} through {@link BlobContainerClient#getBlobClient(String)}.
@@ -172,7 +179,7 @@ public class BlobConfiguration implements Cloneable {
     }
 
     /**
-     * The blob name, to consume specific blob from a container. However on producer, is only required for the
+     * The blob name, to consume specific blob from a container. However, on producer it is only required for the
      * operations on the blob level
      */
     public String getBlobName() {
@@ -429,12 +436,34 @@ public class BlobConfiguration implements Cloneable {
         return sourceBlobAccessKey;
     }
 
+    public CredentialType getCredentialType() {
+        return credentialType;
+    }
+
+    /**
+     * Determines the credential strategy to adopt
+     */
+    public void setCredentialType(CredentialType credentialType) {
+        this.credentialType = credentialType;
+    }
+
     /**
      * Source Blob Access Key: for copyblob operation, sadly, we need to have an accessKey for the source blob we want
      * to copy Passing an accessKey as header, it's unsafe so we could set as key.
      */
     public void setSourceBlobAccessKey(String sourceBlobAccessKey) {
         this.sourceBlobAccessKey = sourceBlobAccessKey;
+    }
+
+    public String getSasToken() {
+        return sasToken;
+    }
+
+    /**
+     * In case of usage of Shared Access Signature we'll need to set a SAS Token
+     */
+    public void setSasToken(String sasToken) {
+        this.sasToken = sasToken;
     }
 
     // *************************************************

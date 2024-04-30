@@ -52,7 +52,7 @@ public class MainIoCTest {
         // and now its created
         assertNotNull(main.getCamelContext());
         // should be 1 route model
-        assertEquals(1, main.getCamelContext().adapt(ModelCamelContext.class).getRouteDefinitions().size());
+        assertEquals(1, ((ModelCamelContext) main.getCamelContext()).getRouteDefinitions().size());
         // and the configuration should have registered beans
         assertNotNull(main.getCamelContext().getRegistry().lookupByName("MyCoolBean"));
         assertEquals("Tiger", main.getCamelContext().getRegistry().lookupByName("coolStuff"));
@@ -84,7 +84,7 @@ public class MainIoCTest {
         // and seda should be created and use the custom queue factory
         Object qf = seda.getDefaultQueueFactory();
         assertNotNull(qf);
-        assertTrue(qf instanceof PriorityBlockingQueueFactory);
+        assertInstanceOf(PriorityBlockingQueueFactory.class, qf);
         assertSame(camelContext, seda.getCamelContext());
 
         MyConfiguration.MyCoolBean mcb = (MyConfiguration.MyCoolBean) camelContext.getRegistry().lookupByName("MyCoolBean");
@@ -162,7 +162,7 @@ public class MainIoCTest {
         private String hello;
 
         @Override
-        public void configure() throws Exception {
+        public void configure() {
             from("direct:start").transform().constant(hello).to("mock:results");
         }
     }

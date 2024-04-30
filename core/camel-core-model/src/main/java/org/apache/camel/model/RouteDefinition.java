@@ -25,14 +25,14 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlElementRef;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
-import javax.xml.bind.annotation.XmlType;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlElementRef;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.XmlType;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.Endpoint;
@@ -42,7 +42,7 @@ import org.apache.camel.RouteTemplateContext;
 import org.apache.camel.ShutdownRoute;
 import org.apache.camel.ShutdownRunningTask;
 import org.apache.camel.builder.EndpointConsumerBuilder;
-import org.apache.camel.builder.ErrorHandlerBuilderRef;
+import org.apache.camel.model.errorhandler.RefErrorHandlerDefinition;
 import org.apache.camel.model.rest.RestBindingDefinition;
 import org.apache.camel.model.rest.RestDefinition;
 import org.apache.camel.spi.AsEndpointUri;
@@ -56,7 +56,7 @@ import org.apache.camel.spi.RoutePolicy;
  */
 @Metadata(label = "configuration")
 @XmlRootElement(name = "route")
-@XmlType(propOrder = { "input", "inputType", "outputType", "outputs", "routeProperties" })
+@XmlType(propOrder = { "routeProperties", "errorHandler", "input", "inputType", "outputType", "outputs" })
 @XmlAccessorType(XmlAccessType.PROPERTY)
 // must use XmlAccessType.PROPERTY as there is some custom logic needed to be executed in the setter methods
 public class RouteDefinition extends OutputDefinition<RouteDefinition>
@@ -66,6 +66,7 @@ public class RouteDefinition extends OutputDefinition<RouteDefinition>
     private String routeConfigurationId;
     private transient Set<String> appliedRouteConfigurationIds;
     private String group;
+    private String nodePrefixId;
     private String streamCache;
     private String trace;
     private String messageHistory;
@@ -79,18 +80,21 @@ public class RouteDefinition extends OutputDefinition<RouteDefinition>
     private String shutdownRunningTask;
     private String errorHandlerRef;
     private ErrorHandlerFactory errorHandlerFactory;
+    private ErrorHandlerDefinition errorHandler;
     // keep state whether the error handler is context scoped or not
     // (will by default be context scoped of no explicit error handler
     // configured)
     private boolean contextScopedErrorHandler = true;
     private Boolean rest;
     private Boolean template;
+    private Boolean kamelet;
     private RestDefinition restDefinition;
     private RestBindingDefinition restBindingDefinition;
     private InputTypeDefinition inputType;
     private OutputTypeDefinition outputType;
     private List<PropertyDefinition> routeProperties;
     private Map<String, Object> templateParameters;
+    private Map<String, Object> templateDefaultParameters;
     private RouteTemplateContext routeTemplateContext;
     private Resource resource;
     private String precondition;
@@ -216,6 +220,36 @@ public class RouteDefinition extends OutputDefinition<RouteDefinition>
     }
 
     /**
+     * Creates an input to the route, and uses a variable to store a copy of the received message body (only body, not
+     * headers). This is handy for easy access to the received message body via variables.
+     *
+     * @param  uri             the from uri
+     * @param  variableReceive the name of the variable
+     * @return                 the builder
+     */
+    public RouteDefinition fromV(@AsEndpointUri String uri, String variableReceive) {
+        FromDefinition from = new FromDefinition(uri);
+        from.setVariableReceive(variableReceive);
+        setInput(from);
+        return this;
+    }
+
+    /**
+     * Creates an input to the route, and uses a variable to store a copy of the received message body (only body, not
+     * headers). This is handy for easy access to the received message body via variables.
+     *
+     * @param  endpoint        the from endpoint
+     * @param  variableReceive the name of the variable
+     * @return                 the builder
+     */
+    public RouteDefinition fromV(EndpointConsumerBuilder endpoint, String variableReceive) {
+        FromDefinition from = new FromDefinition(endpoint);
+        from.setVariableReceive(variableReceive);
+        setInput(from);
+        return this;
+    }
+
+    /**
      * The route configuration id or pattern this route should use for configuration. Multiple id/pattern can be
      * separated by comma.
      *
@@ -273,9 +307,19 @@ public class RouteDefinition extends OutputDefinition<RouteDefinition>
      */
     @Override
     public RouteDefinition routeDescription(String description) {
-        DescriptionDefinition desc = new DescriptionDefinition();
-        desc.setText(description);
-        setDescription(desc);
+        setDescription(description);
+        return this;
+    }
+
+    /**
+     * Sets a prefix to use for all node ids (not route id).
+     *
+     * @param  prefixId the prefix
+     * @return          the builder
+     */
+    @Override
+    public RouteDefinition nodePrefixId(String prefixId) {
+        setNodePrefixId(prefixId);
         return this;
     }
 
@@ -284,6 +328,7 @@ public class RouteDefinition extends OutputDefinition<RouteDefinition>
      *
      * @return the builder
      */
+    @Deprecated
     public RouteDefinition noStreamCaching() {
         setStreamCache("false");
         return this;
@@ -294,6 +339,7 @@ public class RouteDefinition extends OutputDefinition<RouteDefinition>
      *
      * @return the builder
      */
+    @Deprecated
     public RouteDefinition streamCaching() {
         setStreamCache("true");
         return this;
@@ -302,10 +348,23 @@ public class RouteDefinition extends OutputDefinition<RouteDefinition>
     /**
      * Enable stream caching for this route.
      *
+     * @param      streamCache whether to use stream caching (true or false), the value can be a property placeholder
+     * @return                 the builder
+     * @deprecated             use {@link #streamCache(String)}
+     */
+    @Deprecated
+    public RouteDefinition streamCaching(String streamCache) {
+        setStreamCache(streamCache);
+        return this;
+    }
+
+    /**
+     * Enable or disables stream caching for this route.
+     *
      * @param  streamCache whether to use stream caching (true or false), the value can be a property placeholder
      * @return             the builder
      */
-    public RouteDefinition streamCaching(String streamCache) {
+    public RouteDefinition streamCache(String streamCache) {
         setStreamCache(streamCache);
         return this;
     }
@@ -315,6 +374,7 @@ public class RouteDefinition extends OutputDefinition<RouteDefinition>
      *
      * @return the builder
      */
+    @Deprecated
     public RouteDefinition noTracing() {
         setTrace("false");
         return this;
@@ -325,6 +385,7 @@ public class RouteDefinition extends OutputDefinition<RouteDefinition>
      *
      * @return the builder
      */
+    @Deprecated
     public RouteDefinition tracing() {
         setTrace("true");
         return this;
@@ -336,8 +397,31 @@ public class RouteDefinition extends OutputDefinition<RouteDefinition>
      * @param  tracing whether to use tracing (true or false), the value can be a property placeholder
      * @return         the builder
      */
+    @Deprecated
     public RouteDefinition tracing(String tracing) {
         setTrace(tracing);
+        return this;
+    }
+
+    /**
+     * Enables or disables tracing for this route.
+     *
+     * @param  trace whether to use tracing (true or false)
+     * @return       the builder
+     */
+    public RouteDefinition trace(boolean trace) {
+        setTrace(Boolean.toString(trace));
+        return this;
+    }
+
+    /**
+     * Enables or disables tracing for this route.
+     *
+     * @param  trace whether to use tracing (true or false), the value can be a property placeholder
+     * @return       the builder
+     */
+    public RouteDefinition trace(String trace) {
+        setTrace(trace);
         return this;
     }
 
@@ -348,6 +432,17 @@ public class RouteDefinition extends OutputDefinition<RouteDefinition>
      */
     public RouteDefinition messageHistory() {
         setMessageHistory("true");
+        return this;
+    }
+
+    /**
+     * Enable message history for this route.
+     *
+     * @param  messageHistory whether to use message history (true or false)
+     * @return                the builder
+     */
+    public RouteDefinition messageHistory(boolean messageHistory) {
+        setMessageHistory(Boolean.toString(messageHistory));
         return this;
     }
 
@@ -389,6 +484,7 @@ public class RouteDefinition extends OutputDefinition<RouteDefinition>
      *
      * @return the builder
      */
+    @Deprecated
     public RouteDefinition noMessageHistory() {
         setMessageHistory("false");
         return this;
@@ -399,6 +495,7 @@ public class RouteDefinition extends OutputDefinition<RouteDefinition>
      *
      * @return the builder
      */
+    @Deprecated
     public RouteDefinition noDelayer() {
         setDelayer("0");
         return this;
@@ -411,7 +508,20 @@ public class RouteDefinition extends OutputDefinition<RouteDefinition>
      * @return       the builder
      */
     public RouteDefinition delayer(long delay) {
-        setDelayer("" + delay);
+        setDelayer(Long.toString(delay));
+        return this;
+    }
+
+    /**
+     * Installs the given <a href="http://camel.apache.org/error-handler.html">error handler</a> builder.
+     *
+     * @param  ref reference to existing error handler
+     * @return     the current builder with the error handler configured
+     */
+    public RouteDefinition errorHandler(String ref) {
+        setErrorHandlerRef(ref);
+        // we are now using a route scoped error handler
+        contextScopedErrorHandler = false;
         return this;
     }
 
@@ -433,6 +543,7 @@ public class RouteDefinition extends OutputDefinition<RouteDefinition>
      *
      * @return the builder
      */
+    @Deprecated
     public RouteDefinition noAutoStartup() {
         setAutoStartup("false");
         return this;
@@ -605,7 +716,7 @@ public class RouteDefinition extends OutputDefinition<RouteDefinition>
      * @param  clazz Class object of the input type
      * @return       the builder
      */
-    public RouteDefinition inputType(Class clazz) {
+    public RouteDefinition inputType(Class<?> clazz) {
         inputType = new InputTypeDefinition().javaClass(clazz).validate(false);
         return this;
     }
@@ -620,7 +731,7 @@ public class RouteDefinition extends OutputDefinition<RouteDefinition>
      * @param  clazz Class object of the input type
      * @return       the builder
      */
-    public RouteDefinition inputTypeWithValidate(Class clazz) {
+    public RouteDefinition inputTypeWithValidate(Class<?> clazz) {
         inputType = new InputTypeDefinition().javaClass(clazz).validate(true);
         return this;
     }
@@ -665,13 +776,13 @@ public class RouteDefinition extends OutputDefinition<RouteDefinition>
      * @param  clazz Class object of the output type
      * @return       the builder
      */
-    public RouteDefinition outputType(Class clazz) {
+    public RouteDefinition outputType(Class<?> clazz) {
         outputType = new OutputTypeDefinition().javaClass(clazz).validate(false);
         return this;
     }
 
     /**
-     * Declare the expected data type of the ouput message by Java class with content validation enabled. If the actual
+     * Declare the expected data type of the output message by Java class with content validation enabled. If the actual
      * message type is different at runtime, camel look for a required {@link org.apache.camel.spi.Transformer} and
      * apply if exists, and then applies {@link org.apache.camel.spi.Validator} as well.
      *
@@ -680,7 +791,7 @@ public class RouteDefinition extends OutputDefinition<RouteDefinition>
      * @param  clazz Class object of the output type
      * @return       the builder
      */
-    public RouteDefinition outputTypeWithValidate(Class clazz) {
+    public RouteDefinition outputTypeWithValidate(Class<?> clazz) {
         outputType = new OutputTypeDefinition().javaClass(clazz).validate(true);
         return this;
     }
@@ -709,6 +820,15 @@ public class RouteDefinition extends OutputDefinition<RouteDefinition>
     @XmlTransient
     public void setTemplateParameters(Map<String, Object> templateParameters) {
         this.templateParameters = templateParameters;
+    }
+
+    public Map<String, Object> getTemplateDefaultParameters() {
+        return templateDefaultParameters;
+    }
+
+    @XmlTransient
+    public void setTemplateDefaultParameters(Map<String, Object> templateDefaultParameters) {
+        this.templateDefaultParameters = templateDefaultParameters;
     }
 
     public RouteTemplateContext getRouteTemplateContext() {
@@ -749,10 +869,11 @@ public class RouteDefinition extends OutputDefinition<RouteDefinition>
         // does not have a <from> as it is implied to be the rest endpoint
         this.input = input;
 
-        if (getCamelContext() != null && (getCamelContext().isSourceLocationEnabled() || getCamelContext().isDebugging()
-                || getCamelContext().isTracing())) {
-            // we want to capture source location:line for every output
-            ProcessorDefinitionHelper.prepareSourceLocation(input);
+        if (getCamelContext() != null && (getCamelContext().isSourceLocationEnabled()
+                || getCamelContext().isDebugging() || getCamelContext().isDebugStandby()
+                || getCamelContext().isTracing() || getCamelContext().isTracingStandby())) {
+            // we want to capture source location:line for every output (also when debugging or tracing enabled/standby)
+            ProcessorDefinitionHelper.prepareSourceLocation(getResource(), input);
         }
     }
 
@@ -833,6 +954,22 @@ public class RouteDefinition extends OutputDefinition<RouteDefinition>
     }
 
     /**
+     * Prefix to use for all node ids (not route id).
+     */
+    public String getNodePrefixId() {
+        return nodePrefixId;
+    }
+
+    /**
+     * Sets a prefix to use for all node ids (not route id).
+     */
+    @XmlAttribute
+    @Metadata(label = "advanced")
+    public void setNodePrefixId(String nodePrefixId) {
+        this.nodePrefixId = nodePrefixId;
+    }
+
+    /**
      * Whether stream caching is enabled on this route.
      */
     public String getStreamCache() {
@@ -875,7 +1012,7 @@ public class RouteDefinition extends OutputDefinition<RouteDefinition>
      * Whether message history is enabled on this route.
      */
     @XmlAttribute
-    @Metadata(label = "advanced", javaType = "java.lang.Boolean", defaultValue = "true")
+    @Metadata(label = "advanced", javaType = "java.lang.Boolean")
     public void setMessageHistory(String messageHistory) {
         this.messageHistory = messageHistory;
     }
@@ -974,7 +1111,7 @@ public class RouteDefinition extends OutputDefinition<RouteDefinition>
             // we use an specific error handler ref (from Spring DSL) then wrap that
             // with a error handler build ref so Camel knows its not just the
             // default one
-            setErrorHandlerFactory(new ErrorHandlerBuilderRef(errorHandlerRef));
+            setErrorHandlerFactory(new RefErrorHandlerDefinition(errorHandlerRef));
         }
     }
 
@@ -983,6 +1120,21 @@ public class RouteDefinition extends OutputDefinition<RouteDefinition>
      */
     public String getErrorHandlerRef() {
         return errorHandlerRef;
+    }
+
+    public ErrorHandlerDefinition getErrorHandler() {
+        return errorHandler;
+    }
+
+    /**
+     * Sets the error handler to use for this route
+     */
+    @XmlElement
+    public void setErrorHandler(ErrorHandlerDefinition errorHandler) {
+        this.errorHandler = errorHandler;
+        if (errorHandler != null) {
+            this.errorHandlerFactory = errorHandler.getErrorHandlerType();
+        }
     }
 
     /**
@@ -1036,14 +1188,14 @@ public class RouteDefinition extends OutputDefinition<RouteDefinition>
     }
 
     /**
-     * To control how to shutdown the route.
+     * To control how to shut down the route.
      */
     public String getShutdownRunningTask() {
         return shutdownRunningTask;
     }
 
     /**
-     * To control how to shutdown the route.
+     * To control how to shut down the route.
      */
     @XmlAttribute
     @Metadata(label = "advanced", javaType = "org.apache.camel.ShutdownRunningTask", defaultValue = "CompleteCurrentTaskOnly",
@@ -1054,11 +1206,11 @@ public class RouteDefinition extends OutputDefinition<RouteDefinition>
 
     private ErrorHandlerFactory createErrorHandlerBuilder() {
         if (errorHandlerRef != null) {
-            return new ErrorHandlerBuilderRef(errorHandlerRef);
+            return new RefErrorHandlerDefinition(errorHandlerRef);
         }
 
         // return a reference to the default error handler
-        return new ErrorHandlerBuilderRef(ErrorHandlerBuilderRef.DEFAULT_ERROR_HANDLER_BUILDER);
+        return new RefErrorHandlerDefinition(RefErrorHandlerDefinition.DEFAULT_ERROR_HANDLER_BUILDER);
     }
 
     public ErrorHandlerFactory getErrorHandlerFactory() {
@@ -1069,6 +1221,13 @@ public class RouteDefinition extends OutputDefinition<RouteDefinition>
     }
 
     /**
+     * Is a custom error handler been set
+     */
+    public boolean isErrorHandlerFactorySet() {
+        return errorHandlerFactory != null;
+    }
+
+    /**
      * Sets the error handler to use with processors created by this builder
      */
     @XmlTransient
@@ -1076,6 +1235,9 @@ public class RouteDefinition extends OutputDefinition<RouteDefinition>
         this.errorHandlerFactory = errorHandlerFactory;
     }
 
+    /**
+     * This route is created from REST DSL
+     */
     public void setRest(Boolean rest) {
         this.rest = rest;
     }
@@ -1087,7 +1249,7 @@ public class RouteDefinition extends OutputDefinition<RouteDefinition>
     }
 
     /**
-     * This route is created from a route template.
+     * This route is created from a route template (or from a Kamelet).
      */
     public void setTemplate(Boolean template) {
         this.template = template;
@@ -1097,6 +1259,19 @@ public class RouteDefinition extends OutputDefinition<RouteDefinition>
     @Metadata(label = "advanced")
     public Boolean isTemplate() {
         return template;
+    }
+
+    /**
+     * This route is created from a Kamelet.
+     */
+    public void setKamelet(Boolean kamelet) {
+        this.kamelet = kamelet;
+    }
+
+    @XmlAttribute
+    @Metadata(label = "advanced")
+    public Boolean isKamelet() {
+        return kamelet;
     }
 
     public RestDefinition getRestDefinition() {
@@ -1152,6 +1327,16 @@ public class RouteDefinition extends OutputDefinition<RouteDefinition>
     @Metadata(label = "advanced")
     public void setRouteProperties(List<PropertyDefinition> routeProperties) {
         this.routeProperties = routeProperties;
+    }
+
+    @Override
+    public boolean isCreatedFromTemplate() {
+        return template != null && template;
+    }
+
+    @Override
+    public boolean isCreatedFromRest() {
+        return rest != null && rest;
     }
 
     // ****************************

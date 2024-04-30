@@ -18,9 +18,10 @@
 package org.apache.camel.processor.resume;
 
 import org.apache.camel.Exchange;
-import org.apache.camel.Resumable;
-import org.apache.camel.ResumeStrategy;
-import org.apache.camel.UpdatableConsumerResumeStrategy;
+import org.apache.camel.LoggingLevel;
+import org.apache.camel.resume.Resumable;
+import org.apache.camel.resume.ResumeStrategy;
+import org.apache.camel.spi.CamelLogger;
 import org.apache.camel.spi.Synchronization;
 import org.apache.camel.support.ExchangeHelper;
 import org.slf4j.Logger;
@@ -30,9 +31,13 @@ public class ResumableCompletion implements Synchronization {
     private static final Logger LOG = LoggerFactory.getLogger(ResumableCompletion.class);
 
     private final ResumeStrategy resumeStrategy;
+    private final LoggingLevel loggingLevel;
+    private final boolean intermittent;
 
-    public ResumableCompletion(ResumeStrategy resumeStrategy) {
+    public ResumableCompletion(ResumeStrategy resumeStrategy, LoggingLevel loggingLevel, boolean intermittent) {
         this.resumeStrategy = resumeStrategy;
+        this.loggingLevel = loggingLevel;
+        this.intermittent = intermittent;
     }
 
     @Override
@@ -44,32 +49,57 @@ public class ResumableCompletion implements Synchronization {
         Object offset = ExchangeHelper.getResultMessage(exchange).getHeader(Exchange.OFFSET);
 
         if (offset instanceof Resumable) {
-            Resumable<?, ?> resumable = (Resumable<?, ?>) offset;
+            Resumable resumable = (Resumable) offset;
 
             if (LOG.isTraceEnabled()) {
-                LOG.trace("Processing the resumable: {}", resumable.getAddressable());
-                LOG.trace("Processing the resumable of type: {}", resumable.getLastOffset().offset());
+                LOG.trace("Processing the resumable: {}", resumable.getOffsetKey());
+                LOG.trace("Processing the resumable of type: {}", resumable.getLastOffset().getValue());
             }
 
-            if (resumeStrategy instanceof UpdatableConsumerResumeStrategy) {
-                UpdatableConsumerResumeStrategy updatableConsumerResumeStrategy
-                        = (UpdatableConsumerResumeStrategy) resumeStrategy;
-                try {
-                    updatableConsumerResumeStrategy.updateLastOffset(resumable);
-                } catch (Exception e) {
-                    LOG.error("Unable to update the offset: {}", e.getMessage(), e);
-                }
-            } else {
-                LOG.debug("Cannot perform an offset update because the strategy is not updatable");
+            try {
+                resumeStrategy.updateLastOffset(resumable);
+            } catch (Exception e) {
+                LOG.error("Unable to update the offset: {}", e.getMessage(), e);
             }
+
         } else {
-            exchange.setException(new NoOffsetException(exchange));
-            LOG.warn("Cannot update the last offset because it's not available");
+            if (!intermittent) {
+                exchange.setException(new NoOffsetException(exchange));
+                LOG.warn("Cannot update the last offset because it's not available");
+            }
         }
     }
 
     @Override
     public void onFailure(Exchange exchange) {
-        LOG.warn("Skipping offset update for due to failure in processing");
+        Exception e = exchange.getException();
+        Object resObj = exchange.getMessage().getHeader(Exchange.OFFSET);
+
+        if (resObj instanceof Resumable) {
+            Resumable resumable = (Resumable) resObj;
+
+            String logMessage = String.format(
+                    "Skipping offset update with address '%s' and offset value '%s' due to failure in processing: %s",
+                    resumable.getOffsetKey(), resumable.getLastOffset().getValue(), e.getMessage());
+
+            if (LOG.isDebugEnabled() || CamelLogger.shouldLog(LOG, loggingLevel)) {
+                CamelLogger.log(LOG, LoggingLevel.DEBUG, logMessage, e);
+            } else {
+                logMessage += " (stacktrace available in DEBUG logging level)";
+
+                CamelLogger.log(LOG, loggingLevel, logMessage);
+            }
+        } else {
+            String logMessage = String.format("Skipping offset update of '%s' due to failure in processing: %s",
+                    resObj == null ? "type null" : "unspecified type", e.getMessage());
+
+            if (LOG.isDebugEnabled() || CamelLogger.shouldLog(LOG, loggingLevel)) {
+                CamelLogger.log(LOG, LoggingLevel.DEBUG, logMessage, e);
+            } else {
+                logMessage += " (stacktrace available in DEBUG logging level)";
+
+                CamelLogger.log(LOG, loggingLevel, logMessage);
+            }
+        }
     }
 }

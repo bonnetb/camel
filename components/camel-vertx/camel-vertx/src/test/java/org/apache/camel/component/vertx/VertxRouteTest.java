@@ -45,14 +45,14 @@ public class VertxRouteTest extends VertxBaseTestSupport {
 
         List<Exchange> list = resultEndpoint.getReceivedExchanges();
         for (Exchange exchange : list) {
-            log.info("Received exchange: " + exchange + " headers: " + exchange.getIn().getHeaders());
+            log.info("Received exchange: {} headers: {}", exchange, exchange.getIn().getHeaders());
         }
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
-            public void configure() throws Exception {
+            public void configure() {
                 from(startUri).to(middleUri);
                 from(middleUri).to(resultUri);
             }

@@ -16,31 +16,40 @@
  */
 package org.apache.camel.opentelemetry;
 
-import java.util.Set;
-
 import io.opentelemetry.api.GlobalOpenTelemetry;
-import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.baggage.Baggage;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanBuilder;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
+import io.opentelemetry.context.propagation.ContextPropagators;
 import org.apache.camel.Exchange;
+import org.apache.camel.api.management.ManagedAttribute;
 import org.apache.camel.api.management.ManagedResource;
 import org.apache.camel.opentelemetry.propagators.OpenTelemetryGetter;
 import org.apache.camel.opentelemetry.propagators.OpenTelemetrySetter;
+import org.apache.camel.spi.Configurer;
+import org.apache.camel.spi.annotations.JdkService;
+import org.apache.camel.support.CamelContextHelper;
 import org.apache.camel.tracing.ExtractAdapter;
 import org.apache.camel.tracing.InjectAdapter;
 import org.apache.camel.tracing.SpanAdapter;
 import org.apache.camel.tracing.SpanDecorator;
 import org.apache.camel.tracing.decorators.AbstractInternalSpanDecorator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+@JdkService("opentelemetry-tracer")
+@Configurer
 @ManagedResource(description = "OpenTelemetryTracer")
 public class OpenTelemetryTracer extends org.apache.camel.tracing.Tracer {
 
+    private static final Logger LOG = LoggerFactory.getLogger(OpenTelemetryTracer.class);
+
     private Tracer tracer;
     private String instrumentationName = "camel";
+    private ContextPropagators contextPropagators;
 
     public Tracer getTracer() {
         return tracer;
@@ -50,8 +59,25 @@ public class OpenTelemetryTracer extends org.apache.camel.tracing.Tracer {
         this.tracer = tracer;
     }
 
+    @ManagedAttribute
+    public String getInstrumentationName() {
+        return instrumentationName;
+    }
+
+    /**
+     * A name uniquely identifying the instrumentation scope, such as the instrumentation library, package, or fully
+     * qualified class name. Must not be null.
+     */
     public void setInstrumentationName(String instrumentationName) {
         this.instrumentationName = instrumentationName;
+    }
+
+    public ContextPropagators getContextPropagators() {
+        return contextPropagators;
+    }
+
+    public void setContextPropagators(ContextPropagators contextPropagators) {
+        this.contextPropagators = contextPropagators;
     }
 
     private SpanKind mapToSpanKind(org.apache.camel.tracing.SpanKind kind) {
@@ -72,25 +98,29 @@ public class OpenTelemetryTracer extends org.apache.camel.tracing.Tracer {
     @Override
     protected void initTracer() {
         if (tracer == null) {
-            Set<Tracer> tracers = getCamelContext().getRegistry().findByType(Tracer.class);
-            if (tracers.size() == 1) {
-                tracer = tracers.iterator().next();
-            }
+            tracer = CamelContextHelper.findSingleByType(getCamelContext(), Tracer.class);
         }
-
         if (tracer == null) {
+            // GlobalOpenTelemetry.get() is always NotNull, falls back to OpenTelemetry.noop()
             tracer = GlobalOpenTelemetry.get().getTracer(instrumentationName);
         }
+    }
 
-        if (tracer == null) {
-            // No tracer is available, so setup NoopTracer
-            tracer = OpenTelemetry.noop().getTracer(instrumentationName);
+    @Override
+    protected void initContextPropagators() {
+        if (contextPropagators == null) {
+            contextPropagators = CamelContextHelper.findSingleByType(getCamelContext(), ContextPropagators.class);
+        }
+        if (contextPropagators == null) {
+            // GlobalOpenTelemetry.get() is always NotNull, falls back to OpenTelemetry.noop()
+            contextPropagators = GlobalOpenTelemetry.get().getPropagators();
         }
     }
 
     @Override
     protected SpanAdapter startSendingEventSpan(
-            String operationName, org.apache.camel.tracing.SpanKind kind, SpanAdapter parent) {
+            String operationName, org.apache.camel.tracing.SpanKind kind, SpanAdapter parent, Exchange exchange,
+            InjectAdapter injectAdapter) {
         Baggage baggage = null;
         SpanBuilder builder = tracer.spanBuilder(operationName).setSpanKind(mapToSpanKind(kind));
         if (parent != null) {
@@ -147,4 +177,10 @@ public class OpenTelemetryTracer extends org.apache.camel.tracing.Tracer {
         GlobalOpenTelemetry.get().getPropagators().getTextMapPropagator().inject(ctx, adapter, new OpenTelemetrySetter());
     }
 
+    @Override
+    protected void doStart() throws Exception {
+        super.doStart();
+
+        LOG.info("OpenTelemetryTracer enabled using instrumentation-name: {}", instrumentationName);
+    }
 }

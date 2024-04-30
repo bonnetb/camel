@@ -19,8 +19,10 @@ package org.apache.camel.component.kafka.consumer;
 
 import java.time.Duration;
 import java.util.Collections;
+import java.util.Map;
 
 import org.apache.camel.component.kafka.KafkaConsumer;
+import org.apache.camel.spi.StateRepository;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
@@ -30,42 +32,57 @@ import org.slf4j.LoggerFactory;
 public class SyncCommitManager extends AbstractCommitManager {
     private static final Logger LOG = LoggerFactory.getLogger(SyncCommitManager.class);
 
+    private final OffsetCache offsetCache = new OffsetCache();
     private final Consumer<?, ?> consumer;
+    private final StateRepository<String, String> offsetRepository;
 
     public SyncCommitManager(Consumer<?, ?> consumer, KafkaConsumer kafkaConsumer, String threadId, String printableTopic) {
         super(consumer, kafkaConsumer, threadId, printableTopic);
 
         this.consumer = consumer;
+
+        offsetRepository = configuration.getOffsetRepository();
     }
 
     @Override
     public void commit() {
-        LOG.info("Auto commitSync {} from {}", threadId, printableTopic);
-        consumer.commitSync();
-    }
-
-    @Override
-    public void commitOffsetOnStop(TopicPartition partition, long partitionLastOffset) {
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Auto commitSync on stop {} from topic {}", threadId, partition.topic());
+        if (kafkaConsumer.getEndpoint().getConfiguration().isAutoCommitEnable()) {
+            LOG.info("Auto commitSync {} from {}", threadId, printableTopic);
+            consumer.commitSync();
         }
-
-        commitSync(partition, partitionLastOffset);
     }
 
     @Override
-    public void commitOffset(TopicPartition partition, long partitionLastOffset) {
+    public void commit(TopicPartition partition) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Auto commitSync from thread {} from topic {}", threadId, partition.topic());
         }
 
-        commitSync(partition, partitionLastOffset);
+        commitSync(partition);
     }
 
-    private void commitSync(TopicPartition partition, long partitionLastOffset) {
+    private void commitSync(TopicPartition partition) {
+        Long offset = offsetCache.getOffset(partition);
+        if (offset == null) {
+            return;
+        }
+
+        final long lastOffset = offset + 1;
+
+        final Map<TopicPartition, OffsetAndMetadata> offsets
+                = Collections.singletonMap(partition, new OffsetAndMetadata(lastOffset));
         long timeout = configuration.getCommitTimeoutMs();
-        consumer.commitSync(
-                Collections.singletonMap(partition, new OffsetAndMetadata(partitionLastOffset + 1)),
-                Duration.ofMillis(timeout));
+        consumer.commitSync(offsets, Duration.ofMillis(timeout));
+
+        if (offsetRepository != null) {
+            saveStateToOffsetRepository(partition, lastOffset, offsetRepository);
+        }
+
+        offsetCache.removeCommittedEntries(offsets, null);
+    }
+
+    @Override
+    public void recordOffset(TopicPartition partition, long partitionLastOffset) {
+        offsetCache.recordOffset(partition, partitionLastOffset);
     }
 }

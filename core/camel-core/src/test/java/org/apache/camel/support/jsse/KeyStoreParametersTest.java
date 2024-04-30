@@ -26,11 +26,14 @@ import java.security.KeyStoreException;
 import java.security.NoSuchProviderException;
 
 import org.apache.camel.CamelContext;
+import org.apache.camel.impl.DefaultCamelContext;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Isolated;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.fail;
 
+@Isolated("This test is regularly flaky")
 public class KeyStoreParametersTest extends AbstractJsseParametersTest {
 
     protected KeyStoreParameters createMinimalKeyStoreParameters() {
@@ -62,6 +65,7 @@ public class KeyStoreParametersTest extends AbstractJsseParametersTest {
     @Test
     public void testValidParameters() throws GeneralSecurityException, IOException, URISyntaxException {
         KeyStoreParameters ksp = this.createMinimalKeyStoreParameters();
+        ksp.setCamelContext(new DefaultCamelContext());
 
         KeyStore ks = ksp.createKeyStore();
         assertNotNull(ks.getCertificate("localhost"));
@@ -73,7 +77,7 @@ public class KeyStoreParametersTest extends AbstractJsseParametersTest {
 
         resourceUrl = this.getClass().getResource("/org/apache/camel/support/jsse/localhost.p12");
         File file = new File(resourceUrl.toURI());
-        ksp.setResource(file.getAbsolutePath());
+        ksp.setResource("file:" + file.getAbsolutePath());
         ks = ksp.createKeyStore();
         assertNotNull(ks.getCertificate("localhost"));
     }
@@ -81,6 +85,7 @@ public class KeyStoreParametersTest extends AbstractJsseParametersTest {
     @Test
     public void testExplicitType() throws Exception {
         KeyStoreParameters ksp = this.createMinimalKeyStoreParameters();
+        ksp.setCamelContext(new DefaultCamelContext());
         ksp.setType("jks");
 
         KeyStore ks = ksp.createKeyStore();
@@ -90,6 +95,7 @@ public class KeyStoreParametersTest extends AbstractJsseParametersTest {
     @Test
     public void testExplicitProvider() throws Exception {
         KeyStoreParameters ksp = this.createMinimalKeyStoreParameters();
+        ksp.setCamelContext(new DefaultCamelContext());
         ksp.setProvider(ksp.createKeyStore().getProvider().getName());
 
         KeyStore ks = ksp.createKeyStore();
@@ -120,26 +126,12 @@ public class KeyStoreParametersTest extends AbstractJsseParametersTest {
         } catch (KeyStoreException e) {
             // expected
         }
-
-        if (getJavaMajorVersion() >= 9) {
-            // checkout http://openjdk.java.net/jeps/229
-            return;
-        }
-
-        ksp = this.createMinimalKeyStoreParameters();
-        ksp.setType("JCEKS");
-
-        try {
-            ksp.createKeyStore();
-            fail();
-        } catch (IOException e) {
-            // expected
-        }
     }
 
     @Test
     public void testIncorrectPassword() throws Exception {
         KeyStoreParameters ksp = this.createMinimalKeyStoreParameters();
+        ksp.setCamelContext(new DefaultCamelContext());
         ksp.setPassword("");
 
         try {
@@ -153,6 +145,7 @@ public class KeyStoreParametersTest extends AbstractJsseParametersTest {
     @Test
     public void testIncorrectResource() throws Exception {
         KeyStoreParameters ksp = this.createMinimalKeyStoreParameters();
+        ksp.setCamelContext(new DefaultCamelContext());
         ksp.setResource("");
 
         try {

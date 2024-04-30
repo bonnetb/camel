@@ -23,13 +23,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlType;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlType;
 
 import org.apache.camel.CamelContext;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.model.IdentifiedType;
 import org.apache.camel.model.PropertyDefinition;
 import org.apache.camel.spi.Configurer;
@@ -37,10 +36,12 @@ import org.apache.camel.spi.ExtendedPropertyConfigurerGetter;
 import org.apache.camel.spi.Metadata;
 import org.apache.camel.spi.PropertyConfigurer;
 import org.apache.camel.support.CamelContextHelper;
+import org.apache.camel.support.PluginHelper;
 
 @XmlType(name = "serviceCallConfiguration")
 @XmlAccessorType(XmlAccessType.FIELD)
 @Configurer
+@Deprecated
 public abstract class ServiceCallConfiguration extends IdentifiedType {
     @XmlElement(name = "properties")
     @Metadata(label = "advanced")
@@ -102,7 +103,7 @@ public abstract class ServiceCallConfiguration extends IdentifiedType {
     protected Map<String, Object> getConfiguredOptions(CamelContext context, Object target) {
         Map<String, Object> answer = new HashMap<>();
 
-        PropertyConfigurer configurer = context.adapt(ExtendedCamelContext.class).getConfigurerResolver()
+        PropertyConfigurer configurer = PluginHelper.getConfigurerResolver(context)
                 .resolvePropertyConfigurer(target.getClass().getName(), context);
         // use reflection free configurer (if possible)
         if (configurer instanceof ExtendedPropertyConfigurerGetter) {
@@ -117,7 +118,7 @@ public abstract class ServiceCallConfiguration extends IdentifiedType {
                 }
             }
         } else {
-            context.adapt(ExtendedCamelContext.class).getBeanIntrospection().getProperties(target, answer,
+            PluginHelper.getBeanIntrospection(context).getProperties(target, answer,
                     null, false);
         }
 

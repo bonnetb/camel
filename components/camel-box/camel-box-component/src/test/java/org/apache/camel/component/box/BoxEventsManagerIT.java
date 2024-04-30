@@ -16,7 +16,6 @@
  */
 package org.apache.camel.component.box;
 
-import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -70,11 +69,11 @@ public class BoxEventsManagerIT extends AbstractBoxITSupport {
         final List<Exchange> exchanges = mockEndpoint.getExchanges();
         assertNotNull(exchanges, "poll result");
         assertFalse(exchanges.isEmpty(), "poll result");
-        LOG.debug("poll result: " + exchanges);
+        LOG.debug("poll result: {}", exchanges);
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             public void configure() {
 
@@ -91,7 +90,7 @@ public class BoxEventsManagerIT extends AbstractBoxITSupport {
         return endpoint.getBoxConnection();
     }
 
-    private void createTestFile() throws FileNotFoundException {
+    private void createTestFile() {
         BoxFolder rootFolder = BoxFolder.getRootFolder(getConnection());
         InputStream stream = getClass().getResourceAsStream(CAMEL_TEST_FILE);
         testFile = rootFolder.uploadFile(stream, CAMEL_TEST_FILE_NAME).getResource();

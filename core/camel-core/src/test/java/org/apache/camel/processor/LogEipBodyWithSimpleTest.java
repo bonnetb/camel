@@ -18,7 +18,6 @@ package org.apache.camel.processor;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.ContextTestSupport;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.builder.RouteBuilder;
 import org.junit.jupiter.api.Test;
 
@@ -31,7 +30,7 @@ public class LogEipBodyWithSimpleTest extends ContextTestSupport {
     @Override
     protected CamelContext createCamelContext() throws Exception {
         CamelContext context = super.createCamelContext();
-        context.adapt(ExtendedCamelContext.class).addLogListener((exchange, camelLogger, message) -> {
+        context.getCamelContextExtension().addLogListener((exchange, camelLogger, message) -> {
             msg = message;
             return message;
         });
@@ -39,17 +38,17 @@ public class LogEipBodyWithSimpleTest extends ContextTestSupport {
     }
 
     @Test
-    public void testLogEip() throws Exception {
+    public void testLogEip() {
         template.sendBody("direct:start", null);
 
         assertEquals("Response from API is ==> REAL DATA", msg);
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:start")
                         .setBody(constant("REAL DATA"))
                         .setProperty("body", constant("hello"))

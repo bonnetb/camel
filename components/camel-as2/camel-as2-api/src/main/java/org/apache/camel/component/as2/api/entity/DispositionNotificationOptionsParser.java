@@ -21,10 +21,10 @@ import java.util.Map;
 
 import org.apache.camel.component.as2.api.util.AS2HeaderUtils;
 import org.apache.camel.component.as2.api.util.AS2HeaderUtils.Parameter;
-import org.apache.http.ParseException;
-import org.apache.http.message.ParserCursor;
-import org.apache.http.util.Args;
-import org.apache.http.util.CharArrayBuffer;
+import org.apache.camel.util.ObjectHelper;
+import org.apache.hc.core5.http.ParseException;
+import org.apache.hc.core5.http.message.ParserCursor;
+import org.apache.hc.core5.util.CharArrayBuffer;
 
 public class DispositionNotificationOptionsParser {
 
@@ -51,8 +51,8 @@ public class DispositionNotificationOptionsParser {
     public DispositionNotificationOptions parseDispositionNotificationOptions(
             final CharArrayBuffer buffer,
             final ParserCursor cursor) {
-        Args.notNull(buffer, "buffer");
-        Args.notNull(cursor, "cursor");
+        ObjectHelper.notNull(buffer, "buffer");
+        ObjectHelper.notNull(cursor, "cursor");
 
         Map<String, Parameter> parameters = new HashMap<>();
         while (!cursor.atEnd()) {

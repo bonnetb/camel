@@ -18,10 +18,10 @@ package org.apache.camel.model;
 
 import java.util.concurrent.ForkJoinPool;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
 
 import org.apache.camel.spi.Configurer;
 import org.apache.camel.spi.Metadata;
@@ -85,6 +85,16 @@ public class Resilience4jConfigurationDefinition extends Resilience4jConfigurati
     public Resilience4jConfigurationDefinition permittedNumberOfCallsInHalfOpenState(
             int permittedNumberOfCallsInHalfOpenState) {
         setPermittedNumberOfCallsInHalfOpenState(Integer.toString(permittedNumberOfCallsInHalfOpenState));
+        return this;
+    }
+
+    /**
+     * Whether to throw io.github.resilience4j.circuitbreaker.CallNotPermittedException when the call is rejected due
+     * circuit breaker is half open or open.
+     */
+    public Resilience4jConfigurationDefinition throwExceptionWhenHalfOpenOrOpenState(
+            boolean throwExceptionWhenHalfOpenOrOpenState) {
+        setThrowExceptionWhenHalfOpenOrOpenState(Boolean.toString(throwExceptionWhenHalfOpenOrOpenState));
         return this;
     }
 
@@ -242,10 +252,25 @@ public class Resilience4jConfigurationDefinition extends Resilience4jConfigurati
     }
 
     /**
-     * Configures whether cancel is called on the running future. Defaults to true.
+     * Configure a list of exceptions that are recorded as a failure and thus increase the failure rate. Any exception
+     * matching or inheriting from one of the list counts as a failure, unless explicitly ignored via ignoreExceptions.
      */
-    public Resilience4jConfigurationDefinition timeoutCancelRunningFuture(boolean timeoutCancelRunningFuture) {
-        setTimeoutCancelRunningFuture(Boolean.toString(timeoutCancelRunningFuture));
+    public Resilience4jConfigurationDefinition recordException(Throwable... exception) {
+        for (Throwable t : exception) {
+            getRecordExceptions().add(t.getClass().getName());
+        }
+        return this;
+    }
+
+    /**
+     * Configure a list of exceptions that are ignored and neither count as a failure nor success. Any exception
+     * matching or inheriting from one of the list will not count as a failure nor success, even if the exceptions is
+     * part of recordExceptions.
+     */
+    public Resilience4jConfigurationDefinition ignoreException(Throwable... exception) {
+        for (Throwable t : exception) {
+            getIgnoreExceptions().add(t.getClass().getName());
+        }
         return this;
     }
 

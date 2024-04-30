@@ -16,7 +16,6 @@
  */
 package org.apache.camel.component.hazelcast;
 
-import com.hazelcast.config.Config;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 import org.apache.camel.CamelContext;
@@ -24,16 +23,25 @@ import org.apache.camel.EndpointInject;
 import org.apache.camel.Exchange;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
+import org.apache.camel.test.infra.common.TestEntityNameGenerator;
+import org.apache.camel.test.infra.hazelcast.services.HazelcastService;
+import org.apache.camel.test.infra.hazelcast.services.HazelcastServiceFactory;
 import org.apache.camel.test.junit5.CamelTestSupport;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class HazelcastSedaTransferExchangeTest extends CamelTestSupport {
+
+    @RegisterExtension
+    public static HazelcastService hazelcastService = HazelcastServiceFactory.createService();
+
+    @RegisterExtension
+    public static TestEntityNameGenerator nameGenerator = new TestEntityNameGenerator();
 
     @EndpointInject("mock:result")
     private MockEndpoint mock;
@@ -41,14 +49,17 @@ public class HazelcastSedaTransferExchangeTest extends CamelTestSupport {
     private HazelcastInstance hazelcastInstance;
 
     @BeforeAll
-    public void beforeEach() {
-        Config config = new Config();
-        config.getNetworkConfig().getJoin().getAutoDetectionConfig().setEnabled(false);
-        hazelcastInstance = Hazelcast.newHazelcastInstance(config);
+    public void beforeAll() {
+        hazelcastInstance = Hazelcast.newHazelcastInstance(hazelcastService.createConfiguration(null, 0, null, "seda"));
+    }
+
+    @AfterEach
+    public void afterEach() {
+        mock.reset();
     }
 
     @AfterAll
-    public void afterEach() {
+    public void afterAll() {
         if (hazelcastInstance != null) {
             hazelcastInstance.shutdown();
         }
@@ -67,25 +78,21 @@ public class HazelcastSedaTransferExchangeTest extends CamelTestSupport {
 
         template.send("direct:foobar", exchange);
 
-        assertMockEndpointsSatisfied();
-        mock.reset();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Test
     public void testExchangeTransferDisabled() throws InterruptedException {
         mock.expectedMessageCount(1);
         mock.expectedBodiesReceived("test");
-        mock.expectedHeaderReceived("test", "");
+        mock.expectedNoHeaderReceived();
 
         Exchange exchange = createExchangeWithBody("test");
-        exchange.getIn().setHeader("test", "fail...");
+        exchange.getIn().setHeader("test", "Not propagated");
 
         template.send("direct:foo", exchange);
 
-        assertThrows(AssertionError.class,
-                () -> assertMockEndpointsSatisfied());
-
-        mock.reset();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Override
@@ -100,7 +107,7 @@ public class HazelcastSedaTransferExchangeTest extends CamelTestSupport {
 
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:foo").to("hazelcast-seda:foo");
 
                 from("direct:foobar").to("hazelcast-seda:foo?transferExchange=true");
@@ -109,5 +116,4 @@ public class HazelcastSedaTransferExchangeTest extends CamelTestSupport {
             }
         };
     }
-
 }

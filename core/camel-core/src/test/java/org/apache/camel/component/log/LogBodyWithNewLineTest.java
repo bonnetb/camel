@@ -25,7 +25,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.Appender;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.appender.WriterAppender;
+import org.apache.logging.log4j.core.config.AppenderRef;
 import org.apache.logging.log4j.core.config.Configuration;
+import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -49,18 +51,27 @@ public class LogBodyWithNewLineTest extends ContextTestSupport {
                 .setLayout(PatternLayout.newBuilder().withPattern(PatternLayout.SIMPLE_CONVERSION_PATTERN).build())
                 .setTarget(writer)
                 .setName("Writer").build();
-
         appender.start();
 
-        config.addAppender(appender);
-        config.getRootLogger().removeAppender("Writer");
-        config.getRootLogger().addAppender(appender, Level.INFO, null);
+        final String loggerName = "logger_name";
 
+        config.removeLogger(loggerName);
+        LoggerConfig loggerConfig = LoggerConfig.newBuilder()
+                .withIncludeLocation("true")
+                .withLoggerName(loggerName)
+                .withLevel(Level.INFO)
+                .withAdditivity(true)
+                .withConfig(config)
+                .withRefs(new AppenderRef[] { AppenderRef.createAppenderRef("Writer", null, null) })
+                .build();
+
+        loggerConfig.addAppender(appender, Level.INFO, null);
+        config.addLogger(loggerName, loggerConfig);
         ctx.updateLoggers();
     }
 
     @Test
-    public void testNoSkip() throws Exception {
+    public void testNoSkip() {
         String body = "1" + LS + "2" + LS + "3";
 
         template.sendBody("direct:start", body);
@@ -71,7 +82,7 @@ public class LogBodyWithNewLineTest extends ContextTestSupport {
     }
 
     @Test
-    public void testSkip() throws Exception {
+    public void testSkip() {
         String body = "1" + LS + "2" + LS + "3";
 
         template.sendBody("direct:skip", body);
@@ -82,10 +93,10 @@ public class LogBodyWithNewLineTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:start").to("log:logger_name?level=INFO&showAll=true&skipBodyLineSeparator=false");
                 from("direct:skip").to("log:logger_name?level=INFO&showAll=true&skipBodyLineSeparator=true");
             }

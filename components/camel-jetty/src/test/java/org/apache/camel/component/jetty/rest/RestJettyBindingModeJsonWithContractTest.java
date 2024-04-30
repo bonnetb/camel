@@ -51,7 +51,7 @@ public class RestJettyBindingModeJsonWithContractTest extends BaseJettyTest {
         }
         assertTrue(answerString.contains("\"active\":true"), "Unexpected response: " + answerString);
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
 
         Object obj = mock.getReceivedExchanges().get(0).getIn().getBody();
         assertEquals(UserPojoEx.class, obj.getClass());
@@ -63,10 +63,10 @@ public class RestJettyBindingModeJsonWithContractTest extends BaseJettyTest {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 context.getTypeConverterRegistry().addTypeConverters(new MyTypeConverters());
                 restConfiguration().component("jetty").host("localhost").port(getPort()).bindingMode(RestBindingMode.json);
 

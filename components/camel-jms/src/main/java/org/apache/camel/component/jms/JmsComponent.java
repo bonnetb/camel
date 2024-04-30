@@ -20,9 +20,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 
-import javax.jms.ConnectionFactory;
-import javax.jms.ExceptionListener;
-import javax.jms.Session;
+import jakarta.jms.ConnectionFactory;
+import jakarta.jms.ExceptionListener;
+import jakarta.jms.Session;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.Endpoint;
@@ -59,6 +59,10 @@ public class JmsComponent extends HeaderFilterStrategyComponent {
 
     @Metadata(label = "advanced", description = "To use a shared JMS configuration")
     private JmsConfiguration configuration;
+    @Metadata(label = "advanced",
+              description = "Whether the JMS consumer should include JMSCorrelationIDAsBytes as a header on the Camel Message.",
+              defaultValue = "true")
+    private boolean includeCorrelationIDAsBytes = true;
     @Metadata(label = "advanced", description = "To use a custom QueueBrowseStrategy when browsing queues")
     private QueueBrowseStrategy queueBrowseStrategy;
     @Metadata(label = "advanced",
@@ -167,8 +171,9 @@ public class JmsComponent extends HeaderFilterStrategyComponent {
     }
 
     /**
-     * Whether to auto-discover DestinationResolver from the registry, if no destination resolver has been configured.
-     * If only one instance of DestinationResolver is found then it will be used. This is enabled by default.
+     * Whether to auto-discover DestinationResolver/TemporaryQueueResolver from the registry, if no destination resolver
+     * has been configured. If only one instance of DestinationResolver/TemporaryQueueResolver is found then it will be
+     * used. This is enabled by default.
      */
     public boolean isAllowAutoWiredDestinationResolver() {
         return allowAutoWiredDestinationResolver;
@@ -176,6 +181,17 @@ public class JmsComponent extends HeaderFilterStrategyComponent {
 
     public void setAllowAutoWiredDestinationResolver(boolean allowAutoWiredDestinationResolver) {
         this.allowAutoWiredDestinationResolver = allowAutoWiredDestinationResolver;
+    }
+
+    /**
+     * Whether the JMS consumer should include JMSCorrelationIDAsBytes as a header on the Camel Message.
+     */
+    public boolean isIncludeCorrelationIDAsBytes() {
+        return includeCorrelationIDAsBytes;
+    }
+
+    public void setIncludeCorrelationIDAsBytes(boolean includeCorrelationIDAsBytes) {
+        this.includeCorrelationIDAsBytes = includeCorrelationIDAsBytes;
     }
 
     public QueueBrowseStrategy getQueueBrowseStrategy() {
@@ -208,7 +224,7 @@ public class JmsComponent extends HeaderFilterStrategyComponent {
         return configuration.createInOnlyTemplate(endpoint, pubSubDomain, destination);
     }
 
-    public AbstractMessageListenerContainer createMessageListenerContainer(JmsEndpoint endpoint) throws Exception {
+    public AbstractMessageListenerContainer createMessageListenerContainer(JmsEndpoint endpoint) {
         return configuration.createMessageListenerContainer(endpoint);
     }
 
@@ -692,8 +708,15 @@ public class JmsComponent extends HeaderFilterStrategyComponent {
         return JmsConfiguration.createDestinationResolver(destinationEndpoint);
     }
 
-    public void configureMessageListenerContainer(AbstractMessageListenerContainer container, JmsEndpoint endpoint)
-            throws Exception {
+    public TemporaryQueueResolver getTemporaryQueueResolver() {
+        return configuration.getTemporaryQueueResolver();
+    }
+
+    public void setTemporaryQueueResolver(TemporaryQueueResolver temporaryQueueResolver) {
+        configuration.setTemporaryQueueResolver(temporaryQueueResolver);
+    }
+
+    public void configureMessageListenerContainer(AbstractMessageListenerContainer container, JmsEndpoint endpoint) {
         configuration.configureMessageListenerContainer(container, endpoint);
     }
 
@@ -1060,7 +1083,17 @@ public class JmsComponent extends HeaderFilterStrategyComponent {
                 DestinationResolver destinationResolver = beans.iterator().next();
                 configuration.setDestinationResolver(destinationResolver);
             } else if (beans.size() > 1) {
-                LOG.debug("Cannot autowire ConnectionFactory as {} instances found in registry.", beans.size());
+                LOG.debug("Cannot autowire DestinationResolver as {} instances found in registry.", beans.size());
+            }
+        }
+
+        if (configuration.getTemporaryQueueResolver() == null && isAllowAutoWiredDestinationResolver()) {
+            Set<TemporaryQueueResolver> beans = getCamelContext().getRegistry().findByType(TemporaryQueueResolver.class);
+            if (beans.size() == 1) {
+                TemporaryQueueResolver destinationResolver = beans.iterator().next();
+                configuration.setTemporaryQueueResolver(destinationResolver);
+            } else if (beans.size() > 1) {
+                LOG.debug("Cannot autowire TemporaryQueueResolver as {} instances found in registry.", beans.size());
             }
         }
 
@@ -1242,6 +1275,10 @@ public class JmsComponent extends HeaderFilterStrategyComponent {
     /**
      * A strategy method allowing the URI destination to be translated into the actual JMS destination name (say by
      * looking up in JNDI or something)
+     *
+     * @param  path       the path to convert
+     * @param  parameters an optional, component specific, set of parameters
+     * @return            the path as the actual destination
      */
     protected String convertPathToActualDestination(String path, Map<String, Object> parameters) {
         return path;

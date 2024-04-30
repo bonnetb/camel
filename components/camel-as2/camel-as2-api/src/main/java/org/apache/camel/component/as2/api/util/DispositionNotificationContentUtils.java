@@ -29,11 +29,11 @@ import org.apache.camel.component.as2.api.entity.AS2MessageDispositionNotificati
 import org.apache.camel.component.as2.api.entity.DispositionMode;
 import org.apache.camel.component.as2.api.util.DispositionNotificationContentUtils.Field.Element;
 import org.apache.camel.component.as2.api.util.MicUtils.ReceivedContentMic;
-import org.apache.http.ParseException;
-import org.apache.http.message.ParserCursor;
-import org.apache.http.message.TokenParser;
-import org.apache.http.util.Args;
-import org.apache.http.util.CharArrayBuffer;
+import org.apache.camel.util.ObjectHelper;
+import org.apache.hc.core5.http.ParseException;
+import org.apache.hc.core5.http.message.ParserCursor;
+import org.apache.hc.core5.http.message.TokenParser;
+import org.apache.hc.core5.util.CharArrayBuffer;
 
 public final class DispositionNotificationContentUtils {
 
@@ -78,12 +78,12 @@ public final class DispositionNotificationContentUtils {
         private Element[] elements;
 
         public Field(String name, Element[] elements) {
-            this.name = Args.notNull(name, "name");
+            this.name = ObjectHelper.notNull(name, "name");
             this.elements = (elements == null) ? new Element[] {} : elements;
         }
 
         public Field(String name, String value) {
-            this.name = Args.notNull(name, "name");
+            this.name = ObjectHelper.notNull(name, "name");
             this.elements = new Element[] { new Element(value, null) };
         }
 
@@ -101,7 +101,7 @@ public final class DispositionNotificationContentUtils {
             for (int i = 0; i < elements.length; i++) {
                 Element element = elements[i];
                 if (i > 0) {
-                    builder.append("; " + element);
+                    builder.append("; ").append(element);
                 } else {
                     builder.append(element);
                 }
@@ -113,11 +113,11 @@ public final class DispositionNotificationContentUtils {
         @Override
         public String toString() {
             StringBuilder sb = new StringBuilder();
-            sb.append(name + ": ");
+            sb.append(name).append(": ");
             for (int i = 0; i < elements.length; i++) {
                 Element element = elements[i];
                 if (i > 0) {
-                    sb.append("; " + element);
+                    sb.append("; ").append(element);
                 } else {
                     sb.append(element);
                 }
@@ -131,6 +131,7 @@ public final class DispositionNotificationContentUtils {
 
     private static final char PARAM_DELIMITER = ',';
     private static final char ELEM_DELIMITER = ';';
+    private static final int DEFAULT_BUFFER_SIZE = 8 * 1024;
 
     private static final BitSet TOKEN_DELIMS = TokenParser.INIT_BITSET(PARAM_DELIMITER, ELEM_DELIMITER);
 
@@ -152,9 +153,15 @@ public final class DispositionNotificationContentUtils {
         List<String> warnings = new ArrayList<>();
         Map<String, String> extensionFields = new HashMap<>();
         ReceivedContentMic receivedContentMic = null;
+        CharArrayBuffer bodyPartFields = new CharArrayBuffer(DEFAULT_BUFFER_SIZE);
 
         for (int i = 0; i < dispositionNotificationFields.size(); i++) {
             final CharArrayBuffer fieldLine = dispositionNotificationFields.get(i);
+            bodyPartFields.append(fieldLine);
+            if (i < dispositionNotificationFields.size() - 1) {
+                bodyPartFields.append('\r');
+                bodyPartFields.append('\n');
+            }
             final Field field = parseDispositionField(fieldLine);
             switch (field.getName().toLowerCase()) {
                 case REPORTING_UA: {
@@ -246,14 +253,15 @@ public final class DispositionNotificationContentUtils {
                 dispositionMode,
                 dispositionType,
                 dispositionModifier,
-                failures.toArray(new String[failures.size()]),
-                errors.toArray(new String[errors.size()]),
-                warnings.toArray(new String[warnings.size()]),
+                failures.toArray(new String[0]),
+                errors.toArray(new String[0]),
+                warnings.toArray(new String[0]),
                 extensionFields,
-                receivedContentMic);
+                receivedContentMic,
+                bodyPartFields.toString());
     }
 
-    public static Field parseDispositionField(CharArrayBuffer fieldLine) {
+    public static Field parseDispositionField(CharArrayBuffer fieldLine) throws ParseException {
         final int colon = fieldLine.indexOf(':');
         if (colon == -1) {
             throw new ParseException("Invalid field: " + fieldLine.toString());
@@ -270,7 +278,7 @@ public final class DispositionNotificationContentUtils {
             }
         }
 
-        return new Field(fieldName, elements.toArray(new Element[elements.size()]));
+        return new Field(fieldName, elements.toArray(new Element[0]));
     }
 
     public static Element parseDispositionFieldElement(CharArrayBuffer fieldLine, ParserCursor cursor) {
@@ -302,6 +310,6 @@ public final class DispositionNotificationContentUtils {
             }
         }
 
-        return new Element(value, parameters.toArray(new String[parameters.size()]));
+        return new Element(value, parameters.toArray(new String[0]));
     }
 }

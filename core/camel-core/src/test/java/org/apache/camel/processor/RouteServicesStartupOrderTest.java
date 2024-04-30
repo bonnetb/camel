@@ -34,10 +34,10 @@ public class RouteServicesStartupOrderTest extends ContextTestSupport {
 
     private static String startOrder = "";
 
-    private MyServiceBean service1 = new MyServiceBean("1");
-    private MyServiceBean service2 = new MyServiceBean("2");
-    private MyServiceBean service3 = new MyServiceBean("3");
-    private MyServiceBean service4 = new MyServiceBean("4");
+    private final MyServiceBean service1 = new MyServiceBean("1");
+    private final MyServiceBean service2 = new MyServiceBean("2");
+    private final MyServiceBean service3 = new MyServiceBean("3");
+    private final MyServiceBean service4 = new MyServiceBean("4");
 
     @Test
     public void testRouteServiceStartupOrder() throws Exception {
@@ -50,7 +50,7 @@ public class RouteServicesStartupOrderTest extends ContextTestSupport {
 
         // assert correct order
         DefaultCamelContext dcc = (DefaultCamelContext) context;
-        List<RouteStartupOrder> order = dcc.getRouteStartupOrder();
+        List<RouteStartupOrder> order = dcc.getCamelContextExtension().getRouteStartupOrder();
 
         assertEquals(4, order.size());
         assertEquals("seda://foo", order.get(0).getRoute().getEndpoint().getEndpointUri());
@@ -63,10 +63,10 @@ public class RouteServicesStartupOrderTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:start").startupOrder(2).process(service1).to("seda:foo");
 
                 from("seda:foo").startupOrder(1).process(service2).to("mock:result");
@@ -78,9 +78,9 @@ public class RouteServicesStartupOrderTest extends ContextTestSupport {
         };
     }
 
-    public class MyServiceBean extends ServiceSupport implements Processor {
+    public static class MyServiceBean extends ServiceSupport implements Processor {
 
-        private String name;
+        private final String name;
         private boolean started;
 
         public MyServiceBean(String name) {
@@ -88,13 +88,13 @@ public class RouteServicesStartupOrderTest extends ContextTestSupport {
         }
 
         @Override
-        protected void doStart() throws Exception {
+        protected void doStart() {
             startOrder += name;
             started = true;
         }
 
         @Override
-        protected void doStop() throws Exception {
+        protected void doStop() {
             started = false;
         }
 
@@ -112,7 +112,7 @@ public class RouteServicesStartupOrderTest extends ContextTestSupport {
         }
 
         @Override
-        public void process(Exchange exchange) throws Exception {
+        public void process(Exchange exchange) {
         }
     }
 }

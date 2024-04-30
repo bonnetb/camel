@@ -49,13 +49,13 @@ public class FromFtpSedaDeleteFileIT extends FtpServerTestSupport {
         mock.assertIsSatisfied();
 
         // assert the file is deleted
-        File file = ftpFile("deletefile/hello.txt").toFile();
+        File file = service.ftpFile("deletefile/hello.txt").toFile();
         await().atMost(500, TimeUnit.MILLISECONDS)
                 .untilAsserted(() -> assertFalse(file.exists(), "The file should have been deleted"));
     }
 
     @BeforeEach
-    private void prepareFtpServer() throws Exception {
+    public void prepareFtpServer() throws Exception {
         // prepares the FTP Server by creating a file on the server that we want
         // to unit
         // test that we can pool and store as a local file
@@ -69,7 +69,7 @@ public class FromFtpSedaDeleteFileIT extends FtpServerTestSupport {
         producer.stop();
 
         // assert file is created
-        File file = ftpFile("deletefile/hello.txt").toFile();
+        File file = service.ftpFile("deletefile/hello.txt").toFile();
         assertTrue(file.exists(), "The file should exists");
     }
 

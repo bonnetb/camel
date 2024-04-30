@@ -37,6 +37,9 @@ import org.slf4j.LoggerFactory;
  * Base implementation for {@link HealthCheck}.
  */
 public abstract class AbstractHealthCheck implements HealthCheck, CamelContextAware {
+    public static final String SERVICE_STATUS_CODE = "service.status.code";
+
+    public static final String SERVICE_ERROR_CODE = "service.error.code";
 
     private static final Logger LOG = LoggerFactory.getLogger(AbstractHealthCheck.class);
 
@@ -145,15 +148,19 @@ public abstract class AbstractHealthCheck implements HealthCheck, CamelContextAw
             kind = isLiveness() ? Kind.LIVENESS : Kind.READINESS;
         }
         builder.detail(CHECK_KIND, kind);
+        builder.detail(CHECK_ID, meta.get(CHECK_ID));
+        if (meta.containsKey(CHECK_GROUP)) {
+            builder.detail(CHECK_GROUP, meta.get(CHECK_GROUP));
+        }
         // Extract relevant information from meta data.
         int invocationCount = (Integer) meta.getOrDefault(INVOCATION_COUNT, 0);
         int failureCount = (Integer) meta.getOrDefault(FAILURE_COUNT, 0);
+        String failureTime = (String) meta.get(FAILURE_TIME);
+        String failureStartTime = (String) meta.get(FAILURE_START_TIME);
         int successCount = (Integer) meta.getOrDefault(SUCCESS_COUNT, 0);
-
+        String successTime = (String) meta.get(SUCCESS_TIME);
+        String successStartTime = (String) meta.get(SUCCESS_START_TIME);
         String invocationTime = ZonedDateTime.now().format(DateTimeFormatter.ISO_ZONED_DATE_TIME);
-
-        // Set common meta-data
-        meta.put(INVOCATION_ATTEMPT_TIME, invocationTime);
 
         if (!isEnabled()) {
             LOG.debug("health-check ({}) {}/{} disabled", kind, getGroup(), getId());
@@ -173,24 +180,71 @@ public abstract class AbstractHealthCheck implements HealthCheck, CamelContextAw
         if (builder.state() == State.DOWN) {
             // reset success since it failed
             successCount = 0;
+            successStartTime = null;
             failureCount++;
+            failureTime = invocationTime;
+            if (failureStartTime == null) {
+                failureStartTime = invocationTime;
+            }
         } else if (builder.state() == State.UP) {
             // reset failure since it ok
             failureCount = 0;
+            failureStartTime = null;
             successCount++;
+            if (successTime == null) {
+                // first time we are OK, then reset failure as we only want to capture
+                // failures that is happening after we have been ok (such as during bootstrap)
+                failureTime = null;
+            }
+            successTime = invocationTime;
+            if (successStartTime == null) {
+                successStartTime = invocationTime;
+            }
         }
 
         meta.put(INVOCATION_TIME, invocationTime);
         meta.put(INVOCATION_COUNT, ++invocationCount);
         meta.put(FAILURE_COUNT, failureCount);
+        if (failureTime != null) {
+            meta.put(FAILURE_TIME, failureTime);
+        } else {
+            meta.remove(FAILURE_TIME);
+        }
+        if (failureStartTime != null) {
+            meta.put(FAILURE_START_TIME, failureStartTime);
+        } else {
+            meta.remove(FAILURE_START_TIME);
+        }
         meta.put(SUCCESS_COUNT, successCount);
+        if (successTime != null) {
+            meta.put(SUCCESS_TIME, successTime);
+        } else {
+            meta.remove(SUCCESS_TIME);
+        }
+        if (successStartTime != null) {
+            meta.put(SUCCESS_START_TIME, successStartTime);
+        } else {
+            meta.remove(SUCCESS_START_TIME);
+        }
 
         // Copy some meta-data bits to the response attributes so the
         // response caches the health-check state at the time of the invocation.
         builder.detail(INVOCATION_TIME, meta.get(INVOCATION_TIME));
         builder.detail(INVOCATION_COUNT, meta.get(INVOCATION_COUNT));
         builder.detail(FAILURE_COUNT, meta.get(FAILURE_COUNT));
+        if (meta.containsKey(FAILURE_TIME)) {
+            builder.detail(FAILURE_TIME, meta.get(FAILURE_TIME));
+        }
+        if (meta.containsKey(FAILURE_START_TIME)) {
+            builder.detail(FAILURE_START_TIME, meta.get(FAILURE_START_TIME));
+        }
         builder.detail(SUCCESS_COUNT, meta.get(SUCCESS_COUNT));
+        if (meta.containsKey(SUCCESS_TIME)) {
+            builder.detail(SUCCESS_TIME, meta.get(SUCCESS_TIME));
+        }
+        if (meta.containsKey(SUCCESS_START_TIME)) {
+            builder.detail(SUCCESS_START_TIME, meta.get(SUCCESS_START_TIME));
+        }
 
         return builder;
     }

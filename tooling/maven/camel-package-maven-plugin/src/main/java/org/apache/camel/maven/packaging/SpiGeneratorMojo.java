@@ -17,6 +17,7 @@
 package org.apache.camel.maven.packaging;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -24,13 +25,16 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
-import java.util.stream.Collectors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import org.apache.camel.maven.packaging.generics.PackagePluginUtils;
 import org.apache.camel.spi.annotations.ConstantProvider;
 import org.apache.camel.spi.annotations.ServiceFactory;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -131,15 +135,25 @@ public class SpiGeneratorMojo extends AbstractGeneratorMojo {
                 if (!isLocal(className)) {
                     continue;
                 }
-                String pvals = annotation.value().asString();
+                String pvals;
+                // @DataTypeTransformer/@DevConsole uses name instead of value
+                if (annotation.value() == null) {
+                    pvals = annotation.values().stream()
+                            .filter(annotationValue -> "name".equals(annotationValue.name()))
+                            .map(name -> name.value().toString())
+                            .findFirst().get();
+                } else {
+                    pvals = annotation.value().asString();
+                }
                 for (String pval : pvals.split(",")) {
+                    pval = sanitizeFileName(pval);
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("# ").append(GENERATED_MSG).append(NL).append("class=").append(className).append(NL);
                     if (ServiceFactory.JDK_SERVICE.equals(sfa.value().asString())) {
                         updateResource(resourcesOutputDir.toPath(),
                                 "META-INF/services/org/apache/camel/" + pval,
-                                "# " + GENERATED_MSG + NL + "class=" + className + NL);
+                                sb.toString());
                     } else {
-                        StringBuilder sb = new StringBuilder();
-                        sb.append("# " + GENERATED_MSG + NL + "class=").append(className).append(NL);
                         updateResource(resourcesOutputDir.toPath(),
                                 "META-INF/services/org/apache/camel/" + sfa.value().asString() + "/" + pval,
                                 sb.toString());
@@ -149,6 +163,11 @@ public class SpiGeneratorMojo extends AbstractGeneratorMojo {
         }
     }
 
+    private String sanitizeFileName(String fileName) {
+        // dot should be replaced with dash (camel.yaml -> camel-yaml) for marker files
+        return fileName.replaceAll("[^A-Za-z0-9+-/]", "-").replace('.', '-');
+    }
+
     private boolean isLocal(String className) {
         Path output = Paths.get(project.getBuild().getOutputDirectory());
         Path file = output.resolve(className.replace('.', '/') + ".class");
@@ -156,33 +175,15 @@ public class SpiGeneratorMojo extends AbstractGeneratorMojo {
     }
 
     private IndexView getIndex() throws MojoExecutionException {
+        Pattern cpePattern = Pattern.compile(".*/camel-[^/]+.jar");
         try {
             List<IndexView> indices = new ArrayList<>();
-            Path output = Paths.get(project.getBuild().getOutputDirectory());
-            try (InputStream is = Files.newInputStream(output.resolve("META-INF/jandex.idx"))) {
-                indices.add(new IndexReader(is).read());
-            }
+            indices.add(PackagePluginUtils.readJandexIndex(project));
+
             for (String cpe : project.getCompileClasspathElements()) {
-                if (cpe.matches(".*/camel-[^/]+.jar")) {
-                    try (JarFile jf = new JarFile(cpe)) {
-                        JarEntry indexEntry = jf.getJarEntry("META-INF/jandex.idx");
-                        if (indexEntry != null) {
-                            try (InputStream is = jf.getInputStream(indexEntry)) {
-                                indices.add(new IndexReader(is).read());
-                            }
-                        } else {
-                            final Indexer indexer = new Indexer();
-                            List<JarEntry> classes = jf.stream()
-                                    .filter(je -> je.getName().endsWith(".class"))
-                                    .collect(Collectors.toList());
-                            for (JarEntry je : classes) {
-                                try (InputStream is = jf.getInputStream(je)) {
-                                    indexer.index(is);
-                                }
-                            }
-                            indices.add(indexer.complete());
-                        }
-                    }
+                Matcher matcher = cpePattern.matcher(cpe);
+                if (matcher.matches()) {
+                    addIndex(indices, cpe);
                 }
             }
             return CompositeIndex.create(indices);
@@ -191,38 +192,49 @@ public class SpiGeneratorMojo extends AbstractGeneratorMojo {
         }
     }
 
+    private void addIndex(List<IndexView> indices, String cpe) throws IOException {
+        try (JarFile jf = new JarFile(cpe)) {
+            JarEntry indexEntry = jf.getJarEntry("META-INF/jandex.idx");
+            if (indexEntry != null) {
+                readIndexFromJandex(indices, jf, indexEntry);
+            } else {
+                createIndexFromClass(indices, jf);
+            }
+        }
+    }
+
+    private void createIndexFromClass(List<IndexView> indices, JarFile jf) throws IOException {
+        final Indexer indexer = new Indexer();
+
+        List<JarEntry> classes = jf.stream()
+                .filter(je -> je.getName().endsWith(".class"))
+                .toList();
+
+        for (JarEntry je : classes) {
+            try (InputStream is = jf.getInputStream(je)) {
+                indexer.index(is);
+            }
+        }
+
+        indices.add(indexer.complete());
+    }
+
+    private void readIndexFromJandex(List<IndexView> indices, JarFile jf, JarEntry indexEntry) throws IOException {
+        try (InputStream is = jf.getInputStream(indexEntry)) {
+            indices.add(new IndexReader(is).read());
+        }
+    }
+
     private String generateConstantProviderClass(String fqn, Map<String, String> fields) {
         String pn = fqn.substring(0, fqn.lastIndexOf('.'));
         String cn = fqn.substring(fqn.lastIndexOf('.') + 1);
 
-        StringBuilder w = new StringBuilder();
-        w.append("/* " + GENERATED_MSG + " */\n");
-        w.append("package ").append(pn).append(";\n");
-        w.append("\n");
-        w.append("import java.util.HashMap;\n");
-        w.append("import java.util.Map;\n");
-        w.append("\n");
-        w.append("/**\n");
-        w.append(" * " + GENERATED_MSG + "\n");
-        w.append(" */\n");
-        w.append("public class ").append(cn).append(" {\n");
-        w.append("\n");
-        w.append("    private static final Map<String, String> MAP;\n");
-        w.append("    static {\n");
-        w.append("        Map<String, String> map = new HashMap<>(").append(fields.size()).append(");\n");
-        for (Map.Entry<String, String> entry : fields.entrySet()) {
-            w.append("        map.put(\"").append(entry.getKey()).append("\", \"").append(entry.getValue()).append("\");\n");
-        }
-        w.append("        MAP = map;\n");
-        w.append("    }\n");
-        w.append("\n");
-        w.append("    public static String lookup(String key) {\n");
-        w.append("        return MAP.get(key);\n");
-        w.append("    }\n");
-        w.append("}\n");
-        w.append("\n");
-
-        return w.toString();
+        Map<String, Object> ctx = new HashMap<>();
+        ctx.put("pn", pn);
+        ctx.put("cn", cn);
+        ctx.put("fields", fields);
+        ctx.put("mojo", this);
+        return velocity("velocity/constant-provider.vm", ctx);
     }
 
 }

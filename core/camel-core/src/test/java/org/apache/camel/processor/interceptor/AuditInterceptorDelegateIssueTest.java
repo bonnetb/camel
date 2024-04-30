@@ -19,7 +19,6 @@ package org.apache.camel.processor.interceptor;
 import org.apache.camel.CamelContext;
 import org.apache.camel.ContextTestSupport;
 import org.apache.camel.Exchange;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.NamedNode;
 import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
@@ -28,7 +27,7 @@ import org.apache.camel.support.processor.DelegateProcessor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class AuditInterceptorDelegateIssueTest extends ContextTestSupport {
 
@@ -52,7 +51,7 @@ public class AuditInterceptorDelegateIssueTest extends ContextTestSupport {
 
         assertMockEndpointsSatisfied();
 
-        assertEquals(true, strategy.isInvoked());
+        assertTrue(strategy.isInvoked());
     }
 
     @Test
@@ -66,15 +65,15 @@ public class AuditInterceptorDelegateIssueTest extends ContextTestSupport {
 
         assertMockEndpointsSatisfied();
 
-        assertEquals(true, strategy.isInvoked());
+        assertTrue(strategy.isInvoked());
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
-                getContext().adapt(ExtendedCamelContext.class).addInterceptStrategy(strategy);
+            public void configure() {
+                getContext().getCamelContextExtension().addInterceptStrategy(strategy);
 
                 onException(IllegalArgumentException.class).handled(true).to("mock:handled");
 
@@ -92,8 +91,7 @@ public class AuditInterceptorDelegateIssueTest extends ContextTestSupport {
 
         @Override
         public Processor wrapProcessorInInterceptors(
-                CamelContext context, NamedNode definition, Processor target, Processor nextTarget)
-                throws Exception {
+                CamelContext context, NamedNode definition, Processor target, Processor nextTarget) {
             return new DelegateProcessor(target) {
                 protected void processNext(Exchange exchange) throws Exception {
                     invoked = true;

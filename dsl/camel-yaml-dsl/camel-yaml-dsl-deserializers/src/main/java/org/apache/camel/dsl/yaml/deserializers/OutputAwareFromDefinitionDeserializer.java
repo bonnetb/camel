@@ -36,10 +36,14 @@ import org.snakeyaml.engine.v2.nodes.NodeTuple;
           order = YamlDeserializerResolver.ORDER_DEFAULT,
           properties = {
                   @YamlProperty(name = "uri", type = "string", required = true),
+                  @YamlProperty(name = "variableReceive", type = "string"),
+                  @YamlProperty(name = "id", type = "string"),
+                  @YamlProperty(name = "description", type = "string"),
                   @YamlProperty(name = "parameters", type = "object"),
                   @YamlProperty(name = "steps", type = "array:org.apache.camel.model.ProcessorDefinition", required = true)
           })
 public class OutputAwareFromDefinitionDeserializer extends YamlDeserializerBase<OutputAwareFromDefinition> {
+
     public OutputAwareFromDefinitionDeserializer() {
         super(OutputAwareFromDefinition.class);
     }
@@ -64,23 +68,36 @@ public class OutputAwareFromDefinitionDeserializer extends YamlDeserializerBase<
         }
 
         String uri = null;
+        String id = null;
+        String desc = null;
+        String variableReceive = null;
         Map<String, Object> parameters = null;
 
         for (NodeTuple tuple : node.getValue()) {
-            final String key = asText(tuple.getKeyNode());
-            final Node val = tuple.getValueNode();
+            String key = asText(tuple.getKeyNode());
+            Node val = tuple.getValueNode();
 
             setDeserializationContext(val, dc);
 
+            key = org.apache.camel.util.StringHelper.dashToCamelCase(key);
             switch (key) {
-                case "steps":
-                    setSteps(target, val);
+                case "id":
+                    id = asText(val);
+                    break;
+                case "description":
+                    desc = asText(val);
                     break;
                 case "uri":
                     uri = asText(val);
                     break;
+                case "variableReceive":
+                    variableReceive = asText(val);
+                    break;
                 case "parameters":
-                    parameters = parseParameters(target, tuple);
+                    parameters = parseParameters(tuple);
+                    break;
+                case "steps":
+                    setSteps(target, val);
                     break;
                 default:
                     throw new UnsupportedFieldException(node, key);
@@ -88,13 +105,22 @@ public class OutputAwareFromDefinitionDeserializer extends YamlDeserializerBase<
         }
 
         if (target.getDelegate() == null) {
-            ObjectHelper.notNull("uri", "The uri must set");
+            ObjectHelper.notNull(uri, "The uri must be set");
             FromDefinition from
                     = new FromDefinition(YamlSupport.createEndpointUri(dc.getCamelContext(), node, uri, parameters));
             // enrich model with line number
             if (line != -1) {
                 from.setLineNumber(line);
                 from.setLocation(dc.getResource().getLocation());
+            }
+            if (id != null) {
+                from.setId(id);
+            }
+            if (desc != null) {
+                from.setDescription(desc);
+            }
+            if (variableReceive != null) {
+                from.setVariableReceive(variableReceive);
             }
             target.setDelegate(from);
         }

@@ -34,14 +34,14 @@ public class FtpPollingConsumerIdleMessageIT extends FtpServerTestSupport {
         Thread.sleep(110);
         MockEndpoint mock = getMockEndpoint("mock:result");
         mock.expectedMinimumMessageCount(2);
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
         assertNull(mock.getExchanges().get(0).getIn().getBody());
         assertNull(mock.getExchanges().get(1).getIn().getBody());
     }
 
     @BeforeEach
     public void setup() {
-        ftpFile("polling").toFile().mkdirs();
+        service.ftpFile("polling").toFile().mkdirs();
     }
 
     @Override

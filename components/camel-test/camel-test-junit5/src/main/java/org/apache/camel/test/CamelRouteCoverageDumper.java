@@ -28,7 +28,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import javax.management.AttributeNotFoundException;
 import javax.management.InstanceNotFoundException;
@@ -97,7 +96,8 @@ public class CamelRouteCoverageDumper {
             String name = objectName.getKeyProperty("name");
             name = ObjectName.unquote(name);
 
-            ManagedProcessorMBean managedProcessor = context.getExtension(ManagedCamelContext.class).getManagedProcessor(name);
+            ManagedProcessorMBean managedProcessor
+                    = context.getCamelContextExtension().getContextPlugin(ManagedCamelContext.class).getManagedProcessor(name);
 
             if (managedProcessor != null) {
                 if (processorsForRoute.get(routeId) == null) {
@@ -154,7 +154,8 @@ public class CamelRouteCoverageDumper {
 
         // log processor coverage for each route
         for (Route route : context.getRoutes()) {
-            ManagedRouteMBean managedRoute = context.getExtension(ManagedCamelContext.class).getManagedRoute(route.getId());
+            ManagedRouteMBean managedRoute = context.getCamelContextExtension().getContextPlugin(ManagedCamelContext.class)
+                    .getManagedRoute(route.getId());
             if (managedRoute.getExchangesTotal() == 0) {
                 uncoveredRoutes.add(route.getId());
             }
@@ -189,7 +190,7 @@ public class CamelRouteCoverageDumper {
                 .append(contextExchangesTotal).append("\n");
 
         if (!uncoveredRoutes.isEmpty()) {
-            builder.append("\t\tUncovered routes: ").append(uncoveredRoutes.stream().collect(Collectors.joining(", ")))
+            builder.append("\t\tUncovered routes: ").append(String.join(", ", uncoveredRoutes))
                     .append("\n");
         }
 

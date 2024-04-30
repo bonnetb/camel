@@ -4,10 +4,10 @@
 :description: Filters out duplicate messages
 :since: 
 :supportlevel: Stable
+:tabs-sync-option:
 
 The
-http://www.enterpriseintegrationpatterns.com/IdempotentReceiver.html[Idempotent
-Consumer] from the xref:enterprise-integration-patterns.adoc[EIP
+http://www.enterpriseintegrationpatterns.com/IdempotentReceiver.html[Idempotent Consumer] from the xref:enterprise-integration-patterns.adoc[EIP
 patterns] is used to filter out duplicate messages.
 
 The Idempotent Consumer essentially acts like a
@@ -24,6 +24,12 @@ the xref:manual::exchange.adoc[Exchange] failed, otherwise it stays there.
 include::partial$eip-options.adoc[]
 // eip options: END
 
+== Exchange properties
+
+// eip exchangeProperties: START
+include::partial$eip-exchangeProperties.adoc[]
+// eip exchangeProperties: END
+
 == Idempotent Consumer implementations
 
 The idempotent consumer provides a pluggable repository which you can implement
@@ -37,7 +43,6 @@ Camel provides the following Idempotent Consumer implementations:
 xref:ROOT:cql-component.adoc[NamedCassandraIdempotentRepository]
 * xref:ROOT:ehcache-component.adoc[EHCacheIdempotentRepository]
 * xref:ROOT:hazelcast-summary.adoc[HazelcastIdempotentRepository]
-* xref:ROOT:hbase-component.adoc[HBaseIdempotentRepository]
 * xref:ROOT:infinispan-component.adoc[InfinispanIdempotentRepository]
 xref:ROOT:infinispan-component.adoc[InfinispanEmbeddedIdempotentRepository]
 xref:ROOT:infinispan-component.adoc[InfinispanRemoteIdempotentRepository]
@@ -53,4 +58,4 @@ xref:ROOT:sql-component.adoc[JdbcOrphanLockAwareIdempotentRepository]
 
 == Example
 
-For example see the above implementations for more details.
+For example, see the above implementations for more details.

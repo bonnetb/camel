@@ -21,7 +21,6 @@ import java.util.Map;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.ContextTestSupport;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.spi.HeadersMapFactory;
 import org.junit.jupiter.api.Test;
@@ -30,12 +29,12 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 
 public class CustomHeadersMapFactoryRouteTest extends ContextTestSupport {
 
-    private HeadersMapFactory custom = new CustomHeadersMapFactory();
+    private final HeadersMapFactory custom = new CustomHeadersMapFactory();
 
     @Override
     protected CamelContext createCamelContext() throws Exception {
         CamelContext context = super.createCamelContext();
-        context.adapt(ExtendedCamelContext.class).setHeadersMapFactory(custom);
+        context.getCamelContextExtension().setHeadersMapFactory(custom);
         return context;
     }
 
@@ -54,14 +53,14 @@ public class CustomHeadersMapFactoryRouteTest extends ContextTestSupport {
 
         assertMockEndpointsSatisfied();
 
-        assertSame(custom, context.adapt(ExtendedCamelContext.class).getHeadersMapFactory());
+        assertSame(custom, context.getCamelContextExtension().getHeadersMapFactory());
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:start").to("mock:result");
             }
         };

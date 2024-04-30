@@ -18,21 +18,15 @@ package org.apache.camel.maven.packaging;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.StringWriter;
-import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.StringJoiner;
 import java.util.TreeSet;
 
+import org.apache.camel.maven.packaging.generics.PackagePluginUtils;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
@@ -42,12 +36,11 @@ import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.jboss.jandex.AnnotationInstance;
 import org.jboss.jandex.DotName;
 import org.jboss.jandex.Index;
-import org.jboss.jandex.IndexReader;
 import org.jboss.jandex.MethodInfo;
 import org.jboss.jandex.Type;
 
 /**
- * Abstract class for @InvokeOnHeader factory generator.
+ * Factory for generating code for @InvokeOnHeader.
  */
 @Mojo(name = "generate-invoke-on-header", threadSafe = true, defaultPhase = LifecyclePhase.PROCESS_CLASSES,
       requiresDependencyCollection = ResolutionScope.COMPILE,
@@ -67,7 +60,7 @@ public class GenerateInvokeOnHeaderMojo extends AbstractGeneratorMojo {
     @Parameter(defaultValue = "${project.basedir}/src/generated/resources")
     protected File resourcesOutputDir;
 
-    private static class InvokeOnHeaderModel {
+    public static class InvokeOnHeaderModel {
         private String key;
         private String methodName;
         private String returnType;
@@ -124,15 +117,9 @@ public class GenerateInvokeOnHeaderMojo extends AbstractGeneratorMojo {
             resourcesOutputDir = new File(project.getBasedir(), "src/generated/resources");
         }
 
-        Path output = Paths.get(project.getBuild().getOutputDirectory());
-        Index index;
-        try (InputStream is = Files.newInputStream(output.resolve("META-INF/jandex.idx"))) {
-            index = new IndexReader(is).read();
-        } catch (NoSuchFileException e) {
-            // ignore
+        Index index = PackagePluginUtils.readJandexIndexIgnoreMissing(project, getLog());
+        if (index == null) {
             return;
-        } catch (IOException e) {
-            throw new MojoExecutionException("IOException: " + e.getMessage(), e);
         }
 
         Map<String, Set<InvokeOnHeaderModel>> classes = new HashMap<>();
@@ -152,7 +139,7 @@ public class GenerateInvokeOnHeaderMojo extends AbstractGeneratorMojo {
             } else {
                 model.setReturnType(mi.returnType().toString());
             }
-            for (Type type : mi.parameters()) {
+            for (Type type : mi.parameterTypes()) {
                 String arg = type.name().toString();
                 model.addArgs(arg);
             }
@@ -171,110 +158,39 @@ public class GenerateInvokeOnHeaderMojo extends AbstractGeneratorMojo {
     }
 
     protected void createInvokeOnHeaderFactory(String fqn, Set<InvokeOnHeaderModel> models) throws IOException {
-        String tfqn = generateInvokeOnHeaderFactory(fqn, models, sourcesOutputDir);
+        int pos = fqn.lastIndexOf('.');
+        String pn = fqn.substring(0, pos);
+        String cn = fqn.substring(pos + 1) + "InvokeOnHeaderFactory";
+
+        Map<String, Object> ctx = new HashMap<>();
+        ctx.put("pn", pn);
+        ctx.put("cn", cn);
+        ctx.put("en", fqn);
+        ctx.put("pfqn", fqn);
+        ctx.put("models", models);
+        ctx.put("mojo", this);
+        String source = velocity("velocity/invoke-on-header.vm", ctx);
+
+        String fileName = pn.replace('.', '/') + "/" + cn + ".java";
+        boolean updated = updateResource(sourcesOutputDir.toPath(), fileName, source);
+        if (updated) {
+            getLog().info("Updated " + fileName);
+        }
+        String tfqn = pn + "." + cn;
         updateResource(resourcesOutputDir.toPath(),
                 "META-INF/services/org/apache/camel/invoke-on-header/" + fqn,
                 "# " + GENERATED_MSG + NL + "class=" + tfqn + NL);
     }
 
-    @Deprecated
-    private String generateInvokeOnHeaderFactory(
-            String fqn, Set<InvokeOnHeaderModel> models, File outputDir) {
-
-        int pos = fqn.lastIndexOf('.');
-        String pn = fqn.substring(0, pos);
-        String cn = fqn.substring(pos + 1) + "InvokeOnHeaderFactory";
-        String en = fqn;
-        String pfqn = fqn;
-
-        StringWriter sw = new StringWriter();
-        generateInvokeOnHeaderSource(pn, cn, en, pfqn, sw, models);
-
-        String source = sw.toString();
-
-        String fileName = pn.replace('.', '/') + "/" + cn + ".java";
-        outputDir.mkdirs();
-        boolean updated = updateResource(buildContext, outputDir.toPath().resolve(fileName), source);
-        if (updated) {
-            getLog().info("Updated " + fileName);
-        }
-        return pn + "." + cn;
-    }
-
-    private void generateInvokeOnHeaderSource(
-            String pn, String cn, String en, String pfqn, StringWriter w, Set<InvokeOnHeaderModel> models) {
-        w.write("/* " + AbstractGeneratorMojo.GENERATED_MSG + " */\n");
-        w.write("package " + pn + ";\n");
-        w.write("\n");
-        w.write("import org.apache.camel.AsyncCallback;\n");
-        w.write("import org.apache.camel.Exchange;\n");
-        w.write("import org.apache.camel.spi.InvokeOnHeaderStrategy;\n");
-        w.write("import " + pfqn + ";\n");
-        w.write("\n");
-        w.write("/**\n");
-        w.write(" * " + AbstractGeneratorMojo.GENERATED_MSG + "\n");
-        w.write(" */\n");
-        w.write("@SuppressWarnings(\"unchecked\")\n");
-        w.write("public class " + cn + " implements InvokeOnHeaderStrategy");
-        w.write(" {\n");
-        w.write("\n");
-
-        w.write("    @Override\n");
-        w.write("    public Object invoke(Object obj, String key, Exchange exchange, AsyncCallback callback) throws Exception {\n");
-        w.write("        " + en + " target = (" + en + ") obj;\n");
-        if (!models.isEmpty()) {
-            w.write("        switch (key) {\n");
-            for (InvokeOnHeaderModel option : models) {
-                boolean sync = true;
-                String invoke = "target." + option.getMethodName() + "(";
-                if (!option.getArgs().isEmpty()) {
-                    StringJoiner sj = new StringJoiner(", ");
-                    for (String arg : option.getArgs()) {
-                        String ba = bindArg(arg);
-                        // if callback is in use then we are no long synchronous
-                        sync &= !ba.equals("callback");
-                        sj.add(ba);
-                    }
-                    invoke += sj.toString();
-                }
-                String ret = "null";
-                if (!sync) {
-                    // return the callback instance in async mode to signal that callback are in use
-                    ret = "callback";
-                }
-                invoke += ")";
-
-                if (!option.getKey().toLowerCase().equals(option.getKey())) {
-                    w.write(String.format("        case \"%s\":\n", option.getKey().toLowerCase()));
-                }
-                if (!sync || option.getReturnType().equals("VOID")) {
-                    w.write(String.format("        case \"%s\": %s; return %s;\n", option.getKey(), invoke, ret));
-                } else {
-                    w.write(String.format("        case \"%s\": return %s;\n", option.getKey(), invoke));
-                }
-            }
-            w.write("        default: return null;\n");
-            w.write("        }\n");
-        }
-        w.write("    }\n");
-        w.write("\n");
-
-        w.write("}\n");
-        w.write("\n");
-    }
-
-    protected String bindArg(String type) {
-        if ("org.apache.camel.Exchange".equals(type)) {
-            return "exchange";
-        } else if ("org.apache.camel.Message".equals(type)) {
-            return "exchange.getMessage()";
-        } else if ("org.apache.camel.AsyncCallback".equals(type)) {
-            return "callback";
-        } else if ("org.apache.camel.CamelContext".equals(type)) {
-            return "exchange.getContext()";
-        } else {
-            return "exchange.getMessage().getBody(" + type + ".class)";
-        }
+    @SuppressWarnings("unused")
+    public String bindArg(String type) {
+        return switch (type) {
+            case "org.apache.camel.Exchange" -> "exchange";
+            case "org.apache.camel.Message" -> "exchange.getMessage()";
+            case "org.apache.camel.AsyncCallback" -> "callback";
+            case "org.apache.camel.CamelContext" -> "exchange.getContext()";
+            default -> "exchange.getMessage().getBody(" + type + ".class)";
+        };
     }
 
 }

@@ -52,6 +52,7 @@ public enum ExchangePropertyKey {
     FAILURE_ROUTE_ID(Exchange.FAILURE_ROUTE_ID),
     FATAL_FALLBACK_ERROR_HANDLER(Exchange.FATAL_FALLBACK_ERROR_HANDLER),
     GROUPED_EXCHANGE(Exchange.GROUPED_EXCHANGE),
+    INTERCEPTED_ENDPOINT(Exchange.INTERCEPTED_ENDPOINT),
     INTERCEPT_SEND_TO_ENDPOINT_WHEN_MATCHED(Exchange.INTERCEPT_SEND_TO_ENDPOINT_WHEN_MATCHED),
     LOOP_INDEX(Exchange.LOOP_INDEX),
     LOOP_SIZE(Exchange.LOOP_SIZE),
@@ -61,6 +62,7 @@ public enum ExchangePropertyKey {
     ON_COMPLETION(Exchange.ON_COMPLETION),
     ON_COMPLETION_ROUTE_IDS(Exchange.ON_COMPLETION_ROUTE_IDS),
     PARENT_UNIT_OF_WORK(Exchange.PARENT_UNIT_OF_WORK),
+    RECEIVED_TIMESTAMP(Exchange.RECEIVED_TIMESTAMP),
     RECIPIENT_LIST_ENDPOINT(Exchange.RECIPIENT_LIST_ENDPOINT),
     SLIP_ENDPOINT(Exchange.SLIP_ENDPOINT),
     SLIP_PRODUCER(Exchange.SLIP_PRODUCER),
@@ -83,7 +85,6 @@ public enum ExchangePropertyKey {
         return name;
     }
 
-    // CHECKSTYLE:OFF
     public static ExchangePropertyKey asExchangePropertyKey(String name) {
         switch (name) {
             case Exchange.AGGREGATED_COMPLETED_BY:
@@ -136,14 +137,14 @@ public enum ExchangePropertyKey {
                 return EXCEPTION_HANDLED;
             case Exchange.FAILURE_ENDPOINT:
                 return FAILURE_ENDPOINT;
-            case Exchange.FAILURE_HANDLED:
-                return FAILURE_HANDLED;
             case Exchange.FAILURE_ROUTE_ID:
                 return FAILURE_ROUTE_ID;
             case Exchange.FATAL_FALLBACK_ERROR_HANDLER:
                 return FATAL_FALLBACK_ERROR_HANDLER;
             case Exchange.GROUPED_EXCHANGE:
                 return GROUPED_EXCHANGE;
+            case Exchange.INTERCEPTED_ENDPOINT:
+                return INTERCEPTED_ENDPOINT;
             case Exchange.INTERCEPT_SEND_TO_ENDPOINT_WHEN_MATCHED:
                 return INTERCEPT_SEND_TO_ENDPOINT_WHEN_MATCHED;
             case Exchange.LOOP_INDEX:
@@ -162,6 +163,8 @@ public enum ExchangePropertyKey {
                 return ON_COMPLETION_ROUTE_IDS;
             case Exchange.PARENT_UNIT_OF_WORK:
                 return PARENT_UNIT_OF_WORK;
+            case Exchange.RECEIVED_TIMESTAMP:
+                return RECEIVED_TIMESTAMP;
             case Exchange.RECIPIENT_LIST_ENDPOINT:
                 return RECIPIENT_LIST_ENDPOINT;
             case Exchange.SLIP_ENDPOINT:
@@ -188,5 +191,4 @@ public enum ExchangePropertyKey {
                 return null;
         }
     }
-    // CHECKSTYLE:ON
 }

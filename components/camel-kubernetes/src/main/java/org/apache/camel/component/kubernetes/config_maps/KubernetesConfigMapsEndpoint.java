@@ -31,8 +31,8 @@ import static org.apache.camel.component.kubernetes.KubernetesConstants.SCHEME_C
  * Perform operations on Kubernetes ConfigMaps and get notified on ConfigMaps changes.
  */
 @UriEndpoint(firstVersion = "2.17.0", scheme = SCHEME_CONFIG_MAPS, title = "Kubernetes ConfigMap",
-             syntax = "kubernetes-config-maps:masterUrl", producerOnly = true,
-             category = { Category.CONTAINER, Category.CLOUD, Category.PAAS }, headersClass = KubernetesConstants.class)
+             syntax = "kubernetes-config-maps:masterUrl",
+             category = { Category.CONTAINER, Category.CLOUD }, headersClass = KubernetesConstants.class)
 public class KubernetesConfigMapsEndpoint extends AbstractKubernetesEndpoint {
 
     public KubernetesConfigMapsEndpoint(String uri, KubernetesConfigMapsComponent component, KubernetesConfiguration config) {

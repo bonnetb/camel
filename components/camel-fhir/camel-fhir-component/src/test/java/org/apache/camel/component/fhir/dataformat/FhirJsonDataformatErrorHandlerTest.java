@@ -32,6 +32,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -51,7 +52,7 @@ public class FhirJsonDataformatErrorHandlerTest extends CamelTestSupport {
     }
 
     @Test
-    public void unmarshalParserErrorHandler() throws Throwable {
+    public void unmarshalParserErrorHandler() {
         try {
             template.sendBody("direct:unmarshalErrorHandlerStrict", INPUT);
             fail("Expected a DataFormatException");
@@ -71,7 +72,7 @@ public class FhirJsonDataformatErrorHandlerTest extends CamelTestSupport {
         Exchange exchange = mockEndpoint.getExchanges().get(0);
         Patient patient = (Patient) exchange.getIn().getBody();
         assertEquals(1, patient.getExtension().size());
-        assertEquals(null, patient.getExtension().get(0).getUrl());
+        assertNull(patient.getExtension().get(0).getUrl());
         assertEquals("2011-01-02T11:13:15", patient.getExtension().get(0).getValueAsPrimitive().getValueAsString());
     }
 

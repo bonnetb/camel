@@ -2,9 +2,10 @@
 :doctitle: AWS DynamoDB
 :shortname: aws2-ddb
 :artifactid: camel-aws2-ddb
-:description: Store and retrieve data from AWS DynamoDB service using AWS SDK version 2.x.
+:description: Store and retrieve data from AWS DynamoDB.
 :since: 3.1
 :supportlevel: Stable
+:tabs-sync-option:
 :component-header: Only producer is supported
 //Manually maintained attributes
 :group: AWS
@@ -30,8 +31,9 @@ https://aws.amazon.com/dynamodb[Amazon DynamoDB].
 aws2-ddb://domainName[?options]
 ------------------------------
 
-You can append query options to the URI in the following format,
-?options=value&option2=value&...
+You can append query options to the URI in the following format:
+
+`?options=value&option2=value&...`
 
 
 // component-configure options: START
@@ -55,16 +57,22 @@ the https://aws.amazon.com/dynamodb[Amazon's DynamoDB].
 
 == Usage
 
-=== Static credentials vs Default Credential Provider
+=== Static credentials, Default Credential Provider and Profile Credentials Provider
 
-You have the possibility of avoiding the usage of explicit static credentials, by specifying the useDefaultCredentialsProvider option and set it to true.
+You have the possibility of avoiding the usage of explicit static credentials by specifying the useDefaultCredentialsProvider option and set it to true.
 
- - Java system properties - aws.accessKeyId and aws.secretKey
- - Environment variables - AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.
+The order of evaluation for Default Credentials Provider is the following:
+
+ - Java system properties - `aws.accessKeyId` and `aws.secretKey`.
+ - Environment variables - `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
  - Web Identity Token from AWS STS.
  - The shared credentials and config files.
- - Amazon ECS container credentials - loaded from the Amazon ECS if the environment variable AWS_CONTAINER_CREDENTIALS_RELATIVE_URI is set.
+ - Amazon ECS container credentials - loaded from the Amazon ECS if the environment variable `AWS_CONTAINER_CREDENTIALS_RELATIVE_URI` is set.
  - Amazon EC2 Instance profile credentials. 
+ 
+You have also the possibility of using Profile Credentials Provider, by specifying the useProfileCredentialsProvider option to true and profileCredentialsName to the profile name.
+
+Only one of static, default and profile credentials could be used at the same time.
 
 For more information about this you can look at https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials.html[AWS credentials documentation]
 
@@ -119,6 +127,21 @@ Registry.
 
 == Dependencies
 
+Maven users will need to add the following dependency to their pom.xml.
+
+*pom.xml*
+
+[source,xml]
+---------------------------------------
+<dependency>
+    <groupId>org.apache.camel</groupId>
+    <artifactId>camel-aws2-ddb</artifactId>
+    <version>${camel-version}</version>
+</dependency>
+---------------------------------------
+
+where `$\{camel-version}` must be replaced by the actual version of Camel.
+
 == Examples
 
 === Producer Examples
@@ -156,25 +179,41 @@ keyMap.put("sortKey", AttributeValue.builder().s("1001").build());
 
 from("direct:start")
   .setHeader(Ddb2Constants.OPERATION,  constant(Ddb2Operations.UpdateItem))
-  .setHeader(Ddb2Constants.ITEM,  constant(attributeMap))
+  .setHeader(Ddb2Constants.UPDATE_VALUES,  constant(attributeMap))
   .setHeader(Ddb2Constants.KEY,  constant(keyMap))
   .to("aws2-ddb://" + tableName + "?amazonDDBClient=#client");
 --------------------------------------------------------------------------------
 
-Maven users will need to add the following dependency to their pom.xml.
+- GetItem: this operation will retrieve an entry from DynamoDB
 
-*pom.xml*
+[source,java]
+--------------------------------------------------------------------------------
+from("direct:get")
+  .process(exchange -> {
+      final Map<String, AttributeValue> keyMap = new HashMap<>();
+      keyMap.put("table-key", AttributeValue.builder().s("1").build());
 
-[source,xml]
----------------------------------------
-<dependency>
-    <groupId>org.apache.camel</groupId>
-    <artifactId>camel-aws2-ddb</artifactId>
-    <version>${camel-version}</version>
-</dependency>
----------------------------------------
+      exchange.getIn().setHeader(Ddb2Constants.OPERATION, Ddb2Operations.GetItem);
+      exchange.getIn().setHeader(Ddb2Constants.ATTRIBUTE_NAMES, constant(List.of("table-key", "message")));
+      exchange.getIn().setHeader(Ddb2Constants.KEY, keyMap);
+  })
+  .toF("aws2-ddb://%s?amazonDDBClient=#client&consistentRead=true", tableName);
+--------------------------------------------------------------------------------
 
-where `$\{camel-version}` must be replaced by the actual version of Camel.
+- DeleteItem: this operation will delete an entry from DynamoDB
+
+[source,java]
+--------------------------------------------------------------------------------
+from("direct:delete")
+  .process(exchange -> {
+      final Map<String, AttributeValue> keyMap = new HashMap<>();
+      keyMap.put("table-key", AttributeValue.builder().s("1").build());
+
+      exchange.getIn().setHeader(Ddb2Constants.OPERATION, Ddb2Operations.DeleteItem);
+      exchange.getIn().setHeader(Ddb2Constants.KEY, keyMap);
+  })
+  .toF("aws2-ddb://%s?amazonDDBClient=#client&consistentRead=true", tableName);
+--------------------------------------------------------------------------------
 
 
 include::spring-boot:partial$starter.adoc[]

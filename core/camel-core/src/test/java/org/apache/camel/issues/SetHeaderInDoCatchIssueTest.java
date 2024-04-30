@@ -33,7 +33,7 @@ public class SetHeaderInDoCatchIssueTest extends ContextTestSupport {
     @Test
     public void testSuccess() {
         Exchange exchange = template.request("direct:start", new Processor() {
-            public void process(Exchange exchange) throws Exception {
+            public void process(Exchange exchange) {
                 // empty message
             }
         });
@@ -44,7 +44,7 @@ public class SetHeaderInDoCatchIssueTest extends ContextTestSupport {
     @Test
     public void testExchangeTimedOutException() {
         Exchange exchange = template.request("direct:start", new Processor() {
-            public void process(Exchange exchange) throws Exception {
+            public void process(Exchange exchange) {
                 exchange.getIn().setBody("ExchangeTimedOutException");
             }
         });
@@ -55,7 +55,7 @@ public class SetHeaderInDoCatchIssueTest extends ContextTestSupport {
     @Test
     public void testException() {
         Exchange exchange = template.request("direct:start", new Processor() {
-            public void process(Exchange exchange) throws Exception {
+            public void process(Exchange exchange) {
                 exchange.getIn().setBody("Exception");
             }
         });
@@ -64,18 +64,18 @@ public class SetHeaderInDoCatchIssueTest extends ContextTestSupport {
     }
 
     @Override
-    protected Registry createRegistry() throws Exception {
+    protected Registry createCamelRegistry() {
         Registry registry = new DefaultRegistry();
 
         registry.bind("A", new Processor() {
-            public void process(Exchange exchange) throws Exception {
-                log.info("A headers " + exchange.getIn().getHeaders());
+            public void process(Exchange exchange) {
+                log.info("A headers {}", exchange.getIn().getHeaders());
             }
         });
 
         registry.bind("B", new Processor() {
             public void process(Exchange exchange) throws Exception {
-                log.info("B headers " + exchange.getIn().getHeaders());
+                log.info("B headers {}", exchange.getIn().getHeaders());
 
                 if ("ExchangeTimedOutException".equals(exchange.getIn().getBody(String.class))) {
                     throw new ExchangeTimedOutException(exchange, 1);
@@ -86,8 +86,8 @@ public class SetHeaderInDoCatchIssueTest extends ContextTestSupport {
         });
 
         registry.bind("C", new Processor() {
-            public void process(Exchange exchange) throws Exception {
-                log.info("C headers " + exchange.getIn().getHeaders());
+            public void process(Exchange exchange) {
+                log.info("C headers {}", exchange.getIn().getHeaders());
             }
         });
 
@@ -95,10 +95,10 @@ public class SetHeaderInDoCatchIssueTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 context.setTracing(true);
 
                 from("direct:start").doTry().to("bean:A").setHeader("CamelJmsDestinationName", constant("queue:outQueue"))

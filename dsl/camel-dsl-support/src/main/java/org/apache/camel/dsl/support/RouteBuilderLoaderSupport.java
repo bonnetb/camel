@@ -16,17 +16,22 @@
  */
 package org.apache.camel.dsl.support;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
 import org.apache.camel.CamelContextAware;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.RoutesBuilder;
 import org.apache.camel.StartupStep;
 import org.apache.camel.api.management.ManagedAttribute;
+import org.apache.camel.api.management.ManagedOperation;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.builder.RouteBuilderLifecycleStrategy;
+import org.apache.camel.spi.CompilePostProcessor;
 import org.apache.camel.spi.Resource;
 import org.apache.camel.spi.RoutesBuilderLoader;
 import org.apache.camel.spi.StartupStepRecorder;
@@ -39,6 +44,7 @@ public abstract class RouteBuilderLoaderSupport extends RoutesBuilderLoaderSuppo
     private final String extension;
     private final List<CompilePostProcessor> compilePostProcessors = new ArrayList<>();
     private StartupStepRecorder recorder;
+    private SourceLoader sourceLoader = new DefaultSourceLoader();
 
     protected RouteBuilderLoaderSupport(String extension) {
         this.extension = extension;
@@ -48,6 +54,12 @@ public abstract class RouteBuilderLoaderSupport extends RoutesBuilderLoaderSuppo
     @Override
     public String getSupportedExtension() {
         return extension;
+    }
+
+    @ManagedOperation(description = "Is the file extension supported by this route loader")
+    @Override
+    public boolean isSupportedExtension(String extension) {
+        return super.isSupportedExtension(extension);
     }
 
     /**
@@ -70,7 +82,7 @@ public abstract class RouteBuilderLoaderSupport extends RoutesBuilderLoaderSuppo
         super.doBuild();
 
         if (getCamelContext() != null) {
-            this.recorder = getCamelContext().adapt(ExtendedCamelContext.class).getStartupStepRecorder();
+            this.recorder = getCamelContext().getCamelContextExtension().getStartupStepRecorder();
         }
     }
 
@@ -85,6 +97,11 @@ public abstract class RouteBuilderLoaderSupport extends RoutesBuilderLoaderSuppo
                 for (CompilePostProcessor pre : pres) {
                     addCompilePostProcessor(pre);
                 }
+            }
+            // discover a special source loader to be used
+            SourceLoader sl = getCamelContext().getRegistry().findSingleByType(SourceLoader.class);
+            if (sl != null) {
+                this.sourceLoader = sl;
             }
         }
     }
@@ -114,5 +131,27 @@ public abstract class RouteBuilderLoaderSupport extends RoutesBuilderLoaderSuppo
         return builder;
     }
 
+    /**
+     * Gets the input stream to the resource
+     *
+     * @param  resource the resource
+     * @return          the input stream
+     */
+    protected InputStream resourceInputStream(Resource resource) throws IOException {
+        // load into memory as we need to skip a specific first-line if present
+        String data = sourceLoader.loadResource(resource);
+        if (data.isBlank()) {
+            throw new IOException("Resource is empty: " + resource.getLocation());
+        }
+        return new ByteArrayInputStream(data.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * Loads {@link RoutesBuilder} from {@link Resource} from the DSL implementation.
+     *
+     * @param  resource the resource to be loaded.
+     * @return          a {@link RoutesBuilder}
+     */
     protected abstract RouteBuilder doLoadRouteBuilder(Resource resource) throws Exception;
+
 }

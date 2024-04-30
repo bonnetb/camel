@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.builder.RouteBuilder;
@@ -53,7 +52,8 @@ public class MainHealthCheckExcludedPatternTest {
             CamelContext camelContext = main.getCamelContext();
             assertNotNull(camelContext);
 
-            HealthCheckRegistry healthCheckRegistry = camelContext.getExtension(HealthCheckRegistry.class);
+            HealthCheckRegistry healthCheckRegistry
+                    = camelContext.getCamelContextExtension().getContextPlugin(HealthCheckRegistry.class);
             assertNotNull(healthCheckRegistry);
 
             Optional<HealthCheckRepository> routes = healthCheckRegistry.getRepository("routes");
@@ -96,7 +96,8 @@ public class MainHealthCheckExcludedPatternTest {
             // register custom health check
             camelContext.getRegistry().bind("custom", healthCheck);
 
-            HealthCheckRegistry healthCheckRegistry = camelContext.getExtension(HealthCheckRegistry.class);
+            HealthCheckRegistry healthCheckRegistry
+                    = camelContext.getCamelContextExtension().getContextPlugin(HealthCheckRegistry.class);
             assertNotNull(healthCheckRegistry);
 
             Optional<HealthCheckRepository> repository = healthCheckRegistry.getRepository("registry-health-check-repository");
@@ -105,7 +106,7 @@ public class MainHealthCheckExcludedPatternTest {
             HealthCheckRegistryRepository registryRepository = (HealthCheckRegistryRepository) repository.get();
             assertTrue(registryRepository.isEnabled());
 
-            List<HealthCheck> healthChecks = registryRepository.stream().collect(Collectors.toList());
+            List<HealthCheck> healthChecks = registryRepository.stream().toList();
             assertEquals(1, healthChecks.size());
 
             assertTrue(healthCheckRegistry.getCheck("custom").isPresent());
@@ -137,17 +138,18 @@ public class MainHealthCheckExcludedPatternTest {
                 }
             };
 
-            HealthCheckRegistry healthCheckRegistry = camelContext.getExtension(HealthCheckRegistry.class);
+            HealthCheckRegistry healthCheckRegistry
+                    = camelContext.getCamelContextExtension().getContextPlugin(HealthCheckRegistry.class);
             assertNotNull(healthCheckRegistry);
 
-            List<HealthCheck> healthChecks = healthCheckRegistry.stream().collect(Collectors.toList());
+            List<HealthCheck> healthChecks = healthCheckRegistry.stream().toList();
             int before = healthChecks.size();
 
             // register custom health check which should be excluded
             boolean added = healthCheckRegistry.register(healthCheck);
             assertTrue(added);
 
-            healthChecks = healthCheckRegistry.stream().collect(Collectors.toList());
+            healthChecks = healthCheckRegistry.stream().toList();
             int after = healthChecks.size();
             assertEquals(before + 1, after);
 
@@ -164,7 +166,7 @@ public class MainHealthCheckExcludedPatternTest {
     static class Routes extends RouteBuilder {
 
         @Override
-        public void configure() throws Exception {
+        public void configure() {
             from("direct:start").routeId("mydirect")
                     .to("log:direct");
 

@@ -18,9 +18,10 @@ package org.apache.camel.impl.engine;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.CamelContextAware;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.RuntimeCamelException;
+import org.apache.camel.spi.CamelBeanPostProcessor;
 import org.apache.camel.spi.CamelDependencyInjectionAnnotationFactory;
+import org.apache.camel.support.PluginHelper;
 
 /**
  * Default implementation of the {@link CamelDependencyInjectionAnnotationFactory}.
@@ -28,10 +29,10 @@ import org.apache.camel.spi.CamelDependencyInjectionAnnotationFactory;
 public class DefaultDependencyInjectionAnnotationFactory
         implements CamelDependencyInjectionAnnotationFactory, CamelContextAware {
 
-    private ExtendedCamelContext camelContext;
+    private CamelContext camelContext;
 
     public DefaultDependencyInjectionAnnotationFactory(CamelContext camelContext) {
-        this.camelContext = camelContext.adapt(ExtendedCamelContext.class);
+        this.camelContext = camelContext;
     }
 
     @Override
@@ -41,7 +42,7 @@ public class DefaultDependencyInjectionAnnotationFactory
 
     @Override
     public void setCamelContext(CamelContext camelContext) {
-        this.camelContext = camelContext.adapt(ExtendedCamelContext.class);
+        this.camelContext = camelContext;
     }
 
     @Override
@@ -49,10 +50,10 @@ public class DefaultDependencyInjectionAnnotationFactory
         return () -> {
             if (beanPostProcess) {
                 try {
-                    camelContext.getBeanPostProcessor()
-                            .postProcessBeforeInitialization(bean, beanName);
-                    camelContext.adapt(ExtendedCamelContext.class).getBeanPostProcessor()
-                            .postProcessAfterInitialization(bean, beanName);
+                    final CamelBeanPostProcessor beanPostProcessor = PluginHelper.getBeanPostProcessor(camelContext);
+
+                    beanPostProcessor.postProcessBeforeInitialization(bean, beanName);
+                    beanPostProcessor.postProcessAfterInitialization(bean, beanName);
                 } catch (Exception e) {
                     throw RuntimeCamelException.wrapRuntimeException(e);
                 }

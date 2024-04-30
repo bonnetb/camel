@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 
 import org.apache.camel.EndpointInject;
 import org.apache.camel.Exchange;
@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -53,10 +54,10 @@ import static org.junit.jupiter.api.Assertions.fail;
 @Isolated
 public class SpringHttpsRouteTest {
     private static final String NULL_VALUE_MARKER = CamelTestSupport.class.getCanonicalName();
-    protected String expectedBody = "<hello>world!</hello>";
+    protected final String expectedBody = "<hello>world!</hello>";
     protected String pwd = "changeit";
-    protected Properties originalValues = new Properties();
-    protected transient Logger log = LoggerFactory.getLogger(SpringHttpsRouteTest.class);
+    protected final Properties originalValues = new Properties();
+    protected final transient Logger log = LoggerFactory.getLogger(SpringHttpsRouteTest.class);
 
     @EndpointInject("mock:a")
     MockEndpoint mockEndpoint;
@@ -67,16 +68,17 @@ public class SpringHttpsRouteTest {
     private Integer port;
 
     @BeforeEach
-    public void setUp() throws Exception {
-        // ensure jsse clients can validate the self signed dummy localhost
+    public void setUp() {
+        // ensure jsse clients can validate the self-signed dummy localhost
         // cert,
         // use the server keystore as the trust store for these tests
         URL trustStoreUrl = Thread.currentThread().getContextClassLoader().getResource("jsse/localhost.p12");
         setSystemProp("javax.net.ssl.trustStore", trustStoreUrl.getPath());
+        setSystemProp("javax.net.ssl.trustStorePassword", pwd);
     }
 
     @AfterEach
-    public void tearDown() throws Exception {
+    public void tearDown() {
         restoreSystemProperties();
     }
 
@@ -86,8 +88,9 @@ public class SpringHttpsRouteTest {
     }
 
     private void restoreSystemProperties() {
-        for (Object key : originalValues.keySet()) {
-            Object value = originalValues.get(key);
+        for (Map.Entry<Object, Object> entry : originalValues.entrySet()) {
+            Object key = entry.getKey();
+            Object value = entry.getValue();
             if (NULL_VALUE_MARKER.equals(value)) {
                 System.clearProperty((String) key);
             } else {
@@ -113,9 +116,9 @@ public class SpringHttpsRouteTest {
 
         Map<String, Object> headers = in.getHeaders();
 
-        log.info("Headers: " + headers);
+        log.info("Headers: {}", headers);
 
-        assertTrue(headers.size() > 0, "Should be more than one header but was: " + headers);
+        assertFalse(headers.isEmpty(), "Should be more than one header but was: " + headers);
     }
 
     @Test

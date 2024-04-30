@@ -18,6 +18,8 @@ package org.apache.camel.component.aws2.eventbridge.client;
 
 import org.apache.camel.component.aws2.eventbridge.EventbridgeConfiguration;
 import org.apache.camel.component.aws2.eventbridge.client.impl.EventbridgeClientIAMOptimizedImpl;
+import org.apache.camel.component.aws2.eventbridge.client.impl.EventbridgeClientIAMProfileOptimizedImpl;
+import org.apache.camel.component.aws2.eventbridge.client.impl.EventbridgeClientSessionTokenImpl;
 import org.apache.camel.component.aws2.eventbridge.client.impl.EventbridgeClientStandardImpl;
 
 /**
@@ -30,12 +32,19 @@ public final class EventbridgeClientFactory {
 
     /**
      * Return the correct AWS Eventbridge client (based on remote vs local).
-     * 
+     *
      * @param  configuration configuration
      * @return               EventBridgeClient
      */
     public static EventbridgeInternalClient getEventbridgeClient(EventbridgeConfiguration configuration) {
-        return configuration.isUseDefaultCredentialsProvider()
-                ? new EventbridgeClientIAMOptimizedImpl(configuration) : new EventbridgeClientStandardImpl(configuration);
+        if (Boolean.TRUE.equals(configuration.isUseDefaultCredentialsProvider())) {
+            return new EventbridgeClientIAMOptimizedImpl(configuration);
+        } else if (Boolean.TRUE.equals(configuration.isUseProfileCredentialsProvider())) {
+            return new EventbridgeClientIAMProfileOptimizedImpl(configuration);
+        } else if (Boolean.TRUE.equals(configuration.isUseSessionCredentials())) {
+            return new EventbridgeClientSessionTokenImpl(configuration);
+        } else {
+            return new EventbridgeClientStandardImpl(configuration);
+        }
     }
 }

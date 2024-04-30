@@ -16,33 +16,45 @@
  */
 package org.apache.camel.component.jms;
 
-import javax.jms.ConnectionFactory;
-
 import org.apache.camel.CamelContext;
+import org.apache.camel.ConsumerTemplate;
+import org.apache.camel.ProducerTemplate;
 import org.apache.camel.builder.RouteBuilder;
-import org.apache.camel.test.junit5.CamelTestSupport;
+import org.apache.camel.test.infra.core.CamelContextExtension;
+import org.apache.camel.test.infra.core.DefaultCamelContextExtension;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
-import static org.apache.camel.component.jms.JmsComponent.jmsComponentAutoAcknowledge;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class SimpleJmsRequestReplyTest extends CamelTestSupport {
+public class SimpleJmsRequestReplyTest extends AbstractJMSTest {
+
+    @Order(2)
+    @RegisterExtension
+    public static CamelContextExtension camelContextExtension = new DefaultCamelContextExtension();
+    protected CamelContext context;
+    protected ProducerTemplate template;
+    protected ConsumerTemplate consumer;
 
     @Test
     public void testJmsRequestReply() {
-        assertEquals("Hello A", template.requestBody("activemq:queue:foo?replyToConsumerType=Simple", "A"));
-        assertEquals("Hello B", template.requestBody("activemq:queue:foo?replyToConsumerType=Simple", "B"));
-        assertEquals("Hello C", template.requestBody("activemq:queue:foo?replyToConsumerType=Simple", "C"));
-        assertEquals("Hello D", template.requestBody("activemq:queue:foo?replyToConsumerType=Simple", "D"));
-        assertEquals("Hello E", template.requestBody("activemq:queue:foo?replyToConsumerType=Simple", "E"));
+        assertEquals("Hello A",
+                template.requestBody("activemq:queue:SimpleJmsRequestReplyTest?replyToConsumerType=Simple", "A"));
+        assertEquals("Hello B",
+                template.requestBody("activemq:queue:SimpleJmsRequestReplyTest?replyToConsumerType=Simple", "B"));
+        assertEquals("Hello C",
+                template.requestBody("activemq:queue:SimpleJmsRequestReplyTest?replyToConsumerType=Simple", "C"));
+        assertEquals("Hello D",
+                template.requestBody("activemq:queue:SimpleJmsRequestReplyTest?replyToConsumerType=Simple", "D"));
+        assertEquals("Hello E",
+                template.requestBody("activemq:queue:SimpleJmsRequestReplyTest?replyToConsumerType=Simple", "E"));
     }
 
     @Override
-    protected CamelContext createCamelContext() throws Exception {
-        CamelContext camelContext = super.createCamelContext();
-        ConnectionFactory connectionFactory = CamelJmsTestHelper.createConnectionFactory();
-        camelContext.addComponent("activemq", jmsComponentAutoAcknowledge(connectionFactory));
-        return camelContext;
+    protected String getComponentName() {
+        return "activemq";
     }
 
     @Override
@@ -50,9 +62,21 @@ public class SimpleJmsRequestReplyTest extends CamelTestSupport {
         return new RouteBuilder() {
             @Override
             public void configure() {
-                from("activemq:queue:foo")
+                from("activemq:queue:SimpleJmsRequestReplyTest")
                         .transform(body().prepend("Hello "));
             }
         };
+    }
+
+    @Override
+    public CamelContextExtension getCamelContextExtension() {
+        return camelContextExtension;
+    }
+
+    @BeforeEach
+    void setUpRequirements() {
+        context = camelContextExtension.getContext();
+        template = camelContextExtension.getProducerTemplate();
+        consumer = camelContextExtension.getConsumerTemplate();
     }
 }

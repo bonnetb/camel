@@ -36,12 +36,12 @@ import static org.apache.camel.component.ignite.IgniteConstants.SCHEME_COMPUTE;
 
 /**
  * Run <a href="https://apacheignite.readme.io/docs/compute-grid">compute operations</a> on an Ignite cluster.
- * 
+ *
  * You can pass an IgniteCallable, an IgniteRunnable, an IgniteClosure, or collections of them, along with their
  * parameters if necessary. This endpoint only supports producers.
  */
 @UriEndpoint(firstVersion = "2.17.0", scheme = SCHEME_COMPUTE, title = "Ignite Compute", syntax = "ignite-compute:endpointId",
-             category = { Category.COMPUTE }, producerOnly = true, headersClass = IgniteConstants.class)
+             category = { Category.CACHE, Category.CLUSTERING }, producerOnly = true, headersClass = IgniteConstants.class)
 public class IgniteComputeEndpoint extends AbstractIgniteEndpoint {
 
     @UriPath

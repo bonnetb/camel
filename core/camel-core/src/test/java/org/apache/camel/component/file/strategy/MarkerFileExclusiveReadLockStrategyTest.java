@@ -19,6 +19,8 @@ package org.apache.camel.component.file.strategy;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.camel.ContextTestSupport;
@@ -27,20 +29,24 @@ import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Isolated;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests the MarkerFileExclusiveReadLockStrategy in a multi-threaded scenario.
  */
+@Isolated
 public class MarkerFileExclusiveReadLockStrategyTest extends ContextTestSupport {
 
     private static final Logger LOG = LoggerFactory.getLogger(MarkerFileExclusiveReadLockStrategyTest.class);
     private static final int NUMBER_OF_THREADS = 5;
-    private AtomicInteger numberOfFilesProcessed = new AtomicInteger();
+    private final AtomicInteger numberOfFilesProcessed = new AtomicInteger();
+    private final CountDownLatch latch = new CountDownLatch(2);
 
     @Test
     public void testMultithreadedLocking() throws Exception {
@@ -55,17 +61,19 @@ public class MarkerFileExclusiveReadLockStrategyTest extends ContextTestSupport 
 
         String content = new String(Files.readAllBytes(testFile("out/file1.dat")));
         String[] lines = content.split(LS);
+        assertEquals(20, lines.length);
         for (int i = 0; i < 20; i++) {
             assertEquals("Line " + i, lines[i]);
         }
 
         content = new String(Files.readAllBytes(testFile("out/file2.dat")));
         lines = content.split(LS);
+        assertEquals(20, lines.length);
         for (int i = 0; i < 20; i++) {
             assertEquals("Line " + i, lines[i]);
         }
 
-        waitUntilCompleted();
+        assertTrue(latch.await(10, TimeUnit.SECONDS), "Did not process the messages within 10 seconds");
 
         assertFileDoesNotExists(testFile("in/file1.dat.camelLock"));
         assertFileDoesNotExists(testFile("in/file2.dat.camelLock"));
@@ -84,7 +92,7 @@ public class MarkerFileExclusiveReadLockStrategyTest extends ContextTestSupport 
             for (int i = 0; i < 20; i++) {
                 fos.write(("Line " + i + LS).getBytes());
                 fos2.write(("Line " + i + LS).getBytes());
-                LOG.debug("Writing line " + i);
+                LOG.debug("Writing line {}", i);
             }
             fos.flush();
             fos2.flush();
@@ -92,28 +100,19 @@ public class MarkerFileExclusiveReadLockStrategyTest extends ContextTestSupport 
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from(fileUri("in?readLock=markerFile&initialDelay=0&delay=10")).onCompletion()
                         .process(new Processor() {
-                            public void process(Exchange exchange) throws Exception {
+                            public void process(Exchange exchange) {
                                 numberOfFilesProcessed.addAndGet(1);
+                                latch.countDown();
                             }
                         }).end().threads(NUMBER_OF_THREADS).to(fileUri("out"), "mock:result");
             }
         };
-    }
-
-    private void waitUntilCompleted() {
-        while (this.numberOfFilesProcessed.get() < 2) {
-            try {
-                Thread.sleep(10);
-            } catch (InterruptedException e) {
-                // ignore
-            }
-        }
     }
 
     private static void assertFileDoesNotExists(Path file) {

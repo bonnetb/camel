@@ -19,7 +19,6 @@ package org.apache.camel.processor.interceptor;
 import org.apache.camel.CamelContext;
 import org.apache.camel.ContextTestSupport;
 import org.apache.camel.Exchange;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.NamedNode;
 import org.apache.camel.Ordered;
 import org.apache.camel.Processor;
@@ -40,14 +39,14 @@ public class InterceptorStrategyOrderedTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 // interceptors should be invoked according to how they are
                 // ordered
-                context.adapt(ExtendedCamelContext.class).addInterceptStrategy(new BarInterceptStrategy());
-                context.adapt(ExtendedCamelContext.class).addInterceptStrategy(new FooInterceptStrategy());
+                context.getCamelContextExtension().addInterceptStrategy(new BarInterceptStrategy());
+                context.getCamelContextExtension().addInterceptStrategy(new FooInterceptStrategy());
 
                 from("direct:start").to("mock:result");
             }
@@ -58,8 +57,7 @@ public class InterceptorStrategyOrderedTest extends ContextTestSupport {
 
         @Override
         public Processor wrapProcessorInInterceptors(
-                CamelContext context, NamedNode definition, final Processor target, Processor nextTarget)
-                throws Exception {
+                CamelContext context, NamedNode definition, final Processor target, Processor nextTarget) {
             Processor answer = new Processor() {
                 public void process(Exchange exchange) throws Exception {
                     String order = exchange.getIn().getHeader("order", "", String.class);
@@ -82,8 +80,7 @@ public class InterceptorStrategyOrderedTest extends ContextTestSupport {
 
         @Override
         public Processor wrapProcessorInInterceptors(
-                CamelContext context, NamedNode definition, final Processor target, Processor nextTarget)
-                throws Exception {
+                CamelContext context, NamedNode definition, final Processor target, Processor nextTarget) {
             Processor answer = new Processor() {
                 public void process(Exchange exchange) throws Exception {
                     String order = exchange.getIn().getHeader("order", "", String.class);

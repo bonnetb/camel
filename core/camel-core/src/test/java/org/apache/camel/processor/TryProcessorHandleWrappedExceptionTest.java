@@ -56,19 +56,19 @@ public class TryProcessorHandleWrappedExceptionTest extends ContextTestSupport {
         };
     }
 
-    private class ProcessorFail implements Processor {
+    private static class ProcessorFail implements Processor {
         @Override
-        public void process(Exchange exchange) throws Exception {
+        public void process(Exchange exchange) {
             throw new IllegalStateException("Force to fail");
         }
     }
 
     private class ProcessorHandle implements Processor {
         @Override
-        public void process(Exchange exchange) throws Exception {
+        public void process(Exchange exchange) {
             handled = true;
 
-            assertEquals(false, exchange.isFailed(), "Should not be marked as failed");
+            assertFalse(exchange.isFailed(), "Should not be marked as failed");
 
             Exception e = (Exception) exchange.getProperty(Exchange.EXCEPTION_CAUGHT);
             assertNotNull(e, "There should be an exception");

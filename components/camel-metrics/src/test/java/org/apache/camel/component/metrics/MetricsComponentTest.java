@@ -22,11 +22,13 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.codahale.metrics.MetricRegistry;
+import org.apache.camel.CamelContext;
 import org.apache.camel.Endpoint;
 import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.RuntimeCamelException;
 import org.apache.camel.impl.engine.DefaultBeanIntrospection;
 import org.apache.camel.spi.Registry;
+import org.apache.camel.support.PluginHelper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,7 +52,10 @@ import static org.mockito.Mockito.when;
 public class MetricsComponentTest {
 
     @Mock
-    private ExtendedCamelContext camelContext;
+    private CamelContext camelContext;
+
+    @Mock
+    private ExtendedCamelContext ecc;
 
     @Mock
     private Registry camelRegistry;
@@ -75,9 +80,9 @@ public class MetricsComponentTest {
         when(camelContext.resolvePropertyPlaceholders(anyString())).then(returnsFirstArg());
         when(camelRegistry.lookupByNameAndType(MetricsComponent.METRIC_REGISTRY_NAME, MetricRegistry.class))
                 .thenReturn(metricRegistry);
-        when(camelContext.adapt(ExtendedCamelContext.class)).thenReturn(camelContext);
-        when(camelContext.getBeanIntrospection()).thenReturn(new DefaultBeanIntrospection());
-        when(camelContext.getConfigurerResolver()).thenReturn((name, context) -> null);
+        when(camelContext.getCamelContextExtension()).thenReturn(ecc);
+        when(PluginHelper.getBeanIntrospection(ecc)).thenReturn(new DefaultBeanIntrospection());
+        when(PluginHelper.getConfigurerResolver(ecc)).thenReturn((name, context) -> null);
 
         Map<String, Object> params = new HashMap<>();
         Long value = System.currentTimeMillis();
@@ -104,12 +109,12 @@ public class MetricsComponentTest {
         when(camelContext.resolvePropertyPlaceholders(anyString())).then(returnsFirstArg());
         when(camelRegistry.lookupByNameAndType(MetricsComponent.METRIC_REGISTRY_NAME, MetricRegistry.class))
                 .thenReturn(metricRegistry);
-        when(camelContext.adapt(ExtendedCamelContext.class)).thenReturn(camelContext);
-        when(camelContext.getBeanIntrospection()).thenReturn(new DefaultBeanIntrospection());
-        when(camelContext.getConfigurerResolver()).thenReturn((name, context) -> null);
+        when(camelContext.getCamelContextExtension()).thenReturn(ecc);
+        when(PluginHelper.getBeanIntrospection(ecc)).thenReturn(new DefaultBeanIntrospection());
+        when(PluginHelper.getConfigurerResolver(ecc)).thenReturn((name, context) -> null);
 
         Map<String, Object> params = new HashMap<>();
-        Long value = System.currentTimeMillis();
+        long value = System.currentTimeMillis();
         params.put("mark", value);
         component.init();
         Endpoint result = component.createEndpoint("metrics:meter:long.meter", "meter:long.meter", params);

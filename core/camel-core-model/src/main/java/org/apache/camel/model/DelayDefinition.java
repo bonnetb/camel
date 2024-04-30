@@ -18,11 +18,11 @@ package org.apache.camel.model;
 
 import java.util.concurrent.ExecutorService;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
 
 import org.apache.camel.Expression;
 import org.apache.camel.builder.ExpressionBuilder;
@@ -100,10 +100,31 @@ public class DelayDefinition extends ExpressionNode implements ExecutorServiceAw
     }
 
     /**
+     * Whether or not the caller should run the task when it was rejected by the thread pool.
+     * <p/>
+     * Is by default <tt>true</tt>
+     *
+     * @param  callerRunsWhenRejected whether or not the caller should run
+     * @return                        the builder
+     */
+    public DelayDefinition callerRunsWhenRejected(String callerRunsWhenRejected) {
+        setCallerRunsWhenRejected(callerRunsWhenRejected);
+        return this;
+    }
+
+    /**
      * Enables asynchronous delay which means the thread will <b>not</b> block while delaying.
      */
     public DelayDefinition asyncDelayed() {
         setAsyncDelayed(Boolean.toString(true));
+        return this;
+    }
+
+    /**
+     * Enables asynchronous delay which means the thread will <b>not</b> block while delaying.
+     */
+    public DelayDefinition asyncDelayed(String asyncDelayed) {
+        setAsyncDelayed(asyncDelayed);
         return this;
     }
 

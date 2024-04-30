@@ -16,13 +16,14 @@
  */
 package org.apache.camel.model;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlRootElement;
 
 import org.apache.camel.Endpoint;
 import org.apache.camel.ExchangePattern;
+import org.apache.camel.Message;
 import org.apache.camel.builder.EndpointProducerBuilder;
 import org.apache.camel.spi.Metadata;
 
@@ -32,10 +33,14 @@ import org.apache.camel.spi.Metadata;
 @Metadata(label = "eip,routing")
 @XmlRootElement(name = "to")
 @XmlAccessorType(XmlAccessType.FIELD)
-public class ToDefinition extends SendDefinition<ToDefinition> {
+public class ToDefinition extends SendDefinition<ToDefinition> implements Copyable {
 
     @XmlAttribute
-    @Metadata(label = "advanced", javaType = "org.apache.camel.ExchangePattern", enums = "InOnly,InOut,InOptionalOut")
+    private String variableSend;
+    @XmlAttribute
+    private String variableReceive;
+    @XmlAttribute
+    @Metadata(label = "advanced", javaType = "org.apache.camel.ExchangePattern", enums = "InOnly,InOut")
     private String pattern;
 
     public ToDefinition() {
@@ -71,6 +76,13 @@ public class ToDefinition extends SendDefinition<ToDefinition> {
         this.pattern = pattern.name();
     }
 
+    protected ToDefinition(ToDefinition source) {
+        super(source);
+        this.variableSend = source.variableSend;
+        this.variableReceive = source.variableReceive;
+        this.pattern = source.pattern;
+    }
+
     @Override
     public String getShortName() {
         return "to";
@@ -93,4 +105,38 @@ public class ToDefinition extends SendDefinition<ToDefinition> {
         this.pattern = pattern;
     }
 
+    public String getVariableSend() {
+        return variableSend;
+    }
+
+    /**
+     * To use a variable as the source for the message body to send. This makes it handy to use variables for user data
+     * and to easily control what data to use for sending and receiving.
+     *
+     * Important: When using send variable then the message body is taken from this variable instead of the current
+     * {@link Message}, however the headers from the {@link Message} will still be used as well. In other words, the
+     * variable is used instead of the message body, but everything else is as usual.
+     */
+    public void setVariableSend(String variableSend) {
+        this.variableSend = variableSend;
+    }
+
+    public String getVariableReceive() {
+        return variableReceive;
+    }
+
+    /**
+     * To use a variable to store the received message body (only body, not headers). This is handy for easy access to
+     * the received message body via variables.
+     *
+     * Important: When using receive variable then the received body is stored only in this variable and <b>not</b> on
+     * the current {@link org.apache.camel.Message}.
+     */
+    public void setVariableReceive(String variableReceive) {
+        this.variableReceive = variableReceive;
+    }
+
+    public ToDefinition copy() {
+        return new ToDefinition(this);
+    }
 }

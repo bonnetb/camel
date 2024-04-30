@@ -21,7 +21,7 @@ import org.apache.camel.ContextTestSupport;
 import org.apache.camel.builder.RouteBuilder;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.fail;
 
 public class ThrowExceptionNullMessageTest extends ContextTestSupport {
@@ -36,17 +36,17 @@ public class ThrowExceptionNullMessageTest extends ContextTestSupport {
             fail("Should have thrown an exception");
         } catch (CamelExecutionException e) {
             assertIsInstanceOf(IllegalArgumentException.class, e.getCause());
-            assertEquals(null, e.getCause().getMessage());
+            assertNull(e.getCause().getMessage());
         }
 
         assertMockEndpointsSatisfied();
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:start").to("mock:start").throwException(IllegalArgumentException.class, null).to("mock:result");
             }
         };

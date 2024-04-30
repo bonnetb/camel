@@ -17,15 +17,14 @@
     limitations under the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
         <groupId>org.apache.camel</groupId>
         <artifactId>camel-yaml-dsl-parent</artifactId>
-        <version>3.17.0-SNAPSHOT</version>
+        <version>4.6.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>camel-yaml-dsl</artifactId>
@@ -43,6 +42,11 @@
         <sourcecheckExcludesComma>
             ${sourcecheckExcludes},
         </sourcecheckExcludesComma>
+        <annotations>
+            routes.language=yaml
+        </annotations>
+
+        <camel-generate-yaml-writer>true</camel-generate-yaml-writer>
     </properties>
 
     <dependencies>
@@ -67,6 +71,7 @@
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
+            <version>${assertj-version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -76,11 +81,11 @@
             <scope>test</scope>
             <exclusions>
                 <exclusion>
-                    <groupId>org.codehaus.groovy</groupId>
+                    <groupId>org.apache.groovy</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
                 <exclusion>
-                    <groupId>junit</groupId>
+                    <groupId>org.junit.platform</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
             </exclusions>
@@ -124,6 +129,11 @@
         <dependency>
             <groupId>org.apache.camel</groupId>
             <artifactId>camel-stub</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.camel</groupId>
+            <artifactId>camel-stax</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -183,30 +193,39 @@
         </dependency>
         <dependency>
             <groupId>org.apache.camel</groupId>
+            <artifactId>camel-jacksonxml</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.camel</groupId>
             <artifactId>camel-sql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.camel</groupId>
+            <artifactId>camel-platform-http</artifactId>
             <scope>test</scope>
         </dependency>
 
         <dependency>
-            <groupId>org.codehaus.groovy</groupId>
+            <groupId>org.apache.groovy</groupId>
             <artifactId>groovy</artifactId>
             <version>${groovy-version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.codehaus.groovy</groupId>
-            <artifactId>groovy-test</artifactId>
+            <groupId>org.apache.groovy</groupId>
+            <artifactId>groovy-test-junit5</artifactId>
             <version>${groovy-version}</version>
             <scope>test</scope>
         </dependency>
 
         <dependency>
-            <groupId>com.github.java-json-tools</groupId>
+            <groupId>com.networknt</groupId>
             <artifactId>json-schema-validator</artifactId>
-            <version>${json-schema-validator-version}</version>
+            <version>${networknt-json-schema-validator-version}</version>
             <scope>test</scope>
         </dependency>
-
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
@@ -217,7 +236,6 @@
             <artifactId>jackson-dataformat-yaml</artifactId>
             <scope>test</scope>
         </dependency>
-
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-dbcp2</artifactId>
@@ -227,7 +245,7 @@
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <version>42.3.3</version>
+            <version>42.7.3</version>
             <scope>test</scope>
         </dependency>
 
@@ -238,7 +256,7 @@
         </dependency>
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-slf4j-impl</artifactId>
+            <artifactId>log4j-slf4j2-impl</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -254,7 +272,6 @@
             <plugin>
                 <groupId>org.apache.camel</groupId>
                 <artifactId>camel-yaml-dsl-maven-plugin</artifactId>
-                <version>${project.version}</version>
                 <executions>
                     <!-- camelCase -->
                     <execution>
@@ -264,26 +281,8 @@
                             <goal>generate-yaml-schema</goal>
                         </goals>
                         <configuration>
-                            <kebabCase>false</kebabCase>
-                            <outputFile>src/generated/resources/camelYamlDsl.json</outputFile>
-                            <bannedDefinitions>
-                                <bannedDefinition>org.apache.camel.model.FromDefinition</bannedDefinition>
-                            </bannedDefinitions>
-                        </configuration>
-                    </execution>
-                    <!-- kebab-case -->
-                    <execution>
-                        <id>generate-yaml-schema-kebab-case</id>
-                        <phase>generate-sources</phase>
-                        <goals>
-                            <goal>generate-yaml-schema</goal>
-                        </goals>
-                        <configuration>
-                            <kebabCase>true</kebabCase>
-                            <outputFile>src/generated/resources/camel-yaml-dsl.json</outputFile>
-                            <bannedDefinitions>
-                                <bannedDefinition>org.apache.camel.model.FromDefinition</bannedDefinition>
-                            </bannedDefinitions>
+                            <additionalProperties>false</additionalProperties>
+                            <outputFile>src/generated/resources/schema/camelYamlDsl.json</outputFile>
                         </configuration>
                     </execution>
                 </executions>
@@ -301,7 +300,7 @@
                         </goals>
                         <configuration>
                             <specificationUri>${project.basedir}/src/test/resources/openapi.json</specificationUri>
-                            <outputDirectory>${project.build.outputDirectory}/rest-dsl</outputDirectory>
+                            <outputDirectory>${project.build.testOutputDirectory}/rest-dsl</outputDirectory>
                             <fileName>generated-rest-dsl.yaml</fileName>
                         </configuration>
                     </execution>
@@ -322,19 +321,6 @@
                 <configuration>
                     <invokeDynamic>true</invokeDynamic>
                 </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.camel</groupId>
-                <artifactId>camel-package-maven-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>generate-spi</id>
-                        <goals>
-                            <goal>generate-spi</goal>
-                            <goal>generate-others-list</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>

@@ -17,61 +17,74 @@
 package org.apache.camel.processor.idempotent.kafka;
 
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
+import org.apache.camel.BindToRegistry;
+import org.apache.camel.CamelContext;
 import org.apache.camel.CamelExecutionException;
-import org.apache.camel.EndpointInject;
-import org.apache.camel.RoutesBuilder;
+import org.apache.camel.ProducerTemplate;
 import org.apache.camel.builder.RouteBuilder;
-import org.apache.camel.component.kafka.integration.BaseEmbeddedKafkaTestSupport;
+import org.apache.camel.component.kafka.integration.common.KafkaTestUtil;
 import org.apache.camel.component.mock.MockEndpoint;
+import org.apache.camel.test.infra.core.annotations.ContextFixture;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.TestMethodOrder;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * Test for non-eager idempotentRepository usage.
  */
-@TestInstance(TestInstance.Lifecycle.PER_METHOD)
-public class KafkaIdempotentRepositoryNonEagerIT extends BaseEmbeddedKafkaTestSupport {
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+public class KafkaIdempotentRepositoryNonEagerIT extends SimpleIdempotentTest {
 
-    // Every instance of the repository must use a different topic to guarantee isolation between tests
-    private KafkaIdempotentRepository kafkaIdempotentRepository;
+    @BindToRegistry("kafkaIdempotentRepositoryNonEager")
+    private final KafkaIdempotentRepository kafkaIdempotentRepository
+            = new KafkaIdempotentRepository("TEST_NON_EAGER_" + UUID.randomUUID(), service.getBootstrapServers());
 
-    @EndpointInject("mock:out")
-    private MockEndpoint mockOut;
-
-    @EndpointInject("mock:before")
-    private MockEndpoint mockBefore;
+    @ContextFixture
+    public void configureKafka(CamelContext context) {
+        KafkaTestUtil.configureKafkaComponent(context, service.getBootstrapServers());
+    }
 
     @Override
-    protected RoutesBuilder createRouteBuilder() {
-        kafkaIdempotentRepository = new KafkaIdempotentRepository("TEST_NON_EAGER_" + UUID.randomUUID(), getBootstrapServers());
-        context.getRegistry().bind("kafkaIdempotentRepository", kafkaIdempotentRepository);
-
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
             public void configure() {
-                from("direct:in").to("mock:before").idempotentConsumer(header("id"))
-                        .idempotentRepository("kafkaIdempotentRepository").eager(false).to("mock:out").end();
+                from("direct:in").to("mock:before")
+                        .idempotentConsumer(header("id")).idempotentRepository("kafkaIdempotentRepositoryNonEager").eager(false)
+                        .to("mock:out").end();
             }
         };
     }
 
+    @Order(1)
     @Test
+    @DisplayName("Tests that duplicated messages do not go through")
     public void testRemovesDuplicates() {
+        ProducerTemplate template = contextExtension.getProducerTemplate();
         for (int i = 0; i < 10; i++) {
             template.sendBodyAndHeader("direct:in", "Test message", "id", i % 5);
         }
 
-        assertEquals(5, kafkaIdempotentRepository.getDuplicateCount());
+        MockEndpoint mockOut = contextExtension.getMockEndpoint("mock:out");
+        await().atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertEquals(5, mockOut.getReceivedCounter()));
 
-        assertEquals(5, mockOut.getReceivedCounter());
+        MockEndpoint mockBefore = contextExtension.getMockEndpoint("mock:before");
         assertEquals(10, mockBefore.getReceivedCounter());
     }
 
+    @Order(2)
     @Test
+    @DisplayName("Tests that processing exceptions cause the message to be rolled back")
     public void testRollsBackOnException() {
+        MockEndpoint mockOut = contextExtension.getMockEndpoint("mock:out");
         mockOut.whenAnyExchangeReceived(exchange -> {
             int id = exchange.getIn().getHeader("id", Integer.class);
             if (id == 0) {
@@ -79,6 +92,7 @@ public class KafkaIdempotentRepositoryNonEagerIT extends BaseEmbeddedKafkaTestSu
             }
         });
 
+        ProducerTemplate template = contextExtension.getProducerTemplate();
         for (int i = 0; i < 10; i++) {
             try {
                 template.sendBodyAndHeader("direct:in", "Test message", "id", i % 5);
@@ -87,15 +101,12 @@ public class KafkaIdempotentRepositoryNonEagerIT extends BaseEmbeddedKafkaTestSu
             }
         }
 
-        assertEquals(4, kafkaIdempotentRepository.getDuplicateCount()); // id{0}
-                                                                       // is
-                                                                       // not a
-                                                                       // duplicate
+        assertEquals(5, mockOut.getReceivedCounter(),
+                "Only the 5 messages from the previous test should have been received ");
+        MockEndpoint mockBefore = contextExtension.getMockEndpoint("mock:before");
 
-        assertEquals(6, mockOut.getReceivedCounter()); // id{0} goes through the
-                                                      // idempotency check
-                                                      // twice
-        assertEquals(10, mockBefore.getReceivedCounter());
+        assertEquals(20, mockBefore.getReceivedCounter(),
+                "Test should have received 20 messages in total from all the tests");
     }
 
 }

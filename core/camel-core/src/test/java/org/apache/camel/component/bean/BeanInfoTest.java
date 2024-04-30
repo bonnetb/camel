@@ -35,10 +35,10 @@ import static org.junit.jupiter.api.Assertions.*;
 public class BeanInfoTest {
     private static final Logger LOG = LoggerFactory.getLogger(BeanInfoTest.class);
 
-    protected CamelContext camelContext = new DefaultCamelContext();
+    protected final CamelContext camelContext = new DefaultCamelContext();
 
     @Test
-    public void testObjectOperations() throws Exception {
+    public void testObjectOperations() {
         BeanInfo info = createBeanInfo(Object.class);
 
         List<MethodInfo> operations = info.getMethods();
@@ -47,7 +47,7 @@ public class BeanInfoTest {
     }
 
     @Test
-    public void testGetOperations() throws Exception {
+    public void testGetOperations() {
         BeanInfo info = createBeanInfo(Foo.class);
 
         List<MethodInfo> operations = info.getMethods();
@@ -139,8 +139,7 @@ public class BeanInfoTest {
     }
 
     protected BeanInfo createBeanInfo(Class<?> type) {
-        BeanInfo info = new BeanInfo(camelContext, type);
-        return info;
+        return new BeanInfo(camelContext, type);
     }
 
     protected void assertMethodPattern(BeanInfo info, String methodName, ExchangePattern expectedPattern)
@@ -167,13 +166,16 @@ public class BeanInfoTest {
 
     @InOnly
     public interface MyOneWayInterface {
+        @SuppressWarnings("Unused")
         void inOnlyMethod();
     }
 
     @InOnly
     public interface MyOneWayInterfaceWithOverloadedMethod {
+        @SuppressWarnings("Unused")
         void inOnlyMethod();
 
+        @SuppressWarnings("Unused")
         @InOut
         Object inOutMethod();
     }
@@ -209,7 +211,7 @@ public class BeanInfoTest {
     public interface ILevel1Interface extends ILevel2Interface {
     }
 
-    class PackagePrivateClassImplementingLevel2InterfaceMethod implements ILevel1Interface {
+    static class PackagePrivateClassImplementingLevel2InterfaceMethod implements ILevel1Interface {
         @Override
         public String method() {
             return "PackagePrivateClassImplementingLevel2InterfaceMethod.method() has been called";
@@ -220,13 +222,13 @@ public class BeanInfoTest {
         String method();
     }
 
-    class PackagePrivateClassDefiningMethod {
+    static class PackagePrivateClassDefiningMethod {
         public String method() {
             return "PackagePrivateClassDefiningMethod.method() has been called";
         }
     }
 
-    public class PublicClassImplementingBySuperPackagePrivateClass extends PackagePrivateClassDefiningMethod
+    public static class PublicClassImplementingBySuperPackagePrivateClass extends PackagePrivateClassDefiningMethod
             implements IMethodInterface {
     }
 

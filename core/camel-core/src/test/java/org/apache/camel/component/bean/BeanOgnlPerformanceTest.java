@@ -27,12 +27,11 @@ import org.junit.jupiter.api.Test;
  */
 public class BeanOgnlPerformanceTest extends ContextTestSupport {
 
-    private int size = 1000;
-    private String cache = "true";
+    private final String scope = "Singleton";
 
     @Override
-    protected Registry createRegistry() throws Exception {
-        Registry jndi = super.createRegistry();
+    protected Registry createCamelRegistry() throws Exception {
+        Registry jndi = super.createCamelRegistry();
         jndi.bind("foo", new MyFooBean());
         return jndi;
     }
@@ -41,6 +40,7 @@ public class BeanOgnlPerformanceTest extends ContextTestSupport {
     public void testBeanOgnlPerformance() throws Exception {
         StopWatch watch = new StopWatch();
 
+        int size = 1000;
         getMockEndpoint("mock:result").expectedMessageCount(size);
 
         for (int i = 0; i < size; i++) {
@@ -53,20 +53,20 @@ public class BeanOgnlPerformanceTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
-                from("direct:start").toF("bean:foo?cache=%s&method=hello('Camel')", cache)
-                        .toF("bean:foo?cache=%s&method=hello('Camel')", cache)
-                        .toF("bean:foo?cache=%s&method=hello('Camel')", cache)
-                        .toF("bean:foo?cache=%s&method=hello('Camel')", cache)
-                        .toF("bean:foo?cache=%s&method=hello('Camel')", cache)
-                        .toF("bean:foo?cache=%s&method=hello('Camel')", cache)
-                        .toF("bean:foo?cache=%s&method=hello('Camel')", cache)
-                        .toF("bean:foo?cache=%s&method=hello('Camel')", cache)
-                        .toF("bean:foo?cache=%s&method=hello('Camel')", cache)
-                        .toF("bean:foo?cache=%s&method=hello('Camel')", cache).to("mock:result");
+            public void configure() {
+                from("direct:start").toF("bean:foo?scope=%s&method=hello('Camel')", scope)
+                        .toF("bean:foo?scope=%s&method=hello('Camel')", scope)
+                        .toF("bean:foo?scope=%s&method=hello('Camel')", scope)
+                        .toF("bean:foo?scope=%s&method=hello('Camel')", scope)
+                        .toF("bean:foo?scope=%s&method=hello('Camel')", scope)
+                        .toF("bean:foo?scope=%s&method=hello('Camel')", scope)
+                        .toF("bean:foo?scope=%s&method=hello('Camel')", scope)
+                        .toF("bean:foo?scope=%s&method=hello('Camel')", scope)
+                        .toF("bean:foo?scope=%s&method=hello('Camel')", scope)
+                        .toF("bean:foo?scope=%s&method=hello('Camel')", scope).to("mock:result");
             }
         };
     }

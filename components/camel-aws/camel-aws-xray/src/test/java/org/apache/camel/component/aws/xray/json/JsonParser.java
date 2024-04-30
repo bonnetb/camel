@@ -20,6 +20,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Stack;
 
+import org.apache.camel.util.ObjectHelper;
 import org.apache.commons.lang3.StringUtils;
 
 public final class JsonParser {
@@ -39,7 +40,6 @@ public final class JsonParser {
         String keyName = null;
         boolean inWord = false;
         for (char c : json.toCharArray()) {
-            // CHECKSTYLE:OFF
             // fallthrough is intended here and as this is only a helper class for tests (as the previously used
             // org.json classes are incompatible with Apache 2.0 license) formatting rules shouldn't be that strict IMO
             // Note that the fall-through was the only rant checkstyle generated, so everything else should follow these
@@ -105,17 +105,16 @@ public final class JsonParser {
                         break;
                     }
                 default:
-                    if (('"' == c && curToken.length() == 0)
-                            || ('"' == c && curToken.length() > 0 && curToken.charAt(curToken.length() - 1) != '\\')) {
+                    if (('"' == c && curToken.isEmpty())
+                            || ('"' == c && !curToken.isEmpty() && curToken.charAt(curToken.length() - 1) != '\\')) {
                         inWord = !inWord;
                     }
-                    if (!inWord && !doNotIncludeSymbols.contains("" + c)) {
+                    if (!inWord && !doNotIncludeSymbols.contains(String.valueOf(c))) {
                         curToken.append(c);
-                    } else if ('"' != c || (curToken.length() > 0 && curToken.charAt(curToken.length() - 1) == '\\')) {
+                    } else if ('"' != c || (!curToken.isEmpty() && curToken.charAt(curToken.length() - 1) == '\\')) {
                         curToken.append(c);
                     }
             }
-            // CHECKSTYLE:ON
         }
         return ret;
     }
@@ -137,7 +136,7 @@ public final class JsonParser {
 
     private static Object sanitizeData(String data) {
         data = data.trim();
-        if (data.toLowerCase().equals("true") || data.toLowerCase().equals("false")) {
+        if (ObjectHelper.isBoolean(data)) {
             return Boolean.valueOf(data);
         }
         if (data.contains(".") && StringUtils.countMatches(data, ".") == 1 && data.matches("[0-9\\.]+")) {

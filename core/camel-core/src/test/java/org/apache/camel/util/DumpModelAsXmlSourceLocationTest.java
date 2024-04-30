@@ -18,8 +18,8 @@ package org.apache.camel.util;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.ContextTestSupport;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.builder.RouteBuilder;
+import org.apache.camel.support.PluginHelper;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -36,33 +36,31 @@ public class DumpModelAsXmlSourceLocationTest extends ContextTestSupport {
 
     @Test
     public void testDumpModelAsXml() throws Exception {
-        ExtendedCamelContext ecc = context.adapt(ExtendedCamelContext.class);
-        String xml = ecc.getModelToXMLDumper().dumpModelAsXml(context, context.getRouteDefinition("myRoute"));
+        String xml = PluginHelper.getModelToXMLDumper(context).dumpModelAsXml(context, context.getRouteDefinition("myRoute"));
         assertNotNull(xml);
         log.info(xml);
 
         Assertions.assertTrue(xml.contains(
-                "sourceLineNumber=\"66\" sourceLocation=\"org.apache.camel.util.DumpModelAsXmlSourceLocationTest$1\""));
+                "sourceLineNumber=\"66\" sourceLocation=\"DumpModelAsXmlSourceLocationTest.java\""));
     }
 
     @Test
     public void testDumpModelAsXmlExternal() throws Exception {
-        ExtendedCamelContext ecc = context.adapt(ExtendedCamelContext.class);
-        String xml = ecc.getModelToXMLDumper().dumpModelAsXml(context, context.getRouteDefinition("cool"));
+        String xml = PluginHelper.getModelToXMLDumper(context).dumpModelAsXml(context, context.getRouteDefinition("cool"));
         assertNotNull(xml);
         log.info(xml);
 
         Assertions.assertTrue(xml.contains(
-                "<from sourceLineNumber=\"25\" sourceLocation=\"org.apache.camel.util.MyCoolRoute\" uri=\"direct:cool\"/>"));
-        Assertions.assertTrue(xml.contains("sourceLineNumber=\"26\" sourceLocation=\"org.apache.camel.util.MyCoolRoute\""));
+                "sourceLineNumber=\"25\" sourceLocation=\"MyCoolRoute.java\" uri=\"direct:cool\"/>"));
+        Assertions.assertTrue(xml.contains("sourceLineNumber=\"26\" sourceLocation=\"MyCoolRoute.java\""));
     }
 
     @Override
-    protected RouteBuilder[] createRouteBuilders() throws Exception {
+    protected RouteBuilder[] createRouteBuilders() {
         return new RouteBuilder[] {
                 new RouteBuilder() {
                     @Override
-                    public void configure() throws Exception {
+                    public void configure() {
                         from("direct:start").routeId("myRoute")
                                 .filter(simple("${body} > 10"))
                                 .to("mock:result");

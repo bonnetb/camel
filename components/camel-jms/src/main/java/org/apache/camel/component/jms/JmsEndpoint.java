@@ -20,12 +20,10 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import javax.jms.ConnectionFactory;
-import javax.jms.ExceptionListener;
-import javax.jms.Message;
-import javax.jms.Queue;
-import javax.jms.Session;
-import javax.jms.Topic;
+import jakarta.jms.ConnectionFactory;
+import jakarta.jms.ExceptionListener;
+import jakarta.jms.Message;
+import jakarta.jms.Session;
 
 import org.apache.camel.AsyncEndpoint;
 import org.apache.camel.Category;
@@ -153,11 +151,11 @@ public class JmsEndpoint extends DefaultEndpoint
         return createConsumer(processor, listenerContainer);
     }
 
-    public AbstractMessageListenerContainer createMessageListenerContainer() throws Exception {
+    public AbstractMessageListenerContainer createMessageListenerContainer() {
         return configuration.createMessageListenerContainer(this);
     }
 
-    public AbstractMessageListenerContainer createReplyToMessageListenerContainer() throws Exception {
+    public AbstractMessageListenerContainer createReplyToMessageListenerContainer() {
         // only choose as the reply manager will configure the listener
         return configuration.chooseMessageListenerContainerImplementation(this, configuration.getReplyToConsumerType());
     }
@@ -504,6 +502,10 @@ public class JmsEndpoint extends DefaultEndpoint
         return getConfiguration().getDestinationResolver();
     }
 
+    public TemporaryQueueResolver getTemporaryQueueResolver() {
+        return getConfiguration().getTemporaryQueueResolver();
+    }
+
     @ManagedAttribute
     public String getDurableSubscriptionName() {
         return getConfiguration().getDurableSubscriptionName();
@@ -821,6 +823,10 @@ public class JmsEndpoint extends DefaultEndpoint
 
     public void setDestinationResolver(DestinationResolver destinationResolver) {
         getConfiguration().setDestinationResolver(destinationResolver);
+    }
+
+    public void setDestinationResolver(TemporaryQueueResolver temporaryQueueResolver) {
+        getConfiguration().setTemporaryQueueResolver(temporaryQueueResolver);
     }
 
     @ManagedAttribute

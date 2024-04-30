@@ -27,7 +27,6 @@ import com.azure.storage.blob.models.BlobStorageException;
 import org.apache.camel.AsyncCallback;
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePropertyKey;
-import org.apache.camel.ExtendedExchange;
 import org.apache.camel.Processor;
 import org.apache.camel.component.azure.storage.blob.client.BlobClientWrapper;
 import org.apache.camel.component.azure.storage.blob.client.BlobContainerClientWrapper;
@@ -109,8 +108,10 @@ public class BlobConsumer extends ScheduledBatchPollingConsumer {
 
         final List<BlobItem> blobs = (List<BlobItem>) containerOperations.listBlobs(null).getBody();
 
-        final Queue<Exchange> exchanges = new LinkedList<>();
+        // okay we have some response from azure so lets mark the consumer as ready
+        forceConsumerAsReady();
 
+        final Queue<Exchange> exchanges = new LinkedList<>();
         for (BlobItem blobItem : blobs) {
             exchanges.add(createExchangeFromBlob(blobItem.getName(), blobContainerClient));
         }
@@ -139,7 +140,7 @@ public class BlobConsumer extends ScheduledBatchPollingConsumer {
             pendingExchanges = total - index - 1;
 
             // add on completion to handle after work when the exchange is done
-            exchange.adapt(ExtendedExchange.class).addOnCompletion(new Synchronization() {
+            exchange.getExchangeExtension().addOnCompletion(new Synchronization() {
                 @Override
                 public void onComplete(Exchange exchange) {
                     LOG.trace("Completed from processing all exchanges...");

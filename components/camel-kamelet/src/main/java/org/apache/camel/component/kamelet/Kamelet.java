@@ -22,6 +22,7 @@ import java.util.Properties;
 import java.util.function.Predicate;
 
 import org.apache.camel.CamelContext;
+import org.apache.camel.builder.NoErrorHandlerBuilder;
 import org.apache.camel.model.RouteDefinition;
 import org.apache.camel.model.RouteTemplateDefinition;
 import org.apache.camel.model.ToDefinition;
@@ -42,7 +43,9 @@ public final class Kamelet {
     public static final String PARAM_ROUTE_ID = "routeId";
     public static final String PARAM_TEMPLATE_ID = "templateId";
     public static final String PARAM_LOCATION = "location";
+    public static final String PARAM_UUID = "uuid";
     public static final String DEFAULT_LOCATION = "classpath:/kamelets";
+    public static final String NO_ERROR_HANDLER = "noErrorHandler";
 
     // use a running counter as uuid
     private static final UuidGenerator UUID = new SimpleUuidGenerator();
@@ -75,7 +78,11 @@ public final class Kamelet {
         return answer;
     }
 
-    public static String extractRouteId(CamelContext context, String remaining, Map<String, Object> parameters) {
+    public static String extractUuid() {
+        return UUID.generateUuid();
+    }
+
+    public static String extractRouteId(CamelContext context, String remaining, Map<String, Object> parameters, String uuid) {
         Object param = parameters.get(PARAM_ROUTE_ID);
         if (param != null) {
             return CamelContextHelper.mandatoryConvertTo(context, String.class, param);
@@ -90,7 +97,7 @@ public final class Kamelet {
             answer = StringHelper.after(remaining, "/");
         }
         if (answer == null) {
-            answer = extractTemplateId(context, remaining, parameters) + "-" + UUID.generateUuid();
+            answer = extractTemplateId(context, remaining, parameters) + "-" + uuid;
         }
 
         return answer;
@@ -106,13 +113,13 @@ public final class Kamelet {
 
     public static void extractKameletProperties(CamelContext context, Map<String, Object> properties, String... elements) {
         PropertiesComponent pc = context.getPropertiesComponent();
-        StringBuffer prefixBuffer = new StringBuffer(Kamelet.PROPERTIES_PREFIX);
+        StringBuilder prefixBuffer = new StringBuilder(Kamelet.PROPERTIES_PREFIX);
 
         for (String element : elements) {
             if (element == null) {
                 continue;
             }
-            prefixBuffer.append(element + ".");
+            prefixBuffer.append(element).append('.');
 
             Properties prefixed = pc.loadProperties(Kamelet.startsWith(prefixBuffer.toString()));
             for (String name : prefixed.stringPropertyNames()) {
@@ -123,11 +130,22 @@ public final class Kamelet {
 
     public static RouteDefinition templateToRoute(RouteTemplateDefinition in, Map<String, Object> parameters) {
         final String rid = (String) parameters.get(PARAM_ROUTE_ID);
+        final boolean noErrorHandler = (boolean) parameters.get(NO_ERROR_HANDLER);
+        final String uuid = (String) parameters.get(PARAM_UUID);
 
         ObjectHelper.notNull(rid, PARAM_ROUTE_ID);
+        ObjectHelper.notNull(uuid, PARAM_UUID);
 
         RouteDefinition def = in.asRouteDefinition();
+        // mark this as created from a kamelet
+        def.setKamelet(true);
+        def.setLocation(in.getLocation());
+        def.setLineNumber(in.getLineNumber());
         def.setId(rid);
+        def.setNodePrefixId(uuid);
+        if (noErrorHandler) {
+            def.setErrorHandlerFactory(new NoErrorHandlerBuilder());
+        }
 
         if (def.getInput() == null) {
             throw new IllegalArgumentException("Camel route " + rid + " input does not exist.");

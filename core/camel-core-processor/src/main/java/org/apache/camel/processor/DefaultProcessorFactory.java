@@ -24,7 +24,6 @@ import java.util.concurrent.ExecutorService;
 import org.apache.camel.CamelContext;
 import org.apache.camel.ExchangePattern;
 import org.apache.camel.Expression;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.LineNumberAware;
 import org.apache.camel.NamedNode;
 import org.apache.camel.NoFactoryAvailableException;
@@ -34,6 +33,7 @@ import org.apache.camel.spi.BootstrapCloseable;
 import org.apache.camel.spi.FactoryFinder;
 import org.apache.camel.spi.ProcessorFactory;
 import org.apache.camel.spi.annotations.JdkService;
+import org.apache.camel.support.PluginHelper;
 
 /**
  * Default {@link ProcessorFactory} that supports using 3rd party Camel components to implement the EIP
@@ -44,8 +44,6 @@ import org.apache.camel.spi.annotations.JdkService;
  * name of the {@link ProcessorFactory} the Camel component implement, which gets called for creating the
  * {@link Processor}s for the EIP.
  * <p/>
- * The Hystrix EIP is such an example where the circuit breaker EIP (CircuitBreakerDefinition) is implemented in the
- * <tt>camel-hystrix</tt> component.
  */
 @JdkService(ProcessorFactory.FACTORY)
 public class DefaultProcessorFactory implements ProcessorFactory, BootstrapCloseable {
@@ -66,7 +64,7 @@ public class DefaultProcessorFactory implements ProcessorFactory, BootstrapClose
     public Processor createChildProcessor(Route route, NamedNode definition, boolean mandatory) throws Exception {
         String name = definition.getClass().getSimpleName();
         if (finder == null) {
-            finder = route.getCamelContext().adapt(ExtendedCamelContext.class).getFactoryFinderResolver()
+            finder = PluginHelper.getFactoryFinderResolver(route.getCamelContext())
                     .resolveBootstrapFactoryFinder(route.getCamelContext().getClassResolver(), RESOURCE_PATH);
         }
         try {
@@ -88,7 +86,7 @@ public class DefaultProcessorFactory implements ProcessorFactory, BootstrapClose
     public Processor createProcessor(Route route, NamedNode definition) throws Exception {
         String name = definition.getClass().getSimpleName();
         if (finder == null) {
-            finder = route.getCamelContext().adapt(ExtendedCamelContext.class).getFactoryFinderResolver()
+            finder = PluginHelper.getFactoryFinderResolver(route.getCamelContext())
                     .resolveBootstrapFactoryFinder(route.getCamelContext().getClassResolver(), RESOURCE_PATH);
         }
         ProcessorFactory pc = finder.newInstance(name, ProcessorFactory.class).orElse(null);

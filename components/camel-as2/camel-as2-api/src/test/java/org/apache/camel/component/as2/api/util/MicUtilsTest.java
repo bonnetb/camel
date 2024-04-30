@@ -17,18 +17,17 @@
 package org.apache.camel.component.as2.api.util;
 
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.security.Security;
 
-import org.apache.camel.component.as2.api.AS2Charset;
 import org.apache.camel.component.as2.api.AS2Header;
 import org.apache.camel.component.as2.api.AS2MimeType;
 import org.apache.camel.component.as2.api.AS2TransferEncoding;
 import org.apache.camel.component.as2.api.entity.ApplicationEDIFACTEntity;
 import org.apache.camel.component.as2.api.util.MicUtils.ReceivedContentMic;
-import org.apache.http.HttpEntityEnclosingRequest;
-import org.apache.http.HttpVersion;
-import org.apache.http.entity.BasicHttpEntity;
-import org.apache.http.message.BasicHttpEntityEnclosingRequest;
+import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.http.io.entity.BasicHttpEntity;
+import org.apache.hc.core5.http.message.BasicClassicHttpRequest;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -88,25 +87,23 @@ public class MicUtilsTest {
     @Test
     public void createReceivedContentMicTest() throws Exception {
 
-        HttpEntityEnclosingRequest request = new BasicHttpEntityEnclosingRequest("POST", "/", HttpVersion.HTTP_1_1);
+        BasicClassicHttpRequest request = new BasicClassicHttpRequest("POST", "/");
         request.addHeader(AS2Header.DISPOSITION_NOTIFICATION_OPTIONS, DISPOSITION_NOTIFICATION_OPTIONS_VALUE);
         request.addHeader(AS2Header.CONTENT_TYPE, CONTENT_TYPE_VALUE);
 
         ApplicationEDIFACTEntity edifactEntity
                 = new ApplicationEDIFACTEntity(
-                        EDI_MESSAGE, AS2Charset.US_ASCII, AS2TransferEncoding.NONE, true, "filename.txt");
+                        EDI_MESSAGE, StandardCharsets.US_ASCII.name(), AS2TransferEncoding.NONE, true, "filename.txt");
         InputStream is = edifactEntity.getContent();
-        BasicHttpEntity basicEntity = new BasicHttpEntity();
-        basicEntity.setContent(is);
-        basicEntity.setContentType(CONTENT_TYPE_VALUE);
+        BasicHttpEntity basicEntity = new BasicHttpEntity(is, ContentType.create(CONTENT_TYPE_VALUE));
         request.setEntity(basicEntity);
 
-        ReceivedContentMic receivedContentMic = MicUtils.createReceivedContentMic(request, null);
+        ReceivedContentMic receivedContentMic = MicUtils.createReceivedContentMic(request, null, null);
         assertNotNull(receivedContentMic, "Failed to create Received Content MIC");
-        LOG.debug("Digest Algorithm: " + receivedContentMic.getDigestAlgorithmId());
+        LOG.debug("Digest Algorithm: {}", receivedContentMic.getDigestAlgorithmId());
         assertEquals(EXPECTED_MESSAGE_DIGEST_ALGORITHM, receivedContentMic.getDigestAlgorithmId(),
                 "Unexpected digest algorithm value");
-        LOG.debug("Encoded Message Digest: " + receivedContentMic.getEncodedMessageDigest());
+        LOG.debug("Encoded Message Digest: {}", receivedContentMic.getEncodedMessageDigest());
         assertEquals(EXPECTED_ENCODED_MESSAGE_DIGEST, receivedContentMic.getEncodedMessageDigest(),
                 "Unexpected encoded message digest value");
     }

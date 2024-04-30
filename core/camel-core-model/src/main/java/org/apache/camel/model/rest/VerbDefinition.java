@@ -19,12 +19,12 @@ package org.apache.camel.model.rest;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlElementRef;
-import javax.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlElementRef;
+import jakarta.xml.bind.annotation.XmlTransient;
 
 import org.apache.camel.model.OptionalIdentifiedDefinition;
 import org.apache.camel.model.ToDefinition;
@@ -53,7 +53,10 @@ public abstract class VerbDefinition extends OptionalIdentifiedDefinition<VerbDe
     private String consumes;
     @XmlAttribute
     private String produces;
-    @XmlAttribute()
+    @XmlAttribute
+    @Metadata(label = "advanced", javaType = "java.lang.Boolean")
+    private String disabled;
+    @XmlAttribute
     @Metadata(label = "advanced")
     private String type;
     @XmlTransient
@@ -76,11 +79,16 @@ public abstract class VerbDefinition extends OptionalIdentifiedDefinition<VerbDe
     @Metadata(label = "advanced", javaType = "java.lang.Boolean", defaultValue = "false")
     private String enableCORS;
     @XmlAttribute
+    @Metadata(label = "advanced", javaType = "java.lang.Boolean", defaultValue = "false")
+    private String enableNoContentResponse;
+    @XmlAttribute
     @Metadata(label = "advanced", javaType = "java.lang.Boolean", defaultValue = "true")
     private String apiDocs;
     @XmlAttribute
     @Metadata(label = "advanced", javaType = "java.lang.Boolean", defaultValue = "false")
     private String deprecated;
+    @XmlAttribute
+    private String routeId;
     @XmlElement(required = true)
     private ToDefinition to;
 
@@ -108,6 +116,17 @@ public abstract class VerbDefinition extends OptionalIdentifiedDefinition<VerbDe
     public VerbDefinition deprecated() {
         this.deprecated = "true";
         return this;
+    }
+
+    public String getRouteId() {
+        return routeId;
+    }
+
+    /**
+     * Sets the id of the route
+     */
+    public void setRouteId(String routeId) {
+        this.routeId = routeId;
     }
 
     public List<ParamDefinition> getParams() {
@@ -178,6 +197,18 @@ public abstract class VerbDefinition extends OptionalIdentifiedDefinition<VerbDe
         this.produces = produces;
     }
 
+    public String getDisabled() {
+        return disabled;
+    }
+
+    /**
+     * Whether to disable this REST service from the route during build time. Once an REST service has been disabled
+     * then it cannot be enabled later at runtime.
+     */
+    public void setDisabled(String disabled) {
+        this.disabled = disabled;
+    }
+
     public String getBindingMode() {
         return bindingMode;
     }
@@ -232,6 +263,19 @@ public abstract class VerbDefinition extends OptionalIdentifiedDefinition<VerbDe
      */
     public void setEnableCORS(String enableCORS) {
         this.enableCORS = enableCORS;
+    }
+
+    public String getEnableNoContentResponse() {
+        return enableNoContentResponse;
+    }
+
+    /**
+     * Whether to return HTTP 204 with an empty body when a response contains an empty JSON object or XML root object.
+     * <p/>
+     * The default value is false.
+     */
+    public void setEnableNoContentResponse(String enableNoContentResponse) {
+        this.enableNoContentResponse = enableNoContentResponse;
     }
 
     public String getType() {

@@ -16,11 +16,13 @@
  */
 package org.apache.camel.model.language;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
 
+import org.apache.camel.Expression;
 import org.apache.camel.spi.Metadata;
 
 /**
@@ -32,13 +34,10 @@ import org.apache.camel.spi.Metadata;
 public class XMLTokenizerExpression extends NamespaceAwareExpression {
 
     @XmlAttribute
-    @Metadata(label = "advanced")
-    private String headerName;
-    @XmlAttribute
-    @Metadata(label = "advanced", enums = "i,w,u,t")
+    @Metadata(defaultValue = "i", enums = "i,w,u,t")
     private String mode;
     @XmlAttribute
-    @Metadata(label = "advanced", javaType = "java.lang.Integer")
+    @Metadata(javaType = "java.lang.Integer")
     private String group;
 
     public XMLTokenizerExpression() {
@@ -48,20 +47,19 @@ public class XMLTokenizerExpression extends NamespaceAwareExpression {
         super(expression);
     }
 
+    public XMLTokenizerExpression(Expression expression) {
+        setExpressionValue(expression);
+    }
+
+    private XMLTokenizerExpression(Builder builder) {
+        super(builder);
+        this.mode = builder.mode;
+        this.group = builder.group;
+    }
+
     @Override
     public String getLanguage() {
         return "xtokenize";
-    }
-
-    public String getHeaderName() {
-        return headerName;
-    }
-
-    /**
-     * Name of header to tokenize instead of using the message body.
-     */
-    public void setHeaderName(String headerName) {
-        this.headerName = headerName;
     }
 
     public String getMode() {
@@ -92,4 +90,73 @@ public class XMLTokenizerExpression extends NamespaceAwareExpression {
         this.group = group;
     }
 
+    /**
+     * {@code Builder} is a specific builder for {@link XMLTokenizerExpression}.
+     */
+    @XmlTransient
+    public static class Builder extends AbstractNamespaceAwareBuilder<Builder, XMLTokenizerExpression> {
+
+        private String mode;
+        private String group;
+
+        /**
+         * The extraction mode. The available extraction modes are:
+         * <ul>
+         * <li>i - injecting the contextual namespace bindings into the extracted token (default)</li>
+         * <li>w - wrapping the extracted token in its ancestor context</li>
+         * <li>u - unwrapping the extracted token to its child content</li>
+         * <li>t - extracting the text content of the specified element</li>
+         * </ul>
+         */
+        public Builder mode(String mode) {
+            this.mode = mode;
+            return this;
+        }
+
+        /**
+         * The extraction mode.
+         */
+        public Builder mode(Mode mode) {
+            this.mode = mode == null ? null : mode.value;
+            return this;
+        }
+
+        /**
+         * To group N parts together
+         */
+        public Builder group(String group) {
+            this.group = group;
+            return this;
+        }
+
+        /**
+         * To group N parts together
+         */
+        public Builder group(int group) {
+            this.group = Integer.toString(group);
+            return this;
+        }
+
+        @Override
+        public XMLTokenizerExpression end() {
+            return new XMLTokenizerExpression(this);
+        }
+    }
+
+    /**
+     * {@code Mode} defines the possible extraction modes that can be used.
+     */
+    @XmlTransient
+    public enum Mode {
+        INJECTING_CONTEXTUAL_NAMESPACE_BINDINGS("i"),
+        WRAPPING_EXTRACTED_TOKEN("w"),
+        UNWRAPPING_EXTRACTED_TOKEN("u"),
+        EXTRACTING_TEXT_CONTENT("t");
+
+        private final String value;
+
+        Mode(String value) {
+            this.value = value;
+        }
+    }
 }

@@ -16,12 +16,12 @@
  */
 package org.apache.camel.component.undertow.rest;
 
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.LoggingLevel;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.undertow.BaseUndertowTest;
 import org.apache.camel.model.rest.RestBindingMode;
 import org.apache.camel.spi.BeanIntrospection;
+import org.apache.camel.support.PluginHelper;
 import org.junit.jupiter.api.Test;
 
 import static org.apache.camel.test.junit5.TestSupport.assertIsInstanceOf;
@@ -33,7 +33,7 @@ public class RestUndertowProducerGetPojoTest extends BaseUndertowTest {
     @Test
     public void testUndertowGetPojoRequest() {
         // should not use reflection when using rest binding in the rest producer
-        BeanIntrospection bi = context.adapt(ExtendedCamelContext.class).getBeanIntrospection();
+        BeanIntrospection bi = PluginHelper.getBeanIntrospection(context);
         bi.setLoggingLevel(LoggingLevel.INFO);
         bi.resetCounters();
 

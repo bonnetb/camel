@@ -17,24 +17,20 @@
 
 package org.apache.camel.component.kafka.consumer.errorhandler;
 
-import org.apache.camel.component.kafka.KafkaFetchRecords;
 import org.apache.camel.component.kafka.PollExceptionStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class RetryErrorStrategy implements PollExceptionStrategy {
     private static final Logger LOG = LoggerFactory.getLogger(RetryErrorStrategy.class);
-    private KafkaFetchRecords recordFetcher;
 
-    public RetryErrorStrategy(KafkaFetchRecords recordFetcher) {
-        this.recordFetcher = recordFetcher;
+    @Override
+    public boolean canContinue() {
+        return true;
     }
 
     @Override
     public void handle(long partitionLastOffset, Exception exception) {
         LOG.warn("Requesting the consumer to retry polling the same message based on polling exception strategy");
-
-        // consumer retry the same message again
-        recordFetcher.setRetry(true);
     }
 }

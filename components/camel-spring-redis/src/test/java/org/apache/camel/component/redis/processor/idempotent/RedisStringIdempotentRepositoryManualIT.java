@@ -16,7 +16,7 @@
  */
 package org.apache.camel.component.redis.processor.idempotent;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.EndpointInject;
@@ -41,7 +41,7 @@ public class RedisStringIdempotentRepositoryManualIT extends CamelTestSupport {
 
     private static final JedisConnectionFactory CONNECTION_FACTORY = new JedisConnectionFactory();
 
-    protected RedisStringIdempotentRepository idempotentRepository;
+    protected SpringRedisStringIdempotentRepository idempotentRepository;
 
     @Produce("direct:start")
     private ProducerTemplate producer;
@@ -69,7 +69,7 @@ public class RedisStringIdempotentRepositoryManualIT extends CamelTestSupport {
 
     @Override
     protected RouteBuilder createRouteBuilder() throws Exception {
-        idempotentRepository = new RedisStringIdempotentRepository(
+        idempotentRepository = new SpringRedisStringIdempotentRepository(
                 redisTemplate,
                 "redis-idempotent-repository");
         RouteBuilder rb = new RouteBuilder() {

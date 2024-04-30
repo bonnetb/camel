@@ -16,17 +16,18 @@
  */
 package org.apache.camel.component.jetty;
 
+import java.io.IOException;
+
 import org.apache.camel.CamelContext;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.impl.DefaultCamelContext;
-import org.apache.http.NoHttpResponseException;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class TwoCamelContextWithJettyRouteTest extends BaseJettyTest {
 
@@ -36,9 +37,9 @@ public class TwoCamelContextWithJettyRouteTest extends BaseJettyTest {
         CamelContext contextB = new DefaultCamelContext();
         contextB.addRoutes(new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("jetty://http://localhost:" + port2 + "/myotherapp").process(new Processor() {
-                    public void process(Exchange exchange) throws Exception {
+                    public void process(Exchange exchange) {
                         String in = exchange.getIn().getBody(String.class);
                         exchange.getMessage().setBody("Hi " + in);
                     }
@@ -60,20 +61,20 @@ public class TwoCamelContextWithJettyRouteTest extends BaseJettyTest {
 
         Exception ex = assertThrows(Exception.class,
                 () -> template.requestBody("direct:b", "Moon", String.class));
-        assertTrue(ex.getCause() instanceof NoHttpResponseException, "Should get the ConnectException");
+        assertInstanceOf(IOException.class, ex.getCause(), "Should get the IOException");
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:a").to("http://localhost:" + port1 + "/myapp");
 
                 from("direct:b").to("http://localhost:" + port2 + "/myotherapp");
 
                 from("jetty://http://localhost:" + port1 + "/myapp").process(new Processor() {
-                    public void process(Exchange exchange) throws Exception {
+                    public void process(Exchange exchange) {
                         String in = exchange.getIn().getBody(String.class);
                         exchange.getMessage().setBody("Bye " + in);
                     }

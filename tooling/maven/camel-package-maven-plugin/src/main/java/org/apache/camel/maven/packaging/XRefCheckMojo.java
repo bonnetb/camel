@@ -70,7 +70,7 @@ public class XRefCheckMojo extends AbstractMojo {
         try (Reader r = Files.newBufferedReader(path.resolve(PLAYBOOK))) {
             site = (Map) yaml.loadFromReader(r);
         }
-        Map<String, String> attributes = (Map) ((Map) site.get("asciidoc")).get("attributes");
+        Map<String, String> attributes = (Map<String, String>) ((Map) site.get("asciidoc")).get("attributes");
         if (attributes != null) {
             attributes = attributes.entrySet().stream()
                     .collect(Collectors.toMap(e -> "{" + e.getKey() + "}", Map.Entry::getValue));
@@ -91,9 +91,10 @@ public class XRefCheckMojo extends AbstractMojo {
             componentNavs.computeIfAbsent(name, n -> new ArrayList<>()).addAll(
                     Optional.ofNullable((List<String>) antora.get("nav")).orElse(Collections.emptyList()));
         }
-        for (String component : componentPaths.keySet()) {
+        for (Map.Entry<String, List<Path>> entry : componentPaths.entrySet()) {
+            String component = entry.getKey();
             for (String nav : componentNavs.get(component)) {
-                Optional<Path> n = componentPaths.get(component).stream().map(p -> p.resolve(nav))
+                Optional<Path> n = entry.getValue().stream().map(p -> p.resolve(nav))
                         .filter(Files::isRegularFile)
                         .findFirst();
                 if (n.isPresent()) {
@@ -105,7 +106,7 @@ public class XRefCheckMojo extends AbstractMojo {
                     pages.put(component + ":" + m.getFileName().toString() + ":" + f.getFileName().toString(), n.get());
                 }
             }
-            for (Path root : componentPaths.get(component)) {
+            for (Path root : entry.getValue()) {
                 try (Stream<Path> stream = Files.list(root.resolve("modules"))) {
                     stream.filter(Files::isDirectory)
                             .filter(p -> Files.isDirectory(p.resolve("pages")))

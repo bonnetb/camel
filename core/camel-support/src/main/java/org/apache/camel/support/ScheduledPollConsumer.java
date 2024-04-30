@@ -21,8 +21,10 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.camel.Component;
 import org.apache.camel.Endpoint;
 import org.apache.camel.Exchange;
 import org.apache.camel.FailedToCreateConsumerException;
@@ -71,14 +73,15 @@ public abstract class ScheduledPollConsumer extends DefaultConsumer
 
     // state during running
     private volatile boolean polling;
-    private volatile int backoffCounter;
-    private volatile long idleCounter;
-    private volatile long errorCounter;
-    private volatile long successCounter;
+    private final AtomicInteger backoffCounter = new AtomicInteger();
+    private final AtomicLong idleCounter = new AtomicLong();
+    private final AtomicLong errorCounter = new AtomicLong();
+    private final AtomicLong successCounter = new AtomicLong();
     private volatile Throwable lastError;
     private volatile Map<String, Object> lastErrorDetails;
     private final AtomicLong counter = new AtomicLong();
     private volatile boolean firstPollDone;
+    private volatile boolean forceReady;
 
     public ScheduledPollConsumer(Endpoint endpoint, Processor processor) {
         super(endpoint, processor);
@@ -145,24 +148,25 @@ public abstract class ScheduledPollConsumer extends DefaultConsumer
         // should we backoff if its enabled, and either the idle or error counter is > the threshold
         if (backoffMultiplier > 0
                 // either idle or error threshold could be not in use, so check for that and use MAX_VALUE if not in use
-                && idleCounter >= (backoffIdleThreshold > 0 ? backoffIdleThreshold : Integer.MAX_VALUE)
-                || errorCounter >= (backoffErrorThreshold > 0 ? backoffErrorThreshold : Integer.MAX_VALUE)) {
-            if (backoffCounter++ < backoffMultiplier) {
+                && idleCounter.longValue() >= (backoffIdleThreshold > 0 ? backoffIdleThreshold : Integer.MAX_VALUE)
+                || errorCounter.longValue() >= (backoffErrorThreshold > 0 ? backoffErrorThreshold : Integer.MAX_VALUE)) {
+            final int currentBackoffCounter = backoffCounter.incrementAndGet();
+            if (currentBackoffCounter < backoffMultiplier) {
                 // yes we should backoff
-                if (idleCounter > 0) {
-                    LOG.debug("doRun() backoff due subsequent {} idles (backoff at {}/{})", idleCounter, backoffCounter,
-                            backoffMultiplier);
+                if (idleCounter.intValue() > 0) {
+                    LOG.debug("doRun() backoff due subsequent {} idles (backoff at {}/{})", idleCounter.longValue(),
+                            backoffCounter.intValue(), backoffMultiplier);
                 } else {
-                    LOG.debug("doRun() backoff due subsequent {} errors (backoff at {}/{})", errorCounter, backoffCounter,
-                            backoffMultiplier);
+                    LOG.debug("doRun() backoff due subsequent {} errors (backoff at {}/{})", errorCounter.intValue(),
+                            backoffCounter.intValue(), backoffMultiplier);
                 }
                 return;
             } else {
                 // we are finished with backoff so reset counters
-                idleCounter = 0;
-                errorCounter = 0;
-                backoffCounter = 0;
-                successCounter = 0;
+                idleCounter.set(0);
+                errorCounter.set(0);
+                backoffCounter.set(0);
+                successCounter.set(0);
                 LOG.trace("doRun() backoff finished, resetting counters.");
             }
         }
@@ -214,6 +218,12 @@ public abstract class ScheduledPollConsumer extends DefaultConsumer
                                 retryCounter = -1;
                                 LOG.trace("Greedy polling after processing {} messages", polledMessages);
 
+                                // clear any error that might be since we have successfully polled, otherwise readiness checks might believe the
+                                // consumer to be unhealthy
+                                errorCounter.set(0);
+                                lastError = null;
+                                lastErrorDetails = null;
+
                                 // setting firstPollDone to true if greedy polling is enabled
                                 firstPollDone = true;
                             }
@@ -236,32 +246,29 @@ public abstract class ScheduledPollConsumer extends DefaultConsumer
                         cause = e;
                         done = true;
                     }
-                } catch (Throwable t) {
+                } catch (Exception t) {
                     cause = t;
                     done = true;
                 }
-            } catch (Throwable t) {
-                cause = t;
-                done = true;
             }
 
             if (cause != null && isRunAllowed()) {
                 // let exception handler deal with the caused exception
                 // but suppress this during shutdown as the logs may get flooded with exceptions during shutdown/forced shutdown
                 try {
-                    getExceptionHandler().handleException("Consumer " + this + " failed polling endpoint: " + getEndpoint()
+                    getExceptionHandler().handleException("Failed polling endpoint: " + getEndpoint()
                                                           + ". Will try again at next poll",
                             cause);
-                } catch (Throwable e) {
+                } catch (Exception e) {
                     LOG.warn("Error handling exception. This exception will be ignored.", e);
                 }
             }
         }
 
         if (cause != null) {
-            idleCounter = 0;
-            successCounter = 0;
-            errorCounter++;
+            idleCounter.set(0);
+            successCounter.set(0);
+            errorCounter.incrementAndGet();
             lastError = cause;
             // enrich last error with http response code if possible
             if (cause instanceof HttpResponseAware) {
@@ -271,9 +278,13 @@ public abstract class ScheduledPollConsumer extends DefaultConsumer
                 }
             }
         } else {
-            idleCounter = polledMessages == 0 ? ++idleCounter : 0;
-            successCounter++;
-            errorCounter = 0;
+            if (polledMessages == 0) {
+                idleCounter.incrementAndGet();
+            } else {
+                idleCounter.set(0);
+            }
+            successCounter.incrementAndGet();
+            errorCounter.set(0);
             lastError = null;
             lastErrorDetails = null;
         }
@@ -281,8 +292,8 @@ public abstract class ScheduledPollConsumer extends DefaultConsumer
         // now first pool is done after the poll is complete
         firstPollDone = true;
 
-        LOG.trace("doRun() done with idleCounter={}, successCounter={}, errorCounter={}", idleCounter, successCounter,
-                errorCounter);
+        LOG.trace("doRun() done with idleCounter={}, successCounter={}, errorCounter={}", idleCounter.longValue(),
+                successCounter.longValue(), errorCounter.longValue());
 
         // avoid this thread to throw exceptions because the thread pool wont re-schedule a new thread
     }
@@ -401,7 +412,7 @@ public abstract class ScheduledPollConsumer extends DefaultConsumer
     }
 
     public int getBackoffCounter() {
-        return backoffCounter;
+        return backoffCounter.intValue();
     }
 
     public int getBackoffMultiplier() {
@@ -448,17 +459,14 @@ public abstract class ScheduledPollConsumer extends DefaultConsumer
         this.scheduledExecutorService = scheduledExecutorService;
     }
 
-    // Implementation methods
-    // -------------------------------------------------------------------------
-
     /**
      * Gets the error counter. If the counter is > 0 that means the consumer failed polling for the last N number of
      * times. When the consumer is successfully again, then the error counter resets to zero.
      *
      * @see #getSuccessCounter()
      */
-    protected long getErrorCounter() {
-        return errorCounter;
+    public long getErrorCounter() {
+        return errorCounter.longValue();
     }
 
     /**
@@ -467,22 +475,50 @@ public abstract class ScheduledPollConsumer extends DefaultConsumer
      *
      * @see #getErrorCounter()
      */
-    protected long getSuccessCounter() {
-        return successCounter;
+    public long getSuccessCounter() {
+        return successCounter.longValue();
     }
 
     /**
      * Gets the total number of polls run.
      */
-    protected long getCounter() {
+    public long getCounter() {
         return counter.get();
     }
 
     /**
-     * Whether a first pool attempt has been done (also if the consumer has been restarted)
+     * Whether a first pool attempt has been done (also if the consumer has been restarted).
      */
-    protected boolean isFirstPollDone() {
+    public boolean isFirstPollDone() {
         return firstPollDone;
+    }
+
+    /**
+     * Whether the consumer is ready and has established connection to its target system, or first poll has been
+     * completed successfully.
+     *
+     * The health-check is using this information to know when the consumer is ready for readiness checks.
+     */
+    public boolean isConsumerReady() {
+        // we regard the consumer as ready if it was explicit forced to be ready (component specific)
+        // or that it has completed its first poll without an exception was thrown
+        // during connecting to target system and accepting data
+        return forceReady || firstPollDone;
+    }
+
+    // Implementation methods
+    // -------------------------------------------------------------------------
+
+    /**
+     * Forces the consumer to be marked as ready. This can be used by components that need to mark this sooner than
+     * usual (default marked as ready after first poll is done). This allows health-checks to be ready before an entire
+     * poll is completed.
+     *
+     * This is for example needed by the FTP component as polling a large file can take long time, causing a
+     * health-check to not be ready within reasonable time.
+     */
+    protected void forceConsumerAsReady() {
+        forceReady = true;
     }
 
     /**
@@ -566,6 +602,11 @@ public abstract class ScheduledPollConsumer extends DefaultConsumer
     protected void doInit() throws Exception {
         super.doInit();
 
+        Component component = getEndpoint().getComponent();
+        if (component instanceof HealthCheckComponent hcc) {
+            getHealthCheck().setEnabled(hcc.isHealthCheckConsumerEnabled());
+        }
+
         // validate that if backoff multiplier is in use, the threshold values is set correctly
         if (backoffMultiplier > 0) {
             if (backoffIdleThreshold <= 0 && backoffErrorThreshold <= 0) {
@@ -608,7 +649,7 @@ public abstract class ScheduledPollConsumer extends DefaultConsumer
             PropertyBindingSupport.build().bind(getEndpoint().getCamelContext(), scheduler, "triggerParameters",
                     triggerParameters);
             PropertyBindingSupport.build().bind(getEndpoint().getCamelContext(), scheduler, "jobParameters", jobParameters);
-            if (copy.size() > 0) {
+            if (!copy.isEmpty()) {
                 throw new FailedToCreateConsumerException(
                         getEndpoint(), "There are " + copy.size()
                                        + " scheduler parameters that couldn't be set on the endpoint."
@@ -658,12 +699,14 @@ public abstract class ScheduledPollConsumer extends DefaultConsumer
         }
 
         // clear counters
-        backoffCounter = 0;
-        idleCounter = 0;
-        errorCounter = 0;
-        successCounter = 0;
+        backoffCounter.set(0);
+        idleCounter.set(0);
+        errorCounter.set(0);
+        successCounter.set(0);
         counter.set(0);
+        // clear ready state
         firstPollDone = false;
+        forceReady = false;
 
         super.doStop();
     }

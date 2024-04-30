@@ -32,7 +32,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.ExtendedStartupListener;
@@ -76,6 +75,7 @@ public class DefaultSupervisingRouteController extends DefaultRouteController im
     private final Set<String> nonSupervisedRoutes;
     private final RouteManager routeManager;
     private volatile CamelContextStartupListener listener;
+    private volatile boolean startingRoutes = true; // state during starting routes on bootstrap
     private volatile BackOffTimer timer;
     private volatile ScheduledExecutorService executorService;
     private volatile BackOff backOff;
@@ -89,6 +89,7 @@ public class DefaultSupervisingRouteController extends DefaultRouteController im
     private long backOffMaxAttempts;
     private double backOffMultiplier = 1.0d;
     private boolean unhealthyOnExhausted;
+    private boolean unhealthyOnRestarting;
 
     public DefaultSupervisingRouteController() {
         this.lock = new Object();
@@ -183,6 +184,14 @@ public class DefaultSupervisingRouteController extends DefaultRouteController im
         this.unhealthyOnExhausted = unhealthyOnExhausted;
     }
 
+    public boolean isUnhealthyOnRestarting() {
+        return unhealthyOnRestarting;
+    }
+
+    public void setUnhealthyOnRestarting(boolean unhealthyOnRestarting) {
+        this.unhealthyOnRestarting = unhealthyOnRestarting;
+    }
+
     protected BackOff getBackOff(String id) {
         // currently all routes use the same backoff
         return backOff;
@@ -239,10 +248,32 @@ public class DefaultSupervisingRouteController extends DefaultRouteController im
     // *********************************
 
     @Override
+    public boolean hasUnhealthyRoutes() {
+        boolean answer = startingRoutes;
+
+        // if we have started the routes first time, but some failed and are scheduled for restart
+        // then we may report as still starting routes if we should be unhealthy on restarting
+        if (!answer && isUnhealthyOnRestarting()) {
+            // mark as still starting routes if we have routes to restart
+            answer = !routeManager.routes.isEmpty();
+        }
+        if (!answer && isUnhealthyOnExhausted()) {
+            // mark as still starting routes if we have exhausted routes that should be unhealthy
+            answer = !routeManager.exhausted.isEmpty();
+        }
+        return answer;
+    }
+
+    @Override
+    public boolean isStartingRoutes() {
+        return startingRoutes;
+    }
+
+    @Override
     public void startRoute(String routeId) throws Exception {
         final Optional<RouteHolder> route = routes.stream().filter(r -> r.getId().equals(routeId)).findFirst();
 
-        if (!route.isPresent()) {
+        if (route.isEmpty()) {
             // This route is unknown to this controller, apply default behaviour
             // from super class.
             super.startRoute(routeId);
@@ -255,7 +286,7 @@ public class DefaultSupervisingRouteController extends DefaultRouteController im
     public void stopRoute(String routeId) throws Exception {
         final Optional<RouteHolder> route = routes.stream().filter(r -> r.getId().equals(routeId)).findFirst();
 
-        if (!route.isPresent()) {
+        if (route.isEmpty()) {
             // This route is unknown to this controller, apply default behaviour
             // from super class.
             super.stopRoute(routeId);
@@ -268,7 +299,7 @@ public class DefaultSupervisingRouteController extends DefaultRouteController im
     public void stopRoute(String routeId, Throwable cause) throws Exception {
         final Optional<RouteHolder> route = routes.stream().filter(r -> r.getId().equals(routeId)).findFirst();
 
-        if (!route.isPresent()) {
+        if (route.isEmpty()) {
             // This route is unknown to this controller, apply default behaviour
             // from super class.
             super.stopRoute(routeId, cause);
@@ -281,7 +312,7 @@ public class DefaultSupervisingRouteController extends DefaultRouteController im
     public void stopRoute(String routeId, long timeout, TimeUnit timeUnit) throws Exception {
         final Optional<RouteHolder> route = routes.stream().filter(r -> r.getId().equals(routeId)).findFirst();
 
-        if (!route.isPresent()) {
+        if (route.isEmpty()) {
             // This route is unknown to this controller, apply default behaviour
             // from super class.
             super.stopRoute(routeId, timeout, timeUnit);
@@ -310,7 +341,7 @@ public class DefaultSupervisingRouteController extends DefaultRouteController im
     public void suspendRoute(String routeId) throws Exception {
         final Optional<RouteHolder> route = routes.stream().filter(r -> r.getId().equals(routeId)).findFirst();
 
-        if (!route.isPresent()) {
+        if (route.isEmpty()) {
             // This route is unknown to this controller, apply default behaviour
             // from super class.
             super.suspendRoute(routeId);
@@ -323,7 +354,7 @@ public class DefaultSupervisingRouteController extends DefaultRouteController im
     public void suspendRoute(String routeId, long timeout, TimeUnit timeUnit) throws Exception {
         final Optional<RouteHolder> route = routes.stream().filter(r -> r.getId().equals(routeId)).findFirst();
 
-        if (!route.isPresent()) {
+        if (route.isEmpty()) {
             // This route is unknown to this controller, apply default behaviour
             // from super class.
             super.suspendRoute(routeId, timeout, timeUnit);
@@ -336,7 +367,7 @@ public class DefaultSupervisingRouteController extends DefaultRouteController im
     public void resumeRoute(String routeId) throws Exception {
         final Optional<RouteHolder> route = routes.stream().filter(r -> r.getId().equals(routeId)).findFirst();
 
-        if (!route.isPresent()) {
+        if (route.isEmpty()) {
             // This route is unknown to this controller, apply default behaviour
             // from super class.
             super.resumeRoute(routeId);
@@ -349,21 +380,21 @@ public class DefaultSupervisingRouteController extends DefaultRouteController im
     public Collection<Route> getControlledRoutes() {
         return routes.stream()
                 .map(RouteHolder::get)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
     public Collection<Route> getRestartingRoutes() {
         return routeManager.routes.keySet().stream()
                 .map(RouteHolder::get)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
     public Collection<Route> getExhaustedRoutes() {
         return routeManager.exhausted.keySet().stream()
                 .map(RouteHolder::get)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -431,7 +462,7 @@ public class DefaultSupervisingRouteController extends DefaultRouteController im
         }
     }
 
-    private void startNonSupervisedRoutes() throws Exception {
+    private void startNonSupervisedRoutes() {
         if (!isRunAllowed()) {
             return;
         }
@@ -443,7 +474,7 @@ public class DefaultSupervisingRouteController extends DefaultRouteController im
                     .filter(r -> r.getStatus() == ServiceStatus.Stopped)
                     .filter(r -> !isSupervised(r.route))
                     .map(RouteHolder::getId)
-                    .collect(Collectors.toList());
+                    .toList();
         }
 
         for (String route : routeList) {
@@ -458,6 +489,14 @@ public class DefaultSupervisingRouteController extends DefaultRouteController im
     }
 
     private void startSupervisedRoutes() {
+        try {
+            doStartSupervisedRoutes();
+        } finally {
+            startingRoutes = false;
+        }
+    }
+
+    private void doStartSupervisedRoutes() {
         if (!isRunAllowed()) {
             return;
         }
@@ -469,7 +508,7 @@ public class DefaultSupervisingRouteController extends DefaultRouteController im
                     .filter(r -> r.getStatus() == ServiceStatus.Stopped)
                     .filter(r -> isSupervised(r.route))
                     .map(RouteHolder::getId)
-                    .collect(Collectors.toList());
+                    .toList();
         }
 
         LOG.debug("Starting {} supervised routes", routeList.size());
@@ -483,7 +522,7 @@ public class DefaultSupervisingRouteController extends DefaultRouteController im
 
         if (getCamelContext().getStartupSummaryLevel() != StartupSummaryLevel.Off
                 && getCamelContext().getStartupSummaryLevel() != StartupSummaryLevel.Oneline) {
-            // log after first round of attempts
+            // log after first round of attempts (some routes may be scheduled for restart)
             logRouteStartupSummary();
         }
     }
@@ -596,6 +635,14 @@ public class DefaultSupervisingRouteController extends DefaultRouteController im
                         BackOffTimer.Task task = timer.schedule(backOff, context -> {
                             final BackOffTimer.Task state = getBackOffContext(r.getId()).orElse(null);
                             long attempt = state != null ? state.getCurrentAttempts() : 0;
+
+                            if (!getCamelContext().isRunAllowed()) {
+                                // Camel is shutting down so do not attempt to start route
+                                logger.info("Restarting route: {} attempt: {} is cancelled due CamelContext is shutting down",
+                                        r.getId(), attempt);
+                                return true;
+                            }
+
                             try {
                                 logger.info("Restarting route: {} attempt: {}", r.getId(), attempt);
                                 doStartRoute(r, false, rx -> DefaultSupervisingRouteController.super.startRoute(rx.getId()));
@@ -606,7 +653,7 @@ public class DefaultSupervisingRouteController extends DefaultRouteController im
                                 String cause = e.getClass().getName() + ": " + e.getMessage();
                                 logger.info("Failed restarting route: {} attempt: {} due: {} (stacktrace in debug log level)",
                                         r.getId(), attempt, cause);
-                                logger.debug("    Error restarting route caused by: " + e.getMessage(), e);
+                                logger.debug("    Error restarting route caused by: {}", e.getMessage(), e);
                                 return true;
                             }
                         });
@@ -826,6 +873,7 @@ public class DefaultSupervisingRouteController extends DefaultRouteController im
             if (routes.add(holder)) {
                 holder.get().setRouteController(DefaultSupervisingRouteController.this);
                 holder.get().setAutoStartup(false);
+                holder.get().getProperties().put(Route.SUPERVISED, true); // mark route as being supervised
 
                 if (contextStarted.get()) {
                     LOG.debug("Context is already started: attempt to start route {}", route.getId());

@@ -57,7 +57,7 @@ public final class SnmpConverters {
                 StringTokenizer strTok = new StringTokenizer(s, ",");
                 while (strTok.hasMoreTokens()) {
                     String tok = strTok.nextToken();
-                    if (tok != null && tok.trim().length() > 0) {
+                    if (tok != null && !tok.isBlank()) {
                         list.add(new OID(tok.trim()));
                     } else {
                         // empty token - skip
@@ -70,7 +70,7 @@ public final class SnmpConverters {
 
             return list;
         } catch (Exception e) {
-            // return null if we can't convert without an error 
+            // return null if we can't convert without an error
             // and it could let camel to choice the other converter to do the job
             // new OID(...) will throw NumberFormatException if it's not a valid OID
             return null;
@@ -79,9 +79,9 @@ public final class SnmpConverters {
 
     private static void entryAppend(StringBuilder sb, String tag, String value) {
         sb.append(ENTRY_TAG_OPEN);
-        sb.append("<" + tag + ">");
+        sb.append('<').append(tag).append('>');
         sb.append(value);
-        sb.append("</" + tag + ">");
+        sb.append("</").append(tag).append('>');
         sb.append(ENTRY_TAG_CLOSE);
     }
 

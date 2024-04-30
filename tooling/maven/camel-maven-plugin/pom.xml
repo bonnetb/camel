@@ -23,7 +23,7 @@
     <parent>
         <groupId>org.apache.camel</groupId>
         <artifactId>maven-plugins</artifactId>
-        <version>3.17.0-SNAPSHOT</version>
+        <version>4.6.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>camel-maven-plugin</artifactId>
@@ -53,6 +53,7 @@
         <dependency>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>exec-maven-plugin</artifactId>
+            <version>${exec-maven-plugin-version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.apache.maven</groupId>
@@ -82,11 +83,6 @@
             <groupId>org.apache.camel</groupId>
             <artifactId>camel-spring-main</artifactId>
         </dependency>
-        <!-- camel-cdi-main has Main class for running CDI -->
-        <dependency>
-            <groupId>org.apache.camel</groupId>
-            <artifactId>camel-cdi-main</artifactId>
-        </dependency>
         <!-- for logging in color -->
         <dependency>
             <groupId>org.fusesource.jansi</groupId>
@@ -100,7 +96,7 @@
         </dependency>
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-slf4j-impl</artifactId>
+            <artifactId>log4j-slf4j2-impl</artifactId>
         </dependency>
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
@@ -109,18 +105,29 @@
 
     </dependencies>
 
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-plugin-plugin</artifactId>
-                <configuration>
-                    <mojoDependencies>
-                        <dep>org.codehaus.mojo:exec-maven-plugin</dep>
-                        <dep>org.apache.maven:maven-plugin-api</dep>
-                    </mojoDependencies>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
+    <profiles>
+        <profile>
+            <id>full</id>
+            <activation>
+                <property>
+                    <name>!quickly</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-plugin-plugin</artifactId>
+                        <configuration>
+                            <goalPrefix>camel</goalPrefix>
+                            <mojoDependencies>
+                                <dep>org.codehaus.mojo:exec-maven-plugin</dep>
+                                <dep>org.apache.maven:maven-plugin-api</dep>
+                            </mojoDependencies>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

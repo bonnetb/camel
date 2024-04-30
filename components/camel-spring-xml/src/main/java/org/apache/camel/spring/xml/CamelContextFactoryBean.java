@@ -20,13 +20,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlElements;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlElements;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.LoggingLevel;
@@ -76,6 +76,7 @@ import org.apache.camel.spi.Registry;
 import org.apache.camel.spring.SpringCamelContext;
 import org.apache.camel.spring.spi.BridgePropertyPlaceholderConfigurer;
 import org.apache.camel.support.CamelContextHelper;
+import org.apache.camel.support.PluginHelper;
 import org.apache.camel.util.StopWatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -219,7 +220,7 @@ public class CamelContextFactoryBean extends AbstractCamelContextFactoryBean<Spr
             @XmlElement(name = "consumerTemplate", type = CamelConsumerTemplateFactoryBean.class) })
     private List<AbstractCamelFactoryBean<?>> beansFactory;
     @XmlElements({
-            @XmlElement(name = "errorHandler", type = ErrorHandlerDefinition.class) })
+            @XmlElement(name = "errorHandler", type = SpringErrorHandlerDefinition.class) })
     private List<?> beans;
     @XmlElement(name = "defaultServiceCallConfiguration")
     private ServiceCallConfigurationDefinition defaultServiceCallConfiguration;
@@ -318,15 +319,15 @@ public class CamelContextFactoryBean extends AbstractCamelContextFactoryBean<Spr
     protected void findRouteBuildersByPackageScan(String[] packages, PackageScanFilter filter, List<RoutesBuilder> builders)
             throws Exception {
         // add filter to class resolver which then will filter
-        getContext().getPackageScanClassResolver().addFilter(filter);
+        PluginHelper.getPackageScanClassResolver(getContext()).addFilter(filter);
 
         PackageScanRouteBuilderFinder finder = new PackageScanRouteBuilderFinder(
                 getContext(), packages, getContextClassLoaderOnStart(),
-                getBeanPostProcessor(), getContext().getPackageScanClassResolver());
+                getBeanPostProcessor(), PluginHelper.getPackageScanClassResolver(getContext()));
         finder.appendBuilders(builders);
 
         // and remove the filter
-        getContext().getPackageScanClassResolver().removeFilter(filter);
+        PluginHelper.getPackageScanClassResolver(getContext()).removeFilter(filter);
     }
 
     @Override
@@ -348,7 +349,8 @@ public class CamelContextFactoryBean extends AbstractCamelContextFactoryBean<Spr
             }
             // register the bean post processor on camel context
             if (beanPostProcessor instanceof org.apache.camel.spi.CamelBeanPostProcessor) {
-                context.setBeanPostProcessor((org.apache.camel.spi.CamelBeanPostProcessor) beanPostProcessor);
+                context.getCamelContextExtension().addContextPlugin(org.apache.camel.spi.CamelBeanPostProcessor.class,
+                        (org.apache.camel.spi.CamelBeanPostProcessor) beanPostProcessor);
             }
         }
     }
@@ -381,7 +383,7 @@ public class CamelContextFactoryBean extends AbstractCamelContextFactoryBean<Spr
         Registry registry = getBeanForType(Registry.class);
         if (registry != null) {
             LOG.info("Using custom Registry: {}", registry);
-            context.setRegistry(registry);
+            context.getCamelContextExtension().setRegistry(registry);
         }
     }
 
@@ -456,7 +458,7 @@ public class CamelContextFactoryBean extends AbstractCamelContextFactoryBean<Spr
 
     @Override
     public int getOrder() {
-        // CamelContextFactoryBean implements Ordered so that it's the 
+        // CamelContextFactoryBean implements Ordered so that it's the
         // second to last in ApplicationListener to receive events,
         // SpringCamelContext should be the last one, this is important
         // for startup as we want all resources to be ready and all
@@ -515,7 +517,7 @@ public class CamelContextFactoryBean extends AbstractCamelContextFactoryBean<Spr
     protected SpringCamelContext createContext() {
         SpringCamelContext ctx = newCamelContext();
         ctx.setApplicationContext(getApplicationContext());
-        ctx.setName(getId());
+        ctx.getCamelContextExtension().setName(getId());
 
         return ctx;
     }

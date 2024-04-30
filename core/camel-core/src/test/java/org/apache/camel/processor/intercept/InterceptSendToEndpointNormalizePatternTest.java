@@ -19,12 +19,10 @@ package org.apache.camel.processor.intercept;
 import org.apache.camel.ContextTestSupport;
 import org.apache.camel.builder.RouteBuilder;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.parallel.ResourceLock;
 
 /**
  * Unit test for intercepting sending to endpoint
  */
-@ResourceLock("VmComponent")
 public class InterceptSendToEndpointNormalizePatternTest extends ContextTestSupport {
 
     @Test
@@ -38,10 +36,10 @@ public class InterceptSendToEndpointNormalizePatternTest extends ContextTestSupp
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 interceptSendToEndpoint("stub:foo?privateKeyFile=/user/.ssh.id_rsa").to("mock:intercept");
 
                 from("direct:start").to("stub:foo?privateKeyFile=/user/.ssh.id_rsa").to("mock:result");

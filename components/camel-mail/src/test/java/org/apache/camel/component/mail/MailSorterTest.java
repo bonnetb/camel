@@ -18,13 +18,13 @@ package org.apache.camel.component.mail;
 
 import java.util.Date;
 
-import javax.mail.Address;
-import javax.mail.Message;
-import javax.mail.MessagingException;
-import javax.mail.internet.InternetAddress;
+import jakarta.mail.Address;
+import jakarta.mail.Message;
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.InternetAddress;
 
-import com.sun.mail.imap.SortTerm;
 import org.apache.camel.test.junit5.CamelTestSupport;
+import org.eclipse.angus.mail.imap.SortTerm;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 

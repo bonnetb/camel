@@ -20,19 +20,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.camel.ContextTestSupport;
 import org.apache.camel.Exchange;
-import org.apache.camel.ExtendedExchange;
 import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.support.SynchronizationAdapter;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class AsyncEndpointDelayUoWTest extends ContextTestSupport {
 
     private static String beforeThreadName;
     private static String afterThreadName;
-    private MySynchronization sync = new MySynchronization();
+    private final MySynchronization sync = new MySynchronization();
 
     @Test
     public void testAsyncEndpoint() throws Exception {
@@ -54,17 +55,17 @@ public class AsyncEndpointDelayUoWTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:start").process(new Processor() {
-                    public void process(Exchange exchange) throws Exception {
+                    public void process(Exchange exchange) {
                         beforeThreadName = Thread.currentThread().getName();
-                        exchange.adapt(ExtendedExchange.class).addOnCompletion(sync);
+                        exchange.getExchangeExtension().addOnCompletion(sync);
                     }
                 }).to("mock:before").to("log:before").delay(500).asyncDelayed().process(new Processor() {
-                    public void process(Exchange exchange) throws Exception {
+                    public void process(Exchange exchange) {
                         afterThreadName = Thread.currentThread().getName();
                     }
                 }).transform().constant("Bye Camel").to("log:after").to("mock:after").to("mock:result");
@@ -74,8 +75,8 @@ public class AsyncEndpointDelayUoWTest extends ContextTestSupport {
 
     private static class MySynchronization extends SynchronizationAdapter {
 
-        private AtomicInteger onComplete = new AtomicInteger();
-        private AtomicInteger onFailure = new AtomicInteger();
+        private final AtomicInteger onComplete = new AtomicInteger();
+        private final AtomicInteger onFailure = new AtomicInteger();
 
         @Override
         public void onComplete(Exchange exchange) {

@@ -34,7 +34,7 @@ public class UnitOfWorkTest extends ContextTestSupport {
     protected Exchange completed;
     protected Exchange failed;
     protected String uri = "direct:foo";
-    protected CountDownLatch doneLatch = new CountDownLatch(1);
+    protected final CountDownLatch doneLatch = new CountDownLatch(1);
     protected Object foo;
     protected Object baz;
 
@@ -48,7 +48,7 @@ public class UnitOfWorkTest extends ContextTestSupport {
         assertEquals("bar", foo, "Should have propagated the header inside the Synchronization.onComplete() callback");
         assertNull(baz, "The Synchronization.onFailure() callback should have not been invoked");
 
-        log.info("Received completed: " + completed);
+        log.info("Received completed: {}", completed);
     }
 
     @Test
@@ -61,7 +61,7 @@ public class UnitOfWorkTest extends ContextTestSupport {
         assertEquals("bat", baz, "Should have propagated the header inside the Synchronization.onFailure() callback");
         assertNull(foo, "The Synchronization.onComplete() callback should have not been invoked");
 
-        log.info("Received fail: " + failed);
+        log.info("Received fail: {}", failed);
     }
 
     @Override
@@ -84,10 +84,10 @@ public class UnitOfWorkTest extends ContextTestSupport {
         super.setUp();
     }
 
-    protected void sendMessage() throws InterruptedException {
+    protected void sendMessage() {
 
         template.send(uri, new Processor() {
-            public void process(Exchange exchange) throws Exception {
+            public void process(Exchange exchange) {
                 exchange.getIn().setHeader("foo", "bar");
                 exchange.getIn().setHeader("baz", "bat");
                 exchange.getIn().setBody("<hello>world!</hello>");
@@ -102,7 +102,7 @@ public class UnitOfWorkTest extends ContextTestSupport {
                 from("seda:async").to("direct:foo");
                 from("direct:foo").process(new Processor() {
                     public void process(Exchange exchange) throws Exception {
-                        log.info("Received: " + exchange);
+                        log.info("Received: {}", exchange);
                         exchange.getUnitOfWork().addSynchronization(synchronization);
 
                         String name = getName();

@@ -17,130 +17,17 @@
 
 package org.apache.camel.component.kafka.consumer.support;
 
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import org.apache.camel.Exchange;
-import org.apache.camel.component.kafka.KafkaConsumer;
-import org.apache.camel.component.kafka.consumer.CommitManager;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.common.TopicPartition;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import static org.apache.camel.component.kafka.consumer.support.KafkaRecordProcessor.serializeOffsetKey;
-
-public class KafkaRecordProcessorFacade {
-    private static final Logger LOG = LoggerFactory.getLogger(KafkaRecordProcessorFacade.class);
-
-    private final KafkaConsumer camelKafkaConsumer;
-    private final Map<String, Long> lastProcessedOffset;
-    private final String threadId;
-    private final KafkaRecordProcessor kafkaRecordProcessor;
-    private final CommitManager commitManager;
-
-    public KafkaRecordProcessorFacade(KafkaConsumer camelKafkaConsumer, Map<String, Long> lastProcessedOffset, String threadId,
-                                      CommitManager commitManager) {
-        this.camelKafkaConsumer = camelKafkaConsumer;
-        this.lastProcessedOffset = lastProcessedOffset;
-        this.threadId = threadId;
-        this.commitManager = commitManager;
-
-        kafkaRecordProcessor = buildKafkaRecordProcessor(commitManager);
-
-    }
-
-    private boolean isStopping() {
-        return camelKafkaConsumer.isStopping();
-    }
-
-    public ProcessingResult processPolledRecords(ConsumerRecords<Object, Object> allRecords) {
-        logRecords(allRecords);
-
-        Set<TopicPartition> partitions = allRecords.partitions();
-        Iterator<TopicPartition> partitionIterator = partitions.iterator();
-
-        ProcessingResult lastResult = ProcessingResult.newUnprocessed();
-
-        while (partitionIterator.hasNext() && !isStopping()) {
-            lastResult = ProcessingResult.newUnprocessed();
-            TopicPartition partition = partitionIterator.next();
-
-            List<ConsumerRecord<Object, Object>> partitionRecords = allRecords.records(partition);
-            Iterator<ConsumerRecord<Object, Object>> recordIterator = partitionRecords.iterator();
-
-            logRecordsInPartition(partitionRecords, partition);
-
-            while (!lastResult.isBreakOnErrorHit() && recordIterator.hasNext() && !isStopping()) {
-                ConsumerRecord<Object, Object> record = recordIterator.next();
-
-                lastResult = processRecord(partition, partitionIterator.hasNext(), recordIterator.hasNext(), lastResult,
-                        kafkaRecordProcessor, record);
-            }
-
-            if (!lastResult.isBreakOnErrorHit()) {
-                LOG.debug("Committing offset on successful execution");
-                // all records processed from partition so commit them
-                commitManager.commitOffset(partition, lastResult.getPartitionLastOffset());
-            }
-        }
-
-        return lastResult;
-    }
-
-    private void logRecordsInPartition(List<ConsumerRecord<Object, Object>> partitionRecords, TopicPartition partition) {
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Records count {} received for partition {}", partitionRecords.size(),
-                    partition);
-        }
-    }
-
-    private void logRecords(ConsumerRecords<Object, Object> allRecords) {
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Last poll on thread {} resulted on {} records to process", threadId, allRecords.count());
-        }
-    }
-
-    private ProcessingResult processRecord(
-            TopicPartition partition,
-            boolean partitionHasNext,
-            boolean recordHasNext,
-            final ProcessingResult lastResult,
-            KafkaRecordProcessor kafkaRecordProcessor,
-            ConsumerRecord<Object, Object> record) {
-
-        logRecord(record);
-
-        Exchange exchange = camelKafkaConsumer.createExchange(false);
-
-        ProcessingResult currentResult
-                = kafkaRecordProcessor.processExchange(exchange, partition, partitionHasNext,
-                        recordHasNext, record, lastResult, camelKafkaConsumer.getExceptionHandler());
-
-        if (!currentResult.isBreakOnErrorHit()) {
-            lastProcessedOffset.put(serializeOffsetKey(partition), currentResult.getPartitionLastOffset());
-        }
-
-        // success so release the exchange
-        camelKafkaConsumer.releaseExchange(exchange, false);
-
-        return currentResult;
-    }
-
-    private void logRecord(ConsumerRecord<Object, Object> record) {
-        if (LOG.isTraceEnabled()) {
-            LOG.trace("Partition = {}, offset = {}, key = {}, value = {}", record.partition(),
-                    record.offset(), record.key(), record.value());
-        }
-    }
-
-    private KafkaRecordProcessor buildKafkaRecordProcessor(CommitManager commitManager) {
-        return new KafkaRecordProcessor(
-                camelKafkaConsumer.getEndpoint().getConfiguration(),
-                camelKafkaConsumer.getProcessor(),
-                commitManager);
-    }
+/**
+ * A processing facade that allows processing consumer records in different ways
+ */
+public interface KafkaRecordProcessorFacade {
+    /**
+     * Sends a set of records polled from Kafka for processing
+     *
+     * @param  allRecords All records received from a call to the Kafka's consumer poll method
+     * @return            The result of processing this set of records
+     */
+    ProcessingResult processPolledRecords(ConsumerRecords<Object, Object> allRecords);
 }

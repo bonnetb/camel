@@ -45,6 +45,7 @@ import org.slf4j.LoggerFactory;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class GrpcConsumerSecurityTest extends CamelTestSupport {
 
@@ -119,7 +120,8 @@ public class GrpcConsumerSecurityTest extends CamelTestSupport {
 
         StreamObserver<PingRequest> requestObserver = tlsAsyncStub.pingAsyncSync(responseObserver);
         requestObserver.onNext(pingRequest);
-        latch.await(5, TimeUnit.SECONDS);
+        requestObserver.onCompleted();
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
 
         MockEndpoint mockEndpoint = getMockEndpoint("mock:tls-enable");
         mockEndpoint.expectedMessageCount(1);
@@ -145,7 +147,8 @@ public class GrpcConsumerSecurityTest extends CamelTestSupport {
 
         StreamObserver<PingRequest> requestObserver = jwtCorrectAsyncStub.pingAsyncSync(responseObserver);
         requestObserver.onNext(pingRequest);
-        latch.await(5, TimeUnit.SECONDS);
+        requestObserver.onCompleted();
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
 
         MockEndpoint mockEndpoint = getMockEndpoint("mock:jwt-correct-secret");
         mockEndpoint.expectedMessageCount(1);
@@ -171,7 +174,7 @@ public class GrpcConsumerSecurityTest extends CamelTestSupport {
 
         StreamObserver<PingRequest> requestObserver = jwtIncorrectAsyncStub.pingAsyncSync(responseObserver);
         requestObserver.onNext(pingRequest);
-        latch.await(5, TimeUnit.SECONDS);
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
 
         MockEndpoint mockEndpoint = getMockEndpoint("mock:jwt-incorrect-secret");
         mockEndpoint.expectedMessageCount(0);
@@ -179,7 +182,7 @@ public class GrpcConsumerSecurityTest extends CamelTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
             public void configure() {
@@ -188,20 +191,20 @@ public class GrpcConsumerSecurityTest extends CamelTestSupport {
                      + "/org.apache.camel.component.grpc.PingPong?consumerStrategy=PROPAGATION&"
                      + "negotiationType=TLS&keyCertChainResource=file:src/test/resources/certs/server.pem&"
                      + "keyResource=file:src/test/resources/certs/server.key&trustCertCollectionResource=file:src/test/resources/certs/ca.pem")
-                             .to("mock:tls-enable")
-                             .bean(new GrpcMessageBuilder(), "buildAsyncPongResponse");
+                        .to("mock:tls-enable")
+                        .bean(new GrpcMessageBuilder(), "buildAsyncPongResponse");
 
                 from("grpc://localhost:" + GRPC_JWT_CORRECT_TEST_PORT
                      + "/org.apache.camel.component.grpc.PingPong?consumerStrategy=PROPAGATION&"
                      + "authenticationType=JWT&jwtSecret=" + GRPC_JWT_CORRECT_SECRET)
-                             .to("mock:jwt-correct-secret")
-                             .bean(new GrpcMessageBuilder(), "buildAsyncPongResponse");
+                        .to("mock:jwt-correct-secret")
+                        .bean(new GrpcMessageBuilder(), "buildAsyncPongResponse");
 
                 from("grpc://localhost:" + GRPC_JWT_INCORRECT_TEST_PORT
                      + "/org.apache.camel.component.grpc.PingPong?consumerStrategy=PROPAGATION&"
                      + "authenticationType=JWT&jwtSecret=" + GRPC_JWT_CORRECT_SECRET)
-                             .to("mock:jwt-incorrect-secret")
-                             .bean(new GrpcMessageBuilder(), "buildAsyncPongResponse");
+                        .to("mock:jwt-incorrect-secret")
+                        .bean(new GrpcMessageBuilder(), "buildAsyncPongResponse");
             }
         };
     }

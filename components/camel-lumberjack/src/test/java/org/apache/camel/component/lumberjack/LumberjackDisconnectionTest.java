@@ -61,7 +61,7 @@ public class LumberjackDisconnectionTest extends CamelTestSupport {
         List<Integer> windows = Arrays.asList(15, 10);
 
         // When sending messages
-        List<Integer> responses = LumberjackUtil.sendMessages(port, null, windows);
+        List<Integer> responses = LumberjackUtil.sendMessages(port, null, windows, false);
 
         // Then we should have the messages we're expecting
         mock.assertIsSatisfied();
@@ -77,7 +77,7 @@ public class LumberjackDisconnectionTest extends CamelTestSupport {
         int count;
 
         @Override
-        public void process(Exchange exchange) throws Exception {
+        public void process(Exchange exchange) {
             count++;
             if (count == 4) {
                 throw new RuntimeCamelException("Ooops");

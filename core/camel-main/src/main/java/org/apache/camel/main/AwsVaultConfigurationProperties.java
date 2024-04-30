@@ -81,4 +81,44 @@ public class AwsVaultConfigurationProperties extends AwsVaultConfiguration imple
         return this;
     }
 
+    /**
+     * Define if we want to use the AWS Profile Credentials Provider or not
+     */
+    public AwsVaultConfigurationProperties withProfileCredentialsProvider(boolean profileCredentialsProvider) {
+        setProfileCredentialsProvider(profileCredentialsProvider);
+        return this;
+    }
+
+    /**
+     * Define the profile name if we are using the Profile Credentials Provider
+     */
+    public AwsVaultConfigurationProperties withProfileName(String profileName) {
+        setProfileName(profileName);
+        return this;
+    }
+
+    /**
+     * Whether to automatically reload Camel upon secrets being updated in AWS.
+     */
+    public AwsVaultConfigurationProperties withRefreshEnabled(boolean refreshEnabled) {
+        setRefreshEnabled(refreshEnabled);
+        return this;
+    }
+
+    /**
+     * The period (millis) between checking AWS for updated secrets.
+     */
+    public AwsVaultConfigurationProperties withRefreshPeriod(long refreshPeriod) {
+        setRefreshPeriod(refreshPeriod);
+        return this;
+    }
+
+    /**
+     * Specify the secret names (or pattern) to check for updates. Multiple secrets can be separated by comma.
+     */
+    public AwsVaultConfigurationProperties withSecrets(String secrets) {
+        setSecrets(secrets);
+        return this;
+    }
+
 }

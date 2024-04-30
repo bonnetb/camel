@@ -120,11 +120,11 @@ public class BindyKeyValuePairFactory extends BindyAbstractFactory implements Bi
         // Map to hold the model @OneToMany classes while binding
         Map<String, List<Object>> lists = new HashMap<>();
 
-        bind(camelContext, data, model, line, lists);
+        bind(data, model, line, lists);
     }
 
     public void bind(
-            CamelContext camelContext, List<String> data, Map<String, Object> model, int line, Map<String, List<Object>> lists)
+            List<String> data, Map<String, Object> model, int line, Map<String, List<Object>> lists)
             throws Exception {
 
         Map<Integer, List<String>> results = new HashMap<>();
@@ -393,7 +393,7 @@ public class BindyKeyValuePairFactory extends BindyAbstractFactory implements Bi
 
                 String targetClass = oneToMany.mappedTo();
 
-                if (!targetClass.equals("")) {
+                if (!targetClass.isEmpty()) {
                     // Class cl = Class.forName(targetClass); Does not work in
                     // OSGI when class is defined in another bundle
                     Class<?> cl = null;
@@ -565,7 +565,7 @@ public class BindyKeyValuePairFactory extends BindyAbstractFactory implements Bi
                     LOG.debug("Value added at the position ({}) : {}{}", posit, value, separator);
                 }
 
-                builder.append(value + separator);
+                builder.append(value).append(separator);
             }
         }
 

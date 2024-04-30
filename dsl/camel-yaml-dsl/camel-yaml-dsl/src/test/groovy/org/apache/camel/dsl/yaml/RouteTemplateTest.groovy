@@ -20,17 +20,19 @@ import org.apache.camel.component.mock.MockEndpoint
 import org.apache.camel.dsl.yaml.support.YamlTestSupport
 import org.apache.camel.dsl.yaml.support.model.MySetBody
 import org.apache.camel.dsl.yaml.support.model.MyUppercaseProcessor
+import org.apache.camel.impl.engine.DefaultRoute
 import org.apache.camel.model.LogDefinition
 import org.apache.camel.model.RouteTemplateDefinition
 import org.apache.camel.model.ToDefinition
 import org.apache.camel.spi.Resource
+import org.apache.camel.support.PluginHelper
 import org.junit.jupiter.api.Assertions
 
 class RouteTemplateTest extends YamlTestSupport {
     def "create template"() {
         when:
         loadRoutes '''
-                - template:
+                - routeTemplate:
                     id: "myTemplate"
                     from:
                       uri: "direct:info"
@@ -52,7 +54,7 @@ class RouteTemplateTest extends YamlTestSupport {
 
     def "create template with beans (#resource.location)"(Resource resource) {
         setup:
-        context.routesLoader.loadRoutes(resource)
+        PluginHelper.getRoutesLoader(context).loadRoutes(resource)
 
         withMock('mock:result') {
             expectedMessageCount 1
@@ -77,7 +79,7 @@ class RouteTemplateTest extends YamlTestSupport {
         where:
         resource << [
                 asResource('beans', """
-                        - template:
+                        - routeTemplate:
                             id: "myTemplate"
                             beans:
                               - name: "myProcessor"
@@ -94,30 +96,12 @@ class RouteTemplateTest extends YamlTestSupport {
                               - to: "mock:result"
                     """),
                 asResource('script', """
-                        - template:
+                        - routeTemplate:
                             id: "myTemplate"
                             beans:
                               - name: "myProcessor"
-                                type: "groovy"
-                                script: "new ${MyUppercaseProcessor.class.name}()"
-                            from:
-                              uri: "direct:{{directName}}"
-                              steps:
-                                - process:
-                                    ref: "{{myProcessor}}"
-                        - from:
-                            uri: "direct:start"
-                            steps:
-                              - to: "direct:myId"
-                              - to: "mock:result"
-                    """),
-                asResource('script-bean-type', """
-                        - template:
-                            id: "myTemplate"
-                            beans:
-                              - name: "myProcessor"
-                                type: "groovy"
-                                bean-type: "org.apache.camel.Processor"
+                                type: "${MyUppercaseProcessor.class.name}"
+                                scriptLanguage: "groovy"
                                 script: "new ${MyUppercaseProcessor.class.name}()"
                             from:
                               uri: "direct:{{directName}}"
@@ -131,11 +115,12 @@ class RouteTemplateTest extends YamlTestSupport {
                               - to: "mock:result"
                     """),
                 asResource('script-block', """
-                        - template:
+                        - routeTemplate:
                             id: "myTemplate"
                             beans:
                               - name: "myProcessor"
-                                type: "groovy"
+                                type: "org.apache.camel.Processor"
+                                scriptLanguage: "groovy"
                                 script: |
                                     new ${MyUppercaseProcessor.class.name}()
                             from:
@@ -155,7 +140,7 @@ class RouteTemplateTest extends YamlTestSupport {
     def "create template with bean and properties"() {
         setup:
         loadRoutes """                
-                - template:
+                - routeTemplate:
                     id: "myTemplate"
                     beans:
                       - name: "myProcessor"
@@ -196,59 +181,14 @@ class RouteTemplateTest extends YamlTestSupport {
         MockEndpoint.assertIsSatisfied(context)
     }
 
-    def "create template with bean and property"() {
-        setup:
-        loadRoutes """                
-                - template:
-                    id: "myTemplate"
-                    beans:
-                      - name: "myProcessor"
-                        type: "#class:${MySetBody.class.name}"
-                        property:
-                          - key: "payload"
-                            value: "test-payload"
-                    from:
-                      uri: "direct:{{directName}}"
-                      steps:
-                        - process:
-                            ref: "{{myProcessor}}"
-                - from:
-                    uri: "direct:start"
-                    steps:
-                      - to: "direct:myId"
-                      - to: "mock:result"
-            """
-
-        withMock('mock:result') {
-            expectedMessageCount 1
-            expectedBodiesReceived 'test-payload'
-        }
-        when:
-        context.addRouteFromTemplate('myId', 'myTemplate', ['directName': 'myId'])
-        context.start()
-
-        withTemplate {
-            to('direct:start').withBody('hello').send()
-        }
-        then:
-        context.routeTemplateDefinitions.size() == 1
-
-        with(context.routeTemplateDefinitions[0], RouteTemplateDefinition) {
-            id == 'myTemplate'
-            templateBeans.size() == 1
-        }
-
-        MockEndpoint.assertIsSatisfied(context)
-    }
-
     def "create template with properties"() {
         when:
         loadRoutes """
-                - template:
+                - routeTemplate:
                     id: "myTemplate"
                     parameters:
                       - name: "foo"
-                        default-value: "myDefaultFoo"
+                        defaultValue: "myDefaultFoo"
                         description: "myFooDescription"
                       - name: "bar"
                         description: "myBarDescription"
@@ -281,7 +221,7 @@ class RouteTemplateTest extends YamlTestSupport {
     def "create template with optional properties"() {
         when:
         loadRoutes """
-                - template:
+                - routeTemplate:
                     id: "myTemplate"
                     parameters:
                       - name: "foo"
@@ -333,19 +273,20 @@ class RouteTemplateTest extends YamlTestSupport {
     def "create template with joor"() {
         setup:
             loadRoutes """                
-                    - template:
+                    - routeTemplate:
                         id: "myTemplate"
                         beans:
                           - name: "myAgg"
-                            type: "joor"
+                            type: "org.apache.camel.AggregationStrategy"
+                            scriptLanguage: "joor"
                             script: "(e1, e2) -> { return e2.getMessage().getBody(); }"
                         from:
                           uri: "direct:route"
                           steps:
                             - aggregate:
-                                aggregation-strategy: "{{myAgg}}"
-                                completion-size: 2
-                                correlation-expression:
+                                aggregationStrategy: "{{myAgg}}"
+                                completionSize: 2
+                                correlationExpression:
                                   header: "StockSymbol"
                                 steps:  
                                   - to: "mock:result"
@@ -378,19 +319,20 @@ class RouteTemplateTest extends YamlTestSupport {
     def "create template with groovy"() {
         setup:
             loadRoutes """                
-                    - template:
+                    - routeTemplate:
                         id: "myTemplate"
                         beans:
                           - name: "myAgg"
-                            type: "groovy"
+                            type: "org.apache.camel.AggregationStrategy"
+                            scriptLanguage: "groovy"
                             script: "class MaxAgg { int agg(int s1, int s2) { return Math.max(s1, s2) }}; new MaxAgg()"
                         from:
                           uri: "direct:route"
                           steps:
                             - aggregate:
-                                aggregation-strategy: "{{myAgg}}"
-                                completion-size: 2
-                                correlation-expression:
+                                aggregationStrategy: "{{myAgg}}"
+                                completionSize: 2
+                                correlationExpression:
                                   header: "StockSymbol"
                                 steps:  
                                   - to: "mock:result"
@@ -420,4 +362,119 @@ class RouteTemplateTest extends YamlTestSupport {
             MockEndpoint.assertIsSatisfied(context)
     }
 
+    def "create routeTemplate with route"() {
+        setup:
+        loadRoutes """
+                - routeTemplate:
+                    id: "myTemplate"
+                    parameters:
+                      - name: "foo"
+                      - name: "bar"
+                    route:
+                      streamCache: false
+                      messageHistory: true
+                      logMask: true
+                      from:
+                        uri: "direct:{{foo}}"
+                        steps:
+                          - to: "mock:{{bar}}"
+            """
+        when:
+            context.addRouteFromTemplate('myId', 'myTemplate', [foo: "start", bar: "result"])
+            context.start()
+
+        then:
+            with(context.routes[0], DefaultRoute) {
+                it.isStreamCaching() == false
+                it.isMessageHistory() == true
+                it.isLogMask() == true
+            }
+    }
+
+    def "create routeTemplate with prefix"() {
+        setup:
+        loadRoutes """
+                - routeTemplate:
+                    id: "myTemplate"
+                    parameters:
+                      - name: "foo"
+                      - name: "bar"
+                    from:
+                      uri: "direct:{{foo}}"
+                      steps:
+                      - choice:  
+                          when:
+                            - header: "foo"
+                              steps:
+                                - log:
+                                    id: "myLog"
+                                    message: "Hello World"
+                          otherwise:
+                            steps:
+                              - to:
+                                  uri: "mock:{{bar}}"
+                                  id: "end"
+            """
+        when:
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put("foo", "one");
+        parameters.put("bar", "cheese");
+        context.addRouteFromTemplate("first", "myTemplate", "aaa", parameters);
+
+        parameters.put("foo", "two");
+        parameters.put("bar", "cake");
+        context.addRouteFromTemplate("second", "myTemplate", "bbb", parameters);
+        context.start()
+
+        then:
+        Assertions.assertEquals(3, context.getRoute("first").filter("aaa*").size());
+        Assertions.assertEquals(3, context.getRoute("second").filter("bbb*").size());
+    }
+
+    def "Error: kebab-case: route-template"() {
+        when:
+        var route = """
+                - route-template:
+                    id: "myTemplate"
+                    parameters:
+                      - name: "foo"
+                      - name: "bar"
+                    from:
+                      uri: "direct:{{foo}}"
+                      steps:
+                        - log: "{{bar}}"
+            """
+        then:
+        try {
+            loadRoutes(route)
+            Assertions.fail("Should have thrown exception")
+        } catch (e) {
+            Assertions.assertTrue(e.message.contains("additional properties"), e.getMessage())
+        }
+    }
+
+    def "Error: kebab-case: default-value"() {
+        when:
+        var route = """
+                - routeTemplate:
+                    id: "myTemplate"
+                    parameters:
+                      - name: "foo"
+                        default-value: "myDefaultFoo"
+                        description: "myFooDescription"
+                      - name: "bar"
+                        description: "myBarDescription"
+                    from:
+                      uri: "direct:{{foo}}"
+                      steps:
+                        - log: "{{bar}}"
+            """
+        then:
+        try {
+            loadRoutes(route)
+            Assertions.fail("Should have thrown exception")
+        } catch (e) {
+            Assertions.assertTrue(e.message.contains("additional properties"), e.getMessage())
+        }
+    }
 }

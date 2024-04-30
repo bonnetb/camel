@@ -92,7 +92,12 @@ public class CsvDataFormat extends ServiceSupport implements DataFormat, DataFor
 
     @Override
     public Object unmarshal(Exchange exchange, InputStream inputStream) throws Exception {
-        return unmarshaller.unmarshal(exchange, inputStream);
+        return unmarshal(exchange, (Object) inputStream);
+    }
+
+    @Override
+    public Object unmarshal(Exchange exchange, Object body) throws Exception {
+        return unmarshaller.unmarshal(exchange, body);
     }
 
     @Override
@@ -766,7 +771,7 @@ public class CsvDataFormat extends ServiceSupport implements DataFormat, DataFor
      * <p>
      * If {@code null} then the default value of the format used.
      * </p>
-     * 
+     *
      * @param  trim whether or not to trim leading and trailing blanks. <code>null</code> value allowed.
      * @return      Current {@code CsvDataFormat}, fluent API.
      */
@@ -777,7 +782,7 @@ public class CsvDataFormat extends ServiceSupport implements DataFormat, DataFor
 
     /**
      * Indicates whether or not to trim leading and trailing blanks.
-     * 
+     *
      * @return {@link Boolean#TRUE} if leading and trailing blanks should be trimmed. {@link Boolean#FALSE} otherwise.
      *         Could return <code>null</code> if value has NOT been set.
      */
@@ -790,7 +795,7 @@ public class CsvDataFormat extends ServiceSupport implements DataFormat, DataFor
      * <p>
      * If {@code null} then the default value of the format used.
      * </p>
-     * 
+     *
      * @param  ignoreHeaderCase whether or not to ignore case when accessing header names. <code>null</code> value
      *                          allowed.
      * @return                  Current {@code CsvDataFormat}, fluent API.
@@ -802,7 +807,7 @@ public class CsvDataFormat extends ServiceSupport implements DataFormat, DataFor
 
     /**
      * Indicates whether or not to ignore case when accessing header names.
-     * 
+     *
      * @return {@link Boolean#TRUE} if case should be ignored when accessing header name. {@link Boolean#FALSE}
      *         otherwise. Could return <code>null</code> if value has NOT been set.
      */
@@ -815,7 +820,7 @@ public class CsvDataFormat extends ServiceSupport implements DataFormat, DataFor
      * <p>
      * If {@code null} then the default value of the format used.
      * </p>
-     * 
+     *
      * @param  trailingDelimiter whether or not to add a trailing delimiter.
      * @return                   Current {@code CsvDataFormat}, fluent API.
      */
@@ -826,7 +831,7 @@ public class CsvDataFormat extends ServiceSupport implements DataFormat, DataFor
 
     /**
      * Indicates whether or not to add a trailing delimiter.
-     * 
+     *
      * @return {@link Boolean#TRUE} if a trailing delimiter should be added. {@link Boolean#FALSE} otherwise. Could
      *         return <code>null</code> if value has NOT been set.
      */

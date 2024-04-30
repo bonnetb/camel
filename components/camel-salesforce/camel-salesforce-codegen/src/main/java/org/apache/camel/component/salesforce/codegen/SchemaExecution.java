@@ -19,16 +19,16 @@ package org.apache.camel.component.salesforce.codegen;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Set;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
+import com.fasterxml.jackson.module.jsonSchema.jakarta.JsonSchema;
 import org.apache.camel.component.salesforce.api.dto.SObjectDescription;
 import org.apache.camel.component.salesforce.api.utils.JsonUtils;
-import org.apache.camel.component.salesforce.internal.client.RestClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,11 +50,11 @@ public class SchemaExecution extends AbstractSalesforceExecution {
     File outputDirectory;
 
     @Override
-    protected void executeWithClient(RestClient client) throws Exception {
+    protected void executeWithClient() throws Exception {
         getLog().info("Generating JSON Schema...");
 
         final ObjectDescriptions descriptions = new ObjectDescriptions(
-                client, getResponseTimeout(), includes, includePattern, excludes, excludePattern, getLog());
+                getRestClient(), getResponseTimeout(), includes, includePattern, excludes, excludePattern, getLog());
 
         // generate JSON schema for every object description
         final ObjectMapper schemaObjectMapper = JsonUtils.createSchemaObjectMapper();
@@ -73,7 +73,8 @@ public class SchemaExecution extends AbstractSalesforceExecution {
         final Path schemaFilePath = outputDirectory.toPath().resolve(jsonSchemaFilename);
         try {
             Files.write(schemaFilePath,
-                    JsonUtils.getJsonSchemaString(schemaObjectMapper, allSchemas, jsonSchemaId).getBytes("UTF-8"));
+                    JsonUtils.getJsonSchemaString(schemaObjectMapper, allSchemas, jsonSchemaId)
+                            .getBytes(StandardCharsets.UTF_8));
         } catch (final IOException e) {
             throw new RuntimeException("Unable to generate JSON Schema source file: " + schemaFilePath, e);
         }

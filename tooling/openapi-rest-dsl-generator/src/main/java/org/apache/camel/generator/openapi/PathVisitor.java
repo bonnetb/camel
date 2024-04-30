@@ -19,17 +19,16 @@ package org.apache.camel.generator.openapi;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import io.apicurio.datamodels.openapi.models.OasOperation;
-import io.apicurio.datamodels.openapi.models.OasPathItem;
+import io.apicurio.datamodels.models.openapi.OpenApiOperation;
+import io.apicurio.datamodels.models.openapi.OpenApiPathItem;
 import org.apache.camel.util.ObjectHelper;
 
 class PathVisitor<T> {
 
     private final DestinationGenerator destinationGenerator;
-
     private final CodeEmitter<T> emitter;
-
     private final OperationFilter filter;
+    private final String dtoPackageName;
 
     public enum HttpMethod {
         DELETE,
@@ -42,10 +41,11 @@ class PathVisitor<T> {
     }
 
     PathVisitor(final String basePath, final CodeEmitter<T> emitter, final OperationFilter filter,
-                final DestinationGenerator destinationGenerator) {
+                final DestinationGenerator destinationGenerator, final String dtoPackageName) {
         this.emitter = emitter;
         this.filter = filter;
         this.destinationGenerator = destinationGenerator;
+        this.dtoPackageName = dtoPackageName;
 
         if (ObjectHelper.isEmpty(basePath)) {
             emitter.emit("rest");
@@ -54,42 +54,35 @@ class PathVisitor<T> {
         }
     }
 
-    void visit(final OasPathItem definition) {
+    void visit(final String path, final OpenApiPathItem definition) {
         final OperationVisitor<T> restDslOperation
-                = new OperationVisitor<>(emitter, filter, definition.getPath(), destinationGenerator);
-
+                = new OperationVisitor<>(emitter, filter, path, destinationGenerator, dtoPackageName);
         operationMapFrom(definition).forEach(restDslOperation::visit);
     }
 
-    void visit(final String path, final OasPathItem definition) {
-        final OperationVisitor<T> restDslOperation = new OperationVisitor<>(emitter, filter, path, destinationGenerator);
+    private static Map<HttpMethod, OpenApiOperation> operationMapFrom(final OpenApiPathItem path) {
+        final Map<HttpMethod, OpenApiOperation> result = new LinkedHashMap<>();
 
-        operationMapFrom(definition).forEach(restDslOperation::visit);
-    }
-
-    private static Map<HttpMethod, OasOperation> operationMapFrom(final OasPathItem path) {
-        final Map<HttpMethod, OasOperation> result = new LinkedHashMap<>();
-
-        if (path.get != null) {
-            result.put(HttpMethod.GET, path.get);
+        if (path.getGet() != null) {
+            result.put(HttpMethod.GET, path.getGet());
         }
-        if (path.put != null) {
-            result.put(HttpMethod.PUT, path.put);
+        if (path.getPut() != null) {
+            result.put(HttpMethod.PUT, path.getPut());
         }
-        if (path.post != null) {
-            result.put(HttpMethod.POST, path.post);
+        if (path.getPost() != null) {
+            result.put(HttpMethod.POST, path.getPost());
         }
-        if (path.delete != null) {
-            result.put(HttpMethod.DELETE, path.delete);
+        if (path.getDelete() != null) {
+            result.put(HttpMethod.DELETE, path.getDelete());
         }
-        if (path.patch != null) {
-            result.put(HttpMethod.PATCH, path.patch);
+        if (path.getPatch() != null) {
+            result.put(HttpMethod.PATCH, path.getPatch());
         }
-        if (path.head != null) {
-            result.put(HttpMethod.HEAD, path.head);
+        if (path.getHead() != null) {
+            result.put(HttpMethod.HEAD, path.getHead());
         }
-        if (path.options != null) {
-            result.put(HttpMethod.OPTIONS, path.options);
+        if (path.getOptions() != null) {
+            result.put(HttpMethod.OPTIONS, path.getOptions());
         }
 
         return result;

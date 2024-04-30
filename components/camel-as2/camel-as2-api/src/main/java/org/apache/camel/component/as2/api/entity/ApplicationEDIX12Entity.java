@@ -16,10 +16,12 @@
  */
 package org.apache.camel.component.as2.api.entity;
 
-import org.apache.camel.component.as2.api.AS2MediaType;
-import org.apache.http.entity.ContentType;
+import java.io.IOException;
 
-public class ApplicationEDIX12Entity extends ApplicationEDIEntity {
+import org.apache.camel.component.as2.api.AS2MediaType;
+import org.apache.hc.core5.http.ContentType;
+
+public class ApplicationEDIX12Entity extends ApplicationEntity {
 
     public ApplicationEDIX12Entity(String content, String charset, String contentTransferEncoding,
                                    boolean isMainBody, String filename) {
@@ -27,4 +29,8 @@ public class ApplicationEDIX12Entity extends ApplicationEDIEntity {
               filename);
     }
 
+    @Override
+    public void close() throws IOException {
+        // do nothing
+    }
 }

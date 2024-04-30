@@ -18,7 +18,6 @@ package org.apache.camel.reifier;
 
 import java.util.List;
 
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.Processor;
 import org.apache.camel.Route;
 import org.apache.camel.model.InterceptSendToEndpointDefinition;
@@ -27,6 +26,7 @@ import org.apache.camel.model.RouteDefinition;
 import org.apache.camel.model.ToDefinition;
 import org.apache.camel.processor.InterceptEndpointProcessor;
 import org.apache.camel.processor.InterceptSendToEndpointCallback;
+import org.apache.camel.support.PluginHelper;
 
 public class InterceptSendToEndpointReifier extends ProcessorReifier<InterceptSendToEndpointDefinition> {
 
@@ -44,7 +44,7 @@ public class InterceptSendToEndpointReifier extends ProcessorReifier<InterceptSe
         if (afterUri != null) {
             ToDefinition to = new ToDefinition(afterUri);
             // at first use custom factory
-            afterProcessor = camelContext.adapt(ExtendedCamelContext.class).getProcessorFactory().createProcessor(route, to);
+            afterProcessor = PluginHelper.getProcessorFactory(camelContext).createProcessor(route, to);
             // fallback to default implementation if factory did not create the processor
             if (afterProcessor == null) {
                 afterProcessor = createProcessor(to);
@@ -55,7 +55,7 @@ public class InterceptSendToEndpointReifier extends ProcessorReifier<InterceptSe
         final boolean skip = parseBoolean(definition.getSkipSendToOriginalEndpoint(), false);
 
         // register endpoint callback so we can proxy the endpoint
-        camelContext.adapt(ExtendedCamelContext.class)
+        camelContext.getCamelContextExtension()
                 .registerEndpointCallback(new InterceptSendToEndpointCallback(camelContext, before, after, matchURI, skip));
 
         // remove the original intercepted route from the outputs as we do not

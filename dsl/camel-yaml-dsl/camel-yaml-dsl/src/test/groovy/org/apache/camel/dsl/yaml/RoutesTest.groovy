@@ -19,6 +19,9 @@ package org.apache.camel.dsl.yaml
 import org.apache.camel.dsl.yaml.support.YamlTestSupport
 import org.apache.camel.model.LogDefinition
 import org.apache.camel.model.RouteDefinition
+import org.apache.camel.model.errorhandler.DeadLetterChannelDefinition
+import org.apache.camel.model.errorhandler.RefErrorHandlerDefinition
+import org.junit.jupiter.api.Assertions
 
 class RoutesTest extends YamlTestSupport {
 
@@ -40,6 +43,30 @@ class RoutesTest extends YamlTestSupport {
                     message == 'message'
                 }
             }
+    }
+
+    def "load from description"() {
+        when:
+        loadRoutes '''
+                - from:
+                    id: from-demo
+                    description: from something cool
+                    uri: "direct:info"
+                    steps:
+                      - log: "message"
+            '''
+        then:
+        context.routeDefinitions.size() == 1
+
+        with(context.routeDefinitions[0], RouteDefinition) {
+            input.id == 'from-demo'
+            input.description == 'from something cool'
+            input.endpointUri == 'direct:info'
+
+            with (outputs[0], LogDefinition) {
+                message == 'message'
+            }
+        }
     }
 
     def "load from with parameters"() {
@@ -139,13 +166,129 @@ class RoutesTest extends YamlTestSupport {
             }
     }
 
-    def "load route inlined"() {
+    def "load route with error handler ref"() {
+        when:
+        loadRoutes '''
+                - route:
+                    errorHandlerRef: "myErrorHandler"
+                    from: 
+                      uri: "direct:info"
+                      steps:
+                        - log: "message"
+            '''
+        then:
+        context.routeDefinitions.size() == 1
+
+        with(context.routeDefinitions[0], RouteDefinition) {
+            input.endpointUri == 'direct:info'
+            with (outputs[0], LogDefinition) {
+                message == 'message'
+            }
+            errorHandlerFactorySet
+            errorHandlerFactory.class == RefErrorHandlerDefinition.class
+            with (errorHandlerFactory, RefErrorHandlerDefinition) {
+                ref == "myErrorHandler"
+            }
+        }
+    }
+
+    def "load route with error handler"() {
+        when:
+        loadRoutes '''
+                - route:
+                    errorHandler: 
+                      refErrorHandler: 
+                        ref: "myErrorHandler"
+                    from: 
+                      uri: "direct:info"
+                      steps:
+                        - log: "message"
+            '''
+        then:
+        context.routeDefinitions.size() == 1
+
+        with(context.routeDefinitions[0], RouteDefinition) {
+            input.endpointUri == 'direct:info'
+            with (outputs[0], LogDefinition) {
+                message == 'message'
+            }
+            errorHandlerFactorySet
+            errorHandlerFactory.class == RefErrorHandlerDefinition.class
+            with (errorHandlerFactory, RefErrorHandlerDefinition) {
+                ref == "myErrorHandler"
+            }
+        }
+    }
+
+    def "load route with error handler properties"() {
+        when:
+        loadRoutes '''
+                - route:
+                    errorHandler: 
+                      deadLetterChannel: 
+                        deadLetterUri: "mock:on-error"
+                        redeliveryPolicy:
+                          maximumRedeliveries: 3
+                    from: 
+                      uri: "direct:info"
+                      steps:
+                        - log: "message"
+            '''
+        then:
+        context.routeDefinitions.size() == 1
+
+        with(context.routeDefinitions[0], RouteDefinition) {
+            input.endpointUri == 'direct:info'
+            with (outputs[0], LogDefinition) {
+                message == 'message'
+            }
+            errorHandlerFactorySet
+            errorHandlerFactory.class == DeadLetterChannelDefinition.class
+            with (errorHandlerFactory, DeadLetterChannelDefinition) {
+                deadLetterUri == 'mock:on-error'
+                redeliveryPolicy.maximumRedeliveries == "3"
+            }
+        }
+    }
+
+    def "load route with input/output types"() {
+        when:
+        loadRoutes '''
+                - route:
+                    inputType: 
+                      urn: "plain/text"
+                    outputType: 
+                      urn: "application/octet-stream"
+                    from: 
+                      uri: "direct:info"
+                      steps:
+                        - log: "message"
+            '''
+        then:
+        context.routeDefinitions.size() == 1
+
+        with(context.routeDefinitions[0], RouteDefinition) {
+            inputType.urn == 'plain/text'
+            outputType.urn == 'application/octet-stream'
+
+            input.endpointUri == 'direct:info'
+            with (outputs[0], LogDefinition) {
+                message == 'message'
+            }
+        }
+    }
+
+    def "load route inlined camelCase"() {
         when:
         loadRoutes '''
                 - route:
                     id: demo-route
-                    stream-caching: true
-                    auto-startup: false
+                    streamCache: true
+                    autoStartup: false
+                    startupOrder: 123
+                    routePolicy: "myPolicy"
+                    shutdownRoute: "Defer"
+                    shutdownRunningTask: "CompleteAllTasks"
                     from:
                       uri: "direct:info"
                       steps:
@@ -158,6 +301,10 @@ class RoutesTest extends YamlTestSupport {
             routeId == 'demo-route'
             streamCache == 'true'
             autoStartup == 'false'
+            startupOrder == 123
+            routePolicyRef == 'myPolicy'
+            shutdownRoute == "Defer"
+            shutdownRunningTask == "CompleteAllTasks"
             input.endpointUri == 'direct:info'
 
             with (outputs[0], LogDefinition) {
@@ -182,7 +329,7 @@ class RoutesTest extends YamlTestSupport {
 
         with(context.routeDefinitions[0], RouteDefinition) {
             routeId == 'demo-route'
-            description.text == 'something cool'
+            description == 'something cool'
             input.endpointUri == 'direct:info'
 
             with (outputs[0], LogDefinition) {
@@ -208,13 +355,98 @@ class RoutesTest extends YamlTestSupport {
 
         with(context.routeDefinitions[0], RouteDefinition) {
             routeId == 'demo-route'
-            description.text == 'something cool'
+            description == 'something cool'
             input.endpointUri == 'direct:info'
             precondition == '{{?red}}'
 
             with (outputs[0], LogDefinition) {
                 message == 'message'
             }
+        }
+    }
+
+    def "load route with from description"() {
+        when:
+        loadRoutes '''
+                - route:
+                    id: demo-route
+                    description: something cool
+                    from:
+                      id: from-demo
+                      description: from something cool
+                      uri: "direct:info"
+                      steps:
+                        - log: "message"
+            '''
+        then:
+        context.routeDefinitions.size() == 1
+
+        with(context.routeDefinitions[0], RouteDefinition) {
+            routeId == 'demo-route'
+            description == 'something cool'
+
+            input.id == 'from-demo'
+            input.description == 'from something cool'
+            input.endpointUri == 'direct:info'
+
+            with (outputs[0], LogDefinition) {
+                message == 'message'
+            }
+        }
+    }
+
+    def "load route with node-prefix-id"() {
+        when:
+        loadRoutes '''
+                - route:
+                    id: foo
+                    nodePrefixId: aaa
+                    from:
+                      uri: "direct:foo"
+                      steps:
+                        - to:
+                            id: "myFoo"
+                            uri: "mock:foo"
+                        - to: "seda:foo"
+                - route:
+                    id: bar
+                    nodePrefixId: bbb
+                    from:
+                      uri: "direct:bar"
+                      steps:
+                        - to:
+                            id: "myBar"
+                            uri: "mock:bar"
+                        - to: "seda:bar"
+            '''
+        then:
+        context.routeDefinitions.size() == 2
+        context.start()
+
+        Assertions.assertEquals(2, context.getRoute("foo").filter("aaa*").size());
+        Assertions.assertEquals(2, context.getRoute("bar").filter("bbb*").size());
+    }
+
+    def "Error: kebab-case: stream-cache"() {
+        when:
+        var route = '''
+                - route:
+                    id: demo-route
+                    stream-cache: true
+                    auto-startup: false
+                    startup-order: 123
+                    route-policy: "myPolicy"
+                    from:
+                      uri: "direct:info"
+                      steps:
+                        - log: "message"
+            '''
+        then:
+        try {
+            loadRoutes(route)
+            Assertions.fail("Should have thrown exception")
+        } catch (Exception e) {
+            Assertions.assertTrue(e.message.contains("additional properties"), e.getMessage())
         }
     }
 }

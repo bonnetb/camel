@@ -15,19 +15,18 @@
  * limitations under the License.
  */
 
-/* eslint-disable-next-line no-unused-vars */
-const { dest, series, parallel, src, symlink } = require('gulp')
-const del = require('del')
-const inject = require('gulp-inject')
-const map = require('map-stream')
-const path = require('path')
-const rename = require('gulp-rename')
-const sort = require('gulp-sort')
-const through2 = require('through2')
-const File = require('vinyl')
+import File from 'vinyl'
+import gulp from 'gulp'
+import inject from 'gulp-inject'
+import map from 'map-stream'
+import path from 'path'
+import rename from 'gulp-rename'
+import sort from 'gulp-sort'
+import through2 from 'through2'
+import { deleteAsync } from 'del'
 
 function titleFrom (file) {
-  var maybeName = /(?::doctitle: )(.*)/.exec(file.contents.toString())
+  let maybeName = /(?::doctitle: )(.*)/.exec(file.contents.toString())
   if (maybeName === null) {
     //TODO investigate these... why dont they have them?
     // console.warn(`${file.path} doesn't contain Asciidoc doctitle attribute (':doctitle: <Title>'`);
@@ -43,7 +42,7 @@ function titleFrom (file) {
 }
 
 function groupFrom (file) {
-  var groupName = /(?::group: )(.*)/.exec(file.contents.toString())
+  const groupName = /(?::group: )(.*)/.exec(file.contents.toString())
   if (groupName !== null) return groupName[1]
   return null
 }
@@ -71,7 +70,7 @@ function compare (file1, file2) {
 }
 
 function insertGeneratedNotice () {
-  return inject(src('./generated.txt'), {
+  return inject(gulp.src('./generated.txt'), {
     name: 'generated',
     removeTags: true,
     transform: (filename, file) => {
@@ -111,11 +110,11 @@ const sources = {
         '../core/camel-main/src/main/docs/*.adoc',
         '../components/{*,*/*}/src/main/docs/*.adoc',
       ],
-      destination: 'components/modules/ROOT/examples/',
+      destination: 'components/modules/ROOT/examples',
     },
     json: {
       source: [
-        '../components/{*,*/*,*/*/*}/src/generated/resources/org/apache/camel/**/*.json',
+        '../components/{*,*/*,*/*/*}/src/generated/resources/META-INF/org/apache/camel/**/*.json',
       ],
       destination: 'components/modules/ROOT/examples/json',
       filter: (content) => JSON.parse(content).component, // check if there is a "component" key at the root
@@ -128,8 +127,8 @@ const sources = {
     },
     json: {
       source: [
-        '../components/{*,*/*,*/*/*}/src/generated/resources/org/apache/camel/**/*.json',
-        '../core/camel-core-model/src/generated/resources/org/apache/camel/model/dataformat/*.json',
+        '../components/{*,*/*,*/*/*}/src/generated/resources/META-INF/org/apache/camel/**/*.json',
+        '../core/camel-core-model/src/generated/resources/META-INF/org/apache/camel/model/dataformat/*.json',
       ],
       destination: 'components/modules/dataformats/examples/json',
       filter: (content) => JSON.parse(content).dataformat, // check if there is a "dataformat" key at the root
@@ -148,10 +147,9 @@ const sources = {
     },
     json: {
       source: [
-        '../components/{*,*/*,*/*/*}/src/generated/resources/org/apache/camel/*/**/*.json',
-        '../core/camel-core-languages/src/generated/resources/org/apache/camel/language/**/*.json',
-        '../core/camel-core-model/src/generated/resources/org/apache/camel/model/language/*.json',
-        '../core/camel-xml-jaxp/src/generated/resources/org/apache/camel/language/**/*.json',
+        '../components/{*,*/*,*/*/*}/src/generated/resources/META-INF/org/apache/camel/*/**/*.json',
+        '../core/camel-core-languages/src/generated/resources/META-INF/org/apache/camel/language/**/*.json',
+        '../core/camel-core-model/src/generated/resources/META-INF/org/apache/camel/model/language/*.json',
       ],
       destination: 'components/modules/languages/examples/json',
       filter: (content) => JSON.parse(content).language, // check if there is a "language" key at the root
@@ -173,6 +171,7 @@ const sources = {
         '../core/camel-main/src/main/docs/!(*-component|*-language|*-dataformat|*-summary).adoc',
         '../components/{*,*/*}/src/main/docs/!(*-component|*-language|*-dataformat|*-summary).adoc',
         '../dsl/**/src/main/docs/!(*-component|*-language|*-dataformat|*-summary).adoc',
+        '../core/camel-xml-jaxp/src/generated/resources/*.json',
       ],
       destination: 'components/modules/others/pages',
       keep: [
@@ -189,9 +188,13 @@ const sources = {
     },
   },
   eips: {
+    asciidoc: {
+      destination: '../core/camel-core-engine/src/main/docs/modules/eips/pages',
+      filter: (path) => !path.endsWith('enterprise-integration-patterns.adoc')
+    },
     json: {
       source: [
-        '../core/camel-core-model/src/generated/resources/org/apache/camel/model/**/*.json',
+        '../core/camel-core-model/src/generated/resources/META-INF/org/apache/camel/model/**/*.json',
       ],
       destination: '../core/camel-core-engine/src/main/docs/modules/eips/examples/json',
       filter: (content) => {
@@ -222,12 +225,12 @@ const sources = {
 //   }
 // },
 //
-// parallel( // root containing multiple groupings (say, components, dataformats, eips...)
-//   parallel( // tasks for the given taskName
-//     series(clean:asciidoc:taskName, symlink:asciidoc:taskName, nav:asciidoc:taskName),
-//     series(clean:json:taskName, symlink:json:taskName),
+// gulp.parallel( // root containing multiple groupings (say, components, dataformats, eips...)
+//   gulp.parallel( // tasks for the given taskName
+//     gulp.series(clean:asciidoc:taskName, symlink:asciidoc:taskName, nav:asciidoc:taskName),
+//     gulp.series(clean:json:taskName, symlink:json:taskName),
 //   ),
-//   parallel( // tasks configured for a different group
+//   gulp.parallel( // tasks configured for a different group
 //     ...
 //   )
 // )
@@ -268,10 +271,10 @@ const tasks = Array.from(sourcesMap).flatMap(([type, definition]) => {
   // by default that's only index.adoc, index.adoc is not symlinked
   // so we don't want to remove it
   const clean = (destination, keep) => {
-    const deleteAry = [`${destination}/*`] // files in destination needs to be deleted
+    const deleteAry = [`${destination}/*`] // files in destination needs to be deleted */
     // append any exceptions, i.e. files to keep at the destination
     deleteAry.push(...(keep || ['index.adoc']).map((file) => `!${destination}/${file}`))
-    return del(deleteAry, {
+    return deleteAsync(deleteAry, {
       force: true,
     })
   }
@@ -288,7 +291,7 @@ const tasks = Array.from(sourcesMap).flatMap(([type, definition]) => {
       }
     })
 
-    return src(source)
+    return gulp.src(source)
       .pipe(filterFn)
       .pipe(
         map((file, done) => {
@@ -298,22 +301,32 @@ const tasks = Array.from(sourcesMap).flatMap(([type, definition]) => {
           done(null, file)
         })
       )
-      .pipe(symlink(destination, {
+      .pipe(gulp.symlink(destination, {
         relativeSymlinks: true,
       }))
   }
 
   // generates sorted & grouped nav.adoc file from a set of .adoc
   // files at the destination
-  const createNav = (destination) => {
-    return src(`${type}-nav.adoc.template`)
+  const createNav = (destination, filter) => {
+    const filterFn = through2.obj((file, enc, done) => {
+      if (filter && !filter(file.path)) {
+        done() // skip
+      } else {
+        done(null, file) // process
+      }
+    })
+
+    return gulp.src(`${type}-nav.adoc.template`)
       .pipe(insertGeneratedNotice())
       .pipe(
         inject(
-          src([
+          gulp.src([
             `${destination}/**/*.adoc`,
             `!${destination}/index.adoc`,
-          ]).pipe(sort(compare)),
+          ])
+          .pipe(filterFn)
+          .pipe(sort(compare)),
           {
             removeTags: true,
             transform: (filename, file) => {
@@ -328,12 +341,12 @@ const tasks = Array.from(sourcesMap).flatMap(([type, definition]) => {
         )
       )
       .pipe(rename('nav.adoc'))
-      .pipe(dest(`${destination}/../`))
+      .pipe(gulp.dest(`${destination}/../`))
   }
 
   // creates symlinks from source to destination for every example
   // file referenced from .adoc file in the source maintaining the
-  // basedir from the file path, i.e. symlinking from a deep hiearchy
+  // basedir from the file path, i.e. symlinking from a deep hierarchy
   const createExampleSymlinks = (source, destination) => {
     const extractExamples = function (file, enc, done) {
       const asciidoc = file.contents.toString()
@@ -359,7 +372,7 @@ const tasks = Array.from(sourcesMap).flatMap(([type, definition]) => {
       return done()
     }
 
-    return src(source) // asciidoc files
+    return gulp.src(source) // asciidoc files
       .pipe(through2.obj(extractExamples)) // extracted example files
       // symlink links from a fixed directory, i.e. we could link to
       // the example files from `destination`, that would not work for
@@ -372,7 +385,7 @@ const tasks = Array.from(sourcesMap).flatMap(([type, definition]) => {
       //  - file.dirname='/path/to/git/repository/components/example-component/src/test/resources/example-route.xml'
       // we want the resulting destination to be:
       // components/modules/ROOT/examples/components/example-component/src/test/resources/example-route.xml
-      .pipe(symlink((file) => path.join(destination, file.dirname.replace(path.resolve('..'), '')), {
+      .pipe(gulp.symlink((file) => path.join(destination, file.dirname.replace(path.resolve('..'), '')), {
         relativeSymlinks: true,
       }))
   }
@@ -401,9 +414,9 @@ const tasks = Array.from(sourcesMap).flatMap(([type, definition]) => {
   // accumulates all tasks performed per _kind_.
   const allTasks = []
 
-  if (asciidoc) {
+  if (asciidoc && asciidoc.source) {
     allTasks.push(
-      series(
+      gulp.series(
         named(`clean:asciidoc:${type}`, clean, asciidoc.destination, asciidoc.keep),
         named(`symlink:asciidoc:${type}`, createSymlinks, asciidoc.source, asciidoc.destination),
         named(`nav:asciidoc:${type}`, createNav, asciidoc.destination)
@@ -413,7 +426,7 @@ const tasks = Array.from(sourcesMap).flatMap(([type, definition]) => {
 
   if (image) {
     allTasks.push(
-      series(
+      gulp.series(
         named(`clean:image:${type}`, clean, image.destination, image.keep),
         named(`symlink:image:${type}`, createSymlinks, image.source, image.destination)
       )
@@ -422,19 +435,27 @@ const tasks = Array.from(sourcesMap).flatMap(([type, definition]) => {
 
   if (example) {
     allTasks.push(
-      series(
-        named(`clean:example:${type}`, clean, example.destination, ['json']),
+      gulp.series(
+        named(`clean:example:${type}`, clean, example.destination, ['json', 'js']),
         named(`symlink:example:${type}`, createExampleSymlinks, example.source, example.destination)
       )
     )
   }
 
   if (json) {
-    allTasks.push(
-      series(
-        named(`clean:json:${type}`, clean, json.destination, json.keep),
-        named(`symlink:json:${type}`, createSymlinks, json.source, json.destination, json.filter)
+    let tasks = [
+      named(`clean:json:${type}`, clean, json.destination, json.keep),
+      named(`symlink:json:${type}`, createSymlinks, json.source, json.destination, json.filter)
+    ]
+
+    if (asciidoc && !asciidoc.source) {
+      tasks.push(
+        named(`nav:asciidoc:${type}`, createNav, asciidoc.destination, asciidoc.filter)
       )
+    }
+
+    allTasks.push(
+      gulp.series(tasks)
     )
   }
 
@@ -445,4 +466,4 @@ const tasks = Array.from(sourcesMap).flatMap(([type, definition]) => {
   return []
 }, [])
 
-exports.default = parallel(tasks)
+export default gulp.parallel(tasks)

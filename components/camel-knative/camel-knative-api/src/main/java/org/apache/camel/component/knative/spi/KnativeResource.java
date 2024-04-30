@@ -26,7 +26,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.camel.spi.Configurer;
 
 @Configurer
-public final class KnativeResource {
+public class KnativeResource {
     private String name;
     private String url;
     private Knative.Type type;
@@ -200,7 +200,6 @@ public final class KnativeResource {
             this.ceOverrides = new HashMap<>();
         }
 
-        this.ceOverrides.put(key, value);
         this.ceOverrides.put(key, value);
     }
 

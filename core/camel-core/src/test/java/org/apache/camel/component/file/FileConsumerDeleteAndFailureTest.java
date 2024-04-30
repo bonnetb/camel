@@ -33,23 +33,23 @@ public class FileConsumerDeleteAndFailureTest extends ContextTestSupport {
         mock.expectedFileExists(testFile("error/bye.txt"));
 
         template.sendBodyAndHeader(fileUri(), "Hello World", Exchange.FILE_NAME, "hello.txt");
-        template.sendBodyAndHeader(fileUri(), "Kabom", Exchange.FILE_NAME, "bye.txt");
+        template.sendBodyAndHeader(fileUri(), "Kaboom", Exchange.FILE_NAME, "bye.txt");
 
         assertMockEndpointsSatisfied();
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 onException(IllegalArgumentException.class).handled(true).useOriginalMessage()
                         .to(fileUri("error"));
                 from(fileUri("?delete=true&initialDelay=0&delay=10")).setBody(simple("${body} IS processed!"))
                         .process(new Processor() {
-                            public void process(Exchange exchange) throws Exception {
+                            public void process(Exchange exchange) {
                                 String body = exchange.getIn().getBody(String.class);
-                                if (body != null && body.startsWith("Kabom")) {
+                                if (body != null && body.startsWith("Kaboom")) {
                                     throw new IllegalArgumentException("Forced");
                                 }
                             }

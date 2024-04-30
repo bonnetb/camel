@@ -18,7 +18,6 @@ package org.apache.camel.maven.packaging;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -51,11 +50,11 @@ import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.project.MavenProjectHelper;
+import org.codehaus.plexus.build.BuildContext;
 import org.jboss.forge.roaster.Roaster;
 import org.jboss.forge.roaster.model.source.FieldSource;
 import org.jboss.forge.roaster.model.source.JavaClassSource;
 import org.jboss.forge.roaster.model.source.MethodSource;
-import org.sonatype.plexus.build.incremental.BuildContext;
 
 /**
  * Analyses the Camel plugins in a project and generates extra descriptor information for easier auto-discovery in
@@ -178,7 +177,8 @@ public class PackageDataFormatMojo extends AbstractGeneratorMojo {
 
                         String json = PackageHelper.loadText(new File(
                                 core,
-                                "target/classes/org/apache/camel/model/dataformat/" + modelName + PackageHelper.JSON_SUFIX));
+                                "src/generated/resources/META-INF/org/apache/camel/model/dataformat/" + modelName
+                                      + PackageHelper.JSON_SUFIX));
 
                         // any excluded properties
                         Class<?> clazz = loadClass(javaType);
@@ -192,6 +192,10 @@ public class PackageDataFormatMojo extends AbstractGeneratorMojo {
 
                         final DataFormatModel dataFormatModel
                                 = extractDataFormatModel(project, json, name, clazz, included, excluded);
+
+                        SchemaHelper.addModelMetadata(dataFormatModel, project);
+                        SchemaHelper.addModelMetadata(dataFormatModel, metadata);
+
                         if (!modelName.equals(name)) {
                             /* Prefer description from the clazz */
                             setDescriptionFromClass(clazz, dataFormatModel);
@@ -380,9 +384,6 @@ public class PackageDataFormatMojo extends AbstractGeneratorMojo {
                     case "json-fastson":
                         option.setDefaultValue("Fastjson");
                         break;
-                    case "xstreamJson":
-                        option.setDefaultValue("XStream");
-                        break;
                     default:
                 }
             }
@@ -399,7 +400,7 @@ public class PackageDataFormatMojo extends AbstractGeneratorMojo {
         }
         String name = file.getName();
         if (name.charAt(0) != '.') {
-            if (buffer.length() > 0) {
+            if (!buffer.isEmpty()) {
                 buffer.append(" ");
             }
             buffer.append(name);
@@ -426,7 +427,7 @@ public class PackageDataFormatMojo extends AbstractGeneratorMojo {
     private static String asModelName(String name) {
         // special for some data formats
         if ("gson".equals(name) || "jackson".equals(name) || "johnzon".equals(name)
-                || "xstreamJson".equals(name) || "fastjson".equals(name) || "jsonb".equals(name)) {
+                || "fastjson".equals(name) || "jsonb".equals(name)) {
             return "json";
         } else if ("bindyCsv".equals(name) || "bindyFixed".equals(name) || "bindyKvp".equals(name)) {
             return "bindy";
@@ -450,8 +451,6 @@ public class PackageDataFormatMojo extends AbstractGeneratorMojo {
                 return "2.18.0";
             case "jsonb":
                 return "3.7.0";
-            case "xstreamJson":
-                return "2.0.0";
             case "fastjson":
                 return "2.20.0";
             case "avroJackson":
@@ -477,8 +476,6 @@ public class PackageDataFormatMojo extends AbstractGeneratorMojo {
             return "JSON Johnzon";
         } else if ("jsonb".equals(name)) {
             return "JSON JSON-B";
-        } else if ("xstreamJson".equals(name)) {
-            return "JSON XStream";
         } else if ("fastjson".equals(name)) {
             return "JSON Fastjson";
         } else if ("bindyCsv".equals(name)) {
@@ -496,7 +493,7 @@ public class PackageDataFormatMojo extends AbstractGeneratorMojo {
     private static String schemaSubDirectory(String javaType) {
         int idx = javaType.lastIndexOf('.');
         String pckName = javaType.substring(0, idx);
-        return pckName.replace('.', '/');
+        return "META-INF/" + pckName.replace('.', '/');
     }
 
     private List<DataFormatOptionModel> parseConfigurationSource(MavenProject project, String className)
@@ -552,52 +549,16 @@ public class PackageDataFormatMojo extends AbstractGeneratorMojo {
         }
     }
 
-    public static String generatePropertyConfigurer(String pn, String cn, String en, Collection<DataFormatOptionModel> options)
+    public String generatePropertyConfigurer(String pn, String cn, String en, Collection<DataFormatOptionModel> options)
             throws IOException {
 
-        try (StringWriter w = new StringWriter()) {
-            w.write("/* " + GENERATED_MSG + " */\n");
-            w.write("package " + pn + ";\n");
-            w.write("\n");
-            w.write("import java.util.HashMap;\n");
-            w.write("import java.util.Map;\n");
-            w.write("\n");
-            w.write("import org.apache.camel.CamelContext;\n");
-            w.write("import org.apache.camel.spi.GeneratedPropertyConfigurer;\n");
-            w.write("import org.apache.camel.support.component.PropertyConfigurerSupport;\n");
-            w.write("\n");
-            w.write("/**\n");
-            w.write(" * " + GENERATED_MSG + "\n");
-            w.write(" */\n");
-            w.write("@SuppressWarnings(\"unchecked\")\n");
-            w.write("public class " + cn + " extends PropertyConfigurerSupport implements GeneratedPropertyConfigurer {\n");
-            w.write("\n");
-            w.write("    @Override\n");
-            w.write("    public boolean configure(CamelContext camelContext, Object target, String name, Object value, boolean ignoreCase) {\n");
-            w.write("        " + en + " dataformat = (" + en + ") target;\n");
-            w.write("        switch (ignoreCase ? name.toLowerCase() : name) {\n");
-            for (DataFormatOptionModel option : options) {
-                String name = option.getName();
-                if ("id".equals(name)) {
-                    continue;
-                }
-                String setter = "set" + Character.toUpperCase(name.charAt(0)) + name.substring(1);
-                String type = Strings.canonicalClassName(option.getJavaType());
-                if (!name.toLowerCase().equals(name)) {
-                    w.write(String.format("        case \"%s\":\n", name.toLowerCase()));
-                }
-                w.write(String.format(
-                        "        case \"%s\": dataformat.%s(property(camelContext, %s.class, value)); return true;\n", name,
-                        setter, type));
-            }
-            w.write("        default: return false;\n");
-            w.write("        }\n");
-            w.write("    }\n");
-            w.write("\n");
-            w.write("}\n");
-            w.write("\n");
-            return w.toString();
-        }
+        Map<String, Object> ctx = new HashMap<>();
+        ctx.put("package", pn);
+        ctx.put("className", cn);
+        ctx.put("type", en);
+        ctx.put("options", options);
+        ctx.put("mojo", this);
+        return velocity("velocity/dataformat-property-configurer.vm", ctx);
     }
 
     public static String generateMetaInfConfigurer(String fqn) {

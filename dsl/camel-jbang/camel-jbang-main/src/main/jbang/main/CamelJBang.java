@@ -17,12 +17,11 @@
  * limitations under the License.
  */
 
-//JAVA 11+
-//REPOS mavencentral,apache=https://repository.apache.org/snapshots
-//DEPS org.apache.camel:camel-bom:${camel.jbang.version:3.16.0}@pom
-//DEPS org.apache.camel:camel-jbang-core:${camel.jbang.version:3.16.0}
-//DEPS org.apache.camel.kamelets:camel-kamelets:${camel-kamelets.version:0.7.1}
-//DEPS org.apache.camel.kamelets:camel-kamelets-utils:${camel-kamelets.version:0.7.1}
+//JAVA 17+
+//REPOS central=https://repo1.maven.org/maven2,apache-snapshot=https://repository.apache.org/content/groups/snapshots/
+//DEPS org.apache.camel:camel-bom:${camel.jbang.version:4.5.0}@pom
+//DEPS org.apache.camel:camel-jbang-core:${camel.jbang.version:4.5.0}
+//DEPS org.apache.camel.kamelets:camel-kamelets:${camel-kamelets.version:4.5.0}
 
 package main;
 

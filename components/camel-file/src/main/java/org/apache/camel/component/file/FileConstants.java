@@ -78,6 +78,14 @@ public final class FileConstants {
               javaType = "Object")
     public static final String OVERRULE_FILE_NAME = Exchange.OVERRULE_FILE_NAME;
 
+    @Metadata(label = "consumer", description = "A `long` value containing the initial offset.", javaType = "long")
+    public static final String INITIAL_OFFSET = "CamelFileInitialOffset";
+
+    /**
+     * Sub folder used by camel-file as default sub-folder for moving processing file when they are done.
+     */
+    public static final String DEFAULT_SUB_FOLDER = ".camel";
+
     private FileConstants() {
         // Utility class
     }

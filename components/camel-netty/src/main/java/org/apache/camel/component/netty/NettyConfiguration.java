@@ -30,7 +30,6 @@ import io.netty.handler.codec.Delimiters;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.CharsetUtil;
 import org.apache.camel.Exchange;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.LoggingLevel;
 import org.apache.camel.RuntimeCamelException;
 import org.apache.camel.spi.Configurer;
@@ -39,6 +38,7 @@ import org.apache.camel.spi.UriParam;
 import org.apache.camel.spi.UriParams;
 import org.apache.camel.support.CamelContextHelper;
 import org.apache.camel.support.EndpointHelper;
+import org.apache.camel.support.PluginHelper;
 import org.apache.camel.support.PropertyBindingSupport;
 import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.util.PropertiesHelper;
@@ -103,6 +103,10 @@ public class NettyConfiguration extends NettyServerBootstrapConfiguration implem
     private int producerPoolMaxIdle = 100;
     @UriParam(label = "producer,advanced", defaultValue = "" + 5 * 60 * 1000L)
     private long producerPoolMinEvictableIdle = 5 * 60 * 1000L;
+    @UriParam(label = "producer,advanced", defaultValue = "-1")
+    private long producerPoolMaxWait = -1;
+    @UriParam(label = "producer,advanced", defaultValue = "true")
+    private boolean producerPoolBlockWhenExhausted = true;
     @UriParam(label = "producer,advanced", defaultValue = "true")
     private boolean producerPoolEnabled = true;
     @UriParam(label = "producer,advanced")
@@ -191,7 +195,7 @@ public class NettyConfiguration extends NettyServerBootstrapConfiguration implem
             setPort(uri.getPort());
         }
 
-        ssl = component.getAndRemoveOrResolveReferenceParameter(parameters, "ssl", boolean.class, false);
+        ssl = component.getAndRemoveOrResolveReferenceParameter(parameters, "ssl", boolean.class, ssl);
         sslHandler = component.getAndRemoveOrResolveReferenceParameter(parameters, "sslHandler", SslHandler.class, sslHandler);
         passphrase = component.getAndRemoveOrResolveReferenceParameter(parameters, "passphrase", String.class, passphrase);
         keyStoreFormat = component.getAndRemoveOrResolveReferenceParameter(parameters, "keyStoreFormat", String.class,
@@ -223,7 +227,7 @@ public class NettyConfiguration extends NettyServerBootstrapConfiguration implem
 
         // then set parameters with the help of the camel context type converters
         // and use configurer to avoid any reflection calls
-        PropertyConfigurer configurer = component.getCamelContext().adapt(ExtendedCamelContext.class).getConfigurerResolver()
+        PropertyConfigurer configurer = PluginHelper.getConfigurerResolver(component.getCamelContext())
                 .resolvePropertyConfigurer(this.getClass().getName(), component.getCamelContext());
         PropertyBindingSupport.build()
                 .withCamelContext(component.getCamelContext())
@@ -659,6 +663,32 @@ public class NettyConfiguration extends NettyServerBootstrapConfiguration implem
      */
     public void setProducerPoolMinEvictableIdle(long producerPoolMinEvictableIdle) {
         this.producerPoolMinEvictableIdle = producerPoolMinEvictableIdle;
+    }
+
+    public long getProducerPoolMaxWait() {
+        return producerPoolMaxWait;
+    }
+
+    /**
+     * Sets the maximum duration (value in millis) the borrowObject() method should block before throwing an exception
+     * when the pool is exhausted and producerPoolBlockWhenExhausted is true. When less than 0, the borrowObject()
+     * method may block indefinitely.
+     */
+    public void setProducerPoolMaxWait(long producerPoolMaxWait) {
+        this.producerPoolMaxWait = producerPoolMaxWait;
+    }
+
+    public boolean isProducerPoolBlockWhenExhausted() {
+        return producerPoolBlockWhenExhausted;
+    }
+
+    /**
+     * Sets the value for the blockWhenExhausted configuration attribute. It determines whether to block when the
+     * borrowObject() method is invoked when the pool is exhausted (the maximum number of "active" objects has been
+     * reached).
+     */
+    public void setProducerPoolBlockWhenExhausted(boolean producerPoolBlockWhenExhausted) {
+        this.producerPoolBlockWhenExhausted = producerPoolBlockWhenExhausted;
     }
 
     public boolean isProducerPoolEnabled() {

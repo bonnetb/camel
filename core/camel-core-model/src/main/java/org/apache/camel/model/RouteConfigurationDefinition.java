@@ -20,13 +20,18 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
 
+import org.apache.camel.ErrorHandlerFactory;
+import org.apache.camel.model.errorhandler.RefErrorHandlerDefinition;
 import org.apache.camel.spi.Metadata;
+import org.apache.camel.spi.Resource;
+import org.apache.camel.spi.ResourceAware;
 
 /**
  * Reusable configuration for Camel route(s).
@@ -35,10 +40,12 @@ import org.apache.camel.spi.Metadata;
 @XmlRootElement(name = "routeConfiguration")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class RouteConfigurationDefinition extends OptionalIdentifiedDefinition<RouteConfigurationDefinition>
-        implements PreconditionContainer {
+        implements PreconditionContainer, ResourceAware {
 
-    // TODO: Model for ErrorHandler (requires to move error handler model from spring-xml, blueprint to core)
-
+    @XmlTransient
+    private Resource resource;
+    @XmlElement
+    private ErrorHandlerDefinition errorHandler;
     @XmlElement(name = "intercept")
     private List<InterceptDefinition> intercepts = new ArrayList<>();
     @XmlElement(name = "interceptFrom")
@@ -69,6 +76,24 @@ public class RouteConfigurationDefinition extends OptionalIdentifiedDefinition<R
     @Override
     public String getLabel() {
         return "RoutesConfiguration " + getId();
+    }
+
+    @Override
+    public Resource getResource() {
+        return resource;
+    }
+
+    @Override
+    public void setResource(Resource resource) {
+        this.resource = resource;
+    }
+
+    public ErrorHandlerDefinition getErrorHandler() {
+        return errorHandler;
+    }
+
+    public void setErrorHandler(ErrorHandlerDefinition errorHandler) {
+        this.errorHandler = errorHandler;
     }
 
     public List<OnExceptionDefinition> getOnExceptions() {
@@ -133,6 +158,32 @@ public class RouteConfigurationDefinition extends OptionalIdentifiedDefinition<R
     // -------------------------------------------------------------------------
 
     /**
+     * Sets the error handler to use, for routes that has not already been configured with an error handler.
+     *
+     * @param  ref reference to existing error handler
+     * @return     the builder
+     */
+    public RouteConfigurationDefinition errorHandler(String ref) {
+        ErrorHandlerDefinition def = new ErrorHandlerDefinition();
+        def.setErrorHandlerType(new RefErrorHandlerDefinition(ref));
+        setErrorHandler(def);
+        return this;
+    }
+
+    /**
+     * Sets the error handler to use, for routes that has not already been configured with an error handler.
+     *
+     * @param  errorHandler the error handler
+     * @return              the builder
+     */
+    public RouteConfigurationDefinition errorHandler(ErrorHandlerFactory errorHandler) {
+        ErrorHandlerDefinition def = new ErrorHandlerDefinition();
+        def.setErrorHandlerType(errorHandler);
+        setErrorHandler(def);
+        return this;
+    }
+
+    /**
      * Sets the predicate of the precondition in simple language to evaluate in order to determine if this route
      * configuration should be included or not.
      *
@@ -165,7 +216,8 @@ public class RouteConfigurationDefinition extends OptionalIdentifiedDefinition<R
      * @param  exceptions list of exceptions to catch
      * @return            the exception builder to configure
      */
-    public OnExceptionDefinition onException(Class<? extends Throwable>... exceptions) {
+    @SafeVarargs
+    public final OnExceptionDefinition onException(Class<? extends Throwable>... exceptions) {
         OnExceptionDefinition answer = new OnExceptionDefinition(Arrays.asList(exceptions));
         answer.setRouteConfiguration(this);
         onExceptions.add(answer);

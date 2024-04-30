@@ -23,7 +23,7 @@
     <parent>
         <groupId>org.apache.camel</groupId>
         <artifactId>catalog</artifactId>
-        <version>3.17.0-SNAPSHOT</version>
+        <version>4.6.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>camel-catalog-console</artifactId>
@@ -40,13 +40,17 @@
 
         <dependency>
             <groupId>org.apache.camel</groupId>
-            <artifactId>camel-console</artifactId>
+            <artifactId>camel-catalog</artifactId>
             <version>${project.version}</version>
         </dependency>
-
         <dependency>
             <groupId>org.apache.camel</groupId>
-            <artifactId>camel-catalog</artifactId>
+            <artifactId>camel-support</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.camel</groupId>
+            <artifactId>camel-util-json</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -73,18 +77,18 @@
         <!-- logging -->
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-slf4j-impl</artifactId>
+            <artifactId>log4j-slf4j2-impl</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
 
     <build>
         <plugins>
-
-            <plugin>
-                <groupId>org.apache.camel</groupId>
-                <artifactId>camel-bundle-plugin</artifactId>
-            </plugin>
 
             <plugin>
                 <groupId>org.apache.camel</groupId>

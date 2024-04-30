@@ -39,7 +39,7 @@ public class XPathLanguageSingleNodeListTest extends ContextTestSupport {
     /**
      * A single node XPath selection that internally returns a DTMNodeList of length 1 can now be automatically
      * converted to a Document/Node.
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -56,7 +56,7 @@ public class XPathLanguageSingleNodeListTest extends ContextTestSupport {
 
     /**
      * Regression test to ensure that a NodeList of length > 1 is not processed by the new converters.
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -78,10 +78,10 @@ public class XPathLanguageSingleNodeListTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:doTest").transform().xpath("/root/name").choice().when().xpath("/name").to("mock:found")
                         .otherwise().to("mock:notfound");
             }

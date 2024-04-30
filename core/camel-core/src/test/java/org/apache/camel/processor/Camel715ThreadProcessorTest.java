@@ -40,15 +40,15 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 public class Camel715ThreadProcessorTest {
     private static final int ITERS = 50000;
 
-    class SendingProcessor implements Processor {
-        int iterationNumber;
+    static class SendingProcessor implements Processor {
+        final int iterationNumber;
 
         public SendingProcessor(int iter) {
             iterationNumber = iter;
         }
 
         @Override
-        public void process(Exchange exchange) throws Exception {
+        public void process(Exchange exchange) {
             Message in = exchange.getIn();
             in.setBody("a");
             // may set the property here
@@ -65,9 +65,9 @@ public class Camel715ThreadProcessorTest {
         context.addRoutes(new RouteBuilder() {
 
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:a").threads(4).to("mock:input").process(new Processor() {
-                    public void process(Exchange ex) throws Exception {
+                    public void process(Exchange ex) {
                         latch.countDown();
                     }
                 });

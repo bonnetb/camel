@@ -19,13 +19,11 @@ package org.apache.camel.component.olingo4;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
 import org.apache.camel.Category;
 import org.apache.camel.Consumer;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.Processor;
 import org.apache.camel.Producer;
 import org.apache.camel.component.olingo4.internal.Olingo4ApiCollection;
@@ -36,10 +34,12 @@ import org.apache.camel.spi.ExtendedPropertyConfigurerGetter;
 import org.apache.camel.spi.PropertyConfigurer;
 import org.apache.camel.spi.UriEndpoint;
 import org.apache.camel.spi.UriParam;
+import org.apache.camel.support.PluginHelper;
 import org.apache.camel.support.PropertyBindingSupport;
 import org.apache.camel.support.component.AbstractApiEndpoint;
 import org.apache.camel.support.component.ApiMethod;
 import org.apache.camel.support.component.ApiMethodPropertiesHelper;
+import org.apache.camel.util.CaseInsensitiveMap;
 
 /**
  * Communicate with OData 4.0 services using Apache Olingo OData API.
@@ -114,8 +114,8 @@ public class Olingo4Endpoint extends AbstractApiEndpoint<Olingo4ApiName, Olingo4
     @Override
     public void configureProperties(Map<String, Object> options) {
         // filter out options that are with $ as they are for query
-        Map<String, Object> query = new LinkedHashMap<>();
-        Map<String, Object> known = new LinkedHashMap<>();
+        Map<String, Object> query = new CaseInsensitiveMap();
+        Map<String, Object> known = new CaseInsensitiveMap();
         options.forEach((k, v) -> {
             if (k.startsWith("$")) {
                 query.put(k, v);
@@ -140,7 +140,7 @@ public class Olingo4Endpoint extends AbstractApiEndpoint<Olingo4ApiName, Olingo4
             }
         }
         // configure on configuration first to be reflection free
-        configurer = getCamelContext().adapt(ExtendedCamelContext.class).getConfigurerResolver()
+        configurer = PluginHelper.getConfigurerResolver(getCamelContext())
                 .resolvePropertyConfigurer(configuration.getClass().getName(), getCamelContext());
         if (configurer != null) {
             PropertyBindingSupport.build()
@@ -167,7 +167,8 @@ public class Olingo4Endpoint extends AbstractApiEndpoint<Olingo4ApiName, Olingo4
 
     @Override
     protected void afterConfigureProperties() {
-        olingo4endpointPropertyNames = new HashSet<>(getEndpointPropertyNames());
+        olingo4endpointPropertyNames
+                = new HashSet<>(getPropertiesHelper().getValidEndpointProperties(getCamelContext(), configuration));
         olingo4endpointPropertyNames.add(EDM_PROPERTY);
         olingo4endpointPropertyNames.add(ENDPOINT_HTTP_HEADERS_PROPERTY);
         olingo4endpointPropertyNames.add(SERVICE_URI_PROPERTY);
@@ -233,16 +234,17 @@ public class Olingo4Endpoint extends AbstractApiEndpoint<Olingo4ApiName, Olingo4
         if (keyPredicate != null) {
 
             // make sure a resource path is provided
-            final String resourcePath = (String) properties.get(RESOURCE_PATH_PROPERTY);
-            if (resourcePath == null) {
-                throw new IllegalArgumentException(
-                        "Resource path must be provided in endpoint URI, or URI parameter '" + RESOURCE_PATH_PROPERTY
-                                                   + "', or exchange header '"
-                                                   + Olingo4Constants.PROPERTY_PREFIX + RESOURCE_PATH_PROPERTY + "'");
-            }
+            properties.compute(RESOURCE_PATH_PROPERTY, (key, resourcePath) -> {
+                if (resourcePath == null) {
+                    throw new IllegalArgumentException(
+                            "Resource path must be provided in endpoint URI, or URI parameter '" + RESOURCE_PATH_PROPERTY
+                                                       + "', or exchange header '"
+                                                       + Olingo4Constants.PROPERTY_PREFIX + RESOURCE_PATH_PROPERTY + "'");
+                }
 
-            // append keyPredicate to dynamically create resource path
-            properties.put(RESOURCE_PATH_PROPERTY, resourcePath + '(' + keyPredicate + ')');
+                // append keyPredicate to dynamically create resource path
+                return resourcePath + "(" + keyPredicate + ")";
+            });
         }
 
         // handle individual queryParams

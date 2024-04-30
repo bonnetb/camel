@@ -23,8 +23,7 @@ import org.testcontainers.containers.Network;
 import org.testcontainers.containers.wait.strategy.Wait;
 
 public class ZookeeperContainer extends GenericContainer<ZookeeperContainer> {
-    private static final String ZOOKEEPER_CONTAINER = System.getProperty("itest.zookeeper.container.image",
-            StrimziContainer.DEFAULT_STRIMZI_CONTAINER);
+    private static final String ZOOKEEPER_CONTAINER = StrimziContainer.STRIMZI_CONTAINER;
     private static final int ZOOKEEPER_PORT = 2181;
 
     public ZookeeperContainer(Network network, String name) {
@@ -34,16 +33,12 @@ public class ZookeeperContainer extends GenericContainer<ZookeeperContainer> {
     public ZookeeperContainer(Network network, String name, String containerName) {
         super(containerName);
 
-        withEnv("LOG_DIR", "/tmp/logs");
-        withExposedPorts(ZOOKEEPER_PORT);
-        withNetwork(network);
-
-        withCreateContainerCmdModifier(createContainerCmd -> setupContainer(name, createContainerCmd));
-
-        withCommand("sh", "-c",
-                "bin/zookeeper-server-start.sh config/zookeeper.properties");
-
-        waitingFor(Wait.forListeningPort());
+        withEnv("LOG_DIR", "/tmp/logs")
+                .withExposedPorts(ZOOKEEPER_PORT)
+                .withNetwork(network)
+                .withCreateContainerCmdModifier(createContainerCmd -> setupContainer(name, createContainerCmd))
+                .withCommand("sh", "-c", "bin/zookeeper-server-start.sh config/zookeeper.properties")
+                .waitingFor(Wait.forListeningPort());
     }
 
     private void setupContainer(String name, CreateContainerCmd createContainerCmd) {

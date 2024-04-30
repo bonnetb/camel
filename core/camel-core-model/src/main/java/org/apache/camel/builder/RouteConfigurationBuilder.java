@@ -16,6 +16,7 @@
  */
 package org.apache.camel.builder;
 
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.camel.CamelContext;
@@ -79,13 +80,39 @@ public abstract class RouteConfigurationBuilder extends RouteBuilder implements 
         populateRoutesConfiguration();
     }
 
+    @Override
+    public void updateRouteConfigurationsToCamelContext(CamelContext context) throws Exception {
+        setCamelContext(context);
+        routeConfigurationCollection.setCamelContext(context);
+        if (initializedConfiguration.compareAndSet(false, true)) {
+            configuration();
+        }
+        List<RouteConfigurationDefinition> list = getRouteConfigurationCollection().getRouteConfigurations();
+        if (!list.isEmpty()) {
+            // remove existing before updating
+            for (RouteConfigurationDefinition def : list) {
+                context.getCamelContextExtension().getContextPlugin(Model.class).removeRouteConfiguration(def);
+            }
+            populateRoutesConfiguration();
+        }
+    }
+
+    @Override
+    protected void initializeCamelContext(CamelContext camelContext) {
+        super.initializeCamelContext(camelContext);
+        getRouteConfigurationCollection().setCamelContext(camelContext);
+    }
+
     protected void populateRoutesConfiguration() throws Exception {
         CamelContext camelContext = getContext();
         if (camelContext == null) {
             throw new IllegalArgumentException("CamelContext has not been injected!");
         }
         getRouteConfigurationCollection().setCamelContext(camelContext);
-        camelContext.getExtension(Model.class)
+        if (getResource() != null) {
+            getRouteConfigurationCollection().setResource(getResource());
+        }
+        camelContext.getCamelContextExtension().getContextPlugin(Model.class)
                 .addRouteConfigurations(getRouteConfigurationCollection().getRouteConfigurations());
     }
 

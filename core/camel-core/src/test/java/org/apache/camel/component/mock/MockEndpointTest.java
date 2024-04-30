@@ -30,10 +30,14 @@ import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePattern;
 import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
+import org.apache.camel.spi.Language;
 import org.apache.camel.spi.Registry;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class MockEndpointTest extends ContextTestSupport {
 
@@ -118,19 +122,18 @@ public class MockEndpointTest extends ContextTestSupport {
     }
 
     @Test
-    public void testExpectsHeadersInAnyOrderFail() throws Exception {
+    public void testExpectsHeadersInAnyOrderFail() {
         MockEndpoint resultEndpoint = getMockEndpoint("mock:result");
         resultEndpoint.expectedHeaderValuesReceivedInAnyOrder("counter", 11, 12, 7, 14, 15);
 
         sendMessages(15, 12, 14, 13, 11);
 
-        try {
-            resultEndpoint.assertIsSatisfied();
-            fail("Should fail");
-        } catch (AssertionError e) {
-            assertEquals("mock://result Expected 5 headers with key[counter], received 4 headers. Expected header values: [7]",
-                    e.getMessage());
-        }
+        AssertionError e = assertThrows(AssertionError.class,
+                resultEndpoint::assertIsSatisfied,
+                "Should fail");
+
+        assertEquals("mock://result Expected 5 headers with key[counter], received 4 headers. Expected header values: [7]",
+                e.getMessage());
     }
 
     @Test
@@ -139,13 +142,13 @@ public class MockEndpointTest extends ContextTestSupport {
         resultEndpoint.expectedPropertyValuesReceivedInAnyOrder("foo", 123, 456);
 
         template.send("direct:a", new Processor() {
-            public void process(Exchange exchange) throws Exception {
+            public void process(Exchange exchange) {
                 exchange.setProperty("foo", 456);
             }
         });
 
         template.send("direct:a", new Processor() {
-            public void process(Exchange exchange) throws Exception {
+            public void process(Exchange exchange) {
                 exchange.setProperty("foo", 123);
             }
         });
@@ -154,30 +157,20 @@ public class MockEndpointTest extends ContextTestSupport {
     }
 
     @Test
-    public void testExpectsPropertiesInAnyOrderFail() throws Exception {
+    public void testExpectsPropertiesInAnyOrderFail() {
         MockEndpoint resultEndpoint = getMockEndpoint("mock:result");
         resultEndpoint.expectedPropertyValuesReceivedInAnyOrder("foo", 123, 456);
 
-        template.send("direct:a", new Processor() {
-            public void process(Exchange exchange) throws Exception {
-                exchange.setProperty("foo", 123);
-            }
-        });
+        template.send("direct:a", exchange -> exchange.setProperty("foo", 123));
+        template.send("direct:a", exchange -> exchange.setProperty("foo", 789));
 
-        template.send("direct:a", new Processor() {
-            public void process(Exchange exchange) throws Exception {
-                exchange.setProperty("foo", 789);
-            }
-        });
+        AssertionError e = assertThrows(AssertionError.class,
+                resultEndpoint::assertIsSatisfied,
+                "Should fail");
 
-        try {
-            resultEndpoint.assertIsSatisfied();
-            fail("Should fail");
-        } catch (AssertionError e) {
-            assertEquals(
-                    "mock://result Expected 2 properties with key[foo], received 1 properties. Expected property values: [456]",
-                    e.getMessage());
-        }
+        assertEquals(
+                "mock://result Expected 2 properties with key[foo], received 1 properties. Expected property values: [456]",
+                e.getMessage());
     }
 
     @Test
@@ -368,79 +361,64 @@ public class MockEndpointTest extends ContextTestSupport {
     }
 
     @Test
-    public void testSimulateError() throws Exception {
+    public void testSimulateError() {
         MockEndpoint mock = getMockEndpoint("mock:result");
-        mock.whenAnyExchangeReceived(new Processor() {
-            public void process(Exchange exchange) throws Exception {
-                exchange.setException(new IllegalArgumentException("Forced"));
-            }
-        });
+        mock.whenAnyExchangeReceived(exchange -> exchange.setException(new IllegalArgumentException("Forced")));
 
-        try {
-            template.sendBody("direct:a", "Hello World");
-            fail("Should have thrown an exception");
-        } catch (Exception e) {
-            assertIsInstanceOf(IllegalArgumentException.class, e.getCause());
-            assertEquals("Forced", e.getCause().getMessage());
-        }
+        Exception e = assertThrows(Exception.class,
+                () -> template.sendBody("direct:a", "Hello World"),
+                "Should have thrown an exception");
+
+        assertIsInstanceOf(IllegalArgumentException.class, e.getCause());
+        assertEquals("Forced", e.getCause().getMessage());
     }
 
     @Test
-    public void testSimulateErrorByThrowingException() throws Exception {
+    public void testSimulateErrorByThrowingException() {
         MockEndpoint mock = getMockEndpoint("mock:result");
-        mock.whenAnyExchangeReceived(new Processor() {
-            public void process(Exchange exchange) throws Exception {
-                throw new IllegalArgumentException("Forced");
-            }
+        mock.whenAnyExchangeReceived(exchange -> {
+            throw new IllegalArgumentException("Forced");
         });
 
-        try {
-            template.sendBody("direct:a", "Hello World");
-            fail("Should have thrown an exception");
-        } catch (Exception e) {
-            assertIsInstanceOf(IllegalArgumentException.class, e.getCause());
-            assertEquals("Forced", e.getCause().getMessage());
-        }
+        Exception e = assertThrows(Exception.class,
+                () -> template.sendBody("direct:a", "Hello World"),
+                "Should have thrown an exception");
+
+        assertIsInstanceOf(IllegalArgumentException.class, e.getCause());
+        assertEquals("Forced", e.getCause().getMessage());
     }
 
     @Test
-    public void testSimulateErrorWithIndex() throws Exception {
+    public void testSimulateErrorWithIndex() {
         MockEndpoint mock = getMockEndpoint("mock:result");
         mock.expectedMessageCount(2);
-        mock.whenExchangeReceived(2, new Processor() {
-            public void process(Exchange exchange) throws Exception {
-                exchange.setException(new IllegalArgumentException("Forced"));
-            }
+        mock.whenExchangeReceived(2, exchange -> exchange.setException(new IllegalArgumentException("Forced")));
+
+        template.sendBody("direct:a", "Hello World");
+
+        Exception e = assertThrows(Exception.class,
+                () -> template.sendBody("direct:a", "Hello World"),
+                "Should have thrown an exception");
+
+        assertIsInstanceOf(IllegalArgumentException.class, e.getCause());
+        assertEquals("Forced", e.getCause().getMessage());
+    }
+
+    @Test
+    public void testSimulateErrorWithIndexByThrowingException() {
+        MockEndpoint mock = getMockEndpoint("mock:result");
+        mock.expectedMessageCount(2);
+        mock.whenExchangeReceived(2, exchange -> {
+            throw new IllegalArgumentException("Forced");
         });
 
         template.sendBody("direct:a", "Hello World");
-        try {
-            template.sendBody("direct:a", "Hello World");
-            fail("Should have thrown an exception");
-        } catch (Exception e) {
-            assertIsInstanceOf(IllegalArgumentException.class, e.getCause());
-            assertEquals("Forced", e.getCause().getMessage());
-        }
-    }
+        Exception e = assertThrows(Exception.class,
+                () -> template.sendBody("direct:a", "Bye World"),
+                "Should have thrown an exception");
 
-    @Test
-    public void testSimulateErrorWithIndexByThrowingException() throws Exception {
-        MockEndpoint mock = getMockEndpoint("mock:result");
-        mock.expectedMessageCount(2);
-        mock.whenExchangeReceived(2, new Processor() {
-            public void process(Exchange exchange) throws Exception {
-                throw new IllegalArgumentException("Forced");
-            }
-        });
-
-        template.sendBody("direct:a", "Hello World");
-        try {
-            template.sendBody("direct:a", "Bye World");
-            fail("Should have thrown an exception");
-        } catch (Exception e) {
-            assertIsInstanceOf(IllegalArgumentException.class, e.getCause());
-            assertEquals("Forced", e.getCause().getMessage());
-        }
+        assertIsInstanceOf(IllegalArgumentException.class, e.getCause());
+        assertEquals("Forced", e.getCause().getMessage());
     }
 
     @Test
@@ -510,11 +488,7 @@ public class MockEndpointTest extends ContextTestSupport {
 
         MockEndpoint mock = getMockEndpoint("mock:result");
         mock.setExpectedMessageCount(1);
-        mock.setReporter(new Processor() {
-            public void process(Exchange exchange) throws Exception {
-                reported.set(true);
-            }
-        });
+        mock.setReporter(exchange -> reported.set(true));
 
         template.sendBody("direct:a", "Hello World");
 
@@ -527,18 +501,15 @@ public class MockEndpointTest extends ContextTestSupport {
     @Test
     public void testNoArgCtr() {
         MockEndpoint mock = new MockEndpoint("mock:bar", new MockComponent(context));
-        try {
-            mock.createConsumer(null);
-            fail("Should have thrown an exception");
-        } catch (Exception e) {
-            // not possible
-        }
+        assertThrows(Exception.class,
+                () -> mock.createConsumer(null),
+                "Should have thrown an exception");
 
         assertEquals(0, mock.getFailures().size());
     }
 
     @Test
-    public void testHeaderMissing() throws Exception {
+    public void testHeaderMissing() {
         MockEndpoint mock = getMockEndpoint("mock:result");
         mock.expectedMessageCount(1);
         mock.expectedHeaderReceived("foo", 123);
@@ -546,50 +517,46 @@ public class MockEndpointTest extends ContextTestSupport {
 
         template.sendBodyAndHeader("direct:a", "Hello World", "foo", 123);
 
-        try {
-            assertMockEndpointsSatisfied();
-            fail("Should have thrown exception");
-        } catch (AssertionError e) {
-            assertEquals("mock://result No header with name bar found for message: 0", e.getMessage());
-        }
+        AssertionError e = assertThrows(AssertionError.class,
+                this::assertMockEndpointsSatisfied,
+                "Should have thrown exception");
+
+        assertEquals("mock://result No header with name bar found for message: 0", e.getMessage());
     }
 
     @Test
-    public void testHeaderNoMessageSent() throws Exception {
+    public void testHeaderNoMessageSent() {
         MockEndpoint mock = getMockEndpoint("mock:result");
         mock.expectedHeaderReceived("foo", 123);
         // just wait a little bit as we dont want to wait 10 seconds (default)
         mock.setResultWaitTime(5);
 
         // do not send any message
+        AssertionError e = assertThrows(AssertionError.class,
+                mock::assertIsSatisfied,
+                "Should fail");
 
-        try {
-            mock.assertIsSatisfied();
-            fail("Should fail");
-        } catch (AssertionError e) {
-            assertEquals("mock://result Received message count 0, expected at least 1", e.getMessage());
-        }
+        assertEquals("mock://result Received message count 0, expected at least 1", e.getMessage());
     }
 
     @Test
-    public void testHeaderInvalidValue() throws Exception {
+    public void testHeaderInvalidValue() {
         MockEndpoint mock = getMockEndpoint("mock:result");
         mock.expectedMessageCount(1);
         mock.expectedHeaderReceived("bar", "cheese");
 
         template.sendBodyAndHeader("direct:a", "Hello World", "bar", "beer");
 
-        try {
-            assertMockEndpointsSatisfied();
-            fail("Should have thrown exception");
-        } catch (AssertionError e) {
-            assertEquals("mock://result Header with name bar for message: 0. Expected: <cheese> but was: <beer>",
-                    e.getMessage());
-        }
+        AssertionError e = assertThrows(AssertionError.class,
+                this::assertMockEndpointsSatisfied,
+                "Should have thrown exception");
+
+        assertEquals("mock://result Header with name bar for message: 0. Expected: <cheese> but was: <beer>",
+                e.getMessage());
     }
 
     @Test
-    public void testPropertyMissing() throws Exception {
+    public void testPropertyMissing() {
         MockEndpoint mock = getMockEndpoint("mock:result");
         mock.expectedMessageCount(1);
         mock.expectedPropertyReceived("foo", 123);
@@ -597,12 +564,11 @@ public class MockEndpointTest extends ContextTestSupport {
 
         template.sendBodyAndProperty("direct:a", "Hello World", "foo", 123);
 
-        try {
-            assertMockEndpointsSatisfied();
-            fail("Should have thrown exception");
-        } catch (AssertionError e) {
-            assertEquals("mock://result No property with name bar found for message: 0", e.getMessage());
-        }
+        AssertionError e = assertThrows(AssertionError.class,
+                this::assertMockEndpointsSatisfied,
+                "Should have thrown exception");
+
+        assertEquals("mock://result No property with name bar found for message: 0", e.getMessage());
     }
 
     @Test
@@ -612,7 +578,7 @@ public class MockEndpointTest extends ContextTestSupport {
         mock.message(0).exchangeProperty("foo").isNull();
 
         template.send("direct:a", new Processor() {
-            public void process(Exchange exchange) throws Exception {
+            public void process(Exchange exchange) {
                 exchange.setProperty("foo", 123);
             }
         });
@@ -622,7 +588,7 @@ public class MockEndpointTest extends ContextTestSupport {
         resetMocks();
 
         template.send("direct:a", new Processor() {
-            public void process(Exchange exchange) throws Exception {
+            public void process(Exchange exchange) {
                 exchange.setProperty("foo", null);
             }
         });
@@ -632,7 +598,7 @@ public class MockEndpointTest extends ContextTestSupport {
         resetMocks();
 
         template.send("direct:a", new Processor() {
-            public void process(Exchange exchange) throws Exception {
+            public void process(Exchange exchange) {
                 // no foo property
             }
         });
@@ -641,24 +607,22 @@ public class MockEndpointTest extends ContextTestSupport {
     }
 
     @Test
-    public void testPropertyInvalidValue() throws Exception {
+    public void testPropertyInvalidValue() {
         MockEndpoint mock = getMockEndpoint("mock:result");
         mock.expectedMessageCount(1);
         mock.expectedPropertyReceived("bar", "cheese");
 
         template.sendBodyAndProperty("direct:a", "Hello World", "bar", "beer");
 
-        try {
-            assertMockEndpointsSatisfied();
-            fail("Should have thrown exception");
-        } catch (AssertionError e) {
-            assertEquals("mock://result Property with name bar for message: 0. Expected: <cheese> but was: <beer>",
-                    e.getMessage());
-        }
+        AssertionError e = assertThrows(AssertionError.class,
+                this::assertMockEndpointsSatisfied,
+                "Should have thrown exception");
+        assertEquals("mock://result Property with name bar for message: 0. Expected: <cheese> but was: <beer>",
+                e.getMessage());
     }
 
     @Test
-    public void testMessageIndexIsEqualTo() throws Exception {
+    public void testMessageIndexIsEqualTo() {
         MockEndpoint mock = getMockEndpoint("mock:result");
         mock.expectedMessageCount(2);
         mock.message(0).header("foo").isEqualTo(123);
@@ -667,17 +631,16 @@ public class MockEndpointTest extends ContextTestSupport {
         template.sendBodyAndHeader("direct:a", "Hello World", "foo", 123);
         template.sendBodyAndHeader("direct:a", "Hello World", "bar", 234);
 
-        try {
-            assertMockEndpointsSatisfied();
-            fail("Should have thrown exception");
-        } catch (AssertionError e) {
-            String s = "Assertion error at index 1 on mock mock://result with predicate: header(bar) == 444 evaluated as: 234 == 444";
-            assertTrue(e.getMessage().startsWith(s));
-        }
+        AssertionError e = assertThrows(AssertionError.class,
+                this::assertMockEndpointsSatisfied,
+                "Should have thrown exception");
+
+        String s = "Assertion error at index 1 on mock mock://result with predicate: header(bar) == 444 evaluated as: 234 == 444";
+        assertTrue(e.getMessage().startsWith(s));
     }
 
     @Test
-    public void testPredicateEvaluationIsNull() throws Exception {
+    public void testPredicateEvaluationIsNull() {
         MockEndpoint mock = getMockEndpoint("mock:result");
         mock.expectedMessageCount(2);
         mock.message(0).header("foo").isNotNull();
@@ -686,17 +649,16 @@ public class MockEndpointTest extends ContextTestSupport {
         template.sendBodyAndHeader("direct:a", "Hello World", "foo", 123);
         template.sendBodyAndHeader("direct:a", "Hello World", "bar", 234);
 
-        try {
-            assertMockEndpointsSatisfied();
-            fail("Should have thrown exception");
-        } catch (AssertionError e) {
-            String s = "Assertion error at index 1 on mock mock://result with predicate: header(bar) is null evaluated as: 234 is null";
-            assertTrue(e.getMessage().startsWith(s));
-        }
+        AssertionError e = assertThrows(AssertionError.class,
+                this::assertMockEndpointsSatisfied,
+                "Should have thrown exception");
+
+        String s = "Assertion error at index 1 on mock mock://result with predicate: header(bar) is null evaluated as: 234 is null";
+        assertTrue(e.getMessage().startsWith(s));
     }
 
     @Test
-    public void testPredicateEvaluationIsInstanceOf() throws Exception {
+    public void testPredicateEvaluationIsInstanceOf() {
         MockEndpoint mock = getMockEndpoint("mock:result");
         mock.expectedMessageCount(2);
         mock.message(0).header("foo").isNotNull();
@@ -705,13 +667,11 @@ public class MockEndpointTest extends ContextTestSupport {
         template.sendBodyAndHeader("direct:a", "Hello World", "foo", 123);
         template.sendBodyAndHeader("direct:a", "Hello World", "bar", 234);
 
-        try {
-            assertMockEndpointsSatisfied();
-            fail("Should have thrown exception");
-        } catch (AssertionError e) {
-            String s = "Assertion error at index 1 on mock mock://result with predicate: header(bar) instanceof java.lang.String";
-            assertTrue(e.getMessage().startsWith(s));
-        }
+        AssertionError e = assertThrows(AssertionError.class,
+                this::assertMockEndpointsSatisfied,
+                "Should have thrown exception");
+        String s = "Assertion error at index 1 on mock mock://result with predicate: header(bar) instanceof java.lang.String";
+        assertTrue(e.getMessage().startsWith(s));
     }
 
     @Test
@@ -933,7 +893,7 @@ public class MockEndpointTest extends ContextTestSupport {
         mock.expectedPropertyReceived("bar", "beer");
 
         template.send("direct:a", new Processor() {
-            public void process(Exchange exchange) throws Exception {
+            public void process(Exchange exchange) {
                 exchange.setProperty("foo", 123);
                 exchange.setProperty("bar", "beer");
             }
@@ -950,14 +910,14 @@ public class MockEndpointTest extends ContextTestSupport {
         mock.expectedPropertyReceived("bar", "beer");
 
         template.send("direct:a", new Processor() {
-            public void process(Exchange exchange) throws Exception {
+            public void process(Exchange exchange) {
                 exchange.setProperty("foo", 123);
                 exchange.setProperty("bar", "beer");
             }
         });
 
         template.send("direct:a", new Processor() {
-            public void process(Exchange exchange) throws Exception {
+            public void process(Exchange exchange) {
                 exchange.setProperty("foo", 123);
                 exchange.setProperty("bar", "beer");
             }
@@ -974,7 +934,7 @@ public class MockEndpointTest extends ContextTestSupport {
         mock.expectedPropertyReceived("bar", null);
 
         template.send("direct:a", new Processor() {
-            public void process(Exchange exchange) throws Exception {
+            public void process(Exchange exchange) {
                 exchange.setProperty("foo", 123);
             }
         });
@@ -990,7 +950,7 @@ public class MockEndpointTest extends ContextTestSupport {
         mock.expectedPropertyReceived("bar", "beer");
 
         template.send("direct:a", new Processor() {
-            public void process(Exchange exchange) throws Exception {
+            public void process(Exchange exchange) {
                 exchange.setProperty("foo", 456);
                 exchange.setProperty("bar", "beer");
             }
@@ -1007,7 +967,7 @@ public class MockEndpointTest extends ContextTestSupport {
         mock.expectedPropertyReceived("bar", "beer");
 
         template.send("direct:a", new Processor() {
-            public void process(Exchange exchange) throws Exception {
+            public void process(Exchange exchange) {
                 exchange.setProperty("foo", 123);
                 exchange.setProperty("bar", "wine");
             }
@@ -1024,14 +984,14 @@ public class MockEndpointTest extends ContextTestSupport {
         mock.expectedPropertyReceived("bar", "beer");
 
         template.send("direct:a", new Processor() {
-            public void process(Exchange exchange) throws Exception {
+            public void process(Exchange exchange) {
                 exchange.setProperty("foo", 123);
                 exchange.setProperty("bar", "beer");
             }
         });
 
         template.send("direct:a", new Processor() {
-            public void process(Exchange exchange) throws Exception {
+            public void process(Exchange exchange) {
                 exchange.setProperty("foo", 123);
                 exchange.setProperty("bar", "wine");
             }
@@ -1058,7 +1018,7 @@ public class MockEndpointTest extends ContextTestSupport {
         MockEndpoint mock = getMockEndpoint("mock:result");
         mock.whenAnyExchangeReceived(new Processor() {
             @Override
-            public void process(Exchange exchange) throws Exception {
+            public void process(Exchange exchange) {
                 counter.incrementAndGet();
             }
         });
@@ -1224,6 +1184,22 @@ public class MockEndpointTest extends ContextTestSupport {
         assertEquals("<message>10</message>", mock.getReceivedExchanges().get(9).getIn().getBody());
     }
 
+    @Test
+    public void testExpectedMessagesMatches() throws Exception {
+        Language sl = context.resolveLanguage("simple");
+        MockEndpoint mock = getMockEndpoint("mock:result");
+
+        mock.expectedMessagesMatches(sl.createPredicate("${body} == 'abc'"));
+        template.sendBody("direct:a", "abc");
+        mock.assertIsSatisfied();
+
+        mock.reset();
+
+        mock.expectedMessagesMatches(sl.createPredicate("${body} == 'abc'"));
+        template.sendBody("direct:a", "def");
+        mock.assertIsNotSatisfied();
+    }
+
     protected void sendMessages(int... counters) {
         for (int counter : counters) {
             template.sendBodyAndHeader("direct:a", createTestMessage(counter), "counter", counter);
@@ -1247,8 +1223,8 @@ public class MockEndpointTest extends ContextTestSupport {
     }
 
     @Override
-    protected Registry createRegistry() throws Exception {
-        Registry jndi = super.createRegistry();
+    protected Registry createCamelRegistry() throws Exception {
+        Registry jndi = super.createCamelRegistry();
         jndi.bind("foo", new MyHelloBean());
         return jndi;
     }

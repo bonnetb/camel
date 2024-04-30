@@ -16,13 +16,12 @@
  */
 package org.apache.camel.model.config;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlType;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlType;
 
 @XmlType(name = "resequencerConfig")
 @XmlAccessorType(XmlAccessType.FIELD)
-@SuppressWarnings("rawtypes")
 public abstract class ResequencerConfig {
 
 }

@@ -18,25 +18,22 @@ package org.apache.camel.component.jetty;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.Writer;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.EventListener;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import jakarta.servlet.Filter;
+import jakarta.servlet.MultipartConfigElement;
+import jakarta.servlet.RequestDispatcher;
+
 import javax.management.MBeanServer;
-import javax.servlet.Filter;
-import javax.servlet.MultipartConfigElement;
-import javax.servlet.RequestDispatcher;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.Consumer;
@@ -68,24 +65,17 @@ import org.apache.camel.util.PropertiesHelper;
 import org.apache.camel.util.StringHelper;
 import org.apache.camel.util.URISupport;
 import org.apache.camel.util.UnsafeUriCharactersEncoder;
+import org.eclipse.jetty.ee10.servlet.FilterHolder;
+import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
+import org.eclipse.jetty.ee10.servlet.SessionHandler;
+import org.eclipse.jetty.ee10.servlets.CrossOriginFilter;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.jmx.MBeanContainer;
-import org.eclipse.jetty.server.AbstractConnector;
-import org.eclipse.jetty.server.Connector;
-import org.eclipse.jetty.server.Handler;
-import org.eclipse.jetty.server.HttpConnectionFactory;
-import org.eclipse.jetty.server.MultiPartFormDataCompliance;
-import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.*;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.ErrorHandler;
-import org.eclipse.jetty.server.handler.HandlerCollection;
-import org.eclipse.jetty.server.handler.HandlerWrapper;
-import org.eclipse.jetty.server.session.SessionHandler;
-import org.eclipse.jetty.servlet.FilterHolder;
-import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.servlet.ServletHolder;
-import org.eclipse.jetty.servlets.CrossOriginFilter;
+import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.component.Container;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.util.thread.QueuedThreadPool;
@@ -119,7 +109,6 @@ public abstract class JettyHttpComponent extends HttpCommonComponent
     protected ThreadPool threadPool;
     protected MBeanContainer mbContainer;
     protected boolean enableJmx;
-    protected JettyHttpBinding jettyHttpBinding;
     protected Long continuationTimeout;
     protected boolean useContinuation = true;
     protected SSLContextParameters sslContextParameters;
@@ -134,14 +123,18 @@ public abstract class JettyHttpComponent extends HttpCommonComponent
     private Integer proxyPort;
     private boolean sendServerVersion = true;
     private QueuedThreadPool defaultQueuedThreadPool;
+    private String filesLocation;
+    private Long maxFileSize = -1L;
+    private Long maxRequestSize = -1L;
+    private Integer fileSizeThreshold = 0;
 
-    public JettyHttpComponent() {
+    protected JettyHttpComponent() {
     }
 
     static class ConnectorRef {
-        Server server;
-        Connector connector;
-        CamelServlet servlet;
+        final Server server;
+        final Connector connector;
+        final CamelServlet servlet;
         int refCount;
 
         ConnectorRef(Server server, Connector connector, CamelServlet servlet) {
@@ -186,12 +179,16 @@ public abstract class JettyHttpComponent extends HttpCommonComponent
         Integer proxyPort = getAndRemoveParameter(parameters, "proxyPort", Integer.class, getProxyPort());
         Boolean async = getAndRemoveParameter(parameters, "async", Boolean.class);
         boolean muteException = getAndRemoveParameter(parameters, "muteException", boolean.class, isMuteException());
+        String filesLocation = getAndRemoveParameter(parameters, "filesLocation", String.class, getFilesLocation());
+        Integer fileSizeThreshold
+                = getAndRemoveParameter(parameters, "fileSizeThreshold", Integer.class, getFileSizeThreshold());
+        Long maxFileSize = getAndRemoveParameter(parameters, "maxFileSize", Long.class, getMaxFileSize());
+        Long maxRequestSize = getAndRemoveParameter(parameters, "maxRequestSize", Long.class, getMaxRequestSize());
 
         // extract filterInit. parameters
         Map filterInitParameters = PropertiesHelper.extractProperties(parameters, "filterInit.");
 
-        String address = remaining;
-        URI addressUri = new URI(UnsafeUriCharactersEncoder.encodeHttpURI(address));
+        URI addressUri = new URI(UnsafeUriCharactersEncoder.encodeHttpURI(remaining));
         URI endpointUri = URISupport.createRemainingURI(addressUri, parameters);
         // need to keep the httpMethodRestrict parameter for the endpointUri
         String httpMethodRestrict = getAndRemoveParameter(parameters, "httpMethodRestrict", String.class);
@@ -263,7 +260,10 @@ public abstract class JettyHttpComponent extends HttpCommonComponent
             endpoint.setSslContextParameters(ssl);
         }
         endpoint.setSendServerVersion(isSendServerVersion());
-
+        endpoint.setFilesLocation(filesLocation);
+        endpoint.setFileSizeThreshold(fileSizeThreshold);
+        endpoint.setMaxFileSize(maxFileSize);
+        endpoint.setMaxRequestSize(maxRequestSize);
         setProperties(endpoint, parameters);
 
         // re-create http uri after all parameters has been set on the endpoint, as the remainders are for http uri
@@ -345,8 +345,8 @@ public abstract class JettyHttpComponent extends HttpCommonComponent
                 // check if there are any new handlers, and if so then we need to re-start the server
                 if (endpoint.getHandlers() != null && !endpoint.getHandlers().isEmpty()) {
                     List<Handler> existingHandlers = new ArrayList<>();
-                    if (connectorRef.server.getHandlers() != null && connectorRef.server.getHandlers().length > 0) {
-                        existingHandlers = Arrays.asList(connectorRef.server.getHandlers());
+                    if (connectorRef.server.getHandlers() != null && !connectorRef.server.getHandlers().isEmpty()) {
+                        existingHandlers = connectorRef.server.getHandlers();
                     }
                     List<Handler> newHandlers = new ArrayList<>(endpoint.getHandlers());
                     boolean changed = !existingHandlers.containsAll(newHandlers) && !newHandlers.containsAll(existingHandlers);
@@ -366,11 +366,11 @@ public abstract class JettyHttpComponent extends HttpCommonComponent
             }
 
             if (endpoint.isEnableMultipartFilter()) {
-                enableMultipartFilter(endpoint, connectorRef.server, connectorKey);
+                enableMultipartFilter(endpoint, connectorRef.server);
             }
 
             if (endpoint.getFilters() != null && !endpoint.getFilters().isEmpty()) {
-                setFilters(endpoint, connectorRef.server, connectorKey);
+                setFilters(endpoint, connectorRef.server);
             }
             connectorRef.servlet.connect(consumer);
         }
@@ -388,7 +388,7 @@ public abstract class JettyHttpComponent extends HttpCommonComponent
     }
 
     private void enableSessionSupport(Server server, String connectorKey) throws Exception {
-        ServletContextHandler context = server.getChildHandlerByClass(ServletContextHandler.class);
+        ServletContextHandler context = server.getDescendant(ServletContextHandler.class);
         if (context.getSessionHandler() == null) {
             SessionHandler sessionHandler = new SessionHandler();
             if (context.isStarted()) {
@@ -400,32 +400,29 @@ public abstract class JettyHttpComponent extends HttpCommonComponent
         }
     }
 
-    private void setFilters(JettyHttpEndpoint endpoint, Server server, String connectorKey) {
-        ServletContextHandler context = server.getChildHandlerByClass(ServletContextHandler.class);
+    private void setFilters(JettyHttpEndpoint endpoint, Server server) {
+        ServletContextHandler context = server.getDescendant(ServletContextHandler.class);
         List<Filter> filters = endpoint.getFilters();
         for (Filter filter : filters) {
             FilterHolder filterHolder = new FilterHolder();
             if (endpoint.getFilterInitParameters() != null) {
                 filterHolder.setInitParameters(endpoint.getFilterInitParameters());
             }
-            filterHolder.setFilter(new CamelFilterWrapper(filter));
-            String pathSpec = endpoint.getPath();
-            if (pathSpec == null || "".equals(pathSpec)) {
-                pathSpec = "/";
-            }
-            if (endpoint.isMatchOnUriPrefix()) {
-                pathSpec = pathSpec.endsWith("/") ? pathSpec + "*" : pathSpec + "/*";
-            }
-            addFilter(context, filterHolder, pathSpec);
+            addFilter(endpoint, filter, filterHolder, context);
         }
+    }
+
+    private void addFilter(
+            JettyHttpEndpoint endpoint, Filter filter, FilterHolder filterHolder, ServletContextHandler context) {
+        addFilter(endpoint, filterHolder, filter, context);
     }
 
     private void addFilter(ServletContextHandler context, FilterHolder filterHolder, String pathSpec) {
         context.getServletHandler().addFilterWithMapping(filterHolder, pathSpec, 0);
     }
 
-    private void enableMultipartFilter(HttpCommonEndpoint endpoint, Server server, String connectorKey) throws Exception {
-        ServletContextHandler context = server.getChildHandlerByClass(ServletContextHandler.class);
+    private void enableMultipartFilter(HttpCommonEndpoint endpoint, Server server) throws Exception {
+        ServletContextHandler context = server.getDescendant(ServletContextHandler.class);
         CamelContext camelContext = this.getCamelContext();
         FilterHolder filterHolder = new FilterHolder();
         filterHolder.setInitParameter("deleteFiles", "true");
@@ -436,7 +433,7 @@ public abstract class JettyHttpComponent extends HttpCommonComponent
                         "The temp file directory of camel-jetty is not exists, please recheck it with directory name :"
                                                 + camelContext.getGlobalOptions().get(TMP_DIR));
             }
-            context.setAttribute("javax.servlet.context.tempdir", file);
+            context.setAttribute("jakarta.servlet.context.tempdir", file);
         }
         // if a filter ref was provided, use it.
         Filter filter = ((JettyHttpEndpoint) endpoint).getMultipartFilter();
@@ -444,16 +441,22 @@ public abstract class JettyHttpComponent extends HttpCommonComponent
             // if no filter ref was provided, use the default filter
             filter = new MultiPartFilter();
         }
+        final String pathSpec = addFilter(endpoint, filterHolder, filter, context);
+        LOG.debug("using multipart filter implementation {} for path {}", filter.getClass().getName(), pathSpec);
+    }
+
+    private String addFilter(
+            HttpCommonEndpoint endpoint, FilterHolder filterHolder, Filter filter, ServletContextHandler context) {
         filterHolder.setFilter(new CamelFilterWrapper(filter));
         String pathSpec = endpoint.getPath();
-        if (pathSpec == null || "".equals(pathSpec)) {
+        if (pathSpec == null || pathSpec.isEmpty()) {
             pathSpec = "/";
         }
         if (endpoint.isMatchOnUriPrefix()) {
             pathSpec = pathSpec.endsWith("/") ? pathSpec + "*" : pathSpec + "/*";
         }
         addFilter(context, filterHolder, pathSpec);
-        LOG.debug("using multipart filter implementation {} for path {}", filter.getClass().getName(), pathSpec);
+        return pathSpec;
     }
 
     /**
@@ -591,7 +594,7 @@ public abstract class JettyHttpComponent extends HttpCommonComponent
     protected Connector createConnector(Server server, JettyHttpEndpoint endpoint) {
 
         // now we just use the SelectChannelConnector as the default connector
-        SslContextFactory sslcf = null;
+        SslContextFactory.Server sslcf = null;
 
         // Note that this was set on the endpoint when it was constructed.  It was
         // either explicitly set at the component or on the endpoint, but either way,
@@ -601,12 +604,12 @@ public abstract class JettyHttpComponent extends HttpCommonComponent
 
         if (endpointSslContextParameters != null) {
             try {
-                sslcf = createSslContextFactory(endpointSslContextParameters, false);
+                sslcf = (SslContextFactory.Server) createSslContextFactory(endpointSslContextParameters, false);
             } catch (Exception e) {
                 throw new RuntimeCamelException(e);
             }
         } else if ("https".equals(endpoint.getProtocol())) {
-            sslcf = new SslContextFactory();
+            sslcf = new SslContextFactory.Server();
             sslcf.setEndpointIdentificationAlgorithm(null);
             String keystoreProperty = System.getProperty(JETTY_SSL_KEYSTORE);
             if (keystoreProperty != null) {
@@ -634,7 +637,7 @@ public abstract class JettyHttpComponent extends HttpCommonComponent
     }
 
     protected abstract AbstractConnector createConnectorJettyInternal(
-            Server server, JettyHttpEndpoint endpoint, SslContextFactory sslcf);
+            Server server, JettyHttpEndpoint endpoint, SslContextFactory.Server sslcf);
 
     private SslContextFactory createSslContextFactory(SSLContextParameters ssl, boolean client)
             throws GeneralSecurityException, IOException {
@@ -656,28 +659,28 @@ public abstract class JettyHttpComponent extends HttpCommonComponent
         if (ssl != null && ssl.getCipherSuitesFilter() != null) {
             List<String> includeCiphers = ssl.getCipherSuitesFilter().getInclude();
             if (includeCiphers != null && !includeCiphers.isEmpty()) {
-                String[] arr = includeCiphers.toArray(new String[includeCiphers.size()]);
+                String[] arr = includeCiphers.toArray(new String[0]);
                 answer.setIncludeCipherSuites(arr);
             } else {
                 answer.setIncludeCipherSuites(".*");
             }
             List<String> excludeCiphers = ssl.getCipherSuitesFilter().getExclude();
             if (excludeCiphers != null && !excludeCiphers.isEmpty()) {
-                String[] arr = excludeCiphers.toArray(new String[excludeCiphers.size()]);
+                String[] arr = excludeCiphers.toArray(new String[0]);
                 answer.setExcludeCipherSuites(arr);
             }
         }
         if (ssl != null && ssl.getSecureSocketProtocolsFilter() != null) {
             List<String> includeProtocols = ssl.getSecureSocketProtocolsFilter().getInclude();
             if (includeProtocols != null && !includeProtocols.isEmpty()) {
-                String[] arr = includeProtocols.toArray(new String[includeProtocols.size()]);
+                String[] arr = includeProtocols.toArray(new String[0]);
                 answer.setIncludeProtocols(arr);
             } else {
                 answer.setIncludeProtocols(".*");
             }
             List<String> excludeProtocols = ssl.getSecureSocketProtocolsFilter().getExclude();
             if (excludeProtocols != null && !excludeProtocols.isEmpty()) {
-                String[] arr = excludeProtocols.toArray(new String[excludeProtocols.size()]);
+                String[] arr = excludeProtocols.toArray(new String[0]);
                 answer.setExcludeProtocols(arr);
             }
         }
@@ -689,13 +692,7 @@ public abstract class JettyHttpComponent extends HttpCommonComponent
         try {
             Method method = instance.getClass().getMethod("checkConfig");
             return (Boolean) method.invoke(instance);
-        } catch (NoSuchMethodException ex) {
-            // ignore
-        } catch (IllegalArgumentException e) {
-            // ignore
-        } catch (IllegalAccessException e) {
-            // ignore
-        } catch (InvocationTargetException e) {
+        } catch (IllegalArgumentException | NoSuchMethodException | IllegalAccessException | InvocationTargetException ex) {
             // ignore
         }
         return false;
@@ -777,20 +774,6 @@ public abstract class JettyHttpComponent extends HttpCommonComponent
     @Metadata(description = "If this option is true, Jetty JMX support will be enabled for this endpoint.")
     public void setEnableJmx(boolean enableJmx) {
         this.enableJmx = enableJmx;
-    }
-
-    public JettyHttpBinding getJettyHttpBinding() {
-        return jettyHttpBinding;
-    }
-
-    /**
-     * To use a custom org.apache.camel.component.jetty.JettyHttpBinding, which are used to customize how a response
-     * should be written for the producer.
-     */
-    @Metadata(description = "To use a custom org.apache.camel.component.jetty.JettyHttpBinding, which are used to customize how a response should be written for the producer.",
-              label = "advanced")
-    public void setJettyHttpBinding(JettyHttpBinding jettyHttpBinding) {
-        this.jettyHttpBinding = jettyHttpBinding;
     }
 
     /**
@@ -1038,6 +1021,46 @@ public abstract class JettyHttpComponent extends HttpCommonComponent
         this.sendServerVersion = sendServerVersion;
     }
 
+    public long getMaxFileSize() {
+        return maxFileSize;
+    }
+
+    @Metadata(description = "The maximum size allowed for uploaded files. -1 means no limit",
+              defaultValue = "-1", label = "consumer,advanced")
+    public void setMaxFileSize(long maxFileSize) {
+        this.maxFileSize = maxFileSize;
+    }
+
+    public long getMaxRequestSize() {
+        return maxRequestSize;
+    }
+
+    @Metadata(description = "The maximum size allowed for multipart/form-data requests. -1 means no limit",
+              defaultValue = "-1", label = "consumer,advanced")
+    public void setMaxRequestSize(long maxRequestSize) {
+        this.maxRequestSize = maxRequestSize;
+    }
+
+    public int getFileSizeThreshold() {
+        return fileSizeThreshold;
+    }
+
+    @Metadata(description = "The size threshold after which files will be written to disk for multipart/form-data requests. By default the files are not written to disk",
+              defaultValue = "0", label = "consumer,advanced")
+    public void setFileSizeThreshold(int fileSizeThreshold) {
+        this.fileSizeThreshold = fileSizeThreshold;
+    }
+
+    public String getFilesLocation() {
+        return filesLocation;
+    }
+
+    @Metadata(description = "The directory location where files will be store for multipart/form-data requests. By default the files are written in the system temporary folder",
+              label = "consumer,advanced")
+    public void setFilesLocation(String filesLocation) {
+        this.filesLocation = filesLocation;
+    }
+
     // Implementation methods
     // -------------------------------------------------------------------------
 
@@ -1046,7 +1069,7 @@ public abstract class JettyHttpComponent extends HttpCommonComponent
             CamelContext camelContext, Processor processor, String verb, String basePath, String uriTemplate,
             String consumes, String produces, RestConfiguration configuration, Map<String, Object> parameters)
             throws Exception {
-        return doCreateConsumer(camelContext, processor, verb, basePath, uriTemplate, consumes, produces, configuration,
+        return doCreateConsumer(camelContext, processor, verb, basePath, uriTemplate, configuration,
                 parameters, false);
     }
 
@@ -1056,12 +1079,12 @@ public abstract class JettyHttpComponent extends HttpCommonComponent
             RestConfiguration configuration, Map<String, Object> parameters)
             throws Exception {
         // reuse the createConsumer method we already have. The api need to use GET and match on uri prefix
-        return doCreateConsumer(camelContext, processor, "GET", contextPath, null, null, null, configuration, parameters, true);
+        return doCreateConsumer(camelContext, processor, "GET", contextPath, null, configuration, parameters, true);
     }
 
     Consumer doCreateConsumer(
             CamelContext camelContext, Processor processor, String verb, String basePath, String uriTemplate,
-            String consumes, String produces, RestConfiguration configuration, Map<String, Object> parameters, boolean api)
+            RestConfiguration configuration, Map<String, Object> parameters, boolean api)
             throws Exception {
 
         String path = basePath;
@@ -1153,7 +1176,8 @@ public abstract class JettyHttpComponent extends HttpCommonComponent
             List<Handler> handlers, JettyHttpEndpoint endpoint)
             throws Exception {
         ServletContextHandler context
-                = new ServletContextHandler(server, "/", ServletContextHandler.NO_SECURITY | ServletContextHandler.NO_SESSIONS);
+                = new ServletContextHandler("/", false, false);
+        server.setHandler(context);
 
         addJettyHandlers(server, handlers);
 
@@ -1164,28 +1188,22 @@ public abstract class JettyHttpComponent extends HttpCommonComponent
         holder.setInitParameter(CamelServlet.ASYNC_PARAM, Boolean.toString(endpoint.isAsync()));
         context.addServlet(holder, "/*");
 
-        File file = File.createTempFile("camel", "");
-        boolean result = file.delete();
-        if (!result) {
-            LOG.error("failed to delete {}", file);
+        String location = endpoint.getFilesLocation();
+        if (location == null) {
+            File file = File.createTempFile("camel", "");
+            if (!FileUtil.deleteFile(file)) {
+                LOG.error("failed to delete {}", file);
+            }
+            location = file.getParentFile().getAbsolutePath();
         }
 
         //must register the MultipartConfig to make jetty server multipart aware
         holder.getRegistration()
-                .setMultipartConfig(new MultipartConfigElement(file.getParentFile().getAbsolutePath(), -1, -1, 0));
+                .setMultipartConfig(new MultipartConfigElement(
+                        location, endpoint.getMaxFileSize(), endpoint.getMaxRequestSize(), endpoint.getFileSizeThreshold()));
 
         // use rest enabled resolver in case we use rest
         camelServlet.setServletResolveConsumerStrategy(new HttpRestServletResolveConsumerStrategy());
-
-        //must make RFC7578 as default to avoid using the deprecated MultiPartInputStreamParser
-        try {
-            connector.getConnectionFactory(HttpConnectionFactory.class).getHttpConfiguration()
-                    .setMultiPartFormDataCompliance(MultiPartFormDataCompliance.RFC7578);
-        } catch (Exception e) {
-            // ignore this due to OSGi problems
-            LOG.debug("Cannot set MultiPartFormDataCompliance to RFC7578 due to {}. This exception is ignored.",
-                    e.getMessage(), e);
-        }
 
         return camelServlet;
     }
@@ -1193,14 +1211,14 @@ public abstract class JettyHttpComponent extends HttpCommonComponent
     protected void addJettyHandlers(Server server, List<Handler> handlers) {
         if (handlers != null && !handlers.isEmpty()) {
             for (Handler handler : handlers) {
-                if (handler instanceof HandlerWrapper) {
+                if (handler instanceof Handler.Wrapper) {
                     // avoid setting a handler more than once
                     if (!isHandlerInChain(server.getHandler(), handler)) {
-                        ((HandlerWrapper) handler).setHandler(server.getHandler());
+                        ((Handler.Wrapper) handler).setHandler(server.getHandler());
                         server.setHandler(handler);
                     }
                 } else {
-                    HandlerCollection handlerCollection = new HandlerCollection();
+                    ContextHandlerCollection handlerCollection = new ContextHandlerCollection();
                     handlerCollection.addHandler(server.getHandler());
                     handlerCollection.addHandler(handler);
                     server.setHandler(handlerCollection);
@@ -1214,9 +1232,9 @@ public abstract class JettyHttpComponent extends HttpCommonComponent
         if (handler.equals(current)) {
             //Found a match in the chain
             return true;
-        } else if (current instanceof HandlerWrapper) {
+        } else if (current instanceof Handler.Wrapper) {
             //Inspect the next handler in the chain
-            return isHandlerInChain(((HandlerWrapper) current).getHandler(), handler);
+            return isHandlerInChain(((Handler.Wrapper) current).getHandler(), handler);
         } else {
             //End of chain
             return false;
@@ -1268,29 +1286,25 @@ public abstract class JettyHttpComponent extends HttpCommonComponent
         s.setHandler(collection);
         // setup the error handler if it set to Jetty component
         if (getErrorHandler() != null) {
-            s.addBean(getErrorHandler());
+            s.setErrorHandler(getErrorHandler());
         } else {
             //need an error handler that won't leak information about the exception back to the client.
             ErrorHandler eh = new ErrorHandler() {
                 @Override
-                public void handle(
-                        String target, Request baseRequest,
-                        HttpServletRequest request, HttpServletResponse response)
-                        throws IOException, ServletException {
+                public boolean handle(
+                        Request baseRequest, Response response, Callback callback)
+                        throws Exception {
                     String msg = HttpStatus.getMessage(response.getStatus());
-                    request.setAttribute(RequestDispatcher.ERROR_MESSAGE, msg);
-                    super.handle(target, baseRequest, request, response);
-                }
-
-                @Override
-                protected void writeErrorPage(
-                        HttpServletRequest request, Writer writer, int code,
-                        String message, boolean showStacks)
-                        throws IOException {
-                    super.writeErrorPage(request, writer, code, message, false);
+                    Object timeout = baseRequest.getAttribute(CamelContinuationServlet.TIMEOUT_ERROR);
+                    if (Boolean.TRUE.equals(timeout)) {
+                        baseRequest.setAttribute(RequestDispatcher.ERROR_STATUS_CODE, 504);
+                        response.setStatus(504);
+                    }
+                    baseRequest.setAttribute(RequestDispatcher.ERROR_MESSAGE, msg);
+                    return super.handle(baseRequest, response, callback);
                 }
             };
-            s.addBean(eh, false);
+            s.setErrorHandler(eh);
         }
         return s;
     }
@@ -1316,7 +1330,7 @@ public abstract class JettyHttpComponent extends HttpCommonComponent
     @Override
     protected void doStop() throws Exception {
         super.doStop();
-        if (CONNECTORS.size() > 0) {
+        if (!CONNECTORS.isEmpty()) {
             for (Map.Entry<String, ConnectorRef> connectorEntry : CONNECTORS.entrySet()) {
                 ConnectorRef connectorRef = connectorEntry.getValue();
                 if (connectorRef != null && connectorRef.getRefCount() == 0) {
@@ -1344,7 +1358,7 @@ public abstract class JettyHttpComponent extends HttpCommonComponent
 
         try {
             Object o = getContainer(server);
-            o.getClass().getMethod("addEventListener", Container.Listener.class).invoke(o, mbContainer);
+            o.getClass().getMethod("addEventListener", EventListener.class).invoke(o, mbContainer);
             mbContainer.getClass().getMethod("beanAdded", Container.class, Object.class)
                     .invoke(mbContainer, null, server);
         } catch (RuntimeException rex) {

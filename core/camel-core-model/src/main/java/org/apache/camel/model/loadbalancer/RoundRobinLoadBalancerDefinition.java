@@ -16,15 +16,15 @@
  */
 package org.apache.camel.model.loadbalancer;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlRootElement;
 
 import org.apache.camel.model.LoadBalancerDefinition;
 import org.apache.camel.spi.Metadata;
 
 /**
- * The destination endpoints are selected in a round-robin fashion. This is a well known and classic policy, which
+ * The destination endpoints are selected in a round-robin fashion. This is a well-known and classic policy, which
  * spreads the load evenly.
  */
 @Metadata(label = "eip,routing")

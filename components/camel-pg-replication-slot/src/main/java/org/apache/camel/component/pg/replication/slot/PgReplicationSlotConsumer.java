@@ -28,7 +28,6 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.camel.Exchange;
-import org.apache.camel.ExtendedExchange;
 import org.apache.camel.Message;
 import org.apache.camel.Processor;
 import org.apache.camel.spi.Synchronization;
@@ -63,14 +62,14 @@ public class PgReplicationSlotConsumer extends ScheduledPollConsumer {
 
     @Override
     protected void doStart() throws Exception {
-        super.doStart();
-
         this.connect();
 
         if (this.scheduledExecutor == null) {
             this.scheduledExecutor = this.getEndpoint().getCamelContext().getExecutorServiceManager()
                     .newSingleThreadScheduledExecutor(this, "PgReplicationStatusUpdateSender");
         }
+
+        super.doStart();
     }
 
     @Override
@@ -141,7 +140,7 @@ public class PgReplicationSlotConsumer extends ScheduledPollConsumer {
             }
         }, delay, delay, TimeUnit.SECONDS);
 
-        exchange.adapt(ExtendedExchange.class).addOnCompletion(new Synchronization() {
+        exchange.getExchangeExtension().addOnCompletion(new Synchronization() {
             @Override
             public void onComplete(Exchange exchange) {
                 processCommit(exchange);
@@ -251,7 +250,7 @@ public class PgReplicationSlotConsumer extends ScheduledPollConsumer {
         this.pgConnection = this.connection.unwrap(PGConnection.class);
         this.replicationStream = null;
 
-        if (this.endpoint.getAutoCreateSlot() && !this.isSlotCreated()) {
+        if (Boolean.TRUE.equals(this.endpoint.getAutoCreateSlot()) && !this.isSlotCreated()) {
             this.createSlot();
         }
     }

@@ -16,9 +16,20 @@
  */
 package org.apache.camel.component.rest.openapi;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.servers.Server;
+import org.apache.camel.spi.ContentTypeAware;
+import org.apache.camel.spi.Resource;
+import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.util.StringHelper;
 
 import static org.apache.camel.util.StringHelper.notEmpty;
@@ -26,6 +37,8 @@ import static org.apache.camel.util.StringHelper.notEmpty;
 final class RestOpenApiHelper {
 
     private static final Pattern HOST_PATTERN = Pattern.compile("https?://[^:]+(:\\d+)?", Pattern.CASE_INSENSITIVE);
+    private static final List<String> YAML_CONTENT_TYPES = Arrays.asList("application/yaml", "application/yml",
+            "text/yaml", "text/yml", "text/x-yaml");
 
     private RestOpenApiHelper() {
         // utility class
@@ -33,6 +46,23 @@ final class RestOpenApiHelper {
 
     public static String isMediaRange(final String given, final String name) {
         return notEmpty(given, name);
+    }
+
+    /**
+     * Determines if a {@link Resource} contains YAML content.
+     *
+     * @param  resource The resource to inspect
+     * @return          {@code true} if the resource has YAML content, otherwise {@code false}
+     */
+    public static boolean isYamlResource(Resource resource) {
+        Objects.requireNonNull(resource, "resource cannot be null");
+
+        if (resource instanceof ContentTypeAware) {
+            String contentType = ((ContentTypeAware) resource).getContentType();
+            return isYamlResourceLocation(resource.getLocation()) || isYamlContentType(contentType);
+        }
+
+        return isYamlResourceLocation(resource.getLocation());
     }
 
     static String isHostParam(final String given) {
@@ -47,4 +77,65 @@ final class RestOpenApiHelper {
 
         return hostUri;
     }
+
+    private static boolean isYamlContentType(String contentType) {
+        if (ObjectHelper.isEmpty(contentType)) {
+            return false;
+        }
+        return Stream.of(contentType.split(";"))
+                .map(String::trim)
+                .anyMatch(YAML_CONTENT_TYPES::contains);
+    }
+
+    private static boolean isYamlResourceLocation(String location) {
+        if (ObjectHelper.isEmpty(location)) {
+            return false;
+        }
+        return location.toLowerCase().endsWith(".yml") || location.toLowerCase().endsWith(".yaml");
+    }
+
+    public static String getBasePathFromOpenApi(final OpenAPI openApi) {
+        String basePath = null;
+        if (openApi.getServers() != null) {
+            for (Server server : openApi.getServers()) {
+                if (server.getUrl() != null) {
+                    try {
+                        URI serverUrl = new URI(parseVariables(server.getUrl(), server));
+                        basePath = serverUrl.getPath();
+                        // Is this really necessary?
+                        if (basePath.indexOf("//") == 0) {
+                            // strip off the first "/" if double "/" exists
+                            basePath = basePath.substring(1);
+                        }
+                        // strip ending slash
+                        if (basePath.endsWith("/")) {
+                            basePath = basePath.substring(0, basePath.length() - 1);
+                        }
+                        if ("/".equals(basePath)) {
+                            basePath = "";
+                        }
+                    } catch (URISyntaxException e) {
+                        //not a valid whole url, just the basePath
+                        basePath = server.getUrl();
+                    }
+                }
+            }
+        }
+        return basePath;
+    }
+
+    public static String parseVariables(String url, Server server) {
+        Pattern p = Pattern.compile("\\{(.*?)\\}");
+        Matcher m = p.matcher(url);
+        while (m.find()) {
+
+            String variable = m.group(1);
+            if (server != null && server.getVariables() != null && server.getVariables().get(variable) != null) {
+                String varValue = server.getVariables().get(variable).getDefault();
+                url = url.replace("{" + variable + "}", varValue);
+            }
+        }
+        return url;
+    }
+
 }

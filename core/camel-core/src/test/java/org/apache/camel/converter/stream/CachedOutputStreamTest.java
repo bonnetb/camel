@@ -28,7 +28,6 @@ import java.util.StringJoiner;
 import org.apache.camel.CamelContext;
 import org.apache.camel.ContextTestSupport;
 import org.apache.camel.Exchange;
-import org.apache.camel.ExtendedExchange;
 import org.apache.camel.StreamCache;
 import org.apache.camel.converter.IOConverter;
 import org.apache.camel.impl.engine.DefaultUnitOfWork;
@@ -40,6 +39,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -53,7 +53,8 @@ public class CachedOutputStreamTest extends ContextTestSupport {
     protected CamelContext createCamelContext() throws Exception {
         CamelContext context = super.createCamelContext();
         context.setStreamCaching(true);
-        context.getStreamCachingStrategy().setSpoolDirectory(testDirectory(true).toFile());
+        context.getStreamCachingStrategy().setSpoolDirectory(testDirectory().toFile());
+        context.getStreamCachingStrategy().setSpoolEnabled(true);
         context.getStreamCachingStrategy().setSpoolThreshold(16);
         return context;
     }
@@ -65,7 +66,7 @@ public class CachedOutputStreamTest extends ContextTestSupport {
 
         exchange = new DefaultExchange(context);
         UnitOfWork uow = new DefaultUnitOfWork(exchange);
-        exchange.adapt(ExtendedExchange.class).setUnitOfWork(uow);
+        exchange.getExchangeExtension().setUnitOfWork(uow);
     }
 
     @Override
@@ -93,6 +94,7 @@ public class CachedOutputStreamTest extends ContextTestSupport {
 
         File file = testDirectory().toFile();
         String[] files = file.list();
+        assertNotNull(files, "There should be a list of files");
         assertEquals(1, files.length, "we should have a temp file");
         assertTrue(files[0].startsWith("cos"), "The file name should start with cos");
 
@@ -103,6 +105,7 @@ public class CachedOutputStreamTest extends ContextTestSupport {
         IOHelper.close(is);
 
         files = file.list();
+        assertNotNull(files, "There should be a list of files");
         assertEquals(0, files.length, "we should have a temp file");
         IOHelper.close(cos);
     }
@@ -116,6 +119,7 @@ public class CachedOutputStreamTest extends ContextTestSupport {
 
         File file = testDirectory().toFile();
         String[] files = file.list();
+        assertNotNull(files, "There should be a list of files");
         assertEquals(1, files.length, "we should have a temp file");
         assertTrue(files[0].startsWith("cos"), "The file name should start with cos");
 
@@ -126,6 +130,7 @@ public class CachedOutputStreamTest extends ContextTestSupport {
 
         ((InputStream) cache).close();
         files = file.list();
+        assertNotNull(files, "There should be a list of files");
         assertEquals(1, files.length, "we should have a temp file");
         assertEquals(TEST_STRING, temp, "Cached a wrong file");
         exchange.getUnitOfWork().done(exchange);
@@ -139,6 +144,7 @@ public class CachedOutputStreamTest extends ContextTestSupport {
         }
 
         files = file.list();
+        assertNotNull(files, "There should be a list of files");
         assertEquals(0, files.length, "we should have no temp file");
 
         IOHelper.close(cos);
@@ -157,12 +163,13 @@ public class CachedOutputStreamTest extends ContextTestSupport {
 
         File file = testDirectory().toFile();
         String[] files = file.list();
+        assertNotNull(files, "There should be a list of files");
         assertEquals(1, files.length, "we should have a temp file");
         assertTrue(new File(file, files[0]).length() > 10, "The content is written");
 
         java.io.FileInputStream tmpin = new java.io.FileInputStream(new File(file, files[0]));
         String temp = toString(tmpin);
-        assertTrue(temp.length() > 0 && !temp.contains("aaa"), "The content is not encrypted");
+        assertTrue(!temp.isEmpty() && !temp.contains("aaa"), "The content is not encrypted");
         tmpin.close();
 
         StreamCache cache = cos.newStreamCache();
@@ -175,15 +182,10 @@ public class CachedOutputStreamTest extends ContextTestSupport {
         assertEquals(TEST_STRING, temp, "Cached a wrong file");
         exchange.getUnitOfWork().done(exchange);
 
-        try {
-            cache.reset();
-            // The stream is closed, so the temp file is gone.
-            fail("we expect the exception here");
-        } catch (Exception exception) {
-            // do nothing
-        }
+        assertThrows(Exception.class, cache::reset, "We expect the exception here");
 
         files = file.list();
+        assertNotNull(files, "There should be a list of files");
         assertEquals(0, files.length, "we should have no temp file");
 
         IOHelper.close(cos);
@@ -198,6 +200,7 @@ public class CachedOutputStreamTest extends ContextTestSupport {
 
         File file = testDirectory().toFile();
         String[] files = file.list();
+        assertNotNull(files, "There should be a list of files");
         assertEquals(1, files.length, "we should have a temp file");
         assertTrue(files[0].startsWith("cos"), "The file name should start with cos");
 
@@ -211,10 +214,12 @@ public class CachedOutputStreamTest extends ContextTestSupport {
         assertEquals(TEST_STRING, temp, "Cached a wrong file");
         ((InputStream) cache).close();
         files = file.list();
+        assertNotNull(files, "There should be a list of files");
         assertEquals(1, files.length, "we should have a temp file");
 
         exchange.getUnitOfWork().done(exchange);
         files = file.list();
+        assertNotNull(files, "There should be a list of files");
         assertEquals(0, files.length, "we should have no temp file");
 
         IOHelper.close(cos);
@@ -232,6 +237,7 @@ public class CachedOutputStreamTest extends ContextTestSupport {
         File file = testDirectory().toFile();
         String[] files = file.list();
 
+        assertNotNull(files, "There should be a list of files");
         assertEquals(0, files.length, "we should have no temp file");
         StreamCache cache = cos.newStreamCache();
         boolean b = cache instanceof InputStreamCache;
@@ -255,6 +261,7 @@ public class CachedOutputStreamTest extends ContextTestSupport {
         File file = testDirectory().toFile();
         String[] files = file.list();
 
+        assertNotNull(files, "There should be a list of files");
         assertEquals(0, files.length, "we should have no temp file");
         StreamCache cache = cos.newStreamCache();
         boolean b = cache instanceof InputStreamCache;
@@ -282,6 +289,7 @@ public class CachedOutputStreamTest extends ContextTestSupport {
         // make sure things still work after custom buffer size set
         File file = testDirectory().toFile();
         String[] files = file.list();
+        assertNotNull(files, "There should be a list of files");
         assertEquals(1, files.length, "we should have a temp file");
         assertTrue(files[0].startsWith("cos"), "The file name should start with cos");
 
@@ -296,10 +304,12 @@ public class CachedOutputStreamTest extends ContextTestSupport {
 
         ((InputStream) cache).close();
         files = file.list();
+        assertNotNull(files, "There should be a list of files");
         assertEquals(1, files.length, "we should have a temp file");
 
         exchange.getUnitOfWork().done(exchange);
         files = file.list();
+        assertNotNull(files, "There should be a list of files");
         assertEquals(0, files.length, "we should have no temp file");
 
         IOHelper.close(cos);

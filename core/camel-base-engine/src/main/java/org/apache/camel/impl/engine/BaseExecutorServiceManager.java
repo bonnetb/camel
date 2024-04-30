@@ -31,7 +31,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.CamelContextAware;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.NamedNode;
 import org.apache.camel.StaticService;
 import org.apache.camel.spi.ExecutorServiceManager;
@@ -68,7 +67,7 @@ public class BaseExecutorServiceManager extends ServiceSupport implements Execut
     private String threadNamePattern;
     private long shutdownAwaitTermination = 10000;
     private String defaultThreadPoolProfileId = "defaultThreadPoolProfile";
-    private ThreadPoolProfile defaultProfile;
+    private final ThreadPoolProfile defaultProfile;
 
     public BaseExecutorServiceManager(CamelContext camelContext) {
         this.camelContext = camelContext;
@@ -243,6 +242,8 @@ public class BaseExecutorServiceManager extends ServiceSupport implements Execut
     public ScheduledExecutorService newSingleThreadScheduledExecutor(Object source, String name) {
         ThreadPoolProfile profile = new ThreadPoolProfile(name);
         profile.setPoolSize(1);
+        profile.setMaxPoolSize(1);
+        profile.setKeepAliveTime(0L);
         profile.setAllowCoreThreadTimeOut(false);
         return newScheduledThreadPool(source, name, profile);
     }
@@ -327,6 +328,7 @@ public class BaseExecutorServiceManager extends ServiceSupport implements Execut
                         }
                     }
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                     warned = true;
                     LOG.warn("Forcing shutdown of ExecutorService: {} due interrupted.", executorService);
                     // we were interrupted during shutdown, so force shutdown
@@ -338,14 +340,20 @@ public class BaseExecutorServiceManager extends ServiceSupport implements Execut
             if (warned) {
                 LOG.info("Shutdown of ExecutorService: {} is shutdown: {} and terminated: {} took: {}.",
                         executorService, executorService.isShutdown(), executorService.isTerminated(),
-                        TimeUtils.printDuration(watch.taken()));
+                        TimeUtils.printDuration(watch.taken(), true));
             } else if (LOG.isDebugEnabled()) {
                 LOG.debug("Shutdown of ExecutorService: {} is shutdown: {} and terminated: {} took: {}.",
                         executorService, executorService.isShutdown(), executorService.isTerminated(),
-                        TimeUtils.printDuration(watch.taken()));
+                        TimeUtils.printDuration(watch.taken(), true));
             }
         }
 
+        doRemove(executorService, failSafe);
+
+        return warned;
+    }
+
+    private void doRemove(ExecutorService executorService, boolean failSafe) {
         // let lifecycle strategy be notified as well which can let it be managed in JMX as well
         ThreadPoolExecutor threadPool = null;
         if (executorService instanceof ThreadPoolExecutor) {
@@ -363,26 +371,20 @@ public class BaseExecutorServiceManager extends ServiceSupport implements Execut
         if (!failSafe) {
             executorServices.remove(executorService);
         }
-
-        return warned;
     }
 
     @Override
     public List<Runnable> shutdownNow(ExecutorService executorService) {
-        return doShutdownNow(executorService, false);
+        return doShutdownNow(executorService);
     }
 
-    private List<Runnable> doShutdownNow(ExecutorService executorService, boolean failSafe) {
+    private List<Runnable> doShutdownNow(ExecutorService executorService) {
         ObjectHelper.notNull(executorService, "executorService");
 
         List<Runnable> answer = null;
         if (!executorService.isShutdown()) {
-            if (failSafe) {
-                // log as warn, as we shutdown as fail-safe, so end user should see more details in the log.
-                LOG.warn("Forcing shutdown of ExecutorService: {}", executorService);
-            } else {
-                LOG.debug("Forcing shutdown of ExecutorService: {}", executorService);
-            }
+            LOG.debug("Forcing shutdown of ExecutorService: {}", executorService);
+
             answer = executorService.shutdownNow();
             if (LOG.isTraceEnabled()) {
                 LOG.trace("Shutdown of ExecutorService: {} is shutdown: {} and terminated: {}.",
@@ -390,23 +392,7 @@ public class BaseExecutorServiceManager extends ServiceSupport implements Execut
             }
         }
 
-        // let lifecycle strategy be notified as well which can let it be managed in JMX as well
-        ThreadPoolExecutor threadPool = null;
-        if (executorService instanceof ThreadPoolExecutor) {
-            threadPool = (ThreadPoolExecutor) executorService;
-        } else if (executorService instanceof SizedScheduledExecutorService) {
-            threadPool = ((SizedScheduledExecutorService) executorService).getScheduledThreadPoolExecutor();
-        }
-        if (threadPool != null) {
-            for (LifecycleStrategy lifecycle : camelContext.getLifecycleStrategies()) {
-                lifecycle.onThreadPoolRemove(camelContext, threadPool);
-            }
-        }
-
-        // remove reference as its shutdown (do not remove if fail-safe)
-        if (!failSafe) {
-            executorServices.remove(executorService);
-        }
+        doRemove(executorService, false);
 
         return answer;
     }
@@ -422,7 +408,7 @@ public class BaseExecutorServiceManager extends ServiceSupport implements Execut
             if (executorService.awaitTermination(interval, TimeUnit.MILLISECONDS)) {
                 done = true;
             } else {
-                LOG.info("Waited {} for ExecutorService: {} to terminate...", TimeUtils.printDuration(watch.taken()),
+                LOG.info("Waited {} for ExecutorService: {} to terminate...", TimeUtils.printDuration(watch.taken(), true),
                         executorService);
                 // recalculate interval
                 interval = Math.min(2000, shutdownAwaitTermination - watch.taken());
@@ -454,7 +440,7 @@ public class BaseExecutorServiceManager extends ServiceSupport implements Execut
         if (threadPoolFactory == null) {
             threadPoolFactory = ResolverHelper.resolveService(
                     camelContext,
-                    camelContext.adapt(ExtendedCamelContext.class).getBootstrapFactoryFinder(),
+                    camelContext.getCamelContextExtension().getBootstrapFactoryFinder(),
                     ThreadPoolFactory.FACTORY,
                     ThreadPoolFactory.class)
                     .orElseGet(DefaultThreadPoolFactory::new);
@@ -487,11 +473,10 @@ public class BaseExecutorServiceManager extends ServiceSupport implements Execut
                     if (warned) {
                         forced.add(executorService);
                     }
-                } catch (Throwable e) {
+                } catch (Exception e) {
                     // only log if something goes wrong as we want to shutdown them all
-                    LOG.warn("Error occurred during shutdown of ExecutorService: "
-                             + executorService + ". This exception will be ignored.",
-                            e);
+                    LOG.warn("Error occurred during shutdown of ExecutorService: {}. This exception will be ignored.",
+                            executorService, e);
                 }
             }
         }

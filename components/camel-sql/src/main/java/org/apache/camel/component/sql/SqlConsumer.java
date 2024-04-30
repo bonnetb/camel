@@ -178,14 +178,16 @@ public class SqlConsumer extends ScheduledBatchPollingConsumer {
                     }
                 }
 
+                // okay we have some response from SQL so lets mark the consumer as ready
+                forceConsumerAsReady();
+
                 // process all the exchanges in this batch
                 try {
                     if (answer.isEmpty()) {
                         // no data
                         return 0;
                     } else {
-                        int rows = processBatch(CastUtils.cast(answer));
-                        return rows;
+                        return processBatch(CastUtils.cast(answer));
                     }
                 } catch (Exception e) {
                     throw RuntimeCamelException.wrapRuntimeCamelException(e);

@@ -5,6 +5,7 @@
 :description: Access Google Cloud BigQuery service using SQL queries.
 :since: 2.23
 :supportlevel: Stable
+:tabs-sync-option:
 :component-header: Only producer is supported
 //Manually maintained attributes
 :group: Google
@@ -82,8 +83,8 @@ google-bigquery-sql://project-17248459:delete * from ${datasetId}.${tableId} whe
 --------------------------------------------------------
 where
 
- * parameters in form $\{name} are extracted from message headers and formed the translated query
- * parameters in form @name are extracted from body or message headers and sent to Google Bigquery
+ * parameters in form $\{name} are extracted from message headers and formed the translated query.
+ * parameters in form @name are extracted from body or message headers and sent to Google Bigquery. The `com.google.cloud.bigquery.StandardSQLTypeName` of the parameter is detected from the type of the parameter using `<T> QueryParameterValue<T>.of(T value, Class<T> type)`
 
 You can externalize your SQL queries to files in the classpath or file system as shown:
 

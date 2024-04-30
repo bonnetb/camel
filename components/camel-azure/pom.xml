@@ -24,13 +24,25 @@
     <parent>
         <groupId>org.apache.camel</groupId>
         <artifactId>components</artifactId>
-        <version>3.17.0-SNAPSHOT</version>
+        <version>4.6.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>camel-azure-parent</artifactId>
     <packaging>pom</packaging>
     <name>Camel :: Azure :: Parent</name>
     <description>Camel Azure parent</description>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.azure</groupId>
+                <artifactId>azure-sdk-bom</artifactId>
+                <version>${azure-sdk-bom-version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <modules>
         <module>camel-azure-eventhubs</module>
@@ -40,6 +52,8 @@
         <module>camel-azure-cosmosdb</module>
         <module>camel-azure-servicebus</module>
         <module>camel-azure-key-vault</module>
+        <module>camel-azure-files</module>
+        <module>camel-azure-schema-registry</module>
     </modules>
 
 </project>

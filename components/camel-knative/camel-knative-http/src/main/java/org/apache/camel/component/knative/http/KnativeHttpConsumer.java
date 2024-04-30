@@ -23,8 +23,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Map;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
-import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
@@ -39,6 +39,8 @@ import org.apache.camel.Message;
 import org.apache.camel.NoTypeConversionAvailableException;
 import org.apache.camel.Processor;
 import org.apache.camel.TypeConverter;
+import org.apache.camel.api.management.ManagedAttribute;
+import org.apache.camel.api.management.ManagedResource;
 import org.apache.camel.component.knative.spi.KnativeResource;
 import org.apache.camel.component.knative.spi.KnativeTransportConfiguration;
 import org.apache.camel.spi.HeaderFilterStrategy;
@@ -50,14 +52,18 @@ import org.apache.camel.util.ObjectHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.apache.camel.util.CollectionHelper.appendEntry;
+
+@ManagedResource(description = "Managed KnativeHttpConsumer")
 public class KnativeHttpConsumer extends DefaultConsumer {
     private static final Logger LOGGER = LoggerFactory.getLogger(KnativeHttpConsumer.class);
 
     private final KnativeTransportConfiguration configuration;
     private final Predicate<HttpServerRequest> filter;
     private final KnativeResource resource;
-    private final Router router;
+    private final Supplier<Router> router;
     private final HeaderFilterStrategy headerFilterStrategy;
+    private volatile String path;
 
     private String basePath;
     private Route route;
@@ -67,7 +73,7 @@ public class KnativeHttpConsumer extends DefaultConsumer {
     public KnativeHttpConsumer(KnativeTransportConfiguration configuration,
                                Endpoint endpoint,
                                KnativeResource resource,
-                               Router router,
+                               Supplier<Router> router,
                                Processor processor) {
         super(endpoint, processor);
         this.configuration = configuration;
@@ -78,6 +84,12 @@ public class KnativeHttpConsumer extends DefaultConsumer {
         this.preallocateBodyBuffer = true;
     }
 
+    @ManagedAttribute(description = "Path for accessing the Knative service")
+    public String getPath() {
+        return path;
+    }
+
+    @ManagedAttribute(description = "Base path")
     public String getBasePath() {
         return basePath;
     }
@@ -86,6 +98,7 @@ public class KnativeHttpConsumer extends DefaultConsumer {
         this.basePath = basePath;
     }
 
+    @ManagedAttribute(description = "Maximum body size")
     public BigInteger getMaxBodySize() {
         return maxBodySize;
     }
@@ -94,6 +107,7 @@ public class KnativeHttpConsumer extends DefaultConsumer {
         this.maxBodySize = maxBodySize;
     }
 
+    @ManagedAttribute(description = "Preallocate body buffer")
     public boolean isPreallocateBodyBuffer() {
         return preallocateBodyBuffer;
     }
@@ -105,7 +119,7 @@ public class KnativeHttpConsumer extends DefaultConsumer {
     @Override
     protected void doStart() throws Exception {
         if (route == null) {
-            String path = resource.getPath();
+            path = resource.getPath();
             if (ObjectHelper.isEmpty(path)) {
                 path = "/";
             }
@@ -115,7 +129,7 @@ public class KnativeHttpConsumer extends DefaultConsumer {
 
             LOGGER.debug("Creating route for path: {}", path);
 
-            route = router.route(
+            route = router.get().route(
                     HttpMethod.POST,
                     path);
 
@@ -126,12 +140,9 @@ public class KnativeHttpConsumer extends DefaultConsumer {
             }
 
             // add body handler
-            route.handler(new Handler<RoutingContext>() {
-                @Override
-                public void handle(RoutingContext event) {
-                    event.request().resume();
-                    bodyHandler.handle(event);
-                }
+            route.handler((RoutingContext event) -> {
+                event.request().resume();
+                bodyHandler.handle(event);
             });
 
             // add knative handler
@@ -178,7 +189,7 @@ public class KnativeHttpConsumer extends DefaultConsumer {
         final Exchange exchange = getEndpoint().createExchange();
         final Message message = toMessage(request, exchange);
 
-        Buffer payload = routingContext.getBody();
+        Buffer payload = routingContext.body().buffer();
         if (payload != null) {
             message.setBody(payload.getBytes());
         } else {
@@ -189,31 +200,19 @@ public class KnativeHttpConsumer extends DefaultConsumer {
         // need to process the request on a thread on the Vert.x worker pool.
         //
         // As example the following route may block the Vert.x event loop as the camel-http component
-        // is not async so if the service is scaled-down, the it may take a while to become ready and
+        // is not async so if the service is scaled-down, then it may take a while to become ready and
         // the camel-http component blocks until the service becomes available.
         //
         // from("knative:event/my.event")
         //        .to("http://{{env:PROJECT}}.{{env:NAMESPACE}}.svc.cluster.local/service");
         //
-        routingContext.vertx().executeBlocking(
-                promise -> {
-                    try {
-                        createUoW(exchange);
-                    } catch (Exception e) {
-                        promise.fail(e);
-                        return;
-                    }
-
-                    getAsyncProcessor().process(exchange, c -> {
-                        if (!exchange.isFailed()) {
-                            promise.complete();
-                        } else {
-                            promise.fail(exchange.getException());
-                        }
-                    });
-                },
-                false,
-                result -> {
+        routingContext.vertx().executeBlocking(() -> {
+            createUoW(exchange);
+            getAsyncProcessor().process(exchange);
+            return null;
+        },
+                false)
+                .onComplete(result -> {
                     try {
                         Throwable failure = null;
 
@@ -270,12 +269,12 @@ public class KnativeHttpConsumer extends DefaultConsumer {
 
         for (Map.Entry<String, String> entry : request.headers().entries()) {
             if (!headerFilterStrategy.applyFilterToExternalHeaders(entry.getKey(), entry.getValue(), exchange)) {
-                KnativeHttpSupport.appendHeader(message.getHeaders(), entry.getKey(), entry.getValue());
+                appendEntry(message.getHeaders(), entry.getKey(), entry.getValue());
             }
         }
         for (Map.Entry<String, String> entry : request.params().entries()) {
             if (!headerFilterStrategy.applyFilterToExternalHeaders(entry.getKey(), entry.getValue(), exchange)) {
-                KnativeHttpSupport.appendHeader(message.getHeaders(), entry.getKey(), entry.getValue());
+                appendEntry(message.getHeaders(), entry.getKey(), entry.getValue());
             }
         }
 

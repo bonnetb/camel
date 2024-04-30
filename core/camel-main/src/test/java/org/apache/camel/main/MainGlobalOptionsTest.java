@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 public class MainGlobalOptionsTest {
 
     @Test
-    public void testMain() throws Exception {
+    public void testMain() {
         Main main = new Main();
 
         main.addInitialProperty("camel.main.global-options[foo]", "123");
@@ -41,12 +41,13 @@ public class MainGlobalOptionsTest {
         CamelContext context = main.getCamelContext();
         assertNotNull(context);
 
-        assertEquals(5, context.getGlobalOptions().size());
+        assertEquals(6, context.getGlobalOptions().size());
         assertEquals("123", context.getGlobalOptions().get("foo"));
         assertEquals("true", context.getGlobalOptions().get("bar"));
         assertEquals("Gauda", context.getGlobalOptions().get("cheese"));
         assertEquals("Wine", context.getGlobalOptions().get("drink"));
         assertEquals("999", context.getGlobalOptions().get("baz"));
+        assertEquals("org.apache.camel.main.Main", context.getGlobalOptions().get("CamelMainClass"));
 
         main.stop();
     }

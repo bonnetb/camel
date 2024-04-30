@@ -32,7 +32,7 @@ import org.littleshoot.proxy.ProxyAuthenticator;
 import org.littleshoot.proxy.impl.DefaultHttpProxyServer;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@EnabledIf(value = "org.apache.camel.component.file.remote.services.SftpEmbeddedService#hasRequiredAlgorithms")
+@EnabledIf(value = "org.apache.camel.test.infra.ftp.services.embedded.SftpUtil#hasRequiredAlgorithms('src/test/resources/hostkey.pem')")
 public class SftpSimpleConsumeThroughProxyIT extends SftpServerTestSupport {
     private static HttpProxyServer proxyServer;
     private final int proxyPort = AvailablePortFinder.getNextAvailable();
@@ -73,7 +73,7 @@ public class SftpSimpleConsumeThroughProxyIT extends SftpServerTestSupport {
 
         context.getRouteController().startRoute("foo");
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Override
@@ -82,8 +82,9 @@ public class SftpSimpleConsumeThroughProxyIT extends SftpServerTestSupport {
             @Override
             public void configure() {
                 from("sftp://localhost:{{ftp.server.port}}/{{ftp.root.dir}}"
-                     + "?username=admin&password=admin&delay=10000&disconnect=true&proxy=#proxy").routeId("foo").noAutoStartup()
-                             .to("mock:result");
+                     + "?username=admin&password=admin&delay=10000&disconnect=true&proxy=#proxy&knownHostsFile="
+                     + service.getKnownHostsFile()).routeId("foo").noAutoStartup()
+                        .to("mock:result");
             }
         };
     }

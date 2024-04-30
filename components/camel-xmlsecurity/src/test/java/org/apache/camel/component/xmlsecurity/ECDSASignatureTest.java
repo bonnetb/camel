@@ -41,15 +41,18 @@ import org.apache.camel.support.SimpleRegistry;
 import org.apache.camel.test.junit5.CamelTestSupport;
 import org.apache.camel.test.junit5.TestSupport;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static org.apache.camel.test.junit5.TestSupport.isJavaVendor;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * Test for the ECDSA algorithms
  */
+@Disabled("Cannot run on newer JDKs like JDK11+ and org.apache.santuario:xmlsec:2.2.4 onwards (see also https://issues.apache.org/jira/browse/SANTUARIO-581)")
 public class ECDSASignatureTest extends CamelTestSupport {
 
     private static String payload;
@@ -58,8 +61,7 @@ public class ECDSASignatureTest extends CamelTestSupport {
 
     static {
         boolean includeNewLine = true;
-        if (TestSupport.getJavaMajorVersion() >= 9
-                || TestSupport.isJava18_261_later() && !TestSupport.isJavaVendor("Azul")) {
+        if (!TestSupport.isJavaVendor("Azul")) {
             includeNewLine = false;
         }
         payload = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
@@ -85,7 +87,7 @@ public class ECDSASignatureTest extends CamelTestSupport {
             }
         } catch (Exception e) {
             System.err.println("Cannot test due " + e.getMessage());
-            log.warn("Cannot test due " + e.getMessage(), e);
+            log.warn("Cannot test due {}", e.getMessage(), e);
             canTest = false;
         }
     }
@@ -178,62 +180,50 @@ public class ECDSASignatureTest extends CamelTestSupport {
 
     @Test
     public void testECDSASHA1() throws Exception {
-        if (!canTest) {
-            return;
-        }
+        assumeTrue(canTest, "Test preconditions failed: canTest=" + canTest);
         setupMock();
         sendBody("direct:ecdsa_sha1", payload);
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Test
     public void testECDSASHA224() throws Exception {
-        if (!canTest) {
-            return;
-        }
+        assumeTrue(canTest, "Test preconditions failed: canTest=" + canTest);
         setupMock();
         sendBody("direct:ecdsa_sha224", payload);
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Test
     public void testECDSASHA256() throws Exception {
-        if (!canTest) {
-            return;
-        }
+        assumeTrue(canTest, "Test preconditions failed: canTest=" + canTest);
         setupMock();
         sendBody("direct:ecdsa_sha256", payload);
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Test
     public void testECDSASHA384() throws Exception {
-        if (!canTest) {
-            return;
-        }
+        assumeTrue(canTest, "Test preconditions failed: canTest=" + canTest);
         setupMock();
         sendBody("direct:ecdsa_sha384", payload);
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Test
     public void testECDSASHA512() throws Exception {
-        if (!canTest) {
-            return;
-        }
+        assumeTrue(canTest, "Test preconditions failed: canTest=" + canTest);
         setupMock();
         sendBody("direct:ecdsa_sha512", payload);
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Test
     public void testECDSARIPEMD160() throws Exception {
-        if (!canTest) {
-            return;
-        }
+        assumeTrue(canTest, "Test preconditions failed: canTest=" + canTest);
         setupMock();
         sendBody("direct:ecdsa_ripemd160", payload);
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     private MockEndpoint setupMock() {
@@ -262,7 +252,7 @@ public class ECDSASignatureTest extends CamelTestSupport {
             super.setUp();
         } catch (Exception e) {
             System.err.println("Cannot test due " + e.getMessage());
-            log.warn("Cannot test due " + e.getMessage(), e);
+            log.warn("Cannot test due {}", e.getMessage(), e);
             canTest = false;
         }
     }

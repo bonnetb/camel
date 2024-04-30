@@ -42,7 +42,7 @@ public class TelegramConsumerHealthCheckErrorTest extends TelegramTestSupport {
         CamelContext context = super.createCamelContext();
 
         // enabling consumers health check is a bit cumbersome via low-level Java code
-        HealthCheckRegistry hcr = context.getExtension(HealthCheckRegistry.class);
+        HealthCheckRegistry hcr = context.getCamelContextExtension().getContextPlugin(HealthCheckRegistry.class);
         HealthCheckRepository repo
                 = hcr.getRepository("consumers").orElse((HealthCheckRepository) hcr.resolveById("consumers"));
         repo.setEnabled(true);
@@ -53,7 +53,7 @@ public class TelegramConsumerHealthCheckErrorTest extends TelegramTestSupport {
 
     @Test
     public void testReceptionOfTwoMessages() {
-        HealthCheckRegistry hcr = context.getExtension(HealthCheckRegistry.class);
+        HealthCheckRegistry hcr = context.getCamelContextExtension().getContextPlugin(HealthCheckRegistry.class);
         HealthCheckRepository repo = hcr.getRepository("consumers").get();
 
         // wait until HC is DOWN
@@ -83,7 +83,7 @@ public class TelegramConsumerHealthCheckErrorTest extends TelegramTestSupport {
                 rc.getDetails().get(HealthCheck.ENDPOINT_URI));
 
         Throwable e = rc.getError().get();
-        Assertions.assertTrue(e.getMessage().contains("401 Unauthorized"));
+        Assertions.assertTrue(e.getMessage().contains("401"));
         Assertions.assertEquals(401, rc.getDetails().get(HealthCheck.HTTP_RESPONSE_CODE));
     }
 

@@ -19,11 +19,11 @@ package org.apache.camel.model;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
 
 import org.apache.camel.spi.Metadata;
 import org.apache.camel.util.concurrent.ThreadPoolRejectedPolicy;
@@ -67,7 +67,7 @@ public class ThreadsDefinition extends NoOutputDefinition<ThreadsDefinition>
     private String threadName;
     @XmlAttribute
     @Metadata(label = "advanced", javaType = "org.apache.camel.util.concurrent.ThreadPoolRejectedPolicy",
-              enums = "Abort,CallerRuns,DiscardOldest,Discard")
+              enums = "Abort,CallerRuns")
     private String rejectedPolicy;
     @XmlAttribute
     @Metadata(label = "advanced", defaultValue = "true")

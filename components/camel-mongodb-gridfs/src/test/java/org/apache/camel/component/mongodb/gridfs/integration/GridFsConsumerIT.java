@@ -38,7 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 public class GridFsConsumerIT extends AbstractMongoDbITSupport {
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             public void configure() {
                 from("direct:create")
@@ -54,10 +54,10 @@ public class GridFsConsumerIT extends AbstractMongoDbITSupport {
                         .convertBodyTo(String.class).to("mock:test");
                 from("mongodb-gridfs:myDb?database={{mongodb.testDb}}&bucket=" + getBucket()
                      + "-pts&queryStrategy=PersistentTimestamp")
-                             .convertBodyTo(String.class).to("mock:test");
+                        .convertBodyTo(String.class).to("mock:test");
                 from("mongodb-gridfs:myDb?database={{mongodb.testDb}}&bucket=customFileFilterTest&queryStrategy=TimeStampAndFileAttribute&query="
                      + String.format("{'%s': '%s'}", GRIDFS_FILE_KEY_FILENAME, FILE_NAME))
-                             .convertBodyTo(String.class).to("mock:test");
+                        .convertBodyTo(String.class).to("mock:test");
             }
         };
     }
@@ -86,7 +86,7 @@ public class GridFsConsumerIT extends AbstractMongoDbITSupport {
                 "mongodb-gridfs:myDb?database={{mongodb.testDb}}&operation=create&bucket=customFileFilterTest",
                 new Processor() {
                     @Override
-                    public void process(Exchange exchange) throws Exception {
+                    public void process(Exchange exchange) {
                         exchange.getMessage().setBody(FILE_DATA);
                         exchange.getMessage().setHeaders(headers);
                     }

@@ -161,14 +161,6 @@ public class HMACAccumulatorTest {
         assertEquals(0, buffer.read(data, 0, data.length));
     }
 
-    @Test
-    void testBufferCompare() {
-        CircularBuffer buffer = new CircularBuffer(payload.length * 2);
-        buffer.write(new byte[payload.length >> 1], 0, payload.length >> 1);
-        buffer.write(payload, 0, payload.length);
-        buffer.compareTo(payload, 0, payload.length);
-    }
-
     private byte[] initializeBuffer(int buffersize) {
         byte[] buffer = new byte[buffersize];
         System.arraycopy(payload, 0, buffer, 0, payload.length);

@@ -49,10 +49,10 @@ public final class TestSupportJmxCleanup {
         MBeanServer mbsc = ManagementFactory.getPlatformMBeanServer();
         String d = getDomainName(domain);
         Set<ObjectName> s = mbsc.queryNames(new ObjectName(d + ":*"), null);
-        if (s.size() > 0) {
+        if (!s.isEmpty()) {
             LOG.warn(" + {} ObjectNames registered in domain \"{}\"", s.size(), d);
             for (ObjectName on : s) {
-                LOG.warn(" |  " + on);
+                LOG.warn(" |  {}", on);
             }
         }
     }

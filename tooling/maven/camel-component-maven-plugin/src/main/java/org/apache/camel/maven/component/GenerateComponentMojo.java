@@ -39,7 +39,7 @@ import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.project.MavenProjectHelper;
-import org.sonatype.plexus.build.incremental.BuildContext;
+import org.codehaus.plexus.build.BuildContext;
 
 /**
  * To be used by 3rd party Camel component developers to generate metadata.
@@ -101,9 +101,9 @@ public class GenerateComponentMojo extends AbstractGenerateMojo {
         // generate-endpoint-schema
         invoke(EndpointSchemaGeneratorMojo.class, parameters);
         // generate endpoint-uri-factory
-        invoke(GenerateEndpointUriFactoryMojo.class);
+        invoke(GenerateEndpointUriFactoryMojo.class, parameters);
         // generate invoke-on-header
-        invoke(GenerateInvokeOnHeaderMojo.class);
+        invoke(GenerateInvokeOnHeaderMojo.class, parameters);
         // prepare-components
         invoke(PrepareComponentMojo.class, parameters);
         // validate-components

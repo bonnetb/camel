@@ -19,6 +19,7 @@ package org.apache.camel.component.netty.http;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpRequest;
@@ -26,14 +27,14 @@ import io.netty.handler.codec.http.HttpUtil;
 import io.netty.util.ReferenceCountUtil;
 import org.apache.camel.AsyncCallback;
 import org.apache.camel.Exchange;
-import org.apache.camel.ExtendedExchange;
 import org.apache.camel.component.netty.NettyConfiguration;
 import org.apache.camel.component.netty.NettyProducer;
 import org.apache.camel.http.base.cookie.CookieHandler;
 import org.apache.camel.support.SynchronizationAdapter;
-import org.apache.camel.util.StringHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.apache.camel.support.http.HttpUtil.isStatusCodeOk;
 
 /**
  * HTTP based {@link NettyProducer}.
@@ -54,16 +55,21 @@ public class NettyHttpProducer extends NettyProducer {
         super.doInit();
 
         String range = getEndpoint().getConfiguration().getOkStatusCodeRange();
+        parseStatusRange(range);
+    }
+
+    private void parseStatusRange(String range) {
         if (!range.contains(",")) {
-            // default is 200-299 so lets optimize for this
-            if (range.contains("-")) {
-                minOkRange = Integer.parseInt(StringHelper.before(range, "-"));
-                maxOkRange = Integer.parseInt(StringHelper.after(range, "-"));
-            } else {
+            if (!org.apache.camel.support.http.HttpUtil.parseStatusRange(range, this::setRanges)) {
                 minOkRange = Integer.parseInt(range);
                 maxOkRange = minOkRange;
             }
         }
+    }
+
+    private void setRanges(int minOkRange, int maxOkRange) {
+        this.minOkRange = minOkRange;
+        this.maxOkRange = maxOkRange;
     }
 
     @Override
@@ -78,6 +84,10 @@ public class NettyHttpProducer extends NettyProducer {
 
     @Override
     public boolean process(Exchange exchange, AsyncCallback callback) {
+        if (getConfiguration().isDisableStreamCache() || getConfiguration().isHttpProxy()) {
+            exchange.getExchangeExtension().setStreamCacheDisabled(true);
+        }
+
         return super.process(exchange, new NettyHttpProducerCallback(exchange, callback, getConfiguration()));
     }
 
@@ -86,7 +96,7 @@ public class NettyHttpProducer extends NettyProducer {
         // creating the url to use takes 2-steps
         final NettyHttpEndpoint endpoint = getEndpoint();
         final String uri = NettyHttpHelper.createURL(exchange, endpoint);
-        final URI u = NettyHttpHelper.createURI(exchange, uri, endpoint);
+        final URI u = NettyHttpHelper.createURI(exchange, uri);
 
         final NettyHttpBinding nettyHttpBinding = endpoint.getNettyHttpBinding();
         final HttpRequest request = nettyHttpBinding.toNettyRequest(exchange.getIn(), u.toString(), getConfiguration());
@@ -143,7 +153,7 @@ public class NettyHttpProducer extends NettyProducer {
                             response.content().retain();
 
                             // need to release the response when we are done
-                            exchange.adapt(ExtendedExchange.class).addOnCompletion(new SynchronizationAdapter() {
+                            exchange.getExchangeExtension().addOnCompletion(new SynchronizationAdapter() {
                                 @Override
                                 public void onDone(Exchange exchange) {
                                     if (response.refCnt() > 0) {
@@ -163,9 +173,12 @@ public class NettyHttpProducer extends NettyProducer {
                             if (minOkRange > 0) {
                                 ok = code >= minOkRange && code <= maxOkRange;
                             } else {
-                                ok = NettyHttpHelper.isStatusCodeOk(code, configuration.getOkStatusCodeRange());
+                                ok = isStatusCodeOk(code, configuration.getOkStatusCodeRange());
                             }
-                            if (!ok && getConfiguration().isThrowExceptionOnFailure()) {
+
+                            if (ok) {
+                                removeCamelHeaders(exchange);
+                            } else if (getConfiguration().isThrowExceptionOnFailure()) {
                                 // operation failed so populate exception to throw
                                 Exception cause = NettyHttpHelper.populateNettyHttpOperationFailedException(exchange, actualUrl,
                                         response, code, getConfiguration().isTransferException());
@@ -179,5 +192,21 @@ public class NettyHttpProducer extends NettyProducer {
                 callback.done(doneSync);
             }
         }
+    }
+
+    /**
+     * Remove Camel headers from Out message
+     *
+     * @param exchange the exchange
+     */
+    protected void removeCamelHeaders(Exchange exchange) {
+        List<String> headersToRemove = exchange.getMessage().getHeaders().keySet()
+                .stream()
+                .filter(key -> !key.equalsIgnoreCase(Exchange.HTTP_RESPONSE_CODE)
+                        && !key.equalsIgnoreCase(Exchange.HTTP_RESPONSE_TEXT)
+                        && key.startsWith("Camel"))
+                .collect(Collectors.toList());
+
+        headersToRemove.stream().forEach(header -> exchange.getMessage().removeHeaders(header));
     }
 }

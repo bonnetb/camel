@@ -42,7 +42,7 @@ public class XPathAnotherRouteConcurrentTest extends ContextTestSupport {
         for (int i = 0; i < files; i++) {
             final int index = i;
             executor.submit(new Callable<Object>() {
-                public Object call() throws Exception {
+                public Object call() {
                     if (index % 2 == 0) {
                         template.sendBody("seda:foo", createXmlBody(index, "Claus"));
                     } else {
@@ -62,7 +62,7 @@ public class XPathAnotherRouteConcurrentTest extends ContextTestSupport {
         sb.append("<persons>\n");
         for (int i = 0; i < 100; i++) {
             sb.append("<person>");
-            sb.append("<id>" + index + "-" + i + "</id>");
+            sb.append("<id>").append(index).append("-").append(i).append("</id>");
             sb.append("<name>");
             if (i == 95) {
                 sb.append(name);
@@ -77,10 +77,10 @@ public class XPathAnotherRouteConcurrentTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("seda:foo?concurrentConsumers=10").choice().when().xpath("/persons/person/name = 'Claus'").to("mock:claus")
                         .when().xpath("/persons/person/name = 'James'")
                         .to("mock:james").otherwise().to("mock:other").end();

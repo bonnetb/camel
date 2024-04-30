@@ -129,12 +129,42 @@ public class JsonPathLanguageTest extends CamelTestSupport {
         exchange.getIn().setBody(new File("src/test/resources/type.json"));
 
         JsonPathLanguage lan = (JsonPathLanguage) context.resolveLanguage("jsonpath");
-        lan.setOptions(Option.SUPPRESS_EXCEPTIONS);
 
-        Expression exp = lan.createExpression("$.foo");
+        Expression exp = lan.createExpression("$.foo",
+                new Object[] { null, null, null, null, null, null, null, Option.SUPPRESS_EXCEPTIONS });
         String nofoo = exp.evaluate(exchange, String.class);
 
         assertNull(nofoo);
+    }
+
+    @Test
+    public void testUnpackJsonArray() {
+        Exchange exchange = new DefaultExchange(context);
+        exchange.getIn().setBody(new File("src/test/resources/expensive.json"));
+
+        JsonPathLanguage language = (JsonPathLanguage) context.resolveLanguage("jsonpath");
+
+        Expression expression = language.createExpression("$.store.book",
+                new Object[] { null, null, null, null, null, null, true, true });
+        String json = expression.evaluate(exchange, String.class);
+
+        // check that a single json object is returned, not an array
+        assertTrue(json.startsWith("{") && json.endsWith("}"));
+    }
+
+    @Test
+    public void testDontUnpackJsonArray() {
+        Exchange exchange = new DefaultExchange(context);
+        exchange.getIn().setBody(new File("src/test/resources/books.json"));
+
+        JsonPathLanguage language = (JsonPathLanguage) context.resolveLanguage("jsonpath");
+
+        Expression expression = language.createExpression("$.store.book",
+                new Object[] { null, null, null, null, false, true });
+        String json = expression.evaluate(exchange, String.class);
+
+        // check that an array is returned, not a single object
+        assertTrue(json.startsWith("[") && json.endsWith("]"));
     }
 
 }

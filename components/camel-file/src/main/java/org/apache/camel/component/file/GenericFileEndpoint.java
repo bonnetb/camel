@@ -162,6 +162,12 @@ public abstract class GenericFileEndpoint<T> extends ScheduledPollEndpoint imple
                                                 + "To specify new-line (slash-n or slash-r) or tab (slash-t) characters then escape with an extra slash, "
                                                 + "eg slash-slash-n.")
     protected String appendChars;
+    @UriParam(label = "producer",
+              enums = "MD2,MD5,SHA_1,SHA_224,SHA_256,SHA_384,SHA_512,SHA_512_224,SHA_512_256,SHA3_224,SHA3_256,SHA3_384,SHA3_512",
+              description = "If provided, then Camel will write a checksum file when the original file has been written. The checksum file"
+                            + " will contain the checksum created with the provided algorithm for the original file. The checksum file will"
+                            + " always be written in the same folder as the original file.")
+    protected String checksumFileAlgorithm;
 
     // consumer options
 
@@ -349,7 +355,7 @@ public abstract class GenericFileEndpoint<T> extends ScheduledPollEndpoint imple
                                                                             + "slow writes. The default of 1 sec. may be too fast if the producer is very slow writing the file. <p/>"
                                                                             + "Notice: For FTP the default readLockCheckInterval is 5000. <p/> The readLockTimeout value must be "
                                                                             + "higher than readLockCheckInterval, but a rule of thumb is to have a timeout that is at least 2 or more "
-                                                                            + "times higher than the readLockCheckInterval. This is needed to ensure that amble time is allowed for "
+                                                                            + "times higher than the readLockCheckInterval. This is needed to ensure that ample time is allowed for "
                                                                             + "the read lock process to try to grab the lock before the timeout was hit.")
     protected long readLockCheckInterval = 1000;
     @UriParam(label = "consumer,lock", defaultValue = "10000", description = "Optional timeout in millis for the "
@@ -359,7 +365,7 @@ public abstract class GenericFileEndpoint<T> extends ScheduledPollEndpoint imple
                                                                              + "fileLock, changed and rename support the timeout. <p/> Notice: For FTP the default readLockTimeout "
                                                                              + "value is 20000 instead of 10000. <p/> The readLockTimeout value must be higher than "
                                                                              + "readLockCheckInterval, but a rule of thumb is to have a timeout that is at least 2 or more times "
-                                                                             + "higher than the readLockCheckInterval. This is needed to ensure that amble time is allowed for the "
+                                                                             + "higher than the readLockCheckInterval. This is needed to ensure that ample time is allowed for the "
                                                                              + "read lock process to try to grab the lock before the timeout was hit.")
     protected long readLockTimeout = 10000;
     @UriParam(label = "consumer,lock", defaultValue = "true", description = "Whether to use marker file with the "
@@ -439,10 +445,10 @@ public abstract class GenericFileEndpoint<T> extends ScheduledPollEndpoint imple
     private Pattern includePattern;
     private Pattern excludePattern;
 
-    public GenericFileEndpoint() {
+    protected GenericFileEndpoint() {
     }
 
-    public GenericFileEndpoint(String endpointUri, Component component) {
+    protected GenericFileEndpoint(String endpointUri, Component component) {
         super(endpointUri, component);
     }
 
@@ -459,6 +465,10 @@ public abstract class GenericFileEndpoint<T> extends ScheduledPollEndpoint imple
     public abstract char getFileSeparator();
 
     public abstract boolean isAbsolute(String name);
+
+    public boolean isHiddenFilesEnabled() {
+        return false;
+    }
 
     /**
      * Return the file name that will be auto-generated for the given message if none is provided
@@ -732,7 +742,7 @@ public abstract class GenericFileEndpoint<T> extends ScheduledPollEndpoint imple
     /**
      * Filters the directory based on Simple language. For example to filter on current date, you can use a simple date
      * pattern such as ${date:now:yyyMMdd}
-     * 
+     *
      * @see #setFilterDirectory(Predicate)
      */
     public void setFilterDirectory(String expression) {
@@ -752,7 +762,7 @@ public abstract class GenericFileEndpoint<T> extends ScheduledPollEndpoint imple
 
     /**
      * Filters the file based on Simple language. For example to filter on file size, you can use ${file:size} > 5000
-     * 
+     *
      * @see #setFilterFile(Predicate)
      */
     public void setFilterFile(String expression) {
@@ -1090,7 +1100,7 @@ public abstract class GenericFileEndpoint<T> extends ScheduledPollEndpoint imple
      * Notice: For FTP the default readLockCheckInterval is 5000.
      * <p/>
      * The readLockTimeout value must be higher than readLockCheckInterval, but a rule of thumb is to have a timeout
-     * that is at least 2 or more times higher than the readLockCheckInterval. This is needed to ensure that amble time
+     * that is at least 2 or more times higher than the readLockCheckInterval. This is needed to ensure that ample time
      * is allowed for the read lock process to try to grab the lock before the timeout was hit.
      */
     public void setReadLockCheckInterval(long readLockCheckInterval) {
@@ -1110,7 +1120,7 @@ public abstract class GenericFileEndpoint<T> extends ScheduledPollEndpoint imple
      * Notice: For FTP the default readLockTimeout value is 20000 instead of 10000.
      * <p/>
      * The readLockTimeout value must be higher than readLockCheckInterval, but a rule of thumb is to have a timeout
-     * that is at least 2 or more times higher than the readLockCheckInterval. This is needed to ensure that amble time
+     * that is at least 2 or more times higher than the readLockCheckInterval. This is needed to ensure that ample time
      * is allowed for the read lock process to try to grab the lock before the timeout was hit.
      */
     public void setReadLockTimeout(long readLockTimeout) {
@@ -1514,6 +1524,19 @@ public abstract class GenericFileEndpoint<T> extends ScheduledPollEndpoint imple
         this.synchronous = synchronous;
     }
 
+    public String getChecksumFileAlgorithm() {
+        return checksumFileAlgorithm;
+    }
+
+    /**
+     * If provided, then Camel will write a checksum file when the original file has been written. The checksum file
+     * will contain the checksum created with the provided algorithm for the original file. The checksum file will
+     * always be written in the same folder as the original file.
+     */
+    public void setChecksumFileAlgorithm(String checksumFileAlgorithm) {
+        this.checksumFileAlgorithm = checksumFileAlgorithm;
+    }
+
     /**
      * Configures the given message with the file which sets the body to the file object.
      */
@@ -1563,7 +1586,7 @@ public abstract class GenericFileEndpoint<T> extends ScheduledPollEndpoint imple
     protected String configureMoveOrPreMoveExpression(String expression) {
         // if the expression already have ${ } placeholders then pass it
         // unmodified
-        if (StringHelper.hasStartToken(expression, "simple")) {
+        if (isSimpleLanguage(expression)) {
             return expression;
         }
 
@@ -1679,7 +1702,7 @@ public abstract class GenericFileEndpoint<T> extends ScheduledPollEndpoint imple
         pattern = pattern.replaceFirst("\\$simple\\{file:name.noext\\}", FileUtil.stripExt(onlyName, true));
 
         // must be able to resolve all placeholders supported
-        if (StringHelper.hasStartToken(pattern, "simple")) {
+        if (isSimpleLanguage(pattern)) {
             throw new ExpressionIllegalSyntaxException(fileName + ". Cannot resolve reminder: " + pattern);
         }
 
@@ -1709,14 +1732,14 @@ public abstract class GenericFileEndpoint<T> extends ScheduledPollEndpoint imple
         String pattern = getDoneFileName();
         StringHelper.notEmpty(pattern, "doneFileName", pattern);
 
-        if (!StringHelper.hasStartToken(pattern, "simple")) {
+        if (!isSimpleLanguage(pattern)) {
             // no tokens, so just match names directly
             return pattern.equals(fileName);
         }
 
         // the static part of the pattern, is that a prefix or suffix?
-        // its a prefix if ${ start token is not at the start of the pattern
-        boolean prefix = pattern.indexOf("${") > 0;
+        // it is a prefix if ${ start token is not at the start of the pattern
+        boolean prefix = pattern.indexOf("${") > 0; // NOSONAR
 
         // remove dynamic parts of the pattern so we only got the static part
         // left
@@ -1726,7 +1749,7 @@ public abstract class GenericFileEndpoint<T> extends ScheduledPollEndpoint imple
         pattern = pattern.replaceFirst("\\$simple\\{file:name.noext\\}", "");
 
         // must be able to resolve all placeholders supported
-        if (StringHelper.hasStartToken(pattern, "simple")) {
+        if (isSimpleLanguage(pattern)) {
             throw new ExpressionIllegalSyntaxException(fileName + ". Cannot resolve reminder: " + pattern);
         }
 
@@ -1735,6 +1758,10 @@ public abstract class GenericFileEndpoint<T> extends ScheduledPollEndpoint imple
         } else {
             return fileName.endsWith(pattern);
         }
+    }
+
+    private static boolean isSimpleLanguage(String pattern) {
+        return StringHelper.hasStartToken(pattern, "simple");
     }
 
     @Override

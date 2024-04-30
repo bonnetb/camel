@@ -25,7 +25,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.camel.AsyncProcessor;
 import org.apache.camel.Exchange;
-import org.apache.camel.ExtendedExchange;
 import org.apache.camel.Processor;
 import org.apache.camel.ShutdownRunningTask;
 import org.apache.camel.Suspendable;
@@ -103,7 +102,7 @@ public class SedaConsumer extends DefaultConsumer implements Runnable, ShutdownA
             try {
                 latch.await();
             } catch (InterruptedException e) {
-                // ignore
+                Thread.currentThread().interrupt();
             }
         }
     }
@@ -148,6 +147,7 @@ public class SedaConsumer extends DefaultConsumer implements Runnable, ShutdownA
                     Thread.sleep(Math.min(pollTimeout, 1000));
                 } catch (InterruptedException e) {
                     LOG.debug("Sleep interrupted, are we stopping? {}", isStopping() || isStopped());
+                    Thread.currentThread().interrupt();
                 }
                 continue;
             }
@@ -166,6 +166,7 @@ public class SedaConsumer extends DefaultConsumer implements Runnable, ShutdownA
                         Thread.sleep(Math.min(pollTimeout, 1000));
                     } catch (InterruptedException e) {
                         LOG.debug("Sleep interrupted, are we stopping? {}", isStopping() || isStopped());
+                        Thread.currentThread().interrupt();
                     }
                     continue;
                 }
@@ -202,8 +203,9 @@ public class SedaConsumer extends DefaultConsumer implements Runnable, ShutdownA
                 }
             } catch (InterruptedException e) {
                 LOG.debug("Sleep interrupted, are we stopping? {}", isStopping() || isStopped());
+                Thread.currentThread().interrupt();
                 continue;
-            } catch (Throwable e) {
+            } catch (Exception e) {
                 if (exchange != null) {
                     getExceptionHandler().handleException("Error processing exchange", exchange, e);
                 } else {
@@ -221,9 +223,8 @@ public class SedaConsumer extends DefaultConsumer implements Runnable, ShutdownA
      */
     protected Exchange prepareExchange(Exchange exchange) {
         // this consumer grabbed the exchange so mark its from this route/endpoint
-        ExtendedExchange ee = exchange.adapt(ExtendedExchange.class);
-        ee.setFromEndpoint(getEndpoint());
-        ee.setFromRouteId(getRouteId());
+        exchange.getExchangeExtension().setFromEndpoint(getEndpoint());
+        exchange.getExchangeExtension().setFromRouteId(getRouteId());
         return exchange;
     }
 
@@ -234,7 +235,7 @@ public class SedaConsumer extends DefaultConsumer implements Runnable, ShutdownA
      * exchange in parallel to the multiple consumers.
      * <p/>
      * If there is only a single consumer then its dispatched directly to it using same thread.
-     * 
+     *
      * @param  exchange  the exchange
      * @throws Exception can be thrown if processing of the exchange failed
      */
@@ -253,7 +254,7 @@ public class SedaConsumer extends DefaultConsumer implements Runnable, ShutdownA
             }
 
             // handover completions, as we need to done this when the multicast is done
-            final List<Synchronization> completions = exchange.adapt(ExtendedExchange.class).handoverCompletions();
+            final List<Synchronization> completions = exchange.getExchangeExtension().handoverCompletions();
 
             // use a multicast processor to process it
             AsyncProcessor mp = getEndpoint().getConsumerMulticastProcessor();
@@ -262,7 +263,7 @@ public class SedaConsumer extends DefaultConsumer implements Runnable, ShutdownA
             // and use the asynchronous routing engine to support it
             mp.process(exchange, doneSync -> {
                 // done the uow on the completions
-                UnitOfWorkHelper.doneSynchronizations(exchange, completions, LOG);
+                UnitOfWorkHelper.doneSynchronizations(exchange, completions);
             });
         } else {
             // use the regular processor and use the asynchronous routing engine to support it

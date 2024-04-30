@@ -23,7 +23,7 @@
     <parent>
         <groupId>org.apache.camel</groupId>
         <artifactId>camel-parent</artifactId>
-        <version>3.17.0-SNAPSHOT</version>
+        <version>4.6.0-SNAPSHOT</version>
         <relativePath>../parent</relativePath>
     </parent>
 
@@ -42,7 +42,6 @@
         <module>camel-dataformat</module>
         <module>camel-dataset</module>
         <module>camel-direct</module>
-        <module>camel-directvm</module>
         <module>camel-file</module>
         <module>camel-language</module>
         <module>camel-log</module>
@@ -53,7 +52,6 @@
         <module>camel-stub</module>
         <module>camel-timer</module>
         <module>camel-validator</module>
-        <module>camel-vm</module>
         <module>camel-xpath</module>
         <module>camel-xslt</module>
 
@@ -67,28 +65,22 @@
         <module>camel-http-base</module>
         <module>camel-http-common</module>
         <module>camel-http</module>
-        <module>camel-ipfs</module>
         <module>camel-jetty-common</module>
         <module>camel-jetty</module>
         <module>camel-undertow</module>
         <module>camel-cxf</module>
-        <module>camel-cxf-transport</module>
         <module>camel-jms</module>
         <module>camel-master</module>
         <module>camel-service</module>
 
         <!-- regular modules in alphabetic order -->
         <module>camel-activemq</module>
-        <module>camel-ahc-ws</module>
-        <module>camel-ahc</module>
+        <module>camel-ai</module>
         <module>camel-amqp</module>
-        <module>camel-any23</module>
         <module>camel-arangodb</module>
         <module>camel-as2</module>
         <module>camel-asn1</module>
         <module>camel-asterisk</module>
-        <module>camel-atlasmap</module>
-        <module>camel-atmos</module>
         <module>camel-atmosphere-websocket</module>
         <module>camel-atom</module>
         <module>camel-avro</module>
@@ -98,26 +90,20 @@
         <module>camel-barcode</module>
         <module>camel-base64</module>
         <module>camel-bean-validator</module>
+        <module>camel-beanio</module>
         <module>camel-bindy</module>
         <module>camel-bonita</module>
         <module>camel-box</module>
         <module>camel-braintree</module>
         <module>camel-caffeine</module>
-        <module>camel-caffeine-lrucache</module>
         <module>camel-cassandraql</module>
         <module>camel-cbor</module>
-        <module>camel-cdi</module>
-        <module>camel-cdi-main</module>
-        <module>camel-cdi-jta</module>
-        <module>camel-chatscript</module>
         <module>camel-chunk</module>
         <module>camel-cloudevents</module>
         <module>camel-cm-sms</module>
-        <module>camel-cmis</module>
         <module>camel-coap</module>
         <module>camel-cometd</module>
         <module>camel-consul</module>
-        <module>camel-corda</module>
         <module>camel-couchbase</module>
         <module>camel-couchdb</module>
         <module>camel-crypto</module>
@@ -126,21 +112,20 @@
         <module>camel-datasonnet</module>
         <module>camel-debug</module>
         <module>camel-debezium</module>
+        <module>camel-dhis2</module>
         <module>camel-digitalocean</module>
         <module>camel-disruptor</module>
-        <module>camel-djl</module>
         <module>camel-dns</module>
         <module>camel-docker</module>
-        <module>camel-dozer</module>
         <module>camel-drill</module>
-	    <module>camel-dropbox</module>
-	    <module>camel-dynamic-router</module>
+        <module>camel-dropbox</module>
+        <module>camel-dynamic-router</module>
         <module>camel-ehcache</module>
-        <module>camel-elasticsearch-rest</module>
+        <module>camel-elasticsearch</module>
+        <module>camel-elasticsearch-rest-client</module>
         <module>camel-elytron</module>
         <module>camel-etcd3</module>
         <module>camel-exec</module>
-        <module>camel-facebook</module>
         <module>camel-fastjson</module>
         <module>camel-fhir</module>
         <module>camel-file-watch</module>
@@ -153,16 +138,14 @@
         <module>camel-git</module>
         <module>camel-github</module>
         <module>camel-google</module>
-        <module>camel-gora</module>
         <module>camel-grape</module>
         <module>camel-graphql</module>
         <module>camel-grok</module>
         <module>camel-grpc</module>
         <module>camel-gson</module>
         <module>camel-guava-eventbus</module>
+        <module>camel-hashicorp-vault</module>
         <module>camel-hazelcast</module>
-        <module>camel-hbase</module>
-        <module>camel-hdfs</module>
         <module>camel-headersmap</module>
         <module>camel-hl7</module>
         <module>camel-huawei</module>
@@ -171,7 +154,7 @@
         <module>camel-ignite</module>
         <module>camel-infinispan</module>
         <module>camel-influxdb</module>
-        <module>camel-iota</module>
+        <module>camel-influxdb2</module>
         <module>camel-irc</module>
         <module>camel-ironmq</module>
         <module>camel-jackson</module>
@@ -179,10 +162,9 @@
         <module>camel-jackson-protobuf</module>
         <module>camel-jacksonxml</module>
         <module>camel-jasypt</module>
+        <module>camel-javascript</module>
         <module>camel-jaxb</module>
-        <module>camel-jbpm</module>
         <module>camel-jcache</module>
-        <module>camel-jclouds</module>
         <module>camel-tracing</module>
         <module>camel-jcr</module>
         <module>camel-jdbc</module>
@@ -191,10 +173,10 @@
         <module>camel-jgroups</module>
         <module>camel-jira</module>
         <module>camel-jmx</module>
-        <module>camel-johnzon</module>
         <module>camel-jolt</module>
         <module>camel-joor</module>
         <module>camel-jpa</module>
+        <module>camel-jq</module>
         <module>camel-jsch</module>
         <module>camel-jslt</module>
         <module>camel-json-validator</module>
@@ -205,6 +187,7 @@
         <module>camel-json-patch</module>
         <module>camel-jt400</module>
         <module>camel-jta</module>
+        <module>camel-jte</module>
         <module>camel-kafka</module>
         <module>camel-kamelet</module>
         <module>camel-knative</module>
@@ -218,10 +201,13 @@
         <module>camel-lumberjack</module>
         <module>camel-lzf</module>
         <module>camel-mail</module>
+        <module>camel-mail-microsoft-oauth</module>
+        <module>camel-mapstruct</module>
         <module>camel-metrics</module>
         <module>camel-micrometer</module>
+        <module>camel-micrometer-prometheus</module>
         <module>camel-microprofile</module>
-        <module>camel-milo</module>
+        <module>camel-milvus</module>
         <module>camel-mina</module>
         <module>camel-minio</module>
         <module>camel-mllp</module>
@@ -235,27 +221,32 @@
         <module>camel-netty</module>
         <module>camel-nitrite</module>
         <module>camel-oaipmh</module>
+        <module>camel-observation</module>
         <module>camel-ognl</module>
         <module>camel-olingo2</module>
         <module>camel-olingo4</module>
         <module>camel-openstack</module>
-        <module>camel-opentracing</module>
         <module>camel-opentelemetry</module>
-        <module>camel-optaplanner</module>
         <module>camel-paho</module>
         <module>camel-paho-mqtt5</module>
+        <module>camel-parquet-avro</module>
         <module>camel-pdf</module>
         <module>camel-pg-replication-slot</module>
         <module>camel-pgevent</module>
+        <module>camel-pinecone</module>
         <module>camel-platform-http</module>
+        <module>camel-platform-http-jolokia</module>
+        <module>camel-platform-http-main</module>
         <module>camel-platform-http-vertx</module>
+        <module>camel-plc4x</module>
         <module>camel-printer</module>
         <module>camel-protobuf</module>
         <module>camel-pubnub</module>
         <module>camel-pulsar</module>
+        <module>camel-python</module>
+        <module>camel-qdrant</module>
         <module>camel-quartz</module>
         <module>camel-quickfix</module>
-        <module>camel-rabbitmq</module>
         <module>camel-reactive-executor-tomcat</module>
         <module>camel-reactive-executor-vertx</module>
         <module>camel-reactive-streams</module>
@@ -263,8 +254,8 @@
         <module>camel-redis</module>
         <module>camel-resilience4j</module>
         <module>camel-resourceresolver-github</module>
-        <module>camel-resteasy</module>
         <module>camel-robotframework</module>
+        <module>camel-rocketmq</module>
         <module>camel-rss</module>
         <module>camel-rxjava</module>
         <module>camel-saga</module>
@@ -279,16 +270,14 @@
         <module>camel-sjms2</module>
         <module>camel-sjms</module>
         <module>camel-slack</module>
+        <module>camel-smb</module>
         <module>camel-smpp</module>
         <module>camel-snakeyaml</module>
         <module>camel-snmp</module>
         <module>camel-soap</module>
-        <module>camel-solr</module>
-        <module>camel-spark</module>
         <module>camel-splunk</module>
         <module>camel-splunk-hec</module>
         <module>camel-spring-batch</module>
-        <module>camel-spring-integration</module>
         <module>camel-spring-jdbc</module>
         <module>camel-spring-ldap</module>
         <module>camel-spring-rabbitmq</module>
@@ -302,13 +291,16 @@
         <module>camel-stream</module>
         <module>camel-stringtemplate</module>
         <module>camel-stitch</module>
-        <module>camel-swagger-java</module>
+        <module>camel-swift</module>
         <module>camel-openapi-java</module>
+        <module>camel-opensearch</module>
+        <module>camel-optaplanner</module>
         <module>camel-syslog</module>
         <module>camel-tarfile</module>
         <module>camel-telegram</module>
         <module>camel-threadpoolfactory-vertx</module>
         <module>camel-thrift</module>
+        <module>camel-thymeleaf</module>
         <module>camel-tika</module>
         <module>camel-twilio</module>
         <module>camel-twitter</module>
@@ -316,12 +308,12 @@
         <module>camel-univocity-parsers</module>
         <module>camel-velocity</module>
         <module>camel-vertx</module>
+        <module>camel-wal</module>
+        <module>camel-wasm</module>
         <module>camel-weather</module>
         <module>camel-web3j</module>
         <module>camel-webhook</module>
-        <module>camel-websocket-jsr356</module>
-        <module>camel-websocket</module>
-        <module>camel-weka</module>
+        <module>camel-whatsapp</module>
         <module>camel-wordpress</module>
         <module>camel-workday</module>
         <module>camel-xchange</module>
@@ -329,54 +321,43 @@
         <module>camel-xmlsecurity</module>
         <module>camel-xmpp</module>
         <module>camel-xslt-saxon</module>
-        <module>camel-xstream</module>
+        <module>camel-zeebe</module>
         <module>camel-zendesk</module>
         <module>camel-zip-deflater</module>
         <module>camel-zipfile</module>
-        <module>camel-zipkin</module>
         <module>camel-zookeeper-master</module>
         <module>camel-zookeeper</module>
-        <!-- build rest-openapi/rest-swagger at end as it uses all the http based components -->
+        <!-- build rest-openapi at end as it uses all the http based components -->
         <module>camel-rest-openapi</module>
-        <module>camel-rest-swagger</module>
         <!-- build jooq last as it cause component builds to be slower afterwards -->
         <module>camel-jooq</module>
-  </modules>
+    </modules>
 
     <properties>
-        <camel.osgi.manifest>${project.build.outputDirectory}/META-INF/MANIFEST.MF</camel.osgi.manifest>
-
         <camel-prepare-component>true</camel-prepare-component>
+        <skipTests.aarch64 />
+        <skipITs.aarch64 />
+        <skipTests.ppc64le />
+        <skipITs.ppc64le />
+        <skipTests.s390x />
+        <skipITs.s390x />
     </properties>
 
+    <dependencies>
+        <!-- logging for testing -->
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j2-impl</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
     <build>
-        <pluginManagement>
-            <plugins>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-failsafe-plugin</artifactId>
-                    <version>${maven-failsafe-plugin-version}</version>
-                    <executions>
-                        <execution>
-                            <id>integration-test</id>
-                            <phase>verify</phase>
-                            <goals>
-                                <goal>integration-test</goal>
-                                <goal>verify</goal>
-                            </goals>
-                        </execution>
-                    </executions>
-                    <configuration>
-                        <reuseForks>true</reuseForks>
-                        <forkedProcessTimeoutInSeconds>${camel.failsafe.forkTimeout}</forkedProcessTimeoutInSeconds>
-                        <redirectTestOutputToFile>false</redirectTestOutputToFile>
-                        <systemPropertyVariables>
-                            <visibleassertions.silence>true</visibleassertions.silence>
-                        </systemPropertyVariables>
-                    </configuration>
-                </plugin>
-            </plugins>
-        </pluginManagement>
         <plugins>
             <plugin>
                 <groupId>org.apache.camel</groupId>
@@ -445,72 +426,133 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>org.apache.camel</groupId>
-                <artifactId>camel-bundle-plugin</artifactId>
-                <version>${project.version}</version>
-                <extensions>false</extensions>
-                <configuration>
-                    <supportIncrementalBuild>true</supportIncrementalBuild>
-                    <noWarningProjectTypes>pom</noWarningProjectTypes>
-                    <excludeDependencies>${camel.osgi.exclude.dependencies}</excludeDependencies>
-                    <instructions>
-                        <Bundle-Name>${project.artifactId}</Bundle-Name>
-                        <Bundle-SymbolicName>${camel.osgi.symbolic.name}</Bundle-SymbolicName>
-                        <Bundle-Activator>${camel.osgi.activator}</Bundle-Activator>
-                        <Import-Package>${camel.osgi.import}</Import-Package>
-                        <Export-Package>${camel.osgi.export}</Export-Package>
-                        <!-- do not include any resources as not needed-->
-                        <Include-Resource></Include-Resource>
-                        <DynamicImport-Package>${camel.osgi.dynamic}</DynamicImport-Package>
-                        <Private-Package>${camel.osgi.private.pkg}</Private-Package>
-                        <Require-Capability>${camel.osgi.require.capability}</Require-Capability>
-                        <Provide-Capability>${camel.osgi.provide.capability}</Provide-Capability>
-                        <Implementation-Title>Apache Camel</Implementation-Title>
-                        <Implementation-Version>${project.version}</Implementation-Version>
-                        <Karaf-Info>Camel;${project.artifactId}=${project.version}</Karaf-Info>
-                        <_versionpolicy>${camel.osgi.import.default.version}</_versionpolicy>
-                        <_failok>${camel.osgi.failok}</_failok>
-                        <_removeheaders>Bnd-LastModified</_removeheaders>
-                        <_plugin>
-                            org.apache.felix.bundleplugin.BlueprintPlugin,
-                            aQute.lib.spring.SpringXMLType,
-                            org.apache.felix.bundleplugin.JpaPlugin,
-                            org.apache.camel.maven.bundle.CamelPlugin
-                        </_plugin>
-                    </instructions>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>versions</id>
-                        <phase>validate</phase>
-                        <goals>
-                            <goal>cleanVersions</goal>
-                        </goals>
-                        <configuration>
-                            <versions>
-                                <camel.osgi.version.clean>${project.version}</camel.osgi.version.clean>
-                            </versions>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>bundle-manifest</id>
-                        <phase>prepare-package</phase>
-                        <goals>
-                            <goal>manifest</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>net.revelc.code.formatter</groupId>
-                <artifactId>formatter-maven-plugin</artifactId>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-failsafe-plugin</artifactId>
-            </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- Platform-specific block list for tests. This is required because,
+            sometimes, containers or native components are not available on
+            certain platforms. Define the properties and set them as true on
+            the component poms to skip.
+         -->
+        <profile>
+            <id>Arm</id>
+            <activation>
+                <os>
+                    <arch>aarch64</arch>
+                </os>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <skipTests>${skipTests.aarch64}</skipTests>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <configuration>
+                            <skipITs>${skipITs.aarch64}</skipITs>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>s390x</id>
+            <activation>
+                <os>
+                    <arch>s390x</arch>
+                </os>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <skipTests>${skipTests.s390x}</skipTests>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <configuration>
+                            <skipITs>${skipITs.s390x}</skipITs>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>ppc64le</id>
+            <activation>
+                <os>
+                    <arch>ppc64le</arch>
+                </os>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <skipTests>${skipTests.ppc64le}</skipTests>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <configuration>
+                            <skipITs>${skipITs.ppc64le}</skipITs>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>full</id>
+            <activation>
+                <property>
+                    <name>!quickly</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <configuration>
+                            <argLine>${camel.failsafe.fork.vmargs}</argLine>
+                            <reuseForks>${camel.failsafe.reuseForks}</reuseForks>
+                            <forkedProcessTimeoutInSeconds>${camel.failsafe.forkTimeout}</forkedProcessTimeoutInSeconds>
+                            <redirectTestOutputToFile>false</redirectTestOutputToFile>
+                            <systemPropertyVariables>
+                                <visibleassertions.silence>true</visibleassertions.silence>
+                                <junit.jupiter.execution.parallel.enabled>${camel.failsafe.parallel}</junit.jupiter.execution.parallel.enabled>
+                                <junit.jupiter.execution.parallel.mode.default>same_thread</junit.jupiter.execution.parallel.mode.default>
+                                <junit.jupiter.execution.parallel.mode.classes.default>concurrent</junit.jupiter.execution.parallel.mode.classes.default>
+                                <junit.jupiter.execution.parallel.config.strategy>${camel.failsafe.parallel.strategy}</junit.jupiter.execution.parallel.config.strategy>
+                                <junit.jupiter.execution.parallel.config.dynamic.factor>${camel.failsafe.parallel.factor}</junit.jupiter.execution.parallel.config.dynamic.factor>
+                            </systemPropertyVariables>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>integration-test</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>integration-test</goal>
+                                    <goal>verify</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 
 </project>

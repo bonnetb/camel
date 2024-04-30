@@ -19,6 +19,7 @@ package org.apache.camel.test.patterns;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
+import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.model.ProcessorDefinition;
 import org.apache.camel.test.spring.junit5.CamelSpringTestSupport;
 import org.junit.jupiter.api.Test;
@@ -46,7 +47,7 @@ public class DebugSpringTest extends CamelSpringTestSupport {
             ProcessorDefinition<?> definition, String id, String shortName) {
         // this method is invoked before we are about to enter the given processor
         // from your Java editor you can just add a breakpoint in the code line below
-        LOG.info("Before " + definition + " with body " + exchange.getIn().getBody());
+        LOG.info("Before {} with body {}", definition, exchange.getIn().getBody());
         debugged = true;
     }
 
@@ -60,7 +61,7 @@ public class DebugSpringTest extends CamelSpringTestSupport {
         template.sendBody("direct:start", "World");
 
         // assert mocks
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
         assertTrue(debugged, "The debugger is not called!");
     }
 

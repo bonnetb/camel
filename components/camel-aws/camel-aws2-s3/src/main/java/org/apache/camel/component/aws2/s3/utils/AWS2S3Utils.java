@@ -17,13 +17,17 @@
 package org.apache.camel.component.aws2.s3.utils;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
 import org.apache.camel.Exchange;
+import org.apache.camel.StreamCache;
 import org.apache.camel.component.aws2.s3.AWS2S3Configuration;
 import org.apache.camel.component.aws2.s3.AWS2S3Constants;
 import org.apache.camel.util.ObjectHelper;
+import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.ServerSideEncryption;
 
 public final class AWS2S3Utils {
 
@@ -81,6 +85,13 @@ public final class AWS2S3Utils {
     }
 
     public static long determineLengthInputStream(InputStream is) throws IOException {
+        if (is instanceof StreamCache) {
+            long len = ((StreamCache) is).length();
+            if (len > 0) {
+                return len;
+            }
+        }
+
         if (!is.markSupported()) {
             return -1;
         }
@@ -102,6 +113,19 @@ public final class AWS2S3Utils {
         return size;
     }
 
+    public static byte[] toByteArray(InputStream is, final int size) throws IOException {
+        try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            byte[] data = new byte[4096];
+            int total = 0;
+            int n = 0;
+            while (total < size && (n = is.read(data)) != -1) {
+                output.write(data, 0, n);
+                total += n;
+            }
+            return output.toByteArray();
+        }
+    }
+
     public static String determineKey(final Exchange exchange, AWS2S3Configuration configuration) {
         String key = exchange.getIn().getHeader(AWS2S3Constants.KEY, String.class);
         if (ObjectHelper.isEmpty(key)) {
@@ -111,5 +135,29 @@ public final class AWS2S3Utils {
             throw new IllegalArgumentException("AWS S3 Key header missing.");
         }
         return key;
+    }
+
+    public static void setEncryption(
+            CreateMultipartUploadRequest.Builder createMultipartUploadRequest, AWS2S3Configuration configuration) {
+        if (configuration.isUseAwsKMS()) {
+            createMultipartUploadRequest.ssekmsKeyId(configuration.getAwsKMSKeyId());
+            createMultipartUploadRequest.serverSideEncryption(ServerSideEncryption.AWS_KMS);
+        }
+
+        if (configuration.isUseSSES3()) {
+            createMultipartUploadRequest.serverSideEncryption(ServerSideEncryption.AES256);
+        }
+
+        if (configuration.isUseCustomerKey()) {
+            if (ObjectHelper.isNotEmpty(configuration.getCustomerKeyId())) {
+                createMultipartUploadRequest.sseCustomerKey(configuration.getCustomerKeyId());
+            }
+            if (ObjectHelper.isNotEmpty(configuration.getCustomerKeyMD5())) {
+                createMultipartUploadRequest.sseCustomerKeyMD5(configuration.getCustomerKeyMD5());
+            }
+            if (ObjectHelper.isNotEmpty(configuration.getCustomerAlgorithm())) {
+                createMultipartUploadRequest.sseCustomerAlgorithm(configuration.getCustomerAlgorithm());
+            }
+        }
     }
 }

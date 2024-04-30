@@ -16,11 +16,11 @@
  */
 package org.apache.camel.model;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
 
 import org.apache.camel.BeanScope;
 import org.apache.camel.spi.Metadata;
@@ -99,7 +99,7 @@ public class BeanDefinition extends NoOutputDefinition<BeanDefinition> {
     }
 
     /**
-     * Sets a reference to an exiting bean to use, which is looked up from the registry
+     * Sets a reference to an existing bean to use, which is looked up from the registry
      */
     public void setRef(String ref) {
         this.ref = ref;
@@ -147,27 +147,6 @@ public class BeanDefinition extends NoOutputDefinition<BeanDefinition> {
      */
     public void setBeanType(Class<?> beanType) {
         this.beanClass = beanType;
-    }
-
-    @Deprecated
-    public String getCache() {
-        if (scope == null || BeanScope.Singleton.name().equals(scope)) {
-            return "true";
-        } else {
-            return "false";
-        }
-    }
-
-    /**
-     * Use singleton option instead
-     */
-    @Deprecated
-    public void setCache(String cache) {
-        if ("true".equals(cache)) {
-            scope = BeanScope.Singleton.name();
-        } else {
-            scope = BeanScope.Prototype.name();
-        }
     }
 
     public String getScope() {

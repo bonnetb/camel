@@ -32,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class CwComponentConfigurationTest extends CamelTestSupport {
 
     @BindToRegistry("now")
-    private static final Instant NOW = Instant.now();
+    public static final Instant NOW = Instant.now();
 
     @Test
     public void createEndpointWithAllOptions() throws Exception {
@@ -70,7 +70,7 @@ public class CwComponentConfigurationTest extends CamelTestSupport {
     public void createEndpointWithoutSecretKeyAndAccessKeyConfiguration() {
         Cw2Component component = context.getComponent("aws2-cw", Cw2Component.class);
         assertThrows(IllegalArgumentException.class, () -> {
-            component.createEndpoint("aws2-cw://camel.apache.org/test?accessKey=xxx");
+            component.createEndpoint("aws2-cw://camel.apache.org/test");
         });
     }
 

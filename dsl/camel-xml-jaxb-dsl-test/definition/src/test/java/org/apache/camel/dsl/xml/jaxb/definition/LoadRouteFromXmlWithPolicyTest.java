@@ -16,17 +16,15 @@
  */
 package org.apache.camel.dsl.xml.jaxb.definition;
 
-import java.io.InputStream;
-
 import org.apache.camel.ContextTestSupport;
 import org.apache.camel.Exchange;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.NamedNode;
 import org.apache.camel.Processor;
 import org.apache.camel.Route;
-import org.apache.camel.model.RoutesDefinition;
 import org.apache.camel.spi.Policy;
 import org.apache.camel.spi.Registry;
+import org.apache.camel.spi.Resource;
+import org.apache.camel.support.PluginHelper;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -35,8 +33,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 public class LoadRouteFromXmlWithPolicyTest extends ContextTestSupport {
 
     @Override
-    protected Registry createRegistry() throws Exception {
-        Registry jndi = super.createRegistry();
+    protected Registry createCamelRegistry() throws Exception {
+        Registry jndi = super.createCamelRegistry();
         jndi.bind("foo", new MyPolicy("foo"));
         return jndi;
     }
@@ -48,10 +46,10 @@ public class LoadRouteFromXmlWithPolicyTest extends ContextTestSupport {
 
     @Test
     public void testLoadRouteFromXmlWitPolicy() throws Exception {
-        InputStream is = getClass().getResourceAsStream("barPolicyRoute.xml");
-        ExtendedCamelContext ecc = context.adapt(ExtendedCamelContext.class);
-        RoutesDefinition routes = (RoutesDefinition) ecc.getXMLRoutesDefinitionLoader().loadRoutesDefinition(ecc, is);
-        context.addRouteDefinitions(routes.getRoutes());
+        Resource resource
+                = PluginHelper.getResourceLoader(context)
+                        .resolveResource("org/apache/camel/dsl/xml/jaxb/definition/barPolicyRoute.xml");
+        PluginHelper.getRoutesLoader(context).loadRoutes(resource);
         context.start();
 
         assertNotNull(context.getRoute("foo"), "Loaded foo route should be there");

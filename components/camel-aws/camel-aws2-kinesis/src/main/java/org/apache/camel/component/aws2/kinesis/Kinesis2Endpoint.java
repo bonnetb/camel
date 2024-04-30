@@ -16,22 +16,24 @@
  */
 package org.apache.camel.component.aws2.kinesis;
 
+import java.util.Objects;
+
 import org.apache.camel.Category;
 import org.apache.camel.Consumer;
 import org.apache.camel.Processor;
 import org.apache.camel.Producer;
-import org.apache.camel.component.aws2.kinesis.client.KinesisClientFactory;
 import org.apache.camel.spi.UriEndpoint;
 import org.apache.camel.spi.UriParam;
 import org.apache.camel.support.ScheduledPollEndpoint;
 import org.apache.camel.util.ObjectHelper;
+import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.KinesisClient;
 import software.amazon.awssdk.services.kinesis.model.ShardIteratorType;
 
 import static software.amazon.awssdk.core.SdkSystemSetting.CBOR_ENABLED;
 
 /**
- * Consume and produce records from and to AWS Kinesis Streams using AWS SDK version 2.x.
+ * Consume and produce records from and to AWS Kinesis Streams.
  */
 @UriEndpoint(firstVersion = "3.2.0", scheme = "aws2-kinesis", title = "AWS Kinesis", syntax = "aws2-kinesis:streamName",
              category = { Category.CLOUD, Category.MESSAGING }, headersClass = Kinesis2Constants.class)
@@ -41,6 +43,7 @@ public class Kinesis2Endpoint extends ScheduledPollEndpoint {
     private Kinesis2Configuration configuration;
 
     private KinesisClient kinesisClient;
+    private KinesisAsyncClient kinesisAsyncClient;
 
     public Kinesis2Endpoint(String uri, Kinesis2Configuration configuration, Kinesis2Component component) {
         super(uri, component);
@@ -50,12 +53,19 @@ public class Kinesis2Endpoint extends ScheduledPollEndpoint {
     @Override
     protected void doStart() throws Exception {
         super.doStart();
+
+        var kinesisConnection = getComponent().getConnection();
+
         if (!configuration.isCborEnabled()) {
             System.setProperty(CBOR_ENABLED.property(), "false");
         }
-        kinesisClient = configuration.getAmazonKinesisClient() != null
-                ? configuration.getAmazonKinesisClient()
-                : KinesisClientFactory.getKinesisClient(configuration).getKinesisClient();
+
+        if (configuration.isAsyncClient() &&
+                Objects.isNull(configuration.getAmazonKinesisClient())) {
+            kinesisAsyncClient = kinesisConnection.getAsyncClient(this);
+        } else {
+            kinesisClient = kinesisConnection.getClient(this);
+        }
 
         if ((configuration.getIteratorType().equals(ShardIteratorType.AFTER_SEQUENCE_NUMBER)
                 || configuration.getIteratorType().equals(ShardIteratorType.AT_SEQUENCE_NUMBER))
@@ -70,6 +80,8 @@ public class Kinesis2Endpoint extends ScheduledPollEndpoint {
         if (ObjectHelper.isEmpty(configuration.getAmazonKinesisClient())) {
             if (kinesisClient != null) {
                 kinesisClient.close();
+            } else if (Objects.nonNull(kinesisAsyncClient)) {
+                kinesisAsyncClient.close();
             }
         }
         if (!configuration.isCborEnabled()) {
@@ -80,19 +92,31 @@ public class Kinesis2Endpoint extends ScheduledPollEndpoint {
 
     @Override
     public Producer createProducer() throws Exception {
-        return new Kinesis2Producer(this);
+        Kinesis2Producer producer = new Kinesis2Producer(this);
+        producer.setConnection(getComponent().getConnection());
+        return producer;
     }
 
     @Override
     public Consumer createConsumer(Processor processor) throws Exception {
         final Kinesis2Consumer consumer = new Kinesis2Consumer(this, processor);
+        consumer.setConnection(getComponent().getConnection());
         consumer.setSchedulerProperties(getSchedulerProperties());
         configureConsumer(consumer);
         return consumer;
     }
 
+    @Override
+    public Kinesis2Component getComponent() {
+        return (Kinesis2Component) super.getComponent();
+    }
+
     public KinesisClient getClient() {
         return kinesisClient;
+    }
+
+    public KinesisAsyncClient getAsyncClient() {
+        return kinesisAsyncClient;
     }
 
     public Kinesis2Configuration getConfiguration() {

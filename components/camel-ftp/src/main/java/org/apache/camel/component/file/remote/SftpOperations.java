@@ -26,6 +26,7 @@ import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.time.Duration;
@@ -53,6 +54,7 @@ import org.apache.camel.component.file.GenericFile;
 import org.apache.camel.component.file.GenericFileEndpoint;
 import org.apache.camel.component.file.GenericFileExist;
 import org.apache.camel.component.file.GenericFileOperationFailedException;
+import org.apache.camel.spi.CamelLogger;
 import org.apache.camel.support.ResourceHelper;
 import org.apache.camel.support.task.BlockingTask;
 import org.apache.camel.support.task.Tasks;
@@ -167,6 +169,11 @@ public class SftpOperations implements RemoteFileOperations<SftpRemoteFile> {
                 LOG.trace("Channel isn't connected, trying to recreate and connect.");
                 channel = (ChannelSftp) session.openChannel("sftp");
 
+                if (endpoint.getConfiguration().getFilenameEncoding() != null) {
+                    Charset ch = Charset.forName(endpoint.getConfiguration().getFilenameEncoding());
+                    LOG.trace("Using filename encoding: {}", ch);
+                    channel.setFilenameEncoding(ch);
+                }
                 if (endpoint.getConfiguration().getConnectTimeout() > 0) {
                     LOG.trace("Connecting use connectTimeout: {} ...", endpoint.getConfiguration().getConnectTimeout());
                     channel.connect(endpoint.getConfiguration().getConnectTimeout());
@@ -331,8 +338,24 @@ public class SftpOperations implements RemoteFileOperations<SftpRemoteFile> {
             session.setConfig("PreferredAuthentications", sftpConfig.getPreferredAuthentications());
         }
 
+        // set the ServerHostKeys
+        if (sftpConfig.getServerHostKeys() != null) {
+            LOG.debug("Using ServerHostKeys: {}", sftpConfig.getServerHostKeys());
+            session.setConfig("server_host_key", sftpConfig.getServerHostKeys());
+        }
+
+        // set the PublicKeyAcceptedAlgorithms
+        if (sftpConfig.getPublicKeyAcceptedAlgorithms() != null) {
+            LOG.debug("Using PublicKeyAcceptedAlgorithms: {}", sftpConfig.getPublicKeyAcceptedAlgorithms());
+            session.setConfig("PubkeyAcceptedAlgorithms", sftpConfig.getPublicKeyAcceptedAlgorithms());
+        }
+
         // set user information
         session.setUserInfo(new ExtendedUserInfo() {
+
+            private final CamelLogger messageLogger
+                    = new CamelLogger(LOG, ((SftpConfiguration) configuration).getServerMessageLoggingLevel());
+
             public String getPassphrase() {
                 return null;
             }
@@ -350,14 +373,21 @@ public class SftpOperations implements RemoteFileOperations<SftpRemoteFile> {
             }
 
             public boolean promptYesNo(String s) {
-                LOG.warn("Server asks for confirmation (yes|no): {}. Camel will answer no.", s);
-                // Return 'false' indicating modification of the hosts file is
-                // disabled.
-                return false;
+                // are we prompted because the known host files does not exist, and asked whether to auto-create the file
+                boolean knownHostFile = s != null && s.endsWith("Are you sure you want to create it?");
+                if (knownHostFile && ((SftpConfiguration) configuration).isAutoCreateKnownHostsFile()) {
+                    LOG.warn("Server asks for confirmation (yes|no): {}. Camel will answer yes.", s);
+                    return true;
+                } else {
+                    LOG.warn("Server asks for confirmation (yes|no): {}. Camel will answer no.", s);
+                    // Return 'false' indicating modification of the hosts file is
+                    // disabled.
+                    return false;
+                }
             }
 
             public void showMessage(String s) {
-                LOG.trace("Message received from Server: {}", s);
+                messageLogger.log("FTP Server: " + s);
             }
 
             public String[] promptKeyboardInteractive(
@@ -519,7 +549,7 @@ public class SftpOperations implements RemoteFileOperations<SftpRemoteFile> {
             channel.rename(from, to);
             return true;
         } catch (SftpException e) {
-            LOG.debug("Cannot rename file from: " + from + " to: " + to, e);
+            LOG.debug("Cannot rename file from: {} to: {}", from, to, e);
             throw new GenericFileOperationFailedException("Cannot rename file from: " + from + " to: " + to, e);
         }
     }
@@ -565,8 +595,10 @@ public class SftpOperations implements RemoteFileOperations<SftpRemoteFile> {
                     success = buildDirectoryChunks(directory);
                 }
 
-                // after creating directory, we may set chmod on the file
-                chmodOfDirectory(directory);
+                // only after successfully creating directory, we may set chmod on the file
+                if (success) {
+                    chmodOfDirectory(directory);
+                }
             }
         } catch (SftpException e) {
             throw new GenericFileOperationFailedException("Cannot build directory: " + directory, e);
@@ -607,8 +639,10 @@ public class SftpOperations implements RemoteFileOperations<SftpRemoteFile> {
                     // ignore keep trying to create the rest of the path
                 }
 
-                // after creating directory, we may set chmod on the file
-                chmodOfDirectory(directory);
+                // only after successfully creating directory, we may set chmod on the file
+                if (success) {
+                    chmodOfDirectory(directory);
+                }
             }
         }
 
@@ -654,7 +688,7 @@ public class SftpOperations implements RemoteFileOperations<SftpRemoteFile> {
             // extract the path segment relative to the target path and make
             // sure it keeps the preceding '/' for the regex op
             String p = getCurrentDirectory().substring(path.length() - (path.endsWith("/") ? 1 : 0));
-            if (p.length() == 0) {
+            if (p.isEmpty()) {
                 return;
             }
             // the first character must be '/' and hence removed
@@ -870,7 +904,7 @@ public class SftpOperations implements RemoteFileOperations<SftpRemoteFile> {
             // set header with the path to the local work file
             exchange.getIn().setHeader(FtpConstants.FILE_LOCAL_WORK_PATH, local.getPath());
         } catch (Exception e) {
-            throw new GenericFileOperationFailedException("Cannot create new local work file: " + local);
+            throw new GenericFileOperationFailedException("Cannot create new local work file: " + local, e);
         }
         String currentDir = null;
         try {
@@ -1030,7 +1064,7 @@ public class SftpOperations implements RemoteFileOperations<SftpRemoteFile> {
             if (LOG.isDebugEnabled()) {
                 long time = watch.taken();
                 LOG.debug("Took {} ({} millis) to store file: {} and FTP client returned: true",
-                        TimeUtils.printDuration(time), time, targetName);
+                        TimeUtils.printDuration(time, true), time, targetName);
             }
 
             // after storing file, we may set chmod on the file
@@ -1048,9 +1082,7 @@ public class SftpOperations implements RemoteFileOperations<SftpRemoteFile> {
         } catch (SftpException e) {
             createResultHeadersFromExchange(e, exchange);
             throw new GenericFileOperationFailedException("Cannot store file: " + name, e);
-        } catch (InvalidPayloadException e) {
-            throw new GenericFileOperationFailedException("Cannot store file: " + name, e);
-        } catch (UnsupportedEncodingException e) {
+        } catch (UnsupportedEncodingException | InvalidPayloadException e) {
             throw new GenericFileOperationFailedException("Cannot store file: " + name, e);
         } finally {
             IOHelper.close(is, "store: " + name, LOG);
@@ -1107,7 +1139,7 @@ public class SftpOperations implements RemoteFileOperations<SftpRemoteFile> {
             if (files == null) {
                 return false;
             }
-            return files.size() >= 1;
+            return !files.isEmpty();
         } catch (SftpException e) {
             // or an exception can be thrown with id 2 which means file does not
             // exists
@@ -1159,18 +1191,16 @@ public class SftpOperations implements RemoteFileOperations<SftpRemoteFile> {
         final Socket[] sockp = new Socket[1];
         final Exception[] ee = new Exception[1];
         String message = "";
-        Thread tmp = new Thread(new Runnable() {
-            public void run() {
-                sockp[0] = null;
-                try {
-                    sockp[0] = new Socket(InetAddress.getByName(host), port, InetAddress.getByName(bindAddress), 0);
-                } catch (Exception e) {
-                    ee[0] = e;
-                    if (sockp[0] != null && sockp[0].isConnected()) {
-                        IOHelper.close(sockp[0]);
-                    }
-                    sockp[0] = null;
+        Thread tmp = new Thread(() -> {
+            sockp[0] = null;
+            try {
+                sockp[0] = new Socket(InetAddress.getByName(host), port, InetAddress.getByName(bindAddress), 0);
+            } catch (Exception e) {
+                ee[0] = e;
+                if (sockp[0] != null && sockp[0].isConnected()) {
+                    IOHelper.close(sockp[0]);
                 }
+                sockp[0] = null;
             }
         });
         tmp.setName("Opening Socket " + host);
@@ -1179,6 +1209,7 @@ public class SftpOperations implements RemoteFileOperations<SftpRemoteFile> {
             tmp.join(timeout);
             message = "timeout: ";
         } catch (java.lang.InterruptedException eee) {
+            Thread.currentThread().interrupt();
         }
         if (sockp[0] != null && sockp[0].isConnected()) {
             socket = sockp[0];
@@ -1188,7 +1219,6 @@ public class SftpOperations implements RemoteFileOperations<SftpRemoteFile> {
                 message = ee[0].toString();
             }
             tmp.interrupt();
-            tmp = null;
             throw new RuntimeCamelException(message, ee[0]);
         }
         return socket;

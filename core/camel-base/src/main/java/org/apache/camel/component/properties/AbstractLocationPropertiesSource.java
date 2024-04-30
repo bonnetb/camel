@@ -109,6 +109,11 @@ public abstract class AbstractLocationPropertiesSource extends ServiceSupport
         }
     }
 
+    @Override
+    protected void doShutdown() throws Exception {
+        properties.clear();
+    }
+
     /**
      * Strategy to prepare loaded properties before being used by Camel.
      * <p/>
@@ -145,8 +150,7 @@ public abstract class AbstractLocationPropertiesSource extends ServiceSupport
                 break;
             }
         }
-        String answer = s.substring(0, endIndex);
-        return answer;
+        return s.substring(0, endIndex);
     }
 
 }

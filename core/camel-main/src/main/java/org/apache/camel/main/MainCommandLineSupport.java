@@ -20,8 +20,15 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.function.Predicate;
 
 import org.apache.camel.CamelConfiguration;
+import org.apache.camel.CamelContext;
+import org.apache.camel.spi.LoadablePropertiesSource;
+import org.apache.camel.spi.PropertiesComponent;
+import org.apache.camel.util.OrderedProperties;
 
 /**
  * Support for command line arguments to Camel main.
@@ -29,6 +36,7 @@ import org.apache.camel.CamelConfiguration;
 public abstract class MainCommandLineSupport extends MainSupport {
 
     protected final List<Option> options = new ArrayList<>();
+    protected Properties argumentProperties;
     private volatile boolean initOptionsDone;
 
     @SafeVarargs
@@ -39,10 +47,47 @@ public abstract class MainCommandLineSupport extends MainSupport {
     public MainCommandLineSupport() {
     }
 
+    public Properties getArgumentProperties() {
+        return argumentProperties;
+    }
+
+    /**
+     * Sets command line argument as properties for the properties component.
+     */
+    public void setArgumentProperties(Properties argumentProperties) {
+        this.argumentProperties = argumentProperties;
+    }
+
+    /**
+     * Sets command line argument as properties for the properties component.
+     */
+    public void setArgumentProperties(Map<String, Object> initialProperties) {
+        this.argumentProperties = new OrderedProperties();
+        this.argumentProperties.putAll(initialProperties);
+    }
+
+    /**
+     * Adds a property (command line) for the properties component.
+     *
+     * @param key   the property key
+     * @param value the property value
+     */
+    public void addArgumentProperty(String key, String value) {
+        if (this.argumentProperties == null) {
+            this.argumentProperties = new OrderedProperties();
+        }
+        this.argumentProperties.put(key, value);
+    }
+
     protected void initOptions() {
         if (initOptionsDone) {
             return;
         }
+        addInitialOptions();
+        initOptionsDone = true;
+    }
+
+    protected void addInitialOptions() {
         addOption(new Option("h", "help", "Displays the help screen") {
             protected void doProcess(String arg, LinkedList<String> remainingArgs) {
                 showOptions();
@@ -116,7 +161,22 @@ public abstract class MainCommandLineSupport extends MainSupport {
                 setPropertyPlaceholderLocations(parameter);
             }
         });
-        initOptionsDone = true;
+        addOption(new ParameterOption(
+                "cwd", "compileWorkDir",
+                "Work directory for compiler. Can be used to write compiled classes or other resources.",
+                "compileWorkDir") {
+            protected void doProcess(String arg, String parameter, LinkedList<String> remainingArgs) {
+                configure().withCompileWorkDir(parameter);
+            }
+        });
+        addOption(new ParameterOption(
+                "pro", "profile",
+                "Camel profile to use when running. (dev,test,prod)",
+                "profile") {
+            protected void doProcess(String arg, String parameter, LinkedList<String> remainingArgs) {
+                configure().withProfile(parameter);
+            }
+        });
     }
 
     /**
@@ -179,6 +239,57 @@ public abstract class MainCommandLineSupport extends MainSupport {
         return getExitCode();
     }
 
+    @Override
+    protected void configurePropertiesService(CamelContext camelContext) throws Exception {
+        if (mainConfigurationProperties.getProfile() != null) {
+            // setup property placeholder location to include the profile based properties file also
+            defaultPropertyPlaceholderLocation
+                    = String.format("classpath:application-%s.properties;optional=true," + defaultPropertyPlaceholderLocation,
+                            mainConfigurationProperties.getProfile());
+        }
+
+        super.configurePropertiesService(camelContext);
+
+        PropertiesComponent pc = camelContext.getPropertiesComponent();
+        if (argumentProperties != null && !argumentProperties.isEmpty()) {
+            // register source for command line arguments to be used for property placeholders
+            pc.addPropertiesSource(new LoadablePropertiesSource() {
+                @Override
+                public Properties loadProperties() {
+                    return argumentProperties;
+                }
+
+                @Override
+                public Properties loadProperties(Predicate<String> filter) {
+                    Properties answer = new OrderedProperties();
+
+                    for (String name : argumentProperties.stringPropertyNames()) {
+                        if (filter.test(name)) {
+                            answer.put(name, argumentProperties.get(name));
+                        }
+                    }
+
+                    return answer;
+                }
+
+                @Override
+                public void reloadProperties(String location) {
+                    // noop
+                }
+
+                @Override
+                public String getName() {
+                    return "CLI";
+                }
+
+                @Override
+                public String getProperty(String name) {
+                    return argumentProperties.getProperty(name);
+                }
+            });
+        }
+    }
+
     /**
      * Displays the header message for the command line options.
      */
@@ -187,12 +298,12 @@ public abstract class MainCommandLineSupport extends MainSupport {
         System.out.println();
     }
 
-    public abstract class Option {
+    public abstract static class Option {
         private final String abbreviation;
         private final String fullName;
         private final String description;
 
-        protected Option(String abbreviation, String fullName, String description) {
+        public Option(String abbreviation, String fullName, String description) {
             this.abbreviation = "-" + abbreviation;
             this.fullName = "-" + fullName;
             this.description = description;
@@ -228,7 +339,7 @@ public abstract class MainCommandLineSupport extends MainSupport {
     public abstract class ParameterOption extends Option {
         private final String parameterName;
 
-        protected ParameterOption(String abbreviation, String fullName, String description, String parameterName) {
+        public ParameterOption(String abbreviation, String fullName, String description, String parameterName) {
             super(abbreviation, fullName, description);
             this.parameterName = parameterName;
         }

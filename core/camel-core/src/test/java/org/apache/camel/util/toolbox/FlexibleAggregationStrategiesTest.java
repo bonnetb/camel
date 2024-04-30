@@ -146,15 +146,9 @@ public class FlexibleAggregationStrategiesTest extends ContextTestSupport {
     public void testFlexibleAggregationStrategyFailWithInvalidCast() throws Exception {
         getMockEndpoint("mock:result5").expectedMessageCount(0);
 
-        try {
-            template.sendBody("direct:start5", "AGGREGATE1");
-        } catch (Exception exception) {
-            assertMockEndpointsSatisfied();
-            return;
-        }
-
-        fail("Type Conversion exception expected, as we are not ignoring invalid casts");
-
+        Exception ex = assertThrows(Exception.class, () -> template.sendBody("direct:start5", "AGGREGATE1"),
+                "Type Conversion exception expected, as we are not ignoring invalid casts");
+        assertMockEndpointsSatisfied();
     }
 
     @Test
@@ -216,7 +210,7 @@ public class FlexibleAggregationStrategiesTest extends ContextTestSupport {
     }
 
     @Test
-    public void testLinkedList() throws Exception {
+    public void testLinkedList() {
         NotifyBuilder notify = new NotifyBuilder(context).whenDone(1).and().whenExactlyFailed(0).create();
 
         template.sendBody("direct:linkedlist", Arrays.asList("FIRST", "SECOND"));
@@ -225,7 +219,7 @@ public class FlexibleAggregationStrategiesTest extends ContextTestSupport {
     }
 
     @Test
-    public void testHashSet() throws Exception {
+    public void testHashSet() {
         HashSet<String> r = new HashSet<>();
         r.add("FIRST");
         r.add("SECOND");
@@ -239,10 +233,10 @@ public class FlexibleAggregationStrategiesTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
 
                 from("direct:start1")
                         .aggregate(AggregationStrategies.flexible(String.class).accumulateInCollection(ArrayList.class)

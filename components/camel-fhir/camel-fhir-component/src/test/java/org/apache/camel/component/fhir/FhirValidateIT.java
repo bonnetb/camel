@@ -28,6 +28,7 @@ import org.hl7.fhir.r4.model.OperationOutcome;
 import org.hl7.fhir.r4.model.OperationOutcome.OperationOutcomeIssueComponent;
 import org.hl7.fhir.r4.model.Patient;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,6 +40,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Test class for {@link org.apache.camel.component.fhir.api.FhirValidate} APIs. The class source won't be generated
  * again if the generator MOJO finds it under src/test/java.
  */
+@DisabledIfSystemProperty(named = "ci.env.name", matches = "apache.org",
+                          disabledReason = "Apache CI nodes are too resource constrained for this test - see CAMEL-19659")
 public class FhirValidateIT extends AbstractFhirTestSupport {
 
     private static final Logger LOG = LoggerFactory.getLogger(FhirValidateIT.class);
@@ -46,7 +49,7 @@ public class FhirValidateIT extends AbstractFhirTestSupport {
             = FhirApiCollection.getCollection().getApiName(FhirValidateApiMethod.class).getName();
 
     @Test
-    public void testResource() throws Exception {
+    public void testResource() {
         Patient bobbyHebb = new Patient().addName(new HumanName().addGiven("Bobby").setFamily("Hebb"));
         bobbyHebb.getText().setStatus(Narrative.NarrativeStatus.GENERATED);
         bobbyHebb.getText().setDivAsString("<div>This is the narrative text</div>");
@@ -55,7 +58,7 @@ public class FhirValidateIT extends AbstractFhirTestSupport {
         MethodOutcome result = requestBody("direct://RESOURCE", bobbyHebb);
 
         assertNotNull(result, "resource result");
-        LOG.debug("resource: " + result);
+        LOG.debug("resource: {}", result);
         OperationOutcome operationOutcome = (OperationOutcome) result.getOperationOutcome();
         assertNotNull(operationOutcome);
 
@@ -67,7 +70,7 @@ public class FhirValidateIT extends AbstractFhirTestSupport {
     }
 
     @Test
-    public void testResourceAsString() throws Exception {
+    public void testResourceAsString() {
         Patient bobbyHebb = new Patient().addName(new HumanName().addGiven("Bobby").setFamily("Hebb"));
         bobbyHebb.getText().setStatus(Narrative.NarrativeStatus.GENERATED);
         bobbyHebb.getText().setDivAsString("<div>This is the narrative text</div>");
@@ -77,7 +80,7 @@ public class FhirValidateIT extends AbstractFhirTestSupport {
                 = requestBody("direct://RESOURCE_AS_STRING", this.fhirContext.newXmlParser().encodeResourceToString(bobbyHebb));
 
         assertNotNull(result, "resource result");
-        LOG.debug("resource: " + result);
+        LOG.debug("resource: {}", result);
         OperationOutcome operationOutcome = (OperationOutcome) result.getOperationOutcome();
         assertNotNull(operationOutcome);
 
@@ -89,7 +92,7 @@ public class FhirValidateIT extends AbstractFhirTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             public void configure() {
                 // test route for resource

@@ -16,6 +16,8 @@
  */
 package org.apache.camel.language.groovy;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 import groovy.lang.Binding;
@@ -25,15 +27,31 @@ import org.apache.camel.Service;
 import org.apache.camel.spi.ScriptingLanguage;
 import org.apache.camel.spi.annotations.Language;
 import org.apache.camel.support.LRUCacheFactory;
-import org.apache.camel.support.LanguageSupport;
 import org.apache.camel.support.ObjectHelper;
+import org.apache.camel.support.TypedLanguageSupport;
 import org.codehaus.groovy.runtime.InvokerHelper;
 
 @Language("groovy")
-public class GroovyLanguage extends LanguageSupport implements ScriptingLanguage {
+public class GroovyLanguage extends TypedLanguageSupport implements ScriptingLanguage {
 
-    // Cache used to stores the compiled scripts (aka their classes)
-    private final Map<String, GroovyClassService> scriptCache = LRUCacheFactory.newLRUSoftCache(16, 1000, true);
+    /**
+     * In case the expression is referring to an external resource, it indicates whether it is still needed to load the
+     * resource.
+     */
+    private final boolean loadExternalResource;
+    /**
+     * Cache used to stores the compiled scripts (aka their classes)
+     */
+    private final Map<String, GroovyClassService> scriptCache;
+
+    private GroovyLanguage(Map<String, GroovyClassService> scriptCache, boolean loadExternalResource) {
+        this.scriptCache = scriptCache;
+        this.loadExternalResource = loadExternalResource;
+    }
+
+    public GroovyLanguage() {
+        this(LRUCacheFactory.newLRUSoftCache(16, 1000, true), true);
+    }
 
     private static final class GroovyClassService implements Service {
 
@@ -72,7 +90,9 @@ public class GroovyLanguage extends LanguageSupport implements ScriptingLanguage
     @Override
     @SuppressWarnings("unchecked")
     public <T> T evaluate(String script, Map<String, Object> bindings, Class<T> resultType) {
-        script = loadResource(script);
+        if (loadExternalResource) {
+            script = loadResource(script);
+        }
         Class<Script> clazz = getScriptFromCache(script);
         if (clazz == null) {
             ClassLoader cl = getCamelContext().getApplicationContextClassLoader();
@@ -103,4 +123,15 @@ public class GroovyLanguage extends LanguageSupport implements ScriptingLanguage
         scriptCache.put(script, new GroovyClassService(scriptClass));
     }
 
+    public static class Builder {
+        private final Map<String, GroovyClassService> cache = new HashMap<>();
+
+        public void addScript(String content, Class<Script> scriptClass) {
+            cache.put(content, new GroovyClassService(scriptClass));
+        }
+
+        public GroovyLanguage build() {
+            return new GroovyLanguage(Collections.unmodifiableMap(cache), false);
+        }
+    }
 }

@@ -19,16 +19,14 @@ package org.apache.camel.model;
 import java.util.Iterator;
 import java.util.List;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlElementRef;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlElementRef;
+import jakarta.xml.bind.annotation.XmlRootElement;
 
 import org.apache.camel.spi.Metadata;
-import org.apache.camel.spi.annotations.DslProperty;
 
 /**
  * Route messages in a fault tolerance way using Circuit Breaker
@@ -38,14 +36,13 @@ import org.apache.camel.spi.annotations.DslProperty;
 @XmlAccessorType(XmlAccessType.FIELD)
 public class CircuitBreakerDefinition extends OutputDefinition<CircuitBreakerDefinition> {
 
+    @XmlAttribute
+    private String configuration;
     @XmlElement
     private Resilience4jConfigurationDefinition resilience4jConfiguration;
     @XmlElement
     private FaultToleranceConfigurationDefinition faultToleranceConfiguration;
-    @XmlAttribute
-    private String configuration;
-    @DslProperty
-    @XmlTransient
+    @XmlElement
     private OnFallbackDefinition onFallback;
 
     public CircuitBreakerDefinition() {
@@ -113,7 +110,7 @@ public class CircuitBreakerDefinition extends OutputDefinition<CircuitBreakerDef
         }
     }
 
-    public Resilience4jConfigurationCommon getResilience4jConfiguration() {
+    public Resilience4jConfigurationDefinition getResilience4jConfiguration() {
         return resilience4jConfiguration;
     }
 
@@ -134,8 +131,8 @@ public class CircuitBreakerDefinition extends OutputDefinition<CircuitBreakerDef
     }
 
     /**
-     * Refers to a circuit breaker configuration (such as hystrix, resillience4j, or microprofile-fault-tolerance) to
-     * use for configuring the circuit breaker EIP.
+     * Refers to a circuit breaker configuration (such as resillience4j, or microprofile-fault-tolerance) to use for
+     * configuring the circuit breaker EIP.
      */
     public void setConfiguration(String configuration) {
         this.configuration = configuration;

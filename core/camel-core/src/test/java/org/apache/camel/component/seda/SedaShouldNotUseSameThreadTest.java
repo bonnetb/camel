@@ -23,8 +23,8 @@ import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
  * Unit test to verify continuing using NOT same thread on the consumer side.
@@ -44,21 +44,21 @@ public class SedaShouldNotUseSameThreadTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
-            public void configure() throws Exception {
+            public void configure() {
                 final ThreadLocal<String> local = new ThreadLocal<>();
 
                 from("direct:start").process(new Processor() {
-                    public void process(Exchange exchange) throws Exception {
+                    public void process(Exchange exchange) {
                         local.set("Hello");
                         id = Thread.currentThread().getId();
                     }
                 }).to("seda:foo");
 
                 from("seda:foo").process(new Processor() {
-                    public void process(Exchange exchange) throws Exception {
-                        assertEquals(null, local.get());
+                    public void process(Exchange exchange) {
+                        assertNull(local.get());
                         assertNotSame(id, Thread.currentThread().getId(), "Thread is should not be same");
                     }
                 }).to("mock:result");

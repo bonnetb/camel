@@ -50,7 +50,7 @@ public class AWS2S3ClientIAMOptimizedImpl implements AWS2CamelS3InternalClient {
 
     /**
      * Getting the s3 aws client that is used.
-     * 
+     *
      * @return Amazon S3 Client.
      */
     @Override
@@ -73,14 +73,22 @@ public class AWS2S3ClientIAMOptimizedImpl implements AWS2CamelS3InternalClient {
         if (configuration.isOverrideEndpoint()) {
             clientBuilder.endpointOverride(URI.create(configuration.getUriEndpointOverride()));
         }
+        if (configuration.isForcePathStyle()) {
+            clientBuilder.forcePathStyle(true);
+        }
         if (configuration.isTrustAllCertificates()) {
-            SdkHttpClient ahc = ApacheHttpClient.builder().buildWithDefaults(AttributeMap
+            if (httpClientBuilder == null) {
+                httpClientBuilder = ApacheHttpClient.builder();
+            }
+            SdkHttpClient ahc = httpClientBuilder.buildWithDefaults(AttributeMap
                     .builder()
                     .put(
                             SdkHttpConfigurationOption.TRUST_ALL_CERTIFICATES,
                             Boolean.TRUE)
                     .build());
+            // set created http client to use instead of builder
             clientBuilder.httpClient(ahc);
+            clientBuilder.httpClientBuilder(null);
         }
         client = clientBuilder.build();
         return client;

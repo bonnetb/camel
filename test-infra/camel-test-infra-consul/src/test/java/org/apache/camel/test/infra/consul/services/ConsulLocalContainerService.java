@@ -16,16 +16,16 @@
  */
 package org.apache.camel.test.infra.consul.services;
 
-import com.orbitz.consul.Consul;
+import org.apache.camel.test.infra.common.LocalPropertyResolver;
 import org.apache.camel.test.infra.common.services.ContainerService;
 import org.apache.camel.test.infra.consul.common.ConsulProperties;
+import org.kiwiproject.consul.Consul;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 
 public class ConsulLocalContainerService implements ConsulService, ContainerService<GenericContainer> {
-    public static final String CONTAINER_IMAGE = "consul:1.11.2";
     public static final String CONTAINER_NAME = "consul";
 
     private static final Logger LOG = LoggerFactory.getLogger(ConsulLocalContainerService.class);
@@ -33,7 +33,9 @@ public class ConsulLocalContainerService implements ConsulService, ContainerServ
     private final GenericContainer container;
 
     public ConsulLocalContainerService() {
-        this(System.getProperty("consul.container", CONTAINER_IMAGE));
+        this(LocalPropertyResolver.getProperty(
+                ConsulLocalContainerService.class,
+                ConsulProperties.CONSUL_CONTAINER));
     }
 
     public ConsulLocalContainerService(String containerName) {

@@ -23,16 +23,12 @@ import org.apache.camel.Endpoint;
 import org.apache.camel.spi.Metadata;
 import org.apache.camel.spi.annotations.Component;
 import org.apache.camel.support.DefaultComponent;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Azure Key Vault component
  */
 @Component("azure-key-vault")
 public class KeyVaultComponent extends DefaultComponent {
-
-    private static final Logger LOG = LoggerFactory.getLogger(KeyVaultComponent.class);
 
     @Metadata
     private KeyVaultConfiguration configuration = new KeyVaultConfiguration();
@@ -47,7 +43,7 @@ public class KeyVaultComponent extends DefaultComponent {
     @Override
     protected Endpoint createEndpoint(String uri, String remaining, Map<String, Object> parameters) throws Exception {
 
-        if (remaining == null || remaining.trim().length() == 0) {
+        if (remaining == null || remaining.isBlank()) {
             throw new IllegalArgumentException("A vault name must be specified.");
         }
 

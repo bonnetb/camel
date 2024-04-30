@@ -64,7 +64,7 @@ public abstract class EmbeddedDebeziumConfiguration implements Cloneable {
                                                 + "storage topic. Required when offset.storage is set to the KafkaOffsetBackingStore")
     private int offsetStorageReplicationFactor;
     // offset.commit.policy
-    @UriParam(label = LABEL_NAME, defaultValue = "io.debezium.embedded.spi.OffsetCommitPolicy.PeriodicCommitOffsetPolicy",
+    @UriParam(label = LABEL_NAME,
               description = "The name of the Java class of the commit policy. It defines when offsets "
                             + "commit has to be triggered based on the number of events processed and the "
                             + "time elapsed since the last commit. This class must implement the interface "
@@ -101,7 +101,7 @@ public abstract class EmbeddedDebeziumConfiguration implements Cloneable {
                             + "`additionalProperties.`. E.g: `additionalProperties.transactional.id=12345&additionalProperties.schema.registry.url=http://localhost:8811/avro`")
     private Map<String, Object> additionalProperties = new HashMap<>();
 
-    public EmbeddedDebeziumConfiguration() {
+    protected EmbeddedDebeziumConfiguration() {
         ObjectHelper.notNull(configureConnectorClass(), "connectorClass");
         this.connectorClass = configureConnectorClass();
     }

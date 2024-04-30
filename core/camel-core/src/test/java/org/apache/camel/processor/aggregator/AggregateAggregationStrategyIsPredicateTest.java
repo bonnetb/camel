@@ -43,16 +43,16 @@ public class AggregateAggregationStrategyIsPredicateTest extends ContextTestSupp
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:start").aggregate(header("id"), new MyCompletionStrategy()).to("mock:aggregated");
             }
         };
     }
 
-    private final class MyCompletionStrategy implements AggregationStrategy, Predicate {
+    private static final class MyCompletionStrategy implements AggregationStrategy, Predicate {
 
         @Override
         public Exchange aggregate(Exchange oldExchange, Exchange newExchange) {

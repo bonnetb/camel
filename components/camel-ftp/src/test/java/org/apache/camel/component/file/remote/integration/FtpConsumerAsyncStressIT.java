@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test;
 
 public class FtpConsumerAsyncStressIT extends FtpServerTestSupport {
 
-    private int files = 100;
+    private final int files = 100;
 
     private String getFtpUrl() {
         return "ftp://admin@localhost:{{ftp.server.port}}/filestress/?password=admin&maxMessagesPerPoll=25";
@@ -50,7 +50,7 @@ public class FtpConsumerAsyncStressIT extends FtpServerTestSupport {
         mock.setResultWaitTime(30000);
         mock.expectedMinimumMessageCount(50);
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Override

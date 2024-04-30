@@ -29,13 +29,13 @@ public class FileConsumerMoveFailureOnCompletionTest extends ContextTestSupport 
     public void testMoveFailedRollbackOnly() throws Exception {
         MockEndpoint mock = getMockEndpoint("mock:result");
         mock.expectedMessageCount(0);
-        mock.expectedFileExists(testFile("error/bye-error.txt"), "Kabom");
+        mock.expectedFileExists(testFile("error/bye-error.txt"), "Kaboom");
 
         getMockEndpoint("mock:failed").expectedMessageCount(1);
 
-        template.sendBodyAndHeader(fileUri(), "Kabom", Exchange.FILE_NAME, "bye.txt");
+        template.sendBodyAndHeader(fileUri(), "Kaboom", Exchange.FILE_NAME, "bye.txt");
 
-        assertMockEndpointsSatisfied();
+        mock.assertIsSatisfied(1000);
     }
 
     @Test
@@ -43,27 +43,27 @@ public class FileConsumerMoveFailureOnCompletionTest extends ContextTestSupport 
         MockEndpoint mock = getMockEndpoint("mock:result");
         mock.expectedBodiesReceived("Hello World");
         mock.expectedFileExists(testFile(".camel/hello.txt"), "Hello World");
-        mock.expectedFileExists(testFile("error/bye-error.txt"), "Kabom");
+        mock.expectedFileExists(testFile("error/bye-error.txt"), "Kaboom");
 
         getMockEndpoint("mock:failed").expectedMessageCount(1);
 
         template.sendBodyAndHeader(fileUri(), "Hello World", Exchange.FILE_NAME, "hello.txt");
-        template.sendBodyAndHeader(fileUri(), "Kabom", Exchange.FILE_NAME, "bye.txt");
+        template.sendBodyAndHeader(fileUri(), "Kaboom", Exchange.FILE_NAME, "bye.txt");
 
-        assertMockEndpointsSatisfied();
+        mock.assertIsSatisfied(1000);
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from(fileUri("?initialDelay=0&delay=10&moveFailed=error/${file:name.noext}-error.txt"))
                         .onCompletion().onFailureOnly().to("mock:failed").end()
                         .process(new Processor() {
-                            public void process(Exchange exchange) throws Exception {
+                            public void process(Exchange exchange) {
                                 String body = exchange.getIn().getBody(String.class);
-                                if ("Kabom".equals(body)) {
+                                if ("Kaboom".equals(body)) {
                                     throw new IllegalArgumentException("Forced");
                                 }
                             }

@@ -50,7 +50,7 @@ public abstract class BindyAbstractFactory implements BindyFactory {
     private String locale;
     private Class<?> type;
 
-    public BindyAbstractFactory(Class<?> type) throws Exception {
+    protected BindyAbstractFactory(Class<?> type) throws Exception {
         this.type = type;
 
         if (LOG.isDebugEnabled()) {
@@ -76,7 +76,7 @@ public abstract class BindyAbstractFactory implements BindyFactory {
 
     /**
      * Recursively load model.
-     * 
+     *
      * @param root
      */
     @SuppressWarnings("rawtypes")
@@ -173,7 +173,7 @@ public abstract class BindyAbstractFactory implements BindyFactory {
 
     /**
      * Indicates whether this factory can support a row comprised of the identified classes
-     * 
+     *
      * @param  classes the names of the classes in the row
      * @return         true if the model supports the identified classes
      */

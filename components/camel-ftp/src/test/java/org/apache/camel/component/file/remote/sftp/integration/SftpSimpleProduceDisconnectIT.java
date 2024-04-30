@@ -25,13 +25,14 @@ import org.junit.jupiter.api.condition.EnabledIf;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@EnabledIf(value = "org.apache.camel.component.file.remote.services.SftpEmbeddedService#hasRequiredAlgorithms")
+@EnabledIf(value = "org.apache.camel.test.infra.ftp.services.embedded.SftpUtil#hasRequiredAlgorithms('src/test/resources/hostkey.pem')")
 public class SftpSimpleProduceDisconnectIT extends SftpServerTestSupport {
 
     @Test
     public void testSftpSimpleProduce() throws Exception {
         template.sendBodyAndHeader(
-                "sftp://localhost:{{ftp.server.port}}/{{ftp.root.dir}}?username=admin&password=admin",
+                "sftp://localhost:{{ftp.server.port}}/{{ftp.root.dir}}?username=admin&password=admin&knownHostsFile="
+                                   + service.getKnownHostsFile(),
                 "Hello World", Exchange.FILE_NAME, "hello.txt");
 
         File file = ftpFile("hello.txt").toFile();
@@ -43,7 +44,8 @@ public class SftpSimpleProduceDisconnectIT extends SftpServerTestSupport {
         service.setUpServer();
 
         template.sendBodyAndHeader(
-                "sftp://localhost:{{ftp.server.port}}/{{ftp.root.dir}}?username=admin&password=admin",
+                "sftp://localhost:{{ftp.server.port}}/{{ftp.root.dir}}?username=admin&password=admin&knownHostsFile="
+                                   + service.getKnownHostsFile(),
                 "Hello World", Exchange.FILE_NAME, "hello1.txt");
 
         file = ftpFile("hello1.txt").toFile();

@@ -38,11 +38,11 @@ public class GoogleDriveComponent
     private GoogleDriveClientFactory clientFactory;
 
     public GoogleDriveComponent() {
-        super(GoogleDriveEndpoint.class, GoogleDriveApiName.class, GoogleDriveApiCollection.getCollection());
+        super(GoogleDriveApiName.class, GoogleDriveApiCollection.getCollection());
     }
 
     public GoogleDriveComponent(CamelContext context) {
-        super(context, GoogleDriveEndpoint.class, GoogleDriveApiName.class, GoogleDriveApiCollection.getCollection());
+        super(context, GoogleDriveApiName.class, GoogleDriveApiCollection.getCollection());
     }
 
     @Override
@@ -57,12 +57,12 @@ public class GoogleDriveComponent
                 client = getClientFactory().makeClient(config.getClientId(),
                         config.getClientSecret(), config.getScopes(),
                         config.getApplicationName(), config.getRefreshToken(), config.getAccessToken());
-            } else if (config.getKeyResource() != null && !config.getKeyResource().isBlank()) {
-                client = getClientFactory().makeClient(getCamelContext(), config.getKeyResource(),
+            } else if (config.getServiceAccountKey() != null && !config.getServiceAccountKey().isBlank()) {
+                client = getClientFactory().makeClient(getCamelContext(), config.getServiceAccountKey(),
                         config.getScopes(), config.getApplicationName(), config.getDelegate());
             } else {
                 throw new IllegalArgumentException(
-                        "(clientId and clientSecret) or keyResource are required to create Google Drive client");
+                        "(clientId and clientSecret) or serviceAccountKey are required to create Google Drive client");
             }
         }
         return client;

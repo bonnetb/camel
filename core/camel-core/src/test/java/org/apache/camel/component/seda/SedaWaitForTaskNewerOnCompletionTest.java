@@ -21,7 +21,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.camel.ContextTestSupport;
 import org.apache.camel.Exchange;
-import org.apache.camel.ExtendedExchange;
 import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.support.SynchronizationAdapter;
@@ -50,16 +49,16 @@ public class SedaWaitForTaskNewerOnCompletionTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 errorHandler(deadLetterChannel("mock:dead").maximumRedeliveries(3).redeliveryDelay(0));
 
                 from("direct:start").process(new Processor() {
                     @Override
-                    public void process(Exchange exchange) throws Exception {
-                        exchange.adapt(ExtendedExchange.class).addOnCompletion(new SynchronizationAdapter() {
+                    public void process(Exchange exchange) {
+                        exchange.getExchangeExtension().addOnCompletion(new SynchronizationAdapter() {
                             @Override
                             public void onDone(Exchange exchange) {
                                 done = done + "A";
@@ -69,14 +68,14 @@ public class SedaWaitForTaskNewerOnCompletionTest extends ContextTestSupport {
                     }
                 }).to("seda:foo?waitForTaskToComplete=Never").process(new Processor() {
                     @Override
-                    public void process(Exchange exchange) throws Exception {
+                    public void process(Exchange exchange) {
                         done = done + "B";
                     }
                 }).to("mock:result");
 
                 from("seda:foo").errorHandler(noErrorHandler()).delay(1000).process(new Processor() {
                     @Override
-                    public void process(Exchange exchange) throws Exception {
+                    public void process(Exchange exchange) {
                         done = done + "C";
                     }
                 }).throwException(new IllegalArgumentException("Forced"));

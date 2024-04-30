@@ -78,7 +78,7 @@ public class Jt400Configuration {
          */
         SAME(MessageQueue.SAME);
 
-        private String jt400Value;
+        private final String jt400Value;
 
         private MessageAction(final String jt400Value) {
             this.jt400Value = jt400Value;
@@ -424,14 +424,14 @@ public class Jt400Configuration {
     /**
      * Obtains an {@code AS400} object that connects to this endpoint. Since these objects represent limited resources,
      * clients have the responsibility of {@link #releaseConnection(AS400) releasing them} when done.
-     * 
+     *
      * @return an {@code AS400} object that connects to this endpoint
      */
     public AS400 getConnection() {
         AS400 system = null;
         try {
             if (LOG.isDebugEnabled()) {
-                LOG.debug("Getting an AS400 object for '{}' from {}.", systemName + '/' + userID, connectionPool);
+                LOG.debug("Getting an AS400 object for '{}/{}' from {}.", systemName, userID, connectionPool);
             }
 
             if (isSecured()) {
@@ -462,7 +462,7 @@ public class Jt400Configuration {
 
     /**
      * Releases a previously obtained {@code AS400} object from use.
-     * 
+     *
      * @param connection a previously obtained {@code AS400} object to release
      */
     public void releaseConnection(AS400 connection) {

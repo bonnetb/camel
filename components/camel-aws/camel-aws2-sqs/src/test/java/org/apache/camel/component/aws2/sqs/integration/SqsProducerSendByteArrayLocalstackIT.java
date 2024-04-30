@@ -24,9 +24,11 @@ import org.apache.camel.ProducerTemplate;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.junit.Assert;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.shaded.org.bouncycastle.util.Strings;
 
+@Disabled("Not working due localstack update (Incorrect padding error), it is working against real SQS")
 public class SqsProducerSendByteArrayLocalstackIT extends Aws2SQSBaseTest {
 
     @EndpointInject("direct:start")
@@ -47,7 +49,7 @@ public class SqsProducerSendByteArrayLocalstackIT extends Aws2SQSBaseTest {
             }
         });
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
         Assert.assertEquals(3, result.getExchanges().get(0).getMessage().getHeaders().size());
         Assert.assertEquals("HeaderTest",
                 Strings.fromByteArray((byte[]) result.getExchanges().get(0).getMessage().getHeaders().get("value1")));

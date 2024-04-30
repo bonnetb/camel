@@ -16,8 +16,8 @@
  */
 package org.apache.camel.microprofile.health;
 
-import javax.json.JsonArray;
-import javax.json.JsonObject;
+import jakarta.json.JsonArray;
+import jakarta.json.JsonObject;
 
 import io.smallrye.health.SmallRyeHealth;
 import org.apache.camel.RoutesBuilder;
@@ -100,10 +100,10 @@ public class CamelMicroProfileHealthConsumerTest extends CamelMicroProfileHealth
     }
 
     @Override
-    protected RoutesBuilder createRouteBuilder() throws Exception {
+    protected RoutesBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:start").routeId("healthyRoute")
                         .setBody(constant("Hello Camel MicroProfile Health"));
             }

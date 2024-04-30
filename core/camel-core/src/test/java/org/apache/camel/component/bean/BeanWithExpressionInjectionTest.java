@@ -29,10 +29,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class BeanWithExpressionInjectionTest extends ContextTestSupport {
     private static final Logger LOG = LoggerFactory.getLogger(BeanRouteTest.class);
-    protected MyBean myBean = new MyBean();
+    protected final MyBean myBean = new MyBean();
 
     @Test
-    public void testSendMessage() throws Exception {
+    public void testSendMessage() {
         String expectedBody = "Wobble";
 
         template.sendBodyAndHeader("direct:in", expectedBody, "foo", "bar");
@@ -42,8 +42,8 @@ public class BeanWithExpressionInjectionTest extends ContextTestSupport {
     }
 
     @Override
-    protected Registry createRegistry() throws Exception {
-        Registry answer = super.createRegistry();
+    protected Registry createCamelRegistry() throws Exception {
+        Registry answer = super.createCamelRegistry();
 
         answer.bind("myBean", myBean);
         return answer;
@@ -70,7 +70,7 @@ public class BeanWithExpressionInjectionTest extends ContextTestSupport {
         public void read(String body, @Simple("${header.foo}") String foo) {
             this.foo = foo;
             this.body = body;
-            LOG.info("read() method called on " + this);
+            LOG.info("read() method called on {}", this);
         }
     }
 }

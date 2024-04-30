@@ -16,11 +16,11 @@
  */
 package org.apache.camel.model;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
 
 import org.apache.camel.AggregationStrategy;
 import org.apache.camel.model.language.ExpressionDefinition;
@@ -34,11 +34,16 @@ import org.apache.camel.spi.Metadata;
 @Metadata(label = "eip,transformation")
 @XmlRootElement(name = "enrich")
 @XmlAccessorType(XmlAccessType.FIELD)
-public class EnrichDefinition extends ExpressionNode implements AggregationStrategyAwareDefinition<EnrichDefinition> {
+public class EnrichDefinition extends ExpressionNode
+        implements AggregationStrategyAwareDefinition<EnrichDefinition>, Copyable {
 
     @XmlTransient
     private AggregationStrategy aggregationStrategyBean;
 
+    @XmlAttribute
+    private String variableSend;
+    @XmlAttribute
+    private String variableReceive;
     @XmlAttribute
     @Metadata(javaType = "org.apache.camel.AggregationStrategy")
     private String aggregationStrategy;
@@ -63,13 +68,32 @@ public class EnrichDefinition extends ExpressionNode implements AggregationStrat
     @XmlAttribute
     @Metadata(label = "advanced", defaultValue = "true", javaType = "java.lang.Boolean")
     private String allowOptimisedComponents;
+    @XmlAttribute
+    @Metadata(label = "advanced", defaultValue = "true", javaType = "java.lang.Boolean")
+    private String autoStartComponents;
 
     public EnrichDefinition() {
-        this(null);
+        this((AggregationStrategy) null);
     }
 
     public EnrichDefinition(AggregationStrategy aggregationStrategy) {
         this.aggregationStrategyBean = aggregationStrategy;
+    }
+
+    protected EnrichDefinition(EnrichDefinition source) {
+        super(source);
+        this.aggregationStrategyBean = source.aggregationStrategyBean;
+        this.variableSend = source.variableSend;
+        this.variableReceive = source.variableReceive;
+        this.aggregationStrategy = source.aggregationStrategy;
+        this.aggregationStrategyMethodName = source.aggregationStrategyMethodName;
+        this.aggregationStrategyMethodAllowNull = source.aggregationStrategyMethodAllowNull;
+        this.aggregateOnException = source.aggregateOnException;
+        this.shareUnitOfWork = source.shareUnitOfWork;
+        this.cacheSize = source.cacheSize;
+        this.ignoreInvalidEndpoint = source.ignoreInvalidEndpoint;
+        this.allowOptimisedComponents = source.allowOptimisedComponents;
+        this.autoStartComponents = source.autoStartComponents;
     }
 
     @Override
@@ -89,6 +113,30 @@ public class EnrichDefinition extends ExpressionNode implements AggregationStrat
 
     // Fluent API
     // -------------------------------------------------------------------------
+
+    /**
+     * To use a variable to store the received message body (only body, not headers). This is handy for easy access to
+     * the received message body via variables.
+     *
+     * Important: When using receive variable then the received body is stored only in this variable and <b>not</b> on
+     * the current {@link org.apache.camel.Message}.
+     */
+    public EnrichDefinition variableReceive(String variableReceive) {
+        setVariableReceive(variableReceive);
+        return this;
+    }
+
+    /**
+     * To use a variable to store the received message body (only body, not headers). This is handy for easy access to
+     * the received message body via variables.
+     *
+     * Important: When using receive variable then the received body is stored only in this variable and <b>not</b> on
+     * the current {@link org.apache.camel.Message}.
+     */
+    public EnrichDefinition variableSend(String variableSend) {
+        setVariableSend(variableSend);
+        return this;
+    }
 
     /**
      * Sets the AggregationStrategy to be used to merge the reply from the external service, into a single outgoing
@@ -154,7 +202,7 @@ public class EnrichDefinition extends ExpressionNode implements AggregationStrat
      * producer when uris are reused.
      *
      * Beware that when using dynamic endpoints then it affects how well the cache can be utilized. If each dynamic
-     * endpoint is unique then its best to turn of caching by setting this to -1, which allows Camel to not cache both
+     * endpoint is unique then its best to turn off caching by setting this to -1, which allows Camel to not cache both
      * the producers and endpoints; they are regarded as prototype scoped and will be stopped and discarded after use.
      * This reduces memory usage as otherwise producers/endpoints are stored in memory in the caches.
      *
@@ -178,7 +226,7 @@ public class EnrichDefinition extends ExpressionNode implements AggregationStrat
      * producer when uris are reused.
      *
      * Beware that when using dynamic endpoints then it affects how well the cache can be utilized. If each dynamic
-     * endpoint is unique then its best to turn of caching by setting this to -1, which allows Camel to not cache both
+     * endpoint is unique then its best to turn off caching by setting this to -1, which allows Camel to not cache both
      * the producers and endpoints; they are regarded as prototype scoped and will be stopped and discarded after use.
      * This reduces memory usage as otherwise producers/endpoints are stored in memory in the caches.
      *
@@ -223,6 +271,16 @@ public class EnrichDefinition extends ExpressionNode implements AggregationStrat
      */
     public EnrichDefinition allowOptimisedComponents(String allowOptimisedComponents) {
         setAllowOptimisedComponents(allowOptimisedComponents);
+        return this;
+    }
+
+    /**
+     * Whether to auto startup components when enricher is starting up.
+     *
+     * @return the builder
+     */
+    public EnrichDefinition autoStartComponents(String autoStartComponents) {
+        setAutoStartComponents(autoStartComponents);
         return this;
     }
 
@@ -283,6 +341,22 @@ public class EnrichDefinition extends ExpressionNode implements AggregationStrat
         this.aggregateOnException = aggregateOnException;
     }
 
+    public String getVariableSend() {
+        return variableSend;
+    }
+
+    public void setVariableSend(String variableSend) {
+        this.variableSend = variableSend;
+    }
+
+    public String getVariableReceive() {
+        return variableReceive;
+    }
+
+    public void setVariableReceive(String variableReceive) {
+        this.variableReceive = variableReceive;
+    }
+
     public String getShareUnitOfWork() {
         return shareUnitOfWork;
     }
@@ -315,4 +389,16 @@ public class EnrichDefinition extends ExpressionNode implements AggregationStrat
         this.allowOptimisedComponents = allowOptimisedComponents;
     }
 
+    public String getAutoStartComponents() {
+        return autoStartComponents;
+    }
+
+    public void setAutoStartComponents(String autoStartComponents) {
+        this.autoStartComponents = autoStartComponents;
+    }
+
+    @Override
+    public EnrichDefinition copy() {
+        return new EnrichDefinition(this);
+    }
 }

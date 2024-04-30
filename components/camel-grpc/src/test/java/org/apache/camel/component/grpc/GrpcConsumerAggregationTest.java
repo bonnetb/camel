@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class GrpcConsumerAggregationTest extends CamelTestSupport {
 
@@ -73,7 +74,7 @@ public class GrpcConsumerAggregationTest extends CamelTestSupport {
     }
 
     @Test
-    public void testSyncSyncMethodInSync() throws Exception {
+    public void testSyncSyncMethodInSync() {
         LOG.info("gRPC pingSyncSync method blocking test start");
         PingRequest pingRequest
                 = PingRequest.newBuilder().setPingName(GRPC_TEST_PING_VALUE).setPingId(GRPC_TEST_PING_ID).build();
@@ -85,7 +86,7 @@ public class GrpcConsumerAggregationTest extends CamelTestSupport {
     }
 
     @Test
-    public void testSyncAsyncMethodInSync() throws Exception {
+    public void testSyncAsyncMethodInSync() {
         LOG.info("gRPC pingSyncAsync method blocking test start");
         PingRequest pingRequest
                 = PingRequest.newBuilder().setPingName(GRPC_TEST_PING_VALUE).setPingId(GRPC_TEST_PING_ID).build();
@@ -107,7 +108,7 @@ public class GrpcConsumerAggregationTest extends CamelTestSupport {
         PongResponseStreamObserver responseObserver = new PongResponseStreamObserver(latch);
 
         nonBlockingStub.pingSyncSync(pingRequest, responseObserver);
-        latch.await(5, TimeUnit.SECONDS);
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
 
         PongResponse pongResponse = responseObserver.getPongResponse();
 
@@ -125,7 +126,7 @@ public class GrpcConsumerAggregationTest extends CamelTestSupport {
         PongResponseStreamObserver responseObserver = new PongResponseStreamObserver(latch);
 
         nonBlockingStub.pingSyncAsync(pingRequest, responseObserver);
-        latch.await(5, TimeUnit.SECONDS);
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
 
         PongResponse pongResponse = responseObserver.getPongResponse();
 
@@ -146,7 +147,7 @@ public class GrpcConsumerAggregationTest extends CamelTestSupport {
         requestObserver.onNext(pingRequest);
         requestObserver.onNext(pingRequest);
         requestObserver.onCompleted();
-        latch.await(5, TimeUnit.SECONDS);
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
 
         PongResponse pongResponse = responseObserver.getPongResponse();
 
@@ -167,7 +168,7 @@ public class GrpcConsumerAggregationTest extends CamelTestSupport {
         requestObserver.onNext(pingRequest);
         requestObserver.onNext(pingRequest);
         requestObserver.onCompleted();
-        latch.await(5, TimeUnit.SECONDS);
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
 
         PongResponse pongResponse = responseObserver.getPongResponse();
 
@@ -177,17 +178,17 @@ public class GrpcConsumerAggregationTest extends CamelTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
             public void configure() {
                 from("grpc://localhost:" + GRPC_SYNC_REQUEST_TEST_PORT
                      + "/org.apache.camel.component.grpc.PingPong?synchronous=true&consumerStrategy=AGGREGATION")
-                             .bean(new GrpcMessageBuilder(), "buildPongResponse");
+                        .bean(new GrpcMessageBuilder(), "buildPongResponse");
 
                 from("grpc://localhost:" + GRPC_ASYNC_REQUEST_TEST_PORT
                      + "/org.apache.camel.component.grpc.PingPong?synchronous=true&consumerStrategy=AGGREGATION")
-                             .bean(new GrpcMessageBuilder(), "buildAsyncPongResponse");
+                        .bean(new GrpcMessageBuilder(), "buildAsyncPongResponse");
             }
         };
     }

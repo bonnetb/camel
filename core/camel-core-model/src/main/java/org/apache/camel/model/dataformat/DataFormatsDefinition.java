@@ -20,11 +20,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlElements;
-import javax.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlElements;
+import jakarta.xml.bind.annotation.XmlRootElement;
 
 import org.apache.camel.model.DataFormatDefinition;
 import org.apache.camel.spi.Metadata;
@@ -39,7 +39,6 @@ public class DataFormatsDefinition {
 
     // cannot use @XmlElementRef as it doesn't allow optional properties
     @XmlElements({
-            @XmlElement(name = "any23", type = Any23DataFormat.class),
             @XmlElement(name = "asn1", type = ASN1DataFormat.class),
             @XmlElement(name = "avro", type = AvroDataFormat.class),
             @XmlElement(name = "barcode", type = BarcodeDataFormat.class),
@@ -63,9 +62,13 @@ public class DataFormatsDefinition {
             @XmlElement(name = "jsonApi", type = JsonApiDataFormat.class),
             @XmlElement(name = "lzf", type = LZFDataFormat.class),
             @XmlElement(name = "mimeMultipart", type = MimeMultipartDataFormat.class),
+            @XmlElement(name = "parquetAvro", type = ParquetAvroDataFormat.class),
+            @XmlElement(name = "pgp", type = PGPDataFormat.class),
             @XmlElement(name = "protobuf", type = ProtobufDataFormat.class),
             @XmlElement(name = "rss", type = RssDataFormat.class),
             @XmlElement(name = "soap", type = SoapDataFormat.class),
+            @XmlElement(name = "swiftMt", type = SwiftMtDataFormat.class),
+            @XmlElement(name = "swiftMx", type = SwiftMxDataFormat.class),
             @XmlElement(name = "syslog", type = SyslogDataFormat.class),
             @XmlElement(name = "tarFile", type = TarFileDataFormat.class),
             @XmlElement(name = "thrift", type = ThriftDataFormat.class),
@@ -74,8 +77,6 @@ public class DataFormatsDefinition {
             @XmlElement(name = "univocityFixed", type = UniVocityFixedDataFormat.class),
             @XmlElement(name = "univocityTsv", type = UniVocityTsvDataFormat.class),
             @XmlElement(name = "xmlSecurity", type = XMLSecurityDataFormat.class),
-            @XmlElement(name = "xstream", type = XStreamDataFormat.class),
-            @XmlElement(name = "pgp", type = PGPDataFormat.class),
             @XmlElement(name = "yaml", type = YAMLDataFormat.class),
             @XmlElement(name = "zipDeflater", type = ZipDeflaterDataFormat.class),
             @XmlElement(name = "zipFile", type = ZipFileDataFormat.class) })

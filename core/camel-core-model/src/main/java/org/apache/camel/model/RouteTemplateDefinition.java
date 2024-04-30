@@ -17,23 +17,26 @@
 package org.apache.camel.model;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
-import javax.xml.bind.annotation.XmlType;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.XmlType;
 
 import org.apache.camel.Endpoint;
 import org.apache.camel.RouteTemplateContext;
 import org.apache.camel.builder.EndpointConsumerBuilder;
 import org.apache.camel.spi.AsEndpointUri;
 import org.apache.camel.spi.Metadata;
+import org.apache.camel.spi.Resource;
+import org.apache.camel.spi.ResourceAware;
 
 /**
  * Defines a route template (parameterized routes)
@@ -42,7 +45,7 @@ import org.apache.camel.spi.Metadata;
 @XmlRootElement(name = "routeTemplate")
 @XmlType(propOrder = { "templateParameters", "templateBeans", "route" })
 @XmlAccessorType(XmlAccessType.FIELD)
-public class RouteTemplateDefinition extends OptionalIdentifiedDefinition {
+public class RouteTemplateDefinition extends OptionalIdentifiedDefinition<RouteTemplateDefinition> implements ResourceAware {
 
     @XmlTransient
     private Consumer<RouteTemplateContext> configurer;
@@ -55,6 +58,8 @@ public class RouteTemplateDefinition extends OptionalIdentifiedDefinition {
     private List<RouteTemplateBeanDefinition> templateBeans;
     @XmlElement(name = "route", required = true)
     private RouteDefinition route = new RouteDefinition();
+    @XmlTransient
+    private Resource resource;
 
     public List<RouteTemplateParameterDefinition> getTemplateParameters() {
         return templateParameters;
@@ -86,6 +91,14 @@ public class RouteTemplateDefinition extends OptionalIdentifiedDefinition {
 
     public Consumer<RouteTemplateContext> getConfigurer() {
         return configurer;
+    }
+
+    public Resource getResource() {
+        return resource;
+    }
+
+    public void setResource(Resource resource) {
+        this.resource = resource;
     }
 
     // Fluent API
@@ -129,10 +142,8 @@ public class RouteTemplateDefinition extends OptionalIdentifiedDefinition {
     }
 
     @Override
-    public RouteTemplateDefinition description(String text) {
-        DescriptionDefinition def = new DescriptionDefinition();
-        def.setText(text);
-        setDescription(def);
+    public RouteTemplateDefinition description(String description) {
+        setDescription(description);
         return this;
     }
 
@@ -296,7 +307,7 @@ public class RouteTemplateDefinition extends OptionalIdentifiedDefinition {
         }
         RouteTemplateBeanDefinition def = new RouteTemplateBeanDefinition();
         def.setName(name);
-        def.setType(language);
+        def.setScriptLanguage(language);
         def.setScript(script);
         templateBeans.add(def);
         return this;
@@ -317,7 +328,7 @@ public class RouteTemplateDefinition extends OptionalIdentifiedDefinition {
         RouteTemplateBeanDefinition def = new RouteTemplateBeanDefinition();
         def.setName(name);
         def.setBeanType(type);
-        def.setType(language);
+        def.setScriptLanguage(language);
         def.setScript(script);
         templateBeans.add(def);
         return this;
@@ -389,7 +400,11 @@ public class RouteTemplateDefinition extends OptionalIdentifiedDefinition {
 
         // must set these first in this order
         copy.setErrorHandlerRef(route.getErrorHandlerRef());
-        copy.setErrorHandlerFactory(route.getErrorHandlerFactory());
+        if (route.isErrorHandlerFactorySet()) {
+            // only set factory if not already set
+            copy.setErrorHandlerFactory(route.getErrorHandlerFactory());
+        }
+        copy.setErrorHandler(route.getErrorHandler());
 
         // and then copy over the rest
         // (do not copy id as it is used for route template id)
@@ -397,15 +412,16 @@ public class RouteTemplateDefinition extends OptionalIdentifiedDefinition {
         copy.setDelayer(route.getDelayer());
         copy.setGroup(route.getGroup());
         copy.setInheritErrorHandler(route.isInheritErrorHandler());
-        copy.setInput(route.getInput());
+        // make a defensive copy of the input as input can be adviced during testing or other changes
+        copy.setInput(route.getInput().copy());
         copy.setInputType(route.getInputType());
         copy.setLogMask(route.getLogMask());
         copy.setMessageHistory(route.getMessageHistory());
         copy.setOutputType(route.getOutputType());
-        copy.setOutputs(route.getOutputs());
-        copy.setRoutePolicies(route.getRoutePolicies());
+        copy.setOutputs(copy(route.getOutputs()));
+        copy.setRoutePolicies(shallowCopy(route.getRoutePolicies()));
         copy.setRoutePolicyRef(route.getRoutePolicyRef());
-        copy.setRouteProperties(route.getRouteProperties());
+        copy.setRouteProperties(shallowCopy(route.getRouteProperties()));
         copy.setShutdownRoute(route.getShutdownRoute());
         copy.setShutdownRunningTask(route.getShutdownRunningTask());
         copy.setStartupOrder(route.getStartupOrder());
@@ -418,6 +434,28 @@ public class RouteTemplateDefinition extends OptionalIdentifiedDefinition {
             copy.setDescription(getDescription());
         }
         copy.setPrecondition(route.getPrecondition());
+        copy.setRouteConfigurationId(route.getRouteConfigurationId());
+        copy.setTemplateParameters(shallowCopy(route.getTemplateParameters()));
+        return copy;
+    }
+
+    private <T> List<T> shallowCopy(List<T> list) {
+        return (list != null) ? new ArrayList<>(list) : null;
+    }
+
+    private <K, V> Map<K, V> shallowCopy(Map<K, V> map) {
+        return (map != null) ? new HashMap<>(map) : null;
+    }
+
+    private List<ProcessorDefinition<?>> copy(List<ProcessorDefinition<?>> outputs) {
+        var copy = new ArrayList<ProcessorDefinition<?>>();
+        for (var definition : outputs) {
+            if (definition instanceof Copyable copyableDefinition) {
+                copy.add(copyableDefinition.copy());
+            } else {
+                copy.add(definition);
+            }
+        }
         return copy;
     }
 

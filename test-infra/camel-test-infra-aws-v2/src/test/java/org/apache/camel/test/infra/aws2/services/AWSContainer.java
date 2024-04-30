@@ -24,6 +24,7 @@ import java.util.stream.Collectors;
 
 import org.apache.camel.test.infra.aws.common.AWSProperties;
 import org.apache.camel.test.infra.aws2.common.TestAWSCredentialsProvider;
+import org.apache.camel.test.infra.common.LocalPropertyResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
@@ -36,13 +37,14 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
  behave as in runtime.
  */
 public class AWSContainer extends GenericContainer<AWSContainer> {
-    public static final String LOCALSTACK_CONTAINER = "localstack/localstack:0.14.1";
 
     private static final Logger LOG = LoggerFactory.getLogger(AWSLocalContainerService.class);
     private static final int SERVICE_PORT = 4566;
 
     public AWSContainer() {
-        this(System.getProperty(AWSProperties.AWS_CONTAINER, LOCALSTACK_CONTAINER));
+        this(LocalPropertyResolver.getProperty(
+                AWSContainer.class,
+                AWSProperties.AWS_CONTAINER));
     }
 
     public AWSContainer(String imageName) {
@@ -79,8 +81,8 @@ public class AWSContainer extends GenericContainer<AWSContainer> {
     }
 
     protected void setupContainer() {
-        withExposedPorts(SERVICE_PORT);
-        waitingFor(Wait.forLogMessage(".*Ready\\.\n", 1));
+        withExposedPorts(SERVICE_PORT)
+                .waitingFor(Wait.forLogMessage(".*Ready\\.\n", 1));
     }
 
     public AwsCredentialsProvider getCredentialsProvider() {
@@ -88,12 +90,12 @@ public class AWSContainer extends GenericContainer<AWSContainer> {
     }
 
     protected String getAmazonHost() {
-        return getContainerIpAddress() + ":" + getMappedPort(SERVICE_PORT);
+        return getHost() + ":" + getMappedPort(SERVICE_PORT);
     }
 
     public URI getServiceEndpoint() {
         try {
-            String address = String.format("http://%s:%d", getContainerIpAddress(), getMappedPort(SERVICE_PORT));
+            String address = String.format("http://%s:%d", getHost(), getMappedPort(SERVICE_PORT));
             LOG.debug("Running on service endpoint: {}", address);
 
             return new URI(address);

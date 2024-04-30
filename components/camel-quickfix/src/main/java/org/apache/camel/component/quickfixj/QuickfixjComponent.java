@@ -92,7 +92,6 @@ public class QuickfixjComponent extends DefaultComponent implements StartupListe
                         lazyCreateEngineForEndpoint = isLazyCreateEngines();
                     }
                     engine = new QuickfixjEngine(
-                            getCamelContext(),
                             uri, settings, messageStoreFactory, logFactory, messageFactory,
                             lazyCreateEngineForEndpoint);
 
@@ -116,12 +115,6 @@ public class QuickfixjComponent extends DefaultComponent implements StartupListe
 
             return endpoint;
         }
-    }
-
-    @Override
-    protected void doStart() throws Exception {
-        super.doStart();
-        // we defer starting quickfix engines till the onCamelContextStarted callback
     }
 
     @Override

@@ -30,6 +30,8 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.PodListBuilder;
+import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
+import io.fabric8.kubernetes.client.RequestConfig;
 import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
 import io.fabric8.mockwebserver.utils.ResponseProvider;
 import okhttp3.Headers;
@@ -74,6 +76,16 @@ public class LockTestServer<T extends HasMetadata> extends KubernetesMockServer 
 
     }
 
+    @Override
+    public NamespacedKubernetesClient createClient() {
+        // Avoid exponential retry backoff from slowing down tests
+        NamespacedKubernetesClient namespacedKubernetesClient = super.createClient();
+        RequestConfig requestConfig = namespacedKubernetesClient.getConfiguration().getRequestConfig();
+        requestConfig.setRequestRetryBackoffInterval(1000);
+        requestConfig.setRequestRetryBackoffLimit(0);
+        return namespacedKubernetesClient;
+    }
+
     public void addSimulator(ResourceLockSimulator<?> paramLockSimulator) {
         ResourceLockSimulator<T> lockSimulator = (ResourceLockSimulator<T>) paramLockSimulator;
         if (this.simulators.containsKey(lockSimulator.getResourceName())) {
@@ -112,6 +124,10 @@ public class LockTestServer<T extends HasMetadata> extends KubernetesMockServer 
                                     || !lockSimulator.getResourceName().equals(resource.getMetadata().getName())) {
                                 LOG.error("Illegal resource received");
                                 return 500;
+                            }
+
+                            if (resource.getMetadata().getNamespace() == null) {
+                                resource.getMetadata().setNamespace("test");
                             }
 
                             boolean done = lockSimulator.setResource(resource, true);

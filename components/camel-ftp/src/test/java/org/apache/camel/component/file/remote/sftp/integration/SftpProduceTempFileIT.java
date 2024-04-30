@@ -26,7 +26,7 @@ import org.junit.jupiter.api.condition.EnabledIf;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@EnabledIf(value = "org.apache.camel.component.file.remote.services.SftpEmbeddedService#hasRequiredAlgorithms")
+@EnabledIf(value = "org.apache.camel.test.infra.ftp.services.embedded.SftpUtil#hasRequiredAlgorithms('src/test/resources/hostkey.pem')")
 public class SftpProduceTempFileIT extends SftpServerTestSupport {
 
     @Test
@@ -44,7 +44,8 @@ public class SftpProduceTempFileIT extends SftpServerTestSupport {
     @Test
     public void testSftpTempFileNoStartingPath() {
         template.sendBodyAndHeader(
-                "sftp://localhost:{{ftp.server.port}}/?username=admin&password=admin&tempFileName=temp-${file:name}",
+                "sftp://localhost:{{ftp.server.port}}/?username=admin&password=admin&tempFileName=temp-${file:name}"
+                                   + "&knownHostsFile=" + service.getKnownHostsFile(),
                 "Hello World", Exchange.FILE_NAME,
                 "hello.txt");
 

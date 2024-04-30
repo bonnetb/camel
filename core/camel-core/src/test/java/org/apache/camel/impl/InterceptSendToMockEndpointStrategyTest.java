@@ -17,7 +17,6 @@
 package org.apache.camel.impl;
 
 import org.apache.camel.ContextTestSupport;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.InterceptSendToMockEndpointStrategy;
 import org.junit.jupiter.api.Test;
@@ -29,10 +28,10 @@ public class InterceptSendToMockEndpointStrategyTest extends ContextTestSupport 
 
     @Test
     public void testAdvisedMockEndpoints() throws Exception {
-        context.adapt(ExtendedCamelContext.class).registerEndpointCallback(new InterceptSendToMockEndpointStrategy());
+        context.getCamelContextExtension().registerEndpointCallback(new InterceptSendToMockEndpointStrategy());
         context.addRoutes(new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:start").to("direct:foo").to("log:foo").to("mock:result");
 
                 from("direct:foo").transform(constant("Bye World"));
@@ -62,10 +61,10 @@ public class InterceptSendToMockEndpointStrategyTest extends ContextTestSupport 
 
     @Test
     public void testAdvisedMockEndpointsWithPattern() throws Exception {
-        context.adapt(ExtendedCamelContext.class).registerEndpointCallback(new InterceptSendToMockEndpointStrategy("log*"));
+        context.getCamelContextExtension().registerEndpointCallback(new InterceptSendToMockEndpointStrategy("log*"));
         context.addRoutes(new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:start").to("direct:foo").to("log:foo").to("mock:result");
 
                 from("direct:foo").transform(constant("Bye World"));

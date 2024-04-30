@@ -18,16 +18,16 @@ package org.apache.camel.impl;
 
 import java.net.URL;
 
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.Unmarshaller;
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBException;
+import jakarta.xml.bind.Unmarshaller;
 
 import org.apache.camel.ContextTestSupport;
 import org.apache.camel.Exchange;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.Processor;
 import org.apache.camel.model.ProcessorDefinition;
 import org.apache.camel.model.RouteDefinition;
+import org.apache.camel.support.PluginHelper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -41,7 +41,7 @@ public class CamelContextAddRouteDefinitionsFromXmlTest extends ContextTestSuppo
     @BeforeEach
     public void setUp() throws Exception {
         super.setUp();
-        jaxbContext = (JAXBContext) context.adapt(ExtendedCamelContext.class).getModelJAXBContextFactory().newJAXBContext();
+        jaxbContext = (JAXBContext) PluginHelper.getModelJAXBContextFactory(context).newJAXBContext();
     }
 
     protected Object parseUri(String uri) throws JAXBException {
@@ -127,7 +127,6 @@ public class CamelContextAddRouteDefinitionsFromXmlTest extends ContextTestSuppo
         assertTrue(context.getRouteController().getRouteStatus("foo").isStarted(), "Route should be started");
 
         // should be prepared, check parents has been set
-        assertNotNull("Parent should be set on outputs");
         route = context.getRouteDefinition("foo");
         for (ProcessorDefinition<?> output : route.getOutputs()) {
             assertNotNull(output.getParent(), "Parent should be set on output");
@@ -148,7 +147,7 @@ public class CamelContextAddRouteDefinitionsFromXmlTest extends ContextTestSuppo
         assertTrue(context.getRouteController().getRouteStatus("foo").isStarted(), "Route should be started");
 
         getMockEndpoint("mock:foo").whenExchangeReceived(2, new Processor() {
-            public void process(Exchange exchange) throws Exception {
+            public void process(Exchange exchange) {
                 exchange.setException(new IllegalArgumentException("Damn"));
             }
         });

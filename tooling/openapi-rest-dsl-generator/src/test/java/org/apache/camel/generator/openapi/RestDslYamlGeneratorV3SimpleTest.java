@@ -22,12 +22,11 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.apicurio.datamodels.Library;
-import io.apicurio.datamodels.openapi.models.OasDocument;
+import io.apicurio.datamodels.models.openapi.OpenApiDocument;
 import org.apache.camel.CamelContext;
 import org.apache.camel.impl.DefaultCamelContext;
+import org.apache.camel.util.IOHelper;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -35,14 +34,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class RestDslYamlGeneratorV3SimpleTest {
 
-    static OasDocument document;
+    static OpenApiDocument document;
 
     @BeforeAll
     public static void readOpenApiDoc() throws Exception {
-        final ObjectMapper mapper = new ObjectMapper();
         try (InputStream is = RestDslYamlGeneratorV3SimpleTest.class.getResourceAsStream("openapi-spec-simple.json")) {
-            final JsonNode node = mapper.readTree(is);
-            document = (OasDocument) Library.readDocument(node);
+            String json = IOHelper.loadText(is);
+            document = (OpenApiDocument) Library.readDocumentFromJSONString(json);
         }
     }
 
@@ -51,7 +49,7 @@ public class RestDslYamlGeneratorV3SimpleTest {
         final CamelContext context = new DefaultCamelContext();
 
         final String yaml = RestDslGenerator.toYaml(document).generate(context);
-        final URI file = RestDslGeneratorTest.class.getResource("/OpenApiV3PetstoreSimpleYaml.txt").toURI();
+        final URI file = RestDslXmlGeneratorV3Test.class.getResource("/OpenApiV3PetstoreSimpleYaml.txt").toURI();
         final String expectedContent = new String(Files.readAllBytes(Paths.get(file)), StandardCharsets.UTF_8);
 
         assertThat(yaml).isEqualTo(expectedContent);

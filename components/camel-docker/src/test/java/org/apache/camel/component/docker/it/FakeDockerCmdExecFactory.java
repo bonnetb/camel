@@ -16,8 +16,6 @@
  */
 package org.apache.camel.component.docker.it;
 
-import java.io.IOException;
-
 import com.github.dockerjava.api.command.AttachContainerCmd;
 import com.github.dockerjava.api.command.AuthCmd;
 import com.github.dockerjava.api.command.BuildImageCmd;
@@ -62,6 +60,7 @@ import com.github.dockerjava.api.command.ListServicesCmd;
 import com.github.dockerjava.api.command.ListSwarmNodesCmd;
 import com.github.dockerjava.api.command.ListTasksCmd;
 import com.github.dockerjava.api.command.ListVolumesCmd;
+import com.github.dockerjava.api.command.LoadImageAsyncCmd;
 import com.github.dockerjava.api.command.LoadImageCmd;
 import com.github.dockerjava.api.command.LogContainerCmd;
 import com.github.dockerjava.api.command.LogSwarmObjectCmd;
@@ -163,6 +162,11 @@ public class FakeDockerCmdExecFactory implements DockerCmdExecFactory {
 
     @Override
     public LoadImageCmd.Exec createLoadImageCmdExec() {
+        return null;
+    }
+
+    @Override
+    public LoadImageAsyncCmd.Exec createLoadImageAsyncCmdExec() {
         return null;
     }
 
@@ -452,7 +456,7 @@ public class FakeDockerCmdExecFactory implements DockerCmdExecFactory {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         // Noop
     }
 

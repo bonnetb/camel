@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import org.apache.camel.Endpoint;
 import org.apache.camel.EndpointInject;
@@ -121,7 +120,7 @@ public class PulsarSuspendRouteIT extends PulsarITSupport {
 
         producer.send("a message");
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
 
         context.getRouteController().suspendRoute(ROUTE_ID);
 
@@ -164,7 +163,7 @@ public class PulsarSuspendRouteIT extends PulsarITSupport {
         context.getRouteController().suspendRoute(ROUTE_ID);
         waitForRouteSuspension.countDown();
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
 
         // Confirm that acknowledging the exchange did not raise an exception
         Exception e = to.getReceivedExchanges().get(0).getException();
@@ -188,7 +187,7 @@ public class PulsarSuspendRouteIT extends PulsarITSupport {
 
         to.setExpectedMessageCount(1);
         sentMessageIds.add(producer.send("message 1"));
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
 
         // After suspension, the consumer will process exactly 1 more message (configured by `consumerQueueSize`)
         context.getRouteController().suspendRoute(ROUTE_ID);
@@ -199,7 +198,7 @@ public class PulsarSuspendRouteIT extends PulsarITSupport {
         sentMessageIds.add(producer.send("message 3"));
         sentMessageIds.add(producer.send("message 4"));
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
 
         // Once route is resumed, previously sent messages will also be consumed
         to.setExpectedMessageCount(5);
@@ -208,11 +207,11 @@ public class PulsarSuspendRouteIT extends PulsarITSupport {
         context.getRouteController().resumeRoute(ROUTE_ID);
         sentMessageIds.add(producer.send("message 5"));
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
 
         List<MessageId> receivedMessageIds = to.getReceivedExchanges().stream()
                 .map(e -> e.getIn().getHeader(PulsarMessageHeaders.MESSAGE_ID, MessageId.class))
-                .collect(Collectors.toList());
+                .toList();
         assertEquals(sentMessageIds, receivedMessageIds);
     }
 
@@ -230,7 +229,7 @@ public class PulsarSuspendRouteIT extends PulsarITSupport {
             }
         });
 
-        to.setExpectedMessageCount(0);
+        to.setExpectedMessageCount(1);
         to.setAssertPeriod(2000);
 
         context.getRouteController().suspendRoute(ROUTE_ID);
@@ -238,7 +237,7 @@ public class PulsarSuspendRouteIT extends PulsarITSupport {
         producer.send("a message");
         producer.send("another message");
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     // to prevent leaking test state

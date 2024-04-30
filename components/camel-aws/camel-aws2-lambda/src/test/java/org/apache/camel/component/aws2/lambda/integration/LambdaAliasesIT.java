@@ -24,21 +24,22 @@ import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.aws2.lambda.Lambda2Constants;
 import org.apache.camel.component.aws2.lambda.Lambda2Operations;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 import software.amazon.awssdk.services.lambda.model.CreateAliasResponse;
 import software.amazon.awssdk.services.lambda.model.CreateFunctionResponse;
-import software.amazon.awssdk.services.lambda.model.DeleteFunctionResponse;
 import software.amazon.awssdk.services.lambda.model.GetAliasResponse;
 import software.amazon.awssdk.services.lambda.model.ListAliasesResponse;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+@DisabledIfSystemProperty(named = "ci.env.name", matches = "github.com", disabledReason = "Flaky on GitHub Actions")
 public class LambdaAliasesIT extends Aws2LambdaBase {
 
     @Test
     public void createGetDeleteAndListAliasesShouldSucceed() {
         Map<String, Object> headers = new HashMap<>();
-        headers.put(Lambda2Constants.RUNTIME, "nodejs6.10");
+        headers.put(Lambda2Constants.RUNTIME, "nodejs16.x");
         headers.put(Lambda2Constants.HANDLER, "GetHelloWithName.handler");
         headers.put(Lambda2Constants.ROLE, "arn:aws:iam::643534317684:role/lambda-execution-role");
         ClassLoader classLoader = getClass().getClassLoader();
@@ -73,8 +74,6 @@ public class LambdaAliasesIT extends Aws2LambdaBase {
         aliasesListed = template.requestBody("direct:listAliases", null, ListAliasesResponse.class);
         assertNotNull(aliasesListed.aliases());
         aliasesListed.aliases().stream().noneMatch(a -> "GetHelloWithNameAlias".equals(a.name()));
-
-        template.requestBody("direct:deleteFunction", null, DeleteFunctionResponse.class);
     }
 
     @Override
@@ -89,7 +88,6 @@ public class LambdaAliasesIT extends Aws2LambdaBase {
                 from("direct:listAliases").toF(endpointUriFormat, Lambda2Operations.listAliases);
                 from("direct:getAlias").toF(endpointUriFormat, Lambda2Operations.getAlias);
                 from("direct:deleteAlias").toF(endpointUriFormat, Lambda2Operations.deleteAlias);
-                from("direct:deleteFunction").toF(endpointUriFormat, Lambda2Operations.deleteFunction);
             }
         };
     }

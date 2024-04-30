@@ -23,14 +23,14 @@
     <parent>
         <groupId>org.apache.camel</groupId>
         <artifactId>camel-aws-parent</artifactId>
-        <version>3.17.0-SNAPSHOT</version>
+        <version>4.6.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>camel-aws-xray</artifactId>
     <packaging>jar</packaging>
 
     <name>Camel :: AWS :: XRay</name>
-    <description>Distributed tracing using AWS XRay</description>
+    <description>Enable Distributed tracing using AWS XRay</description>
 
     <properties>
         <firstVersion>2.21.0</firstVersion>
@@ -85,6 +85,7 @@
         <dependency>
             <groupId>org.hamcrest</groupId>
             <artifactId>hamcrest</artifactId>
+            <version>${hamcrest-version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -95,12 +96,12 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
-            <version>${commons-lang3-version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-slf4j-impl</artifactId>
+            <groupId>org.awaitility</groupId>
+            <artifactId>awaitility</artifactId>
+            <version>${awaitility-version}</version>
             <scope>test</scope>
         </dependency>
 

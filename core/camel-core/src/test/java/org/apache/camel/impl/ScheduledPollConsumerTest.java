@@ -16,6 +16,8 @@
  */
 package org.apache.camel.impl;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.apache.camel.Consumer;
 import org.apache.camel.ContextTestSupport;
 import org.apache.camel.Endpoint;
@@ -23,16 +25,16 @@ import org.apache.camel.spi.PollingConsumerPollStrategy;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ScheduledPollConsumerTest extends ContextTestSupport {
 
     private static boolean rollback;
-    private static int counter;
     private static String event = "";
 
     @Test
-    public void testExceptionOnPollAndCanStartAgain() throws Exception {
-
+    public void testExceptionOnPollAndCanStartAgain() {
         final Exception expectedException = new Exception("Hello, I should be thrown on shutdown only!");
         final Endpoint endpoint = getMockEndpoint("mock:foo");
         MockScheduledPollConsumer consumer = new MockScheduledPollConsumer(endpoint, expectedException);
@@ -45,7 +47,7 @@ public class ScheduledPollConsumerTest extends ContextTestSupport {
             public void commit(Consumer consumer, Endpoint endpoint, int polledMessages) {
             }
 
-            public boolean rollback(Consumer consumer, Endpoint endpoint, int retryCounter, Exception e) throws Exception {
+            public boolean rollback(Consumer consumer, Endpoint endpoint, int retryCounter, Exception e) {
                 if (e == expectedException) {
                     rollback = true;
                 }
@@ -58,7 +60,7 @@ public class ScheduledPollConsumerTest extends ContextTestSupport {
         consumer.run();
         consumer.stop();
 
-        assertEquals(true, rollback, "Should have rollback");
+        assertTrue(rollback, "Should have rollback");
 
         // prepare for 2nd run but this time it should not thrown an exception
         // on poll
@@ -70,12 +72,12 @@ public class ScheduledPollConsumerTest extends ContextTestSupport {
         // should be able to stop with no problem
         consumer.stop();
 
-        assertEquals(false, rollback, "Should not have rollback");
+        assertFalse(rollback, "Should not have rollback");
     }
 
     @Test
-    public void testRetryAtMostThreeTimes() throws Exception {
-        counter = 0;
+    public void testRetryAtMostThreeTimes() {
+        final AtomicInteger counter = new AtomicInteger();
         event = "";
 
         final Exception expectedException = new Exception("Hello, I should be thrown on shutdown only!");
@@ -91,10 +93,10 @@ public class ScheduledPollConsumerTest extends ContextTestSupport {
                 event += "commit";
             }
 
-            public boolean rollback(Consumer consumer, Endpoint endpoint, int retryCounter, Exception e) throws Exception {
+            public boolean rollback(Consumer consumer, Endpoint endpoint, int retryCounter, Exception e) {
                 event += "rollback";
-                counter++;
-                if (retryCounter < 3) {
+                int cnt = counter.incrementAndGet();
+                if (cnt <= 3) {
                     return true;
                 }
                 return false;
@@ -109,12 +111,12 @@ public class ScheduledPollConsumerTest extends ContextTestSupport {
         consumer.stop();
 
         // 3 retries + 1 last failed attempt when we give up
-        assertEquals(4, counter);
+        assertEquals(4, counter.get());
         assertEquals("rollbackrollbackrollbackrollback", event);
     }
 
     @Test
-    public void testNoExceptionOnPoll() throws Exception {
+    public void testNoExceptionOnPoll() {
         final Endpoint endpoint = getMockEndpoint("mock:foo");
         MockScheduledPollConsumer consumer = new MockScheduledPollConsumer(endpoint, null);
         consumer.start();

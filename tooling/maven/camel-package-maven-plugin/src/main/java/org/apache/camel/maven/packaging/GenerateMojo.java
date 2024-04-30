@@ -32,7 +32,7 @@ public class GenerateMojo extends AbstractGenerateMojo {
     protected void doExecute() throws MojoFailureException, MojoExecutionException {
         // jandex
         invoke(PackageJandexMojo.class);
-        // generate-schema
+        // generate model json schema
         invoke(SchemaGeneratorMojo.class);
         // generate-type-converter-loader
         invoke(TypeConverterLoaderGeneratorMojo.class);
@@ -50,6 +50,12 @@ public class GenerateMojo extends AbstractGenerateMojo {
         invoke(GenerateConfigurerMojo.class);
         // generate invoke-on-header
         invoke(GenerateInvokeOnHeaderMojo.class);
+        // generate data-type-transformer
+        invoke(GenerateDataTypeTransformerMojo.class);
+        // generate pojo-beans
+        invoke(GeneratePojoBeanMojo.class);
+        // generate dev-console
+        invoke(GenerateDevConsoleMojo.class);
         // prepare-components
         invoke(PrepareComponentMojo.class);
         // prepare-main
@@ -64,6 +70,8 @@ public class GenerateMojo extends AbstractGenerateMojo {
         invoke(ValidateComponentMojo.class);
         // update-readme
         invoke(UpdateReadmeMojo.class);
+        // santity-check
+        invoke(SanityCheckGeneratedClassesMojo.class);
     }
 
 }

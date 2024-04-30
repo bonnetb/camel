@@ -50,7 +50,7 @@ public class Lambda2ClientOptimizedImpl implements Lambda2InternalClient {
 
     /**
      * Getting the Lambda aws client that is used.
-     * 
+     *
      * @return Lambda Client.
      */
     @Override
@@ -74,13 +74,18 @@ public class Lambda2ClientOptimizedImpl implements Lambda2InternalClient {
             clientBuilder.endpointOverride(URI.create(configuration.getUriEndpointOverride()));
         }
         if (configuration.isTrustAllCertificates()) {
-            SdkHttpClient ahc = ApacheHttpClient.builder().buildWithDefaults(AttributeMap
+            if (httpClientBuilder == null) {
+                httpClientBuilder = ApacheHttpClient.builder();
+            }
+            SdkHttpClient ahc = httpClientBuilder.buildWithDefaults(AttributeMap
                     .builder()
                     .put(
                             SdkHttpConfigurationOption.TRUST_ALL_CERTIFICATES,
                             Boolean.TRUE)
                     .build());
+            // set created http client to use instead of builder
             clientBuilder.httpClient(ahc);
+            clientBuilder.httpClientBuilder(null);
         }
         client = clientBuilder.build();
         return client;

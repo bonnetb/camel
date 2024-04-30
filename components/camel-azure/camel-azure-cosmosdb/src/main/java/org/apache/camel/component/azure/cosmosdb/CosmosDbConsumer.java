@@ -22,7 +22,6 @@ import java.util.Map;
 import com.azure.cosmos.ChangeFeedProcessor;
 import com.azure.cosmos.implementation.apachecommons.lang.RandomStringUtils;
 import org.apache.camel.Exchange;
-import org.apache.camel.ExtendedExchange;
 import org.apache.camel.Message;
 import org.apache.camel.Processor;
 import org.apache.camel.component.azure.cosmosdb.client.CosmosAsyncClientWrapper;
@@ -83,20 +82,20 @@ public class CosmosDbConsumer extends DefaultConsumer {
         return (CosmosDbEndpoint) super.getEndpoint();
     }
 
-    private void onEventListener(final List<Map<String, ?>> record) {
-        final Exchange exchange = createAzureCosmosDbExchange(record);
+    private void onEventListener(final List<Map<String, ?>> recordList) {
+        final Exchange exchange = createAzureCosmosDbExchange(recordList);
 
         // add exchange callback
-        exchange.adapt(ExtendedExchange.class).addOnCompletion(onCompletion);
+        exchange.getExchangeExtension().addOnCompletion(onCompletion);
         // use default consumer callback
         getAsyncProcessor().process(exchange, EmptyAsyncCallback.get());
     }
 
-    private Exchange createAzureCosmosDbExchange(final List<Map<String, ?>> record) {
+    private Exchange createAzureCosmosDbExchange(final List<Map<String, ?>> recordList) {
         final Exchange exchange = createExchange(true);
         final Message message = exchange.getIn();
 
-        message.setBody(record);
+        message.setBody(recordList);
 
         return exchange;
     }

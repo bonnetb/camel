@@ -5,6 +5,7 @@
 :description: Call another endpoint from the same Camel Context synchronously.
 :since: 1.0
 :supportlevel: Stable
+:tabs-sync-option:
 :component-header: Both producer and consumer are supported
 :core:
 //Manually maintained attributes
@@ -15,8 +16,8 @@
 *{component-header}*
 
 The Direct component provides direct, synchronous invocation of any
-consumers when a producer sends a message exchange. +
- This endpoint can be used to connect existing routes in the *same*
+consumers when a producer sends a message exchange.
+This endpoint can be used to connect existing routes in the *same*
 camel context.
 
 [TIP]
@@ -27,22 +28,14 @@ The xref:seda-component.adoc[SEDA] component provides asynchronous invocation of
 any consumers when a producer sends a message exchange.
 ====
 
-[TIP]
-====
-*Connection to other camel contexts*
-
-The xref:vm-component.adoc[VM] component provides connections between Camel
-contexts as long they run in the same *JVM*.
-====
-
 == URI format
 
 [source]
 ----
-direct:someName[?options]
+direct:someId[?options]
 ----
 
-Where *someName* can be any string to uniquely identify the endpoint
+Where _someId_ can be any string to uniquely identify the endpoint.
 
 
 // component-configure options: START
@@ -61,9 +54,12 @@ include::partial$component-endpoint-options.adoc[]
 
 == Samples
 
-In the route below we use the direct component to link the two routes
-together:
+In the route below, we use the direct component to link the two routes together:
 
+[tabs]
+====
+Java::
++
 [source,java]
 ----
 from("activemq:queue:order.in")
@@ -75,8 +71,8 @@ from("direct:processOrder")
     .to("activemq:queue:order.out");
 ----
 
-And the sample using spring DSL:
-
+Spring XML::
++
 [source,xml]
 ----
 <route>
@@ -92,8 +88,9 @@ And the sample using spring DSL:
 </route>
 ----
 
-See also samples from the xref:seda-component.adoc[SEDA] component, how they can
-be used together.
+====
+
+See also samples from the xref:seda-component.adoc[SEDA] component, how they can be used together.
 
 
 

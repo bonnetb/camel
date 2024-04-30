@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
@@ -40,14 +41,14 @@ public class IOHelperTest {
     public void testIOException() {
         IOException io = new IOException("Damn", new IllegalArgumentException("Damn"));
         assertEquals("Damn", io.getMessage());
-        assertTrue(io.getCause() instanceof IllegalArgumentException);
+        assertInstanceOf(IllegalArgumentException.class, io.getCause());
     }
 
     @Test
     public void testIOExceptionWithMessage() {
         IOException io = new IOException("Not again", new IllegalArgumentException("Damn"));
         assertEquals("Not again", io.getMessage());
-        assertTrue(io.getCause() instanceof IllegalArgumentException);
+        assertInstanceOf(IllegalArgumentException.class, io.getCause());
     }
 
     @Test
@@ -58,7 +59,7 @@ public class IOHelperTest {
     }
 
     @Test
-    public void testCharsetNormalize() throws Exception {
+    public void testCharsetNormalize() {
         assertEquals("UTF-8", IOHelper.normalizeCharset("'UTF-8'"));
         assertEquals("UTF-8", IOHelper.normalizeCharset("\"UTF-8\""));
         assertEquals("UTF-8", IOHelper.normalizeCharset("\"UTF-8 \""));
@@ -103,7 +104,7 @@ public class IOHelperTest {
     }
 
     @Test
-    public void testCharsetName() throws Exception {
+    public void testCharsetName() {
         Exchange exchange = new DefaultExchange(new DefaultCamelContext());
 
         assertNull(ExchangeHelper.getCharsetName(exchange, false));
@@ -118,11 +119,28 @@ public class IOHelperTest {
     }
 
     @Test
-    public void testGetCharsetNameFromContentType() throws Exception {
+    public void testGetCharsetNameFromContentType() {
         String charsetName = IOHelper.getCharsetNameFromContentType("text/html; charset=iso-8859-1");
         assertEquals("iso-8859-1", charsetName);
 
         charsetName = IOHelper.getCharsetNameFromContentType("text/html");
         assertEquals("UTF-8", charsetName);
     }
+
+    @Test
+    public void testCharset() {
+        Exchange exchange = new DefaultExchange(new DefaultCamelContext());
+
+        assertNull(ExchangeHelper.getCharset(exchange, false));
+
+        exchange.getIn().setHeader(Exchange.CHARSET_NAME, "iso-8859-1");
+        Charset cs = ExchangeHelper.getCharset(exchange, false);
+        assertEquals("ISO-8859-1", cs.name());
+
+        exchange.getIn().removeHeader(Exchange.CHARSET_NAME);
+        exchange.setProperty(Exchange.CHARSET_NAME, "iso-8859-1");
+        cs = ExchangeHelper.getCharset(exchange, false);
+        assertEquals("ISO-8859-1", cs.name());
+    }
+
 }

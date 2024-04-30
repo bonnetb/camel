@@ -18,7 +18,6 @@ package org.apache.camel.issues;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.ContextTestSupport;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.builder.DeadLetterChannelBuilder;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.impl.DefaultCamelContext;
@@ -52,16 +51,16 @@ public class RouteScopedOnExceptionMultipleRouteBuildersTest extends ContextTest
 
     @Override
     protected CamelContext createCamelContext() throws Exception {
-        CamelContext context = new DefaultCamelContext(createRegistry());
-        context.adapt(ExtendedCamelContext.class).setErrorHandlerFactory(new DeadLetterChannelBuilder("mock:dead"));
+        CamelContext context = new DefaultCamelContext(createCamelRegistry());
+        context.getCamelContextExtension().setErrorHandlerFactory(new DeadLetterChannelBuilder("mock:dead"));
         return context;
     }
 
     @Override
-    protected RouteBuilder[] createRouteBuilders() throws Exception {
+    protected RouteBuilder[] createRouteBuilders() {
         return new RouteBuilder[] { new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:bar").onException(IllegalArgumentException.class).handled(true).to("mock:handled").end()
                         .to("mock:bar")
                         .throwException(new IllegalArgumentException("Damn"));
@@ -69,7 +68,7 @@ public class RouteScopedOnExceptionMultipleRouteBuildersTest extends ContextTest
             }
         }, new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
 
                 from("direct:foo").onException(Exception.class).handled(true).to("mock:exc").end().to("mock:foo")
                         .throwException(new IllegalArgumentException("Damn"));

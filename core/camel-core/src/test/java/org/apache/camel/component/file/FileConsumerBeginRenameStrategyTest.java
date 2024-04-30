@@ -49,12 +49,10 @@ public class FileConsumerBeginRenameStrategyTest extends ContextTestSupport {
     public void testRenameFileExists() throws Exception {
         // create a file in inprogress to let there be a duplicate file
         testDirectory("inprogress", true);
-        FileWriter fw = new FileWriter(testFile("inprogress/london.txt").toFile());
-        try {
+
+        try (FileWriter fw = new FileWriter(testFile("inprogress/london.txt").toFile())) {
             fw.write("I was there once in London");
             fw.flush();
-        } finally {
-            fw.close();
         }
 
         MockEndpoint mock = getMockEndpoint("mock:report");
@@ -66,13 +64,13 @@ public class FileConsumerBeginRenameStrategyTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
-            public void configure() throws Exception {
+            public void configure() {
                 from(fileUri("reports?preMove=../inprogress/${file:name}&initialDelay=0&delay=10"))
                         .process(new Processor() {
                             @SuppressWarnings("unchecked")
-                            public void process(Exchange exchange) throws Exception {
+                            public void process(Exchange exchange) {
                                 GenericFile<File> file
                                         = (GenericFile<File>) exchange.getProperty(FileComponent.FILE_EXCHANGE_FILE);
                                 assertNotNull(file);

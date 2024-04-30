@@ -5,6 +5,7 @@
 :description: Stitch is a cloud ETL service that integrates various data sources into a central data warehouse through various integrations.
 :since: 3.8
 :supportlevel: Stable
+:tabs-sync-option:
 :component-header: Only producer is supported
 //Manually maintained attributes
 :camel-spring-boot-name: stitch
@@ -13,7 +14,7 @@
 
 *{component-header}*
 
-Stitch is a cloud ETL service, developer-focused platform for rapidly moving and replicates data from more than 90
+Stitch is a cloud ETL service, a developer-focused platform for rapidly moving and replicates data from more than 90
 applications and databases. It integrates various data sources into a central data warehouse. Stitch has integrations
 for many enterprise software data sources, and can receive data via WebHooks and an API (Stitch Import API) which
 Camel Stitch Component uses to produce the data to Stitch ETL.
@@ -45,9 +46,6 @@ for this component:
 stitch:[tableName]//[?options]
 ------------------------------
 
-
-
-
 // component-configure options: START
 
 // component-configure options: END
@@ -60,7 +58,9 @@ include::partial$component-endpoint-options.adoc[]
 // endpoint options: START
 
 // endpoint options: END
-
+// component headers: START
+include::partial$component-endpoint-headers.adoc[]
+// component headers: END
 
 == Async Producer
 
@@ -70,7 +70,7 @@ This allows camel route to consume and produce events asynchronously without blo
 
 == Usage
 
-For example in order to produce data to Stitch from a custom processor:
+For example, to produce data to Stitch from a custom processor:
 
 [source,java]
 --------------------------------------------------------------------------------
@@ -92,30 +92,6 @@ from("direct:sendStitch")
 .to("stitch:table_1?token=RAW({{token}})");
 --------------------------------------------------------------------------------
 
-=== Message headers evaluated by the component producer
-Before sending a message to Stitch component you can configure the following headers.
-
-[width="100%",cols="10%,10%,10%,70%",options="header",]
-|=======================================================================
-|Header |Variable Name |Type |Description
-
-|`CamelStitchTableName`| `StitchConstants.TABLE_NAME`|`String`| The name of the destination table the data is being pushed to. Table names must be unique in each destination schema, or loading issues will occur. Note: The number of characters in the table name should be within the destinations allowed limits or data will rejected.
-|`CamelStitchSchema`| `StitchConstants.SCHEMA`|`StitchSchema`| The schema that describes the Stitch message of type `org.apache.camel.component.stitch.client.models.StitchSchema`
-|`CamelStitchKeyNames`| `StitchConstants.KEY_NAMES`|`Collection<String>`| A collection of strings representing the Primary Key fields in the source table. Stitch use these Primary Keys to de-dupe data during loading If not provided, the table will be loaded in an append-only manner.
-|=======================================================================
-
-=== Message headers set by the component producer
-After the message is sent to Stitch, the following headers are available
-
-[width="100%",cols="10%,10%,10%,70%",options="header",]
-|=======================================================================
-|Header |Variable Name |Type |Description
-
-|`CamelStitchCode`| `StitchConstants.CODE`|`Integer`| HTTP Status code that is returned from Stitch Import HTTP API.
-|`CamelStitchHeaders`| `StitchConstants.HEADERS`|`Map`| HTTP headers that are returned from Stitch Import HTTP API.
-|`CamelStitchStatus`| `StitchConstants.STATUS`|`String`| The status message that Stitch returns after sending the data through Stitch Import API.
-|=======================================================================
-
 === Message body type
 Currently, the component supports the following types for the body message on the producer side when producing a message to Stitch component:
 
@@ -132,11 +108,9 @@ If you choose to send your message as `StitchMessage`, *you will need* to add `t
 * `Iterable`: You can send multiple Stitch messages that are aggregated by Camel or aggregated through custom processor. These aggregated messages
 can be type of `StitchMessage`, `StitchRequestBody` or `Map` but this Map here is similar to `StitchMessage`.
 
-
-
 === Examples
 
-Here are list of examples of data that can be proceeded to Stitch:
+Here is list of examples of data that can be proceeded to Stitch:
 
 ==== Input body type `org.apache.camel.component.stitch.client.models.StitchRequestBody`:
 [source,java]
@@ -203,8 +177,6 @@ from("direct:sendStitch")
 .to("stitch:table_1?token=RAW({{token}})");
 --------------------------------------------------------------------------------
 
-
-
 ==== Input body type `Iterable`:
 [source,java]
 --------------------------------------------------------------------------------
@@ -260,16 +232,17 @@ from("direct:sendStitch")
 
 === Development Notes (Important)
 
-When developing on this component, you will need to obtain your Stitch token in order to run the integration tests. In addition to the mocked unit tests
+When developing on this component, you will need to obtain your Stitch token to run the integration tests.
+In addition to the mocked unit tests,
 you *will need to run the integration tests with every change you make*
-To run the integration tests, on this component directory, run the following maven command:
+To run the integration tests, in this component directory, run the following maven command:
 
 [source,bash]
 ----
-mvn verify -PfullTests -Dtoken=stitchToken
+mvn verify -Dtoken=stitchToken
 ----
 
-Whereby `token` is your Stitch token that is generated for Stitch Import API integration.
+Whereby `token` is your Stitch token generated for Stitch Import API integration.
 
 
 

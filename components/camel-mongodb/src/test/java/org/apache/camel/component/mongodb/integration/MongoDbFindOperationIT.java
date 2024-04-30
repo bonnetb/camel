@@ -32,6 +32,7 @@ import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mongodb.MongoDbComponent;
 import org.apache.camel.component.mongodb.MongoDbConstants;
 import org.apache.camel.impl.DefaultCamelContext;
+import org.apache.camel.test.infra.mongodb.common.MongoDBProperties;
 import org.apache.camel.test.infra.mongodb.services.MongoDBLocalContainerService;
 import org.apache.camel.test.junit5.CamelTestSupport;
 import org.apache.camel.util.IOHelper;
@@ -39,6 +40,8 @@ import org.apache.commons.lang3.ObjectUtils;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.testcontainers.containers.wait.strategy.Wait;
@@ -47,6 +50,7 @@ import static com.mongodb.client.model.Filters.eq;
 import static org.apache.camel.component.mongodb.MongoDbConstants.MONGO_ID;
 import static org.apache.camel.test.junit5.TestSupport.assertListSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -59,6 +63,8 @@ public class MongoDbFindOperationIT extends CamelTestSupport {
     protected static String dbName = "test";
     protected static String testCollectionName;
 
+    private static String mongoDbContainer;
+
     private static MongoClient mongo;
     private static MongoDatabase db;
     private static MongoCollection<Document> testCollection;
@@ -67,7 +73,9 @@ public class MongoDbFindOperationIT extends CamelTestSupport {
 
         // This one requires Mongo 4.4. This is related to
         // "CAMEL-15604 support allowDiskUse for MongoDB find operations"
-        service = new MongoDBLocalContainerService("mongo:4.4");
+        mongoDbContainer = System.getProperty(MongoDBProperties.MONGODB_CONTAINER, "mongo:4.4");
+
+        service = new MongoDBLocalContainerService(mongoDbContainer);
 
         service.getContainer()
                 .waitingFor(Wait.forListeningPort())
@@ -127,10 +135,13 @@ public class MongoDbFindOperationIT extends CamelTestSupport {
         assertEquals(1000L, testCollection.countDocuments(), "Data pumping of 1000 entries did not complete entirely");
     }
 
+    @BeforeEach
+    void checkDocuments() {
+        Assumptions.assumeTrue(0 == testCollection.countDocuments(), "The collection should have no documents");
+    }
+
     @Test
     public void testFindAllNoCriteriaOperation() {
-        // Test that the collection has 0 documents in it
-        assertEquals(0, testCollection.countDocuments());
         pumpDataIntoTestCollection();
 
         Object result = template.requestBody("direct:findAll", ObjectUtils.NULL);
@@ -159,8 +170,6 @@ public class MongoDbFindOperationIT extends CamelTestSupport {
 
     @Test
     public void testFindAllAllowDiskUse() {
-        // Test that the collection has 0 documents in it
-        assertEquals(0, testCollection.countDocuments());
         pumpDataIntoTestCollection();
 
         Object result
@@ -169,19 +178,17 @@ public class MongoDbFindOperationIT extends CamelTestSupport {
         assertListSize("Result (allowDiskUse=true) does not contain all entries in collection", (List<Document>) result, 1000);
 
         result = template.requestBodyAndHeader("direct:findAll", ObjectUtils.NULL, MongoDbConstants.ALLOW_DISK_USE, false);
-        assertTrue(result instanceof List, "Result (allowDiskUse=false) is not of type List");
+        assertInstanceOf(List.class, result, "Result (allowDiskUse=false) is not of type List");
         assertListSize("Result (allowDiskUse=false) does not contain all entries in collection", (List<Document>) result,
                 1000);
 
         result = template.requestBodyAndHeader("direct:findAll", ObjectUtils.NULL, MongoDbConstants.ALLOW_DISK_USE, null);
-        assertTrue(result instanceof List, "Result (allowDiskUse=null) is not of type List");
+        assertInstanceOf(List.class, result, "Result (allowDiskUse=null) is not of type List");
         assertListSize("Result (allowDiskUse=null) does not contain all entries in collection", (List<Document>) result, 1000);
     }
 
     @Test
     public void testFindAllWithQueryAndNoFIlter() {
-        // Test that the collection has 0 documents in it
-        assertEquals(0, testCollection.countDocuments());
         pumpDataIntoTestCollection();
 
         Object result = template.requestBody("direct:findAll", eq("scientist", "Einstein"));
@@ -208,8 +215,6 @@ public class MongoDbFindOperationIT extends CamelTestSupport {
 
     @Test
     public void testFindAllWithQueryAndFilter() {
-        // Test that the collection has 0 documents in it
-        assertEquals(0, testCollection.countDocuments());
         pumpDataIntoTestCollection();
         Bson fieldFilter = Projections.exclude(MONGO_ID, "fixedField");
         Bson query = eq("scientist", "Einstein");
@@ -237,8 +242,6 @@ public class MongoDbFindOperationIT extends CamelTestSupport {
 
     @Test
     public void testFindAllNoCriteriaWithFilterOperation() {
-        // Test that the collection has 0 documents in it
-        assertEquals(0, testCollection.countDocuments());
         pumpDataIntoTestCollection();
 
         Bson fieldFilter = Projections.exclude(MONGO_ID, "fixedField");
@@ -268,8 +271,6 @@ public class MongoDbFindOperationIT extends CamelTestSupport {
 
     @Test
     public void testFindAllIterationOperation() {
-        // Test that the collection has 0 documents in it
-        assertEquals(0, testCollection.countDocuments());
         pumpDataIntoTestCollection();
 
         // Repeat ten times, obtain 10 batches of 100 results each time
@@ -310,8 +311,6 @@ public class MongoDbFindOperationIT extends CamelTestSupport {
 
     @Test
     public void testFindDistinctNoQuery() {
-        // Test that the collection has 0 documents in it
-        assertEquals(0, testCollection.countDocuments());
         pumpDataIntoTestCollection();
 
         Object result = template.requestBodyAndHeader("direct:findDistinct", null, MongoDbConstants.DISTINCT_QUERY_FIELD,
@@ -325,15 +324,13 @@ public class MongoDbFindOperationIT extends CamelTestSupport {
 
     @Test
     public void testFindDistinctWithQuery() {
-        // Test that the collection has 0 documents in it
-        assertEquals(0, testCollection.countDocuments());
         pumpDataIntoTestCollection();
 
         Bson query = eq("scientist", "Einstein");
 
         Object result = template.requestBodyAndHeader("direct:findDistinct", query, MongoDbConstants.DISTINCT_QUERY_FIELD,
                 "scientist");
-        assertTrue(result instanceof List, "Result is not of type List");
+        assertInstanceOf(List.class, result, "Result is not of type List");
 
         @SuppressWarnings("unchecked")
         List<String> resultList = (List<String>) result;
@@ -344,13 +341,11 @@ public class MongoDbFindOperationIT extends CamelTestSupport {
 
     @Test
     public void testFindOneByQuery() {
-        // Test that the collection has 0 documents in it
-        assertEquals(0, testCollection.countDocuments());
         pumpDataIntoTestCollection();
 
         Bson query = eq("scientist", "Einstein");
         Document result = template.requestBody("direct:findOneByQuery", query, Document.class);
-        assertTrue(result instanceof Document, "Result is not of type Document");
+        assertInstanceOf(Document.class, result, "Result is not of type Document");
 
         assertNotNull(result.get(MONGO_ID), "Document in returned list should contain all fields");
         assertNotNull(result.get("scientist"), "Document in returned list should contain all fields");
@@ -360,12 +355,10 @@ public class MongoDbFindOperationIT extends CamelTestSupport {
 
     @Test
     public void testFindOneById() {
-        // Test that the collection has 0 documents in it
-        assertEquals(0, testCollection.countDocuments());
         pumpDataIntoTestCollection();
 
         Document result = template.requestBody("direct:findById", "240", Document.class);
-        assertTrue(result instanceof Document, "Result is not of type Document");
+        assertInstanceOf(Document.class, result, "Result is not of type Document");
 
         assertEquals("240", result.get(MONGO_ID), "The ID of the retrieved Document should equal 240");
         assertEquals("Einstein", result.get("scientist"), "The scientist name of the retrieved Document should equal Einstein");
@@ -378,15 +371,13 @@ public class MongoDbFindOperationIT extends CamelTestSupport {
 
     @Test
     public void testFindOneByIdWithObjectId() {
-        // Test that the collection has 0 documents in it
-        assertEquals(0, testCollection.countDocuments());
         Document insertObject = new Document("scientist", "Einstein");
         testCollection.insertOne(insertObject);
         assertTrue(insertObject.get(MONGO_ID) instanceof ObjectId, "The ID of the inserted document should be ObjectId");
         ObjectId id = insertObject.getObjectId(MONGO_ID);
 
         Document result = template.requestBody("direct:findById", id, Document.class);
-        assertTrue(result instanceof Document, "Result is not of type Document");
+        assertInstanceOf(Document.class, result, "Result is not of type Document");
 
         assertTrue(result.get(MONGO_ID) instanceof ObjectId, "The ID of the retrieved Document should be ObjectId");
         assertEquals(id, result.get(MONGO_ID), "The ID of the retrieved Document should equal to the inserted");

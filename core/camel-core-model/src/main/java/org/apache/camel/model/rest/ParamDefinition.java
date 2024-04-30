@@ -17,18 +17,20 @@
 package org.apache.camel.model.rest;
 
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlElementWrapper;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlElementWrapper;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
 
+import org.apache.camel.model.ValueDefinition;
 import org.apache.camel.spi.Metadata;
+import org.apache.camel.spi.annotations.DslProperty;
 import org.apache.camel.util.StringHelper;
 
 /**
@@ -66,8 +68,9 @@ public class ParamDefinition {
     @XmlAttribute
     private String dataFormat;
     @XmlElementWrapper(name = "allowableValues")
-    @XmlElement(name = "value")
-    private List<String> allowableValues;
+    @XmlElement(name = "value") // name = value due to camel-spring-xml
+    @DslProperty(name = "allowableValues") // yaml-dsl
+    private List<ValueDefinition> allowableValues;
     @XmlElement(name = "examples")
     private List<RestPropertyDefinition> examples;
 
@@ -177,18 +180,14 @@ public class ParamDefinition {
         this.dataFormat = dataFormat;
     }
 
-    public List<String> getAllowableValues() {
-        if (allowableValues != null) {
-            return allowableValues;
-        }
-
-        return new ArrayList<>();
+    public List<ValueDefinition> getAllowableValues() {
+        return allowableValues;
     }
 
     /**
      * Sets the parameter list of allowable values (enum).
      */
-    public void setAllowableValues(List<String> allowableValues) {
+    public void setAllowableValues(List<ValueDefinition> allowableValues) {
         this.allowableValues = allowableValues;
     }
 
@@ -275,7 +274,11 @@ public class ParamDefinition {
      * Allowed values of the parameter when its an enum type
      */
     public ParamDefinition allowableValues(List<String> allowableValues) {
-        setAllowableValues(allowableValues);
+        List<ValueDefinition> list = new ArrayList<>();
+        for (String av : allowableValues) {
+            list.add(new ValueDefinition(av));
+        }
+        setAllowableValues(list);
         return this;
     }
 
@@ -283,7 +286,11 @@ public class ParamDefinition {
      * Allowed values of the parameter when its an enum type
      */
     public ParamDefinition allowableValues(String... allowableValues) {
-        setAllowableValues(Arrays.asList(allowableValues));
+        List<ValueDefinition> list = new ArrayList<>();
+        for (String av : allowableValues) {
+            list.add(new ValueDefinition(av));
+        }
+        setAllowableValues(list);
         return this;
     }
 
@@ -291,7 +298,11 @@ public class ParamDefinition {
      * Allowed values of the parameter when its an enum type
      */
     public ParamDefinition allowableValues(String allowableValues) {
-        setAllowableValues(Arrays.asList(allowableValues.split(",")));
+        List<ValueDefinition> list = new ArrayList<>();
+        for (String av : allowableValues.split(",")) {
+            list.add(new ValueDefinition(av));
+        }
+        setAllowableValues(list);
         return this;
     }
 
@@ -333,6 +344,22 @@ public class ParamDefinition {
         StringHelper.notEmpty(name, "name");
         verb.getParams().add(this);
         return verb.getRest();
+    }
+
+    public List<String> getAllowableValuesAsStringList() {
+        if (allowableValues == null) {
+            return Collections.emptyList();
+        } else {
+            List<String> answer = new ArrayList<>();
+            for (ValueDefinition v : allowableValues) {
+                answer.add(v.getValue());
+            }
+            return answer;
+        }
+    }
+
+    public String getAllowableValuesAsCommaString() {
+        return String.join(",", getAllowableValuesAsStringList());
     }
 
 }

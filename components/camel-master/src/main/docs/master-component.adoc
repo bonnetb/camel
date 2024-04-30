@@ -5,6 +5,7 @@
 :description: Have only a single consumer in a cluster consuming from a given endpoint; with automatic failover if the JVM dies.
 :since: 2.20
 :supportlevel: Stable
+:tabs-sync-option:
 :component-header: Only consumer is supported
 //Manually maintained attributes
 :camel-spring-boot-name: master
@@ -14,10 +15,10 @@
 *{component-header}*
 
 The Camel-Master endpoint provides a way to ensure only a single consumer in a cluster consumes from a given endpoint;
-with automatic failover if that JVM dies.
+with automatic fail over if that JVM dies.
 
-This can be very useful if you need to consume from some legacy back end which either doesn't support concurrent
-consumption or due to commercial or stability reasons you can only have a single connection at any point in time.
+This can be handy if you need to consume from some legacy back end that either doesn't support concurrent
+consumption or due to commercial or stability reasons, you can only have a single connection at any point in time.
 
 == Using the master endpoint
 
@@ -26,12 +27,17 @@ used to acquire the master lock. e.g.
 
 [source,java]
 ----
-from("master:cheese:jms:foo").to("activemq:wine");
+from("master:cheese:jms:foo")
+  .to("activemq:wine");
 ----
 
-The above simulates the [Exclusive Consumers](http://activemq.apache.org/exclusive-consumer.html) type feature in
-ActiveMQ; but on any third party JMS provider which maybe doesn't support exclusive consumers.
+In this example, the master component ensures that the route is only active in one node, at any given time, in the cluster.
+So if there are 8 nodes in the cluster, then the master component will elect one route to be the leader, and only
+this route will be active, and hence only this route will consume messages from `jms:foo`.
+In case this route is stopped or unexpectedly terminated, then the master component will detect this,
+and re-elect another node to be active, which will then become active and start consuming messages from `jms:foo`.
 
+TIP: Apache ActiveMQ 5.x has such a feature out of the box called https://activemq.apache.org/exclusive-consumer.html[Exclusive Consumers].
 
 == URI format
 
@@ -39,7 +45,7 @@ ActiveMQ; but on any third party JMS provider which maybe doesn't support exclus
 master:namespace:endpoint[?options]
 ----
 
-Where endpoint is any Camel endpoint you want to run in master/slave mode.
+Where endpoint is any Camel endpoint, you want to run in master/slave mode.
 
 
 // component-configure options: START
@@ -129,7 +135,6 @@ camel.component.zookeeper.cluster.service.nodes     = myzk:2181
 
 Camel provides the following ClusterService implementations:
 
-- camel-atomix
 - camel-consul
 - camel-file
 - camel-infinispan
@@ -137,7 +142,6 @@ Camel provides the following ClusterService implementations:
 - camel-jgroups
 - camel-kubernetes
 - camel-zookeeper
-
 
 
 include::spring-boot:partial$starter.adoc[]

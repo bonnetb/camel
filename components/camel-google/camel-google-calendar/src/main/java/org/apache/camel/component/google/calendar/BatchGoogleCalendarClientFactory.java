@@ -30,12 +30,8 @@ import com.google.api.services.calendar.Calendar;
 import org.apache.camel.CamelContext;
 import org.apache.camel.RuntimeCamelException;
 import org.apache.camel.support.ResourceHelper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class BatchGoogleCalendarClientFactory implements GoogleCalendarClientFactory {
-
-    private static final Logger LOG = LoggerFactory.getLogger(BatchGoogleCalendarClientFactory.class);
     private NetHttpTransport transport;
     private JacksonFactory jsonFactory;
 
@@ -49,12 +45,11 @@ public class BatchGoogleCalendarClientFactory implements GoogleCalendarClientFac
             String clientId, String clientSecret, Collection<String> scopes, String applicationName, String refreshToken,
             String accessToken,
             String emailAddress, String p12FileName, String user) {
-        boolean serviceAccount = false;
         // if emailAddress and p12FileName values are present, assume Google
         // Service Account
-        if (null != emailAddress && !"".equals(emailAddress) && null != p12FileName && !"".equals(p12FileName)) {
-            serviceAccount = true;
-        }
+        boolean serviceAccount
+                = null != emailAddress && !emailAddress.isEmpty() && null != p12FileName && !p12FileName.isEmpty();
+
         if (!serviceAccount && (clientId == null || clientSecret == null)) {
             throw new IllegalArgumentException("clientId and clientSecret are required to create Google Calendar client.");
         }
@@ -64,11 +59,11 @@ public class BatchGoogleCalendarClientFactory implements GoogleCalendarClientFac
             if (serviceAccount) {
                 credential = authorizeServiceAccount(emailAddress, p12FileName, scopes, user);
             } else {
-                credential = authorize(clientId, clientSecret, scopes);
-                if (refreshToken != null && !"".equals(refreshToken)) {
+                credential = authorize(clientId, clientSecret);
+                if (refreshToken != null && !refreshToken.isEmpty()) {
                     credential.setRefreshToken(refreshToken);
                 }
-                if (accessToken != null && !"".equals(accessToken)) {
+                if (accessToken != null && !accessToken.isEmpty()) {
                     credential.setAccessToken(accessToken);
                 }
             }
@@ -79,7 +74,7 @@ public class BatchGoogleCalendarClientFactory implements GoogleCalendarClientFac
     }
 
     // Authorizes the installed application to access user's protected data.
-    private Credential authorize(String clientId, String clientSecret, Collection<String> scopes) {
+    private Credential authorize(String clientId, String clientSecret) {
         // authorize
         return new GoogleCredential.Builder()
                 .setJsonFactory(jsonFactory)
@@ -93,7 +88,7 @@ public class BatchGoogleCalendarClientFactory implements GoogleCalendarClientFac
             throws Exception {
         HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
         // set the service account user when provided
-        GoogleCredential credential = new GoogleCredential.Builder()
+        return new GoogleCredential.Builder()
                 .setTransport(httpTransport)
                 .setJsonFactory(jsonFactory)
                 .setServiceAccountId(emailAddress)
@@ -101,17 +96,17 @@ public class BatchGoogleCalendarClientFactory implements GoogleCalendarClientFac
                 .setServiceAccountScopes(scopes)
                 .setServiceAccountUser(user)
                 .build();
-        return credential;
     }
 
     @Override
     public Calendar makeClient(
-            CamelContext camelContext, String keyResource, Collection<String> scopes, String applicationName, String delegate) {
-        if (keyResource == null) {
-            throw new IllegalArgumentException("keyResource is required to create Google Calendar client.");
+            CamelContext camelContext, String serviceAccountKey, Collection<String> scopes, String applicationName,
+            String delegate) {
+        if (serviceAccountKey == null) {
+            throw new IllegalArgumentException("serviceAccountKey is required to create Google Calendar client.");
         }
         try {
-            Credential credential = authorizeServiceAccount(camelContext, keyResource, delegate, scopes);
+            Credential credential = authorizeServiceAccount(camelContext, serviceAccountKey, delegate, scopes);
             return new Calendar.Builder(transport, jsonFactory, credential).setApplicationName(applicationName).build();
         } catch (Exception e) {
             throw new RuntimeCamelException("Could not create Google Calendar client.", e);
@@ -120,13 +115,14 @@ public class BatchGoogleCalendarClientFactory implements GoogleCalendarClientFac
 
     // authorize with JSON-Credentials
     private Credential authorizeServiceAccount(
-            CamelContext camelContext, String keyResource, String delegate, Collection<String> scopes) {
+            CamelContext camelContext, String serviceAccountKey, String delegate, Collection<String> scopes) {
         // authorize
         try {
             GoogleCredential cred = GoogleCredential
-                    .fromStream(ResourceHelper.resolveMandatoryResourceAsInputStream(camelContext, keyResource), transport,
+                    .fromStream(ResourceHelper.resolveMandatoryResourceAsInputStream(camelContext, serviceAccountKey),
+                            transport,
                             jsonFactory)
-                    .createScoped(scopes != null && scopes.size() != 0 ? scopes : null).createDelegated(delegate);
+                    .createScoped(scopes != null && !scopes.isEmpty() ? scopes : null).createDelegated(delegate);
             cred.refreshToken();
             return cred;
         } catch (IOException e) {

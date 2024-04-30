@@ -47,7 +47,7 @@ public class ManagedChoiceTest extends ManagementTestSupport {
         // get the stats for the route
         MBeanServer mbeanServer = getMBeanServer();
 
-        // get the object name for the delayer
+        // get the object name for choice
         ObjectName on = getCamelObjectName(TYPE_PROCESSOR, "mysend");
 
         // should be on route1
@@ -60,22 +60,30 @@ public class ManagedChoiceTest extends ManagementTestSupport {
         String state = (String) mbeanServer.getAttribute(on, "State");
         assertEquals(ServiceStatus.Started.name(), state);
 
-        TabularData data = (TabularData) mbeanServer.invoke(on, "choiceStatistics", null, null);
+        int level = (Integer) mbeanServer.getAttribute(on, "Level");
+        assertEquals(1, level);
+
+        TabularData data = (TabularData) mbeanServer.invoke(on, "extendedInformation", null, null);
         assertNotNull(data);
         assertEquals(2, data.size());
+
+        // get the object name for mock:bar
+        on = getCamelObjectName(TYPE_PROCESSOR, "bar");
+        level = (Integer) mbeanServer.getAttribute(on, "Level");
+        assertEquals(2, level);
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:start")
                         .choice().id("mysend")
                         .when(header("foo"))
                         .to("mock:foo")
                         .otherwise()
-                        .to("mock:bar");
+                        .to("mock:bar").id("bar");
             }
         };
     }

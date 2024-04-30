@@ -31,11 +31,12 @@ import java.util.Set;
 import org.apache.camel.Exchange;
 import org.apache.camel.Message;
 import org.apache.camel.Processor;
-import org.apache.camel.ResumeAware;
-import org.apache.camel.component.file.consumer.FileConsumerResumeStrategy;
-import org.apache.camel.component.file.consumer.FileResumeSet;
-import org.apache.camel.component.file.consumer.FileSetResumeStrategy;
-import org.apache.camel.component.file.consumer.GenericFileResumeStrategy;
+import org.apache.camel.component.file.consumer.DirectoryEntriesResumeAdapter;
+import org.apache.camel.component.file.consumer.FileOffsetResumeAdapter;
+import org.apache.camel.resume.ResumeAdapter;
+import org.apache.camel.resume.ResumeAware;
+import org.apache.camel.resume.ResumeStrategy;
+import org.apache.camel.support.resume.Resumables;
 import org.apache.camel.util.FileUtil;
 import org.apache.camel.util.ObjectHelper;
 import org.slf4j.Logger;
@@ -44,10 +45,10 @@ import org.slf4j.LoggerFactory;
 /**
  * File consumer.
  */
-public class FileConsumer extends GenericFileConsumer<File> implements ResumeAware<FileConsumerResumeStrategy> {
+public class FileConsumer extends GenericFileConsumer<File> implements ResumeAware<ResumeStrategy> {
 
     private static final Logger LOG = LoggerFactory.getLogger(FileConsumer.class);
-    private FileConsumerResumeStrategy resumeStrategy;
+    private ResumeStrategy resumeStrategy;
     private String endpointPath;
     private Set<String> extendedAttributes;
 
@@ -103,8 +104,22 @@ public class FileConsumer extends GenericFileConsumer<File> implements ResumeAwa
             GenericFile<File> gf
                     = asGenericFile(endpointPath, file, getEndpoint().getCharset(), getEndpoint().isProbeContentType());
 
-            if (resumeStrategy instanceof GenericFileResumeStrategy) {
-                ((GenericFileResumeStrategy<File>) resumeStrategy).resume(gf);
+            if (resumeStrategy != null) {
+                ResumeAdapter adapter = resumeStrategy.getAdapter();
+                LOG.trace("Checking the resume adapter: {}", adapter);
+                if (adapter instanceof FileOffsetResumeAdapter) {
+                    LOG.trace("The resume adapter is for offsets: {}", adapter);
+                    ((FileOffsetResumeAdapter) adapter).setResumePayload(gf);
+                    adapter.resume();
+                }
+
+                if (adapter instanceof DirectoryEntriesResumeAdapter) {
+                    LOG.trace("Running the resume process for file {}", file);
+                    if (((DirectoryEntriesResumeAdapter) adapter).resume(file)) {
+                        LOG.trace("Skipping file {} because it has been marked previously consumed", file);
+                        continue;
+                    }
+                }
             }
 
             if (file.isDirectory()) {
@@ -145,7 +160,7 @@ public class FileConsumer extends GenericFileConsumer<File> implements ResumeAwa
 
         File directory = new File(fileName);
         if (!directory.exists() || !directory.isDirectory()) {
-            LOG.debug("Cannot poll as directory does not exists or its not a directory: {}", directory);
+            LOG.debug("Cannot poll as directory does not exist or its not a directory: {}", directory);
             if (getEndpoint().isDirectoryMustExist()) {
                 throw new GenericFileOperationFailedException("Directory does not exist: " + directory);
             }
@@ -156,6 +171,9 @@ public class FileConsumer extends GenericFileConsumer<File> implements ResumeAwa
     }
 
     private File[] listFiles(File directory) {
+        if (!getEndpoint().isIncludeHiddenDirs() && directory.isHidden()) {
+            return null;
+        }
         final File[] dirFiles = directory.listFiles();
 
         if (dirFiles == null || dirFiles.length == 0) {
@@ -169,13 +187,6 @@ public class FileConsumer extends GenericFileConsumer<File> implements ResumeAwa
             if (LOG.isTraceEnabled()) {
                 LOG.trace("Found {} in directory: {}", dirFiles.length, directory.getPath());
             }
-        }
-
-        if (resumeStrategy instanceof FileSetResumeStrategy) {
-            FileResumeSet resumeSet = new FileResumeSet(dirFiles);
-            resumeStrategy.resume(resumeSet);
-
-            return resumeSet.resumed();
         }
 
         return dirFiles;
@@ -239,7 +250,6 @@ public class FileConsumer extends GenericFileConsumer<File> implements ResumeAwa
         answer.setEndpointPath(endpointPath);
         answer.setFile(file);
         answer.setFileNameOnly(file.getName());
-        answer.setFileLength(file.length());
         answer.setDirectory(file.isDirectory());
         // must use FileUtil.isAbsolute to have consistent check for whether the
         // file is
@@ -252,7 +262,10 @@ public class FileConsumer extends GenericFileConsumer<File> implements ResumeAwa
         // to return a consistent answer for all OS platforms.
         answer.setAbsolute(FileUtil.isAbsolute(file));
         answer.setAbsoluteFilePath(file.getAbsolutePath());
-        answer.setLastModified(file.lastModified());
+
+        // file length and last modified are loaded lazily
+        answer.setFileLengthSupplier(file::length);
+        answer.setLastModifiedSupplier(file::lastModified);
 
         // compute the file path as relative to the starting directory
         File path;
@@ -293,11 +306,30 @@ public class FileConsumer extends GenericFileConsumer<File> implements ResumeAwa
         if (modified >= 0) {
             message.setHeader(FileConstants.FILE_LAST_MODIFIED, modified);
         }
+
+        message.setHeader(FileConstants.INITIAL_OFFSET, Resumables.of(upToDateFile, file.getLastOffsetValue()));
     }
 
     @Override
     public FileEndpoint getEndpoint() {
         return (FileEndpoint) super.getEndpoint();
+    }
+
+    @Override
+    protected boolean isMatchedHiddenFile(GenericFile<File> file, boolean isDirectory) {
+        if (isDirectory) {
+            String name = file.getFileNameOnly();
+            if (!name.startsWith(".")) {
+                return true;
+            }
+            return getEndpoint().isIncludeHiddenDirs() && !FileConstants.DEFAULT_SUB_FOLDER.equals(name);
+        }
+
+        if (getEndpoint().isIncludeHiddenFiles()) {
+            return true;
+        } else {
+            return super.isMatchedHiddenFile(file, isDirectory);
+        }
     }
 
     private boolean fileHasMoved(GenericFile<File> file) {
@@ -307,13 +339,26 @@ public class FileConsumer extends GenericFileConsumer<File> implements ResumeAwa
     }
 
     @Override
-    public FileConsumerResumeStrategy getResumeStrategy() {
+    protected void doStart() throws Exception {
+        if (resumeStrategy != null) {
+            resumeStrategy.loadCache();
+        }
+
+        super.doStart();
+    }
+
+    @Override
+    public ResumeStrategy getResumeStrategy() {
         return resumeStrategy;
     }
 
     @Override
-    public void setResumeStrategy(FileConsumerResumeStrategy resumeStrategy) {
+    public void setResumeStrategy(ResumeStrategy resumeStrategy) {
         this.resumeStrategy = resumeStrategy;
     }
 
+    @Override
+    public String adapterFactoryService() {
+        return "file-adapter-factory";
+    }
 }

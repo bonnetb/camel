@@ -18,7 +18,6 @@ package org.apache.camel.issues;
 
 import org.apache.camel.ContextTestSupport;
 import org.apache.camel.builder.DeadLetterChannelBuilder;
-import org.apache.camel.builder.ErrorHandlerBuilderRef;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.spi.Registry;
 import org.junit.jupiter.api.Test;
@@ -51,18 +50,18 @@ public class OnExceptionErrorHandlerRefIssueTwoRoutesTest extends ContextTestSup
     }
 
     @Override
-    protected Registry createRegistry() throws Exception {
-        Registry jndi = super.createRegistry();
+    protected Registry createCamelRegistry() throws Exception {
+        Registry jndi = super.createCamelRegistry();
         jndi.bind("myDLC", new DeadLetterChannelBuilder("mock:dead"));
         return jndi;
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
-                errorHandler(new ErrorHandlerBuilderRef("myDLC"));
+            public void configure() {
+                errorHandler("myDLC");
 
                 from("direct:foo").to("mock:foo").throwException(new IllegalArgumentException("Damn Foo"));
 

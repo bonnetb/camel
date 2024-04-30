@@ -58,7 +58,7 @@ public class MailEndpointTlsTest extends CamelTestSupport {
 
         assertTrue(cfg.isStartTlsEnabled());
 
-        Properties javaMailProperties = cfg.createJavaMailSender().getJavaMailProperties();
+        Properties javaMailProperties = cfg.createJavaMailSender(context).getJavaMailProperties();
         assertNull(javaMailProperties.get("mail." + protocol + ".ssl.socketFactory"));
         assertNull(javaMailProperties.get("mail." + protocol + ".ssl.socketFactory.port"));
     }
@@ -74,7 +74,7 @@ public class MailEndpointTlsTest extends CamelTestSupport {
         cfg.setPassword("secret");
         cfg.setSslContextParameters(MailTestHelper.createSslContextParameters());
 
-        Properties javaMailProperties = cfg.createJavaMailSender().getJavaMailProperties();
+        Properties javaMailProperties = cfg.createJavaMailSender(context).getJavaMailProperties();
 
         assertFalse(cfg.isStartTlsEnabled());
 
@@ -108,7 +108,7 @@ public class MailEndpointTlsTest extends CamelTestSupport {
 
         assertTrue(cfg.isStartTlsEnabled());
 
-        Properties javaMailProperties = cfg.createJavaMailSender().getJavaMailProperties();
+        Properties javaMailProperties = cfg.createJavaMailSender(context).getJavaMailProperties();
         assertNotNull(javaMailProperties.get("mail." + protocol + ".ssl.socketFactory"));
         assertNotNull(javaMailProperties.get("mail." + protocol + ".ssl.socketFactory.port"));
     }

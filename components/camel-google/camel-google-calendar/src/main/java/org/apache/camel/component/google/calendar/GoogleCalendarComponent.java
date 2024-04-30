@@ -37,11 +37,11 @@ public class GoogleCalendarComponent
     private GoogleCalendarClientFactory clientFactory;
 
     public GoogleCalendarComponent() {
-        super(GoogleCalendarEndpoint.class, GoogleCalendarApiName.class, GoogleCalendarApiCollection.getCollection());
+        super(GoogleCalendarApiName.class, GoogleCalendarApiCollection.getCollection());
     }
 
     public GoogleCalendarComponent(CamelContext context) {
-        super(context, GoogleCalendarEndpoint.class, GoogleCalendarApiName.class, GoogleCalendarApiCollection.getCollection());
+        super(context, GoogleCalendarApiName.class, GoogleCalendarApiCollection.getCollection());
     }
 
     @Override
@@ -56,12 +56,12 @@ public class GoogleCalendarComponent
                 client = getClientFactory().makeClient(config.getClientId(), config.getClientSecret(), config.getScopes(),
                         config.getApplicationName(), config.getRefreshToken(),
                         config.getAccessToken(), config.getEmailAddress(), config.getP12FileName(), config.getUser());
-            } else if (config.getKeyResource() != null && !config.getKeyResource().isBlank()) {
-                client = getClientFactory().makeClient(getCamelContext(), config.getKeyResource(), config.getScopes(),
+            } else if (config.getServiceAccountKey() != null && !config.getServiceAccountKey().isBlank()) {
+                client = getClientFactory().makeClient(getCamelContext(), config.getServiceAccountKey(), config.getScopes(),
                         config.getApplicationName(), config.getDelegate());
             } else {
                 throw new IllegalArgumentException(
-                        "(clientId and clientSecret) or keyResource are required to create Google Calendar client");
+                        "(clientId and clientSecret) or serviceAccountKey are required to create Google Calendar client");
             }
         }
         return client;

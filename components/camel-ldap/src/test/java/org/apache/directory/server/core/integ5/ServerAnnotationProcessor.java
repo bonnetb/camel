@@ -21,6 +21,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.net.ServerSocket;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -166,10 +167,7 @@ public final class ServerAnnotationProcessor {
                 }
             }
 
-            List<String> realms = new ArrayList<String>();
-            for (String s : createLdapServer.saslRealms()) {
-                realms.add(s);
-            }
+            List<String> realms = new ArrayList<>(Arrays.asList(createLdapServer.saslRealms()));
 
             ldapServer.setSaslRealms(realms);
 
@@ -440,8 +438,7 @@ public final class ServerAnnotationProcessor {
         return port;
     }
 
-    public static KdcServer getKdcServer(Description description, DirectoryService directoryService)
-            throws Exception {
+    public static KdcServer getKdcServer(Description description, DirectoryService directoryService) {
         CreateKdcServer createLdapServer = description.getAnnotation(CreateKdcServer.class);
 
         return createKdcServer(createLdapServer, directoryService);

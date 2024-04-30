@@ -25,10 +25,10 @@ import org.apache.camel.component.google.calendar.BatchGoogleCalendarClientFacto
 import org.apache.camel.component.google.calendar.GoogleCalendarClientFactory;
 import org.apache.camel.spi.Metadata;
 import org.apache.camel.spi.annotations.Component;
-import org.apache.camel.support.DefaultComponent;
+import org.apache.camel.support.HealthCheckComponent;
 
 @Component("google-calendar-stream")
-public class GoogleCalendarStreamComponent extends DefaultComponent {
+public class GoogleCalendarStreamComponent extends HealthCheckComponent {
 
     @Metadata(label = "advanced")
     private Calendar client;
@@ -53,12 +53,12 @@ public class GoogleCalendarStreamComponent extends DefaultComponent {
                 client = getClientFactory().makeClient(config.getClientId(), config.getClientSecret(), config.getScopes(),
                         config.getApplicationName(), config.getRefreshToken(),
                         config.getAccessToken(), config.getEmailAddress(), config.getP12FileName(), config.getUser());
-            } else if (config.getKeyResource() != null) {
-                client = getClientFactory().makeClient(getCamelContext(), config.getKeyResource(), config.getScopes(),
+            } else if (config.getServiceAccountKey() != null) {
+                client = getClientFactory().makeClient(getCamelContext(), config.getServiceAccountKey(), config.getScopes(),
                         config.getApplicationName(), config.getDelegate());
             } else {
                 throw new IllegalArgumentException(
-                        "(clientId and clientSecret) or keyResource are required to create Gmail client");
+                        "(clientId and clientSecret) or serviceAccountKey are required to create Gmail client");
             }
         }
         return client;

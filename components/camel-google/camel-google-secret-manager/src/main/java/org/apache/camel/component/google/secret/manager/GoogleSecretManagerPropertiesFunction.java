@@ -17,6 +17,8 @@
 package org.apache.camel.component.google.secret.manager;
 
 import java.io.InputStream;
+import java.util.HashSet;
+import java.util.Set;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -76,15 +78,19 @@ public class GoogleSecretManagerPropertiesFunction extends ServiceSupport implem
     private static final String CAMEL_VAULT_GCP_SERVICE_ACCOUNT_KEY = "CAMEL_VAULT_GCP_SERVICE_ACCOUNT_KEY";
     private static final String CAMEL_VAULT_GCP_PROJECT_ID = "CAMEL_VAULT_GCP_PROJECT_ID";
     private static final String CAMEL_VAULT_GCP_USE_DEFAULT_INSTANCE = "CAMEL_VAULT_GCP_USE_DEFAULT_INSTANCE";
+
+    boolean useDefaultInstance;
+
     private CamelContext camelContext;
     private SecretManagerServiceClient client;
     private String projectId;
+    private final Set<String> secrets = new HashSet<>();
 
     @Override
     protected void doStart() throws Exception {
         super.doStart();
         String serviceAccountKey = System.getenv(CAMEL_VAULT_GCP_SERVICE_ACCOUNT_KEY);
-        boolean useDefaultInstance = Boolean.parseBoolean(System.getenv(CAMEL_VAULT_GCP_USE_DEFAULT_INSTANCE));
+        useDefaultInstance = Boolean.parseBoolean(System.getenv(CAMEL_VAULT_GCP_USE_DEFAULT_INSTANCE));
         projectId = System.getenv(CAMEL_VAULT_GCP_PROJECT_ID);
         if (ObjectHelper.isEmpty(serviceAccountKey) && ObjectHelper.isEmpty(projectId)) {
             GcpVaultConfiguration gcpVaultConfiguration = getCamelContext().getVaultConfiguration().gcp();
@@ -116,12 +122,13 @@ public class GoogleSecretManagerPropertiesFunction extends ServiceSupport implem
         if (client != null) {
             client.close();
         }
+        secrets.clear();
         super.doStop();
     }
 
     @Override
     public String getName() {
-        return "aws";
+        return "gcp";
     }
 
     @Override
@@ -130,21 +137,41 @@ public class GoogleSecretManagerPropertiesFunction extends ServiceSupport implem
         String subkey = null;
         String returnValue = null;
         String defaultValue = null;
+        String version = null;
         if (remainder.contains("/")) {
             key = StringHelper.before(remainder, "/");
             subkey = StringHelper.after(remainder, "/");
             defaultValue = StringHelper.after(subkey, ":");
+            if (ObjectHelper.isNotEmpty(defaultValue)) {
+                if (defaultValue.contains("@")) {
+                    version = StringHelper.after(defaultValue, "@");
+                    defaultValue = StringHelper.before(defaultValue, "@");
+                }
+            }
             if (subkey.contains(":")) {
                 subkey = StringHelper.before(subkey, ":");
+            }
+            if (subkey.contains("@")) {
+                version = StringHelper.after(subkey, "@");
+                subkey = StringHelper.before(subkey, "@");
             }
         } else if (remainder.contains(":")) {
             key = StringHelper.before(remainder, ":");
             defaultValue = StringHelper.after(remainder, ":");
+            if (remainder.contains("@")) {
+                version = StringHelper.after(remainder, "@");
+                defaultValue = StringHelper.before(defaultValue, "@");
+            }
+        } else {
+            if (remainder.contains("@")) {
+                key = StringHelper.before(remainder, "@");
+                version = StringHelper.after(remainder, "@");
+            }
         }
 
         if (key != null) {
             try {
-                returnValue = getSecretFromSource(key, subkey, defaultValue);
+                returnValue = getSecretFromSource(key, subkey, defaultValue, version);
             } catch (JsonProcessingException e) {
                 throw new RuntimeCamelException("Something went wrong while recovering " + key + " from vault");
             }
@@ -154,11 +181,16 @@ public class GoogleSecretManagerPropertiesFunction extends ServiceSupport implem
     }
 
     private String getSecretFromSource(
-            String key, String subkey, String defaultValue)
+            String key, String subkey, String defaultValue, String version)
             throws JsonProcessingException {
+
+        // capture name of secret
+        secrets.add(key);
+
         String returnValue = null;
         try {
-            SecretVersionName secretVersionName = SecretVersionName.of(projectId, key, "latest");
+            SecretVersionName secretVersionName
+                    = SecretVersionName.of(projectId, key, ObjectHelper.isNotEmpty(version) ? version : "latest");
             AccessSecretVersionResponse response = client.accessSecretVersion(secretVersionName);
             if (ObjectHelper.isNotEmpty(response)) {
                 returnValue = response.getPayload().getData().toStringUtf8();
@@ -194,5 +226,19 @@ public class GoogleSecretManagerPropertiesFunction extends ServiceSupport implem
     @Override
     public CamelContext getCamelContext() {
         return camelContext;
+    }
+
+    /**
+     * Ids of the secrets in use
+     */
+    public Set<String> getSecrets() {
+        return secrets;
+    }
+
+    /**
+     * Whether login is using default instance or service account key file
+     */
+    public boolean isUseDefaultInstance() {
+        return useDefaultInstance;
     }
 }

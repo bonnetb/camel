@@ -18,7 +18,6 @@ package org.apache.camel.console;
 
 import java.util.Collection;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.camel.CamelContext;
@@ -53,7 +52,7 @@ public interface DevConsoleRegistry extends CamelContextAware, StaticService, Id
     void setEnabled(boolean enabled);
 
     /**
-     * Resolves {@link DevConsole by id.
+     * Resolves {@link DevConsole} by id.
      *
      * Will first lookup in this {@link DevConsoleRegistry} and then {@link org.apache.camel.spi.Registry}, and lastly
      * do classpath scanning via {@link org.apache.camel.spi.annotations.ServiceFactory}.
@@ -78,7 +77,7 @@ public interface DevConsoleRegistry extends CamelContextAware, StaticService, Id
     default Collection<String> getConsoleIDs() {
         return stream()
                 .map(DevConsole::getId)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**
@@ -97,7 +96,7 @@ public interface DevConsoleRegistry extends CamelContextAware, StaticService, Id
      * This registry is not used by the camel context, but it is up to the implementation to properly use it.
      */
     static DevConsoleRegistry get(CamelContext context) {
-        return context.getExtension(DevConsoleRegistry.class);
+        return context.getCamelContextExtension().getContextPlugin(DevConsoleRegistry.class);
     }
 
     /**
@@ -109,5 +108,13 @@ public interface DevConsoleRegistry extends CamelContextAware, StaticService, Id
      * Loads custom dev consoles by scanning classpath.
      */
     void loadDevConsoles();
+
+    /**
+     * Loads custom dev consoles by scanning classpath.
+     *
+     * @param force force re-scanning such as when additional JARs has been added to the classpath that can include
+     *              custom dev consoles
+     */
+    void loadDevConsoles(boolean force);
 
 }

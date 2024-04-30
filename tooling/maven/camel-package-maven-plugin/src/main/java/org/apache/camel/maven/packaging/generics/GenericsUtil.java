@@ -74,7 +74,7 @@ public final class GenericsUtil {
         } else if (beanType instanceof WildcardType) {
             return isAssignableFrom(isDelegateOrEvent, (Type) injectionPointType, (WildcardType) beanType);
         } else {
-            throw new IllegalArgumentException("Unsupported type " + injectionPointType.getClass());
+            throw new IllegalArgumentException("Unsupported type " + injectionPointType);
         }
     }
 
@@ -365,6 +365,13 @@ public final class GenericsUtil {
      */
     public static Type resolveType(Class<?> subclass, Field field) {
         return resolveType(field.getGenericType(), subclass, newSeenList());
+    }
+
+    /**
+     * Resolves the actual type of the specified field for the type hierarchy specified by the given subclass
+     */
+    public static Type resolveSetterType(Class<?> subclass, Method method) {
+        return resolveType(method.getParameterTypes()[0], subclass, newSeenList());
     }
 
     /**

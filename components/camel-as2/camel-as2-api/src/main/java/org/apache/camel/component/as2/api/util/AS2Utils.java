@@ -22,19 +22,20 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
+import java.util.Iterator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.camel.component.as2.api.InvalidAS2NameException;
-import org.apache.http.Header;
-import org.apache.http.HeaderIterator;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpEntityEnclosingRequest;
-import org.apache.http.HttpMessage;
-import org.apache.http.HttpRequest;
-import org.apache.http.HttpResponse;
-import org.apache.http.RequestLine;
-import org.apache.http.StatusLine;
+import org.apache.hc.core5.http.Header;
+import org.apache.hc.core5.http.HttpEntity;
+import org.apache.hc.core5.http.HttpMessage;
+import org.apache.hc.core5.http.HttpRequest;
+import org.apache.hc.core5.http.HttpResponse;
+import org.apache.hc.core5.http.message.BasicClassicHttpRequest;
+import org.apache.hc.core5.http.message.BasicClassicHttpResponse;
+import org.apache.hc.core5.http.message.RequestLine;
+import org.apache.hc.core5.http.message.StatusLine;
 
 /**
  * Utility Methods used in AS2 Component
@@ -69,7 +70,7 @@ public final class AS2Utils {
         Matcher matcher = AS_NAME_PATTERN.matcher(name);
         if (!matcher.matches()) {
             // if name does not match, determine where it fails to match.
-            int i = 0;
+            int i;
             for (i = name.length() - 1; i > 0; i--) {
                 Matcher region = matcher.region(0, i);
                 if (region.matches() || region.hitEnd()) {
@@ -82,7 +83,7 @@ public final class AS2Utils {
 
     /**
      * Generates a globally unique message ID which includes <code>fqdn</code>: a fully qualified domain name (FQDN)
-     * 
+     *
      * @param  fqdn - the fully qualified domain name to use in message id.
      * @return      The generated message id.
      */
@@ -93,7 +94,7 @@ public final class AS2Utils {
 
     /**
      * Determines if <code>c</code> is a printable character.
-     * 
+     *
      * @param  c - the character to test
      * @return   <code>true</code> if <code>c</code> is a printable character; <code>false</code> otherwise.
      */
@@ -107,8 +108,7 @@ public final class AS2Utils {
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
              PrintStream ps = new PrintStream(baos, true, "utf-8")) {
             printRequest(ps, request);
-            String content = baos.toString(StandardCharsets.UTF_8.name());
-            return content;
+            return baos.toString(StandardCharsets.UTF_8.name());
         }
     }
 
@@ -116,8 +116,7 @@ public final class AS2Utils {
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
              PrintStream ps = new PrintStream(baos, true, "utf-8")) {
             printMessage(ps, message);
-            String content = baos.toString(StandardCharsets.UTF_8.name());
-            return content;
+            return baos.toString(StandardCharsets.UTF_8.name());
         }
     }
 
@@ -130,19 +129,17 @@ public final class AS2Utils {
      */
     public static void printRequest(PrintStream out, HttpRequest request) throws IOException {
         // Print request line
-        RequestLine requestLine = request.getRequestLine();
-        out.println(requestLine.getMethod() + ' ' + requestLine.getUri() + ' ' + requestLine.getProtocolVersion());
-
+        out.println(new RequestLine(request));
         // Write headers
-        for (final HeaderIterator it = request.headerIterator(); it.hasNext();) {
-            Header header = it.nextHeader();
+        for (final Iterator<Header> it = request.headerIterator(); it.hasNext();) {
+            Header header = it.next();
             out.println(header.getName() + ": " + (header.getValue() == null ? "" : header.getValue()));
         }
         out.println(); // write empty line separating header from body.
 
-        if (request instanceof HttpEntityEnclosingRequest) {
+        if (request instanceof BasicClassicHttpRequest) {
             // Write entity
-            HttpEntity entity = ((HttpEntityEnclosingRequest) request).getEntity();
+            HttpEntity entity = ((BasicClassicHttpRequest) request).getEntity();
             entity.writeTo(out);
         }
     }
@@ -157,28 +154,26 @@ public final class AS2Utils {
     public static void printMessage(PrintStream out, HttpMessage message) throws IOException {
         // Print request line
         if (message instanceof HttpRequest) {
-            RequestLine requestLine = ((HttpRequest) message).getRequestLine();
-            out.println(requestLine.getMethod() + ' ' + requestLine.getUri() + ' ' + requestLine.getProtocolVersion());
+            out.println(new RequestLine((HttpRequest) message));
         } else { // HttpResponse
-            StatusLine statusLine = ((HttpResponse) message).getStatusLine();
-            out.println(statusLine.toString());
+            out.println(new StatusLine((HttpResponse) message));
         }
         // Write headers
-        for (final HeaderIterator it = message.headerIterator(); it.hasNext();) {
-            Header header = it.nextHeader();
+        for (final Iterator<Header> it = message.headerIterator(); it.hasNext();) {
+            Header header = it.next();
             out.println(header.getName() + ": " + (header.getValue() == null ? "" : header.getValue()));
         }
         out.println(); // write empty line separating header from body.
 
-        if (message instanceof HttpEntityEnclosingRequest) {
+        if (message instanceof BasicClassicHttpRequest) {
             // Write entity
-            HttpEntity entity = ((HttpEntityEnclosingRequest) message).getEntity();
+            HttpEntity entity = ((BasicClassicHttpRequest) message).getEntity();
             if (entity != null) {
                 entity.writeTo(out);
             }
-        } else if (message instanceof HttpResponse) {
+        } else if (message instanceof BasicClassicHttpResponse) {
             // Write entity
-            HttpEntity entity = ((HttpResponse) message).getEntity();
+            HttpEntity entity = ((BasicClassicHttpResponse) message).getEntity();
             if (entity != null) {
                 entity.writeTo(out);
             }

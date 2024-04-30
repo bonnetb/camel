@@ -16,11 +16,11 @@
  */
 package org.apache.camel.model.language;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
 
 import org.apache.camel.spi.Metadata;
 
@@ -33,15 +33,7 @@ import org.apache.camel.spi.Metadata;
 public class XQueryExpression extends NamespaceAwareExpression {
 
     @XmlTransient
-    private Class<?> resultType;
-    @XmlTransient
     private Object configuration;
-
-    @XmlAttribute
-    private String type;
-    @XmlAttribute
-    @Metadata(label = "advanced")
-    private String headerName;
     @XmlAttribute
     @Metadata(label = "advanced")
     private String configurationRef;
@@ -53,46 +45,15 @@ public class XQueryExpression extends NamespaceAwareExpression {
         super(expression);
     }
 
+    private XQueryExpression(Builder builder) {
+        super(builder);
+        this.configuration = builder.configuration;
+        this.configurationRef = builder.configurationRef;
+    }
+
     @Override
     public String getLanguage() {
         return "xquery";
-    }
-
-    public String getType() {
-        return type;
-    }
-
-    /**
-     * Sets the class name of the result type (type from output)
-     * <p/>
-     * The default result type is NodeSet
-     */
-    public void setType(String type) {
-        this.type = type;
-    }
-
-    public Class<?> getResultType() {
-        return resultType;
-    }
-
-    /**
-     * Sets the class of the result type (type from output).
-     * <p/>
-     * The default result type is NodeSet
-     */
-    public void setResultType(Class<?> resultType) {
-        this.resultType = resultType;
-    }
-
-    public String getHeaderName() {
-        return headerName;
-    }
-
-    /**
-     * Name of header to use as input, instead of the message body
-     */
-    public void setHeaderName(String headerName) {
-        this.headerName = headerName;
     }
 
     public String getConfigurationRef() {
@@ -118,5 +79,39 @@ public class XQueryExpression extends NamespaceAwareExpression {
      */
     public void setConfiguration(Object configuration) {
         this.configuration = configuration;
+    }
+
+    /**
+     * {@code Builder} is a specific builder for {@link XQueryExpression}.
+     */
+    @XmlTransient
+    public static class Builder extends AbstractNamespaceAwareBuilder<Builder, XQueryExpression> {
+
+        private Object configuration;
+        private String configurationRef;
+
+        /**
+         * Custom saxon configuration (requires camel-saxon). This may be needed to add custom functions to a saxon
+         * configuration, so these custom functions can be used in xquery expressions.
+         */
+        public Builder configuration(Object configuration) {
+            this.configuration = configuration;
+            return this;
+        }
+
+        /**
+         * Reference to a saxon configuration instance in the registry to use for xquery (requires camel-saxon). This
+         * may be needed to add custom functions to a saxon configuration, so these custom functions can be used in
+         * xquery expressions.
+         */
+        public Builder configurationRef(String configurationRef) {
+            this.configurationRef = configurationRef;
+            return this;
+        }
+
+        @Override
+        public XQueryExpression end() {
+            return new XQueryExpression(this);
+        }
     }
 }

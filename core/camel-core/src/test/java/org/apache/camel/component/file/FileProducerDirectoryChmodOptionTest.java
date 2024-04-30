@@ -18,6 +18,7 @@ package org.apache.camel.component.file;
 
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
+import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Date;
@@ -28,30 +29,28 @@ import org.apache.camel.Exchange;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
+@DisabledOnOs(OS.WINDOWS)
 public class FileProducerDirectoryChmodOptionTest extends ContextTestSupport {
+
+    private static final String SUBDIR_NAME = "testdir";
 
     @Test
     public void testWriteValidNoDir() throws Exception {
-        assumeFalse(isPlatform("windows"));
-
         runChmodCheck("NoDir", null, "rwxr-xr-x");
     }
 
     @Test
     public void testWriteValidChmod0755() throws Exception {
-        assumeFalse(isPlatform("windows"));
-
         runChmodCheck("0755", "rwxrwxrwx", "rwxr-xr-x");
     }
 
     @Test
     public void testWriteValidChmod666() throws Exception {
-        assumeFalse(isPlatform("windows"));
-
         runChmodCheck("666", "rwxrwxrwx", "rw-rw-rw-");
     }
 
@@ -61,19 +60,21 @@ public class FileProducerDirectoryChmodOptionTest extends ContextTestSupport {
         mock.expectedMessageCount(1);
         String testFileName = "chmod" + routeSuffix + ".txt";
         String testFileContent = "Writing file with chmod " + routeSuffix + " option at " + new Date();
-        mock.expectedFileExists(testFile(testFileName), testFileContent);
+        String testFilePath = Path.of(SUBDIR_NAME, testFileName).toString();
+        mock.expectedFileExists(testFile(testFilePath), testFileContent);
 
-        template.sendBodyAndHeader("direct:write" + routeSuffix, testFileContent, Exchange.FILE_NAME, testFileName);
+        template.sendBodyAndHeader("direct:write" + routeSuffix, testFileContent, Exchange.FILE_NAME, testFilePath);
 
         if (expectedDirectoryPermissions != null) {
-            Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(testDirectory(), LinkOption.NOFOLLOW_LINKS);
+            Set<PosixFilePermission> permissions
+                    = Files.getPosixFilePermissions(testDirectory(SUBDIR_NAME), LinkOption.NOFOLLOW_LINKS);
             assertEquals(expectedDirectoryPermissions, PosixFilePermissions.toString(permissions));
             assertEquals(expectedDirectoryPermissions.replace("-", "").length(), permissions.size());
         }
 
         if (expectedPermissions != null) {
             Set<PosixFilePermission> permissions
-                    = Files.getPosixFilePermissions(testFile(testFileName), LinkOption.NOFOLLOW_LINKS);
+                    = Files.getPosixFilePermissions(testFile(testFilePath), LinkOption.NOFOLLOW_LINKS);
             assertEquals(expectedPermissions, PosixFilePermissions.toString(permissions));
             assertEquals(expectedPermissions.replace("-", "").length(), permissions.size());
         }

@@ -19,7 +19,6 @@ package org.apache.camel.spring;
 import java.util.Optional;
 
 import org.apache.camel.Endpoint;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.Processor;
 import org.apache.camel.RuntimeCamelException;
 import org.apache.camel.component.event.EventComponent;
@@ -34,6 +33,7 @@ import org.apache.camel.spring.spi.ApplicationContextBeanRepository;
 import org.apache.camel.spring.spi.SpringInjector;
 import org.apache.camel.spring.spi.SpringManagementMBeanAssembler;
 import org.apache.camel.support.DefaultRegistry;
+import org.apache.camel.support.PluginHelper;
 import org.apache.camel.support.ProcessorEndpoint;
 import org.apache.camel.support.ResolverHelper;
 import org.slf4j.Logger;
@@ -70,7 +70,7 @@ public class SpringCamelContext extends DefaultCamelContext
 
     public SpringCamelContext() {
         super(false);
-        setManagementMBeanAssembler(new SpringManagementMBeanAssembler(this));
+        getCamelContextExtension().setManagementMBeanAssembler(new SpringManagementMBeanAssembler(this));
     }
 
     public SpringCamelContext(ApplicationContext applicationContext) {
@@ -238,7 +238,7 @@ public class SpringCamelContext extends DefaultCamelContext
             return endpoint;
         }
 
-        BeanProcessorFactory bpf = adapt(ExtendedCamelContext.class).getBeanProcessorFactory();
+        BeanProcessorFactory bpf = PluginHelper.getBeanProcessorFactory(getCamelContextExtension());
         try {
             Processor bp = bpf.createBeanProcessor(this, bean, null);
             return new ProcessorEndpoint(uri, this, bp);
@@ -258,7 +258,7 @@ public class SpringCamelContext extends DefaultCamelContext
     protected ModelJAXBContextFactory createModelJAXBContextFactory() {
         Optional<ModelJAXBContextFactory> result = ResolverHelper.resolveService(
                 getCamelContextReference(),
-                getBootstrapFactoryFinder(),
+                getCamelContextExtension().getBootstrapFactoryFinder(),
                 ModelJAXBContextFactory.FACTORY + "-spring",
                 ModelJAXBContextFactory.class);
 
@@ -292,7 +292,11 @@ public class SpringCamelContext extends DefaultCamelContext
         // (explained in comment in the onApplicationEvent method)
         // we use LOWEST_PRECEDENCE here as this is taken into account
         // only when stopping and then in reversed order
-        return LOWEST_PRECEDENCE;
+        return Integer.MAX_VALUE - 2049;
+        // we need to be less than max value as spring-boot comes with
+        // graceful shutdown services (the http server in spring boot)
+        // that must shutdown before camel, and they have max value - 2048,
+        // so we use 2049 to have a higher gap
     }
 
     @Override

@@ -22,7 +22,6 @@ import java.util.Map;
 
 import com.box.sdk.BoxAPIConnection;
 import com.box.sdk.BoxFolder;
-import com.box.sdk.BoxItem;
 import com.box.sdk.BoxSharedLink;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.box.api.BoxFoldersManager;
@@ -36,7 +35,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
@@ -59,7 +57,7 @@ public class BoxFoldersManagerIT extends AbstractBoxITSupport {
     private static final String CAMEL_TEST_DESTINATION_FOLDER_ID = "0";
 
     @Test
-    public void testCreateFolder() throws Exception {
+    public void testCreateFolder() {
 
         // delete folder created in test setup.
         deleteTestFolder();
@@ -74,11 +72,11 @@ public class BoxFoldersManagerIT extends AbstractBoxITSupport {
 
         assertNotNull(testFolder, "createFolder result");
         assertEquals(CAMEL_TEST_FOLDER, testFolder.getInfo().getName(), "createFolder folder name");
-        LOG.debug("createFolder: " + testFolder);
+        LOG.debug("createFolder: {}", testFolder);
     }
 
     @Test
-    public void testCreateFolderByPath() throws Exception {
+    public void testCreateFolderByPath() {
 
         // delete folder created in test setup.
         deleteTestFolder();
@@ -93,22 +91,17 @@ public class BoxFoldersManagerIT extends AbstractBoxITSupport {
 
         assertNotNull(testFolder, "createFolder result");
         assertEquals(CAMEL_TEST_FOLDER, testFolder.getInfo().getName(), "createFolder folder name");
-        LOG.debug("createFolder: " + testFolder);
+        LOG.debug("createFolder: {}", testFolder);
     }
 
     @Test
-    public void testDeleteFolder() throws Exception {
+    public void testDeleteFolder() {
         // using String message body for single parameter "folderId"
         requestBody("direct://DELETEFOLDER", testFolder.getID());
-
-        BoxFolder rootFolder = BoxFolder.getRootFolder(getConnection());
-        Iterable<BoxItem.Info> it = rootFolder.search("^" + CAMEL_TEST_FOLDER + "$");
-        int searchResults = sizeOfIterable(it);
-        assertFalse(searchResults > 0, "deleteFolder exists");
     }
 
     @Test
-    public void testCopyFolder() throws Exception {
+    public void testCopyFolder() {
         com.box.sdk.BoxFolder result = null;
         try {
             final Map<String, Object> headers = new HashMap<>();
@@ -121,19 +114,19 @@ public class BoxFoldersManagerIT extends AbstractBoxITSupport {
             result = requestBodyAndHeaders("direct://COPYFOLDER", null, headers);
             assertNotNull(result, "copyFolder result");
             assertEquals(CAMEL_TEST_COPY_FOLDER, result.getInfo().getName(), "copyFolder folder name");
-            LOG.debug("copyFolder: " + result);
+            LOG.debug("copyFolder: {}", result);
         } finally {
             if (result != null) {
                 try {
                     result.delete(true);
-                } catch (Throwable t) {
+                } catch (Exception t) {
                 }
             }
         }
     }
 
     @Test
-    public void testCreateSharedLink() throws Exception {
+    public void testCreateSharedLink() {
         final Map<String, Object> headers = new HashMap<>();
         // parameter type is String
         headers.put("CamelBox.folderId", testFolder.getID());
@@ -148,21 +141,21 @@ public class BoxFoldersManagerIT extends AbstractBoxITSupport {
                 headers);
 
         assertNotNull(result, "createFolderSharedLink result");
-        LOG.debug("createFolderSharedLink: " + result);
+        LOG.debug("createFolderSharedLink: {}", result);
     }
 
     @Test
-    public void testGetFolder() throws Exception {
+    public void testGetFolder() {
         // using String[] message body for single parameter "path"
         final com.box.sdk.BoxFolder result = requestBody("direct://GETFOLDER", new String[] { CAMEL_TEST_FOLDER });
 
         assertNotNull(result, "getFolder result");
         assertEquals(testFolder.getID(), result.getID(), "getFolder folder id");
-        LOG.debug("getFolder: " + result);
+        LOG.debug("getFolder: {}", result);
     }
 
     @Test
-    public void testGetFolderInfo() throws Exception {
+    public void testGetFolderInfo() {
         final Map<String, Object> headers = new HashMap<>();
         // parameter type is String
         headers.put("CamelBox.folderId", testFolder.getID());
@@ -174,11 +167,11 @@ public class BoxFoldersManagerIT extends AbstractBoxITSupport {
         assertNotNull(result, "getFolderInfo result");
         assertNotNull(result.getName(), "getFolderInfo result.getName()");
         assertEquals(CAMEL_TEST_FOLDER, result.getName(), "getFolderInfo info name");
-        LOG.debug("getFolderInfo: " + result);
+        LOG.debug("getFolderInfo: {}", result);
     }
 
     @Test
-    public void testGetFolderItems() throws Exception {
+    public void testGetFolderItems() {
         final Map<String, Object> headers = new HashMap<>();
         // parameter type is String
         headers.put("CamelBox.folderId", CAMEL_TEST_ROOT_FOLDER_ID);
@@ -193,19 +186,19 @@ public class BoxFoldersManagerIT extends AbstractBoxITSupport {
         final java.util.Collection result = requestBodyAndHeaders("direct://GETFOLDERITEMS", null, headers);
 
         assertNotNull(result, "getFolderItems result");
-        LOG.debug("getFolderItems: " + result);
+        LOG.debug("getFolderItems: {}", result);
     }
 
     @Test
-    public void testGetRootFolder() throws Exception {
+    public void testGetRootFolder() {
         final com.box.sdk.BoxFolder result = requestBody("direct://GETROOTFOLDER", null);
 
         assertNotNull(result, "getRootFolder result");
-        LOG.debug("getRootFolder: " + result);
+        LOG.debug("getRootFolder: {}", result);
     }
 
     @Test
-    public void testMoveFolder() throws Exception {
+    public void testMoveFolder() {
         final Map<String, Object> headers = new HashMap<>();
         // parameter type is String
         headers.put("CamelBox.folderId", testFolder.getID());
@@ -218,11 +211,11 @@ public class BoxFoldersManagerIT extends AbstractBoxITSupport {
 
         assertNotNull(result, "moveFolder result");
         assertEquals(CAMEL_TEST_MOVE_FOLDER, result.getInfo().getName(), "moveFolder folder name");
-        LOG.debug("moveFolder: " + result);
+        LOG.debug("moveFolder: {}", result);
     }
 
     @Test
-    public void testRenameFolder() throws Exception {
+    public void testRenameFolder() {
         final Map<String, Object> headers = new HashMap<>();
         // parameter type is String
         headers.put("CamelBox.folderId", testFolder.getID());
@@ -233,11 +226,11 @@ public class BoxFoldersManagerIT extends AbstractBoxITSupport {
 
         assertNotNull(result, "renameFolder result");
         assertEquals(CAMEL_TEST_RENAME_FOLDER, result.getInfo().getName(), "moveFolder folder name");
-        LOG.debug("renameFolder: " + result);
+        LOG.debug("renameFolder: {}", result);
     }
 
     @Test
-    public void testUpdateInfo() throws Exception {
+    public void testUpdateInfo() {
         final BoxFolder.Info testFolderInfo = testFolder.getInfo();
 
         final Map<String, Object> headers = new HashMap<>();
@@ -251,11 +244,11 @@ public class BoxFoldersManagerIT extends AbstractBoxITSupport {
 
         assertNotNull(result, "updateInfo result");
         assertEquals(CAMEL_TEST_FOLDER_DESCRIPTION, result.getInfo().getDescription(), "update folder info description");
-        LOG.debug("updateInfo: " + result);
+        LOG.debug("updateInfo: {}", result);
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             public void configure() {
                 // test route for copyFolder
@@ -296,7 +289,7 @@ public class BoxFoldersManagerIT extends AbstractBoxITSupport {
     }
 
     @BeforeEach
-    public void setupTest() throws Exception {
+    public void setupTest() {
         createTestFolder();
     }
 

@@ -39,12 +39,12 @@ public class FileConsumerCommitRenameAbsolutePathStrategyTest extends ContextTes
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
-            public void configure() throws Exception {
+            public void configure() {
                 from(fileUri(
                         "reports?move=" + testDirectory("done").toAbsolutePath() + "/${file:name}&initialDelay=0&delay=10"))
-                                .convertBodyTo(String.class).to("mock:report");
+                        .convertBodyTo(String.class).to("mock:report");
             }
         };
     }

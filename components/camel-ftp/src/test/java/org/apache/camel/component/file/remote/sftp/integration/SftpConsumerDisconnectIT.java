@@ -53,7 +53,7 @@ public class SftpConsumerDisconnectIT extends SftpServerTestSupport {
         context.getRouteController().startRoute("foo");
 
         // Check that expectations are satisfied
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
 
         // File is deleted
         File deletedFile = new File(service.getFtpRootDir() + "/" + SAMPLE_FILE_NAME_1);
@@ -79,7 +79,7 @@ public class SftpConsumerDisconnectIT extends SftpServerTestSupport {
         context.getRouteController().startRoute("bar");
 
         // Check that expectations are satisfied
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Override
@@ -88,23 +88,24 @@ public class SftpConsumerDisconnectIT extends SftpServerTestSupport {
             @Override
             public void configure() {
                 from("sftp://localhost:{{ftp.server.port}}/{{ftp.root.dir}}"
-                     + "?username=admin&password=admin&delete=true")
-                             .routeId("foo").noAutoStartup().process(new Processor() {
-                                 @Override
-                                 public void process(Exchange exchange) throws Exception {
-                                     service.disconnectAllSessions(); // disconnect all Sessions from
-                                     // the SFTP server
-                                 }
-                             }).to("mock:result");
+                     + "?username=admin&password=admin&delete=true&knownHostsFile="
+                     + service.getKnownHostsFile())
+                        .routeId("foo").noAutoStartup().process(new Processor() {
+                            @Override
+                            public void process(Exchange exchange) throws Exception {
+                                service.disconnectAllSessions(); // disconnect all Sessions from
+                                // the SFTP server
+                            }
+                        }).to("mock:result");
                 from("sftp://localhost:{{ftp.server.port}}/{{ftp.root.dir}}"
                      + "?username=admin&password=admin&noop=false&move=.camel").routeId("bar").noAutoStartup()
-                             .process(new Processor() {
-                                 @Override
-                                 public void process(Exchange exchange) throws Exception {
-                                     service.disconnectAllSessions(); // disconnect all Sessions
-                                     // from the SFTP server
-                                 }
-                             }).to("mock:result");
+                        .process(new Processor() {
+                            @Override
+                            public void process(Exchange exchange) throws Exception {
+                                service.disconnectAllSessions(); // disconnect all Sessions
+                                // from the SFTP server
+                            }
+                        }).to("mock:result");
             }
         };
     }

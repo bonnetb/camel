@@ -17,8 +17,8 @@
 package org.apache.camel.test.main.junit5;
 
 import org.apache.camel.CamelContext;
-import org.apache.camel.main.BaseMainSupport;
 import org.apache.camel.main.MainConfigurationProperties;
+import org.apache.camel.main.MainConstants;
 import org.apache.camel.spi.Registry;
 import org.apache.camel.test.junit5.CamelTestSupport;
 import org.slf4j.Logger;
@@ -52,7 +52,7 @@ public abstract class CamelMainTestSupport extends CamelTestSupport {
      * In the next example, an instance of a custom bean of type {@code CustomGreetings} could be created from the value
      * of property {@code name} and is used to replace the bean of type {@code Greetings} automatically bound by Camel
      * with the name <i>myGreetings</i>.
-     * 
+     *
      * <pre>
      * <code>
      *
@@ -95,7 +95,7 @@ public abstract class CamelMainTestSupport extends CamelTestSupport {
         final String locations = getPropertyPlaceholderLocationsFromFileName();
         if (locations == null) {
             LOG.debug("Use the default property placeholder location");
-            return BaseMainSupport.DEFAULT_PROPERTY_PLACEHOLDER_LOCATION;
+            return MainConstants.DEFAULT_PROPERTY_PLACEHOLDER_LOCATION;
         }
         LOG.debug("Use the following property placeholder locations: {}", locations);
         return locations;
@@ -112,7 +112,7 @@ public abstract class CamelMainTestSupport extends CamelTestSupport {
      * default package if it exists.
      * <p>
      * <b>Note:</b> Since the properties files are declared as optional, no exception is raised if they are both absent.
-     * 
+     *
      * @return the file name of the property placeholder located in the same package as the test class or directly in
      *         the default package. {@code null} by default.
      */

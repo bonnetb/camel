@@ -27,11 +27,8 @@ import com.google.api.services.gmail.Gmail;
 import org.apache.camel.CamelContext;
 import org.apache.camel.RuntimeCamelException;
 import org.apache.camel.support.ResourceHelper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class BatchGoogleMailClientFactory implements GoogleMailClientFactory {
-    private static final Logger LOG = LoggerFactory.getLogger(BatchGoogleMailClientFactory.class);
     private NetHttpTransport transport;
     private JacksonFactory jsonFactory;
 
@@ -50,10 +47,10 @@ public class BatchGoogleMailClientFactory implements GoogleMailClientFactory {
         try {
             Credential credential = authorize(clientId, clientSecret);
 
-            if (refreshToken != null && !"".equals(refreshToken)) {
+            if (refreshToken != null && !refreshToken.isEmpty()) {
                 credential.setRefreshToken(refreshToken);
             }
-            if (accessToken != null && !"".equals(accessToken)) {
+            if (accessToken != null && !accessToken.isEmpty()) {
                 credential.setAccessToken(accessToken);
             }
             return new Gmail.Builder(transport, jsonFactory, credential).setApplicationName(applicationName).build();
@@ -71,12 +68,13 @@ public class BatchGoogleMailClientFactory implements GoogleMailClientFactory {
 
     @Override
     public Gmail makeClient(
-            CamelContext camelContext, String keyResource, Collection<String> scopes, String applicationName, String delegate) {
-        if (keyResource == null) {
-            throw new IllegalArgumentException("keyResource is required to create Gmail client.");
+            CamelContext camelContext, String serviceAccountKey, Collection<String> scopes, String applicationName,
+            String delegate) {
+        if (serviceAccountKey == null) {
+            throw new IllegalArgumentException("serviceAccountKey is required to create Gmail client.");
         }
         try {
-            Credential credential = authorizeServiceAccount(camelContext, keyResource, delegate, scopes);
+            Credential credential = authorizeServiceAccount(camelContext, serviceAccountKey, delegate, scopes);
             return new Gmail.Builder(transport, jsonFactory, credential).setApplicationName(applicationName).build();
         } catch (Exception e) {
             throw new RuntimeCamelException("Could not create Gmail client.", e);
@@ -84,13 +82,14 @@ public class BatchGoogleMailClientFactory implements GoogleMailClientFactory {
     }
 
     private Credential authorizeServiceAccount(
-            CamelContext camelContext, String keyResource, String delegate, Collection<String> scopes) {
+            CamelContext camelContext, String serviceAccountKey, String delegate, Collection<String> scopes) {
         // authorize
         try {
             GoogleCredential cred = GoogleCredential
-                    .fromStream(ResourceHelper.resolveMandatoryResourceAsInputStream(camelContext, keyResource), transport,
+                    .fromStream(ResourceHelper.resolveMandatoryResourceAsInputStream(camelContext, serviceAccountKey),
+                            transport,
                             jsonFactory)
-                    .createScoped(scopes != null && scopes.size() != 0 ? scopes : null)
+                    .createScoped(scopes != null && !scopes.isEmpty() ? scopes : null)
                     .createDelegated(delegate);
             cred.refreshToken();
             return cred;

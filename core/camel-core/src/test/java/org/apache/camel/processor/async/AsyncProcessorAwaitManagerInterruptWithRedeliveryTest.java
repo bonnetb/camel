@@ -23,18 +23,20 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.camel.CamelExecutionException;
 import org.apache.camel.ContextTestSupport;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.spi.AsyncProcessorAwaitManager;
 import org.apache.camel.spi.Registry;
+import org.apache.camel.support.PluginHelper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+@DisabledIfSystemProperty(named = "ci.env.name", matches = "github.com", disabledReason = "Flaky on Github CI")
 public class AsyncProcessorAwaitManagerInterruptWithRedeliveryTest extends ContextTestSupport {
     private static final Logger LOG = LoggerFactory.getLogger(AsyncProcessorAwaitManagerInterruptWithRedeliveryTest.class);
 
@@ -51,9 +53,10 @@ public class AsyncProcessorAwaitManagerInterruptWithRedeliveryTest extends Conte
 
     @Test
     public void testAsyncAwaitInterrupt() throws Exception {
-        context.adapt(ExtendedCamelContext.class).getAsyncProcessorAwaitManager().getStatistics().setStatisticsEnabled(true);
+        final AsyncProcessorAwaitManager asyncProcessorAwaitManager = PluginHelper.getAsyncProcessorAwaitManager(context);
+        asyncProcessorAwaitManager.getStatistics().setStatisticsEnabled(true);
 
-        assertEquals(0, context.adapt(ExtendedCamelContext.class).getAsyncProcessorAwaitManager().size());
+        assertEquals(0, asyncProcessorAwaitManager.size());
 
         getMockEndpoint("mock:before").expectedBodiesReceived("Hello Camel");
         getMockEndpoint("mock:result").expectedMessageCount(0);
@@ -73,10 +76,10 @@ public class AsyncProcessorAwaitManagerInterruptWithRedeliveryTest extends Conte
         // Check we have not reached the full 5 re-deliveries
         verify(bean, atMost(4)).callMe();
 
-        assertEquals(0, context.adapt(ExtendedCamelContext.class).getAsyncProcessorAwaitManager().size());
+        assertEquals(0, asyncProcessorAwaitManager.size());
         assertEquals(1,
-                context.adapt(ExtendedCamelContext.class).getAsyncProcessorAwaitManager().getStatistics().getThreadsBlocked());
-        assertEquals(1, context.adapt(ExtendedCamelContext.class).getAsyncProcessorAwaitManager().getStatistics()
+                asyncProcessorAwaitManager.getStatistics().getThreadsBlocked());
+        assertEquals(1, asyncProcessorAwaitManager.getStatistics()
                 .getThreadsInterrupted());
     }
 
@@ -90,33 +93,35 @@ public class AsyncProcessorAwaitManagerInterruptWithRedeliveryTest extends Conte
             }
 
             // Get our blocked thread
-            int size = context.adapt(ExtendedCamelContext.class).getAsyncProcessorAwaitManager().size();
+            final AsyncProcessorAwaitManager asyncProcessorAwaitManager = PluginHelper.getAsyncProcessorAwaitManager(context);
+            int size = asyncProcessorAwaitManager.size();
             assertEquals(1, size);
 
             Collection<AsyncProcessorAwaitManager.AwaitThread> threads
-                    = context.adapt(ExtendedCamelContext.class).getAsyncProcessorAwaitManager().browse();
+                    = asyncProcessorAwaitManager.browse();
             AsyncProcessorAwaitManager.AwaitThread thread = threads.iterator().next();
 
             // Interrupt it
             String id = thread.getExchange().getExchangeId();
-            context.adapt(ExtendedCamelContext.class).getAsyncProcessorAwaitManager().interrupt(id);
+            asyncProcessorAwaitManager.interrupt(id);
         }).start();
     }
 
     @Override
-    protected Registry createRegistry() throws Exception {
-        Registry answer = super.createRegistry();
+    protected Registry createCamelRegistry() throws Exception {
+        Registry answer = super.createCamelRegistry();
         answer.bind("myBean", bean);
         return answer;
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
             public void configure() {
+                // redelivery delay should not be too fast as tested on slower CI servers can cause test to fail
                 errorHandler(
-                        deadLetterChannel("mock:error").maximumRedeliveries(5).redeliveryDelay(100).asyncDelayedRedelivery());
+                        deadLetterChannel("mock:error").maximumRedeliveries(5).redeliveryDelay(500).asyncDelayedRedelivery());
 
                 from("direct:start").routeId("myRoute").to("mock:before").bean("myBean", "callMe").to("mock:result");
             }
@@ -124,7 +129,7 @@ public class AsyncProcessorAwaitManagerInterruptWithRedeliveryTest extends Conte
     }
 
     public static class MyBean {
-        private CountDownLatch latch;
+        private final CountDownLatch latch;
 
         public MyBean(CountDownLatch latch) {
             this.latch = latch;

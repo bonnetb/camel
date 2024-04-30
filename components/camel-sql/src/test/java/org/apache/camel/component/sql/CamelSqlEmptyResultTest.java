@@ -39,7 +39,7 @@ public class CamelSqlEmptyResultTest extends CamelTestSupport {
     public void setUp() throws Exception {
         db = new EmbeddedDatabaseBuilder()
                 .setName(getClass().getSimpleName())
-                .setType(EmbeddedDatabaseType.DERBY)
+                .setType(EmbeddedDatabaseType.H2)
                 .build();
 
         jdbcTemplate = new JdbcTemplate(db);
@@ -53,7 +53,9 @@ public class CamelSqlEmptyResultTest extends CamelTestSupport {
     public void tearDown() throws Exception {
         super.tearDown();
 
-        db.shutdown();
+        if (db != null) {
+            db.shutdown();
+        }
     }
 
     @Test
@@ -63,7 +65,7 @@ public class CamelSqlEmptyResultTest extends CamelTestSupport {
 
         template.sendBody("seda:in", "");
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
         Object header = out.getReceivedExchanges().get(0).getIn().getHeader("PersonID");
         assertNull(header, "PersonID header should be null");
     }

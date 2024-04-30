@@ -5,6 +5,7 @@
 :description: Access market data and trade on Bitcoin and Altcoin exchanges.
 :since: 2.21
 :supportlevel: Stable
+:tabs-sync-option:
 :component-header: Only producer is supported
 //Manually maintained attributes
 :camel-spring-boot-name: xchange
@@ -52,7 +53,9 @@ include::partial$component-endpoint-options.adoc[]
 
 // endpoint options: END
 
-
+// component headers: START
+include::partial$component-endpoint-headers.adoc[]
+// component headers: END
 
 == Authentication
 

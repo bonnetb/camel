@@ -16,7 +16,6 @@
  */
 package org.apache.camel.component.box;
 
-import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.List;
@@ -57,7 +56,7 @@ public class BoxCommentsManagerIT extends AbstractBoxITSupport {
     private static final String CAMEL_TEST_FILE_REPLY_COMMENT = "CamelTestFile changed comment.";
 
     @Test
-    public void testAddFileComment() throws Exception {
+    public void testAddFileComment() {
         final Map<String, Object> headers = new HashMap<>();
         // parameter type is String
         headers.put("CamelBox.fileId", testFile.getID());
@@ -70,11 +69,11 @@ public class BoxCommentsManagerIT extends AbstractBoxITSupport {
         assertNotNull(result.getComments(), "addFileComment comments");
         assertTrue(result.getComments().size() > 0, "changeCommentMessage comments size");
         assertEquals(CAMEL_TEST_FILE_COMMENT, result.getComments().get(0).getMessage(), "changeCommentMessage comment message");
-        LOG.debug("addFileComment: " + result);
+        LOG.debug("addFileComment: {}", result);
     }
 
     @Test
-    public void testChangeCommentMessage() throws Exception {
+    public void testChangeCommentMessage() {
 
         BoxComment.Info commentInfo = testFile.addComment(CAMEL_TEST_FILE_COMMENT);
 
@@ -89,11 +88,11 @@ public class BoxCommentsManagerIT extends AbstractBoxITSupport {
         assertNotNull(result, "changeCommentMessage result");
         assertNotNull(result.getInfo().getMessage(), "changeCommentMessage message");
         assertEquals(CAMEL_TEST_FILE_CHANGED_COMMENT, result.getInfo().getMessage(), "changeCommentMessage message");
-        LOG.debug("changeCommentMessage: " + result);
+        LOG.debug("changeCommentMessage: {}", result);
     }
 
     @Test
-    public void testDeleteComment() throws Exception {
+    public void testDeleteComment() {
         BoxComment.Info commentInfo = testFile.addComment(CAMEL_TEST_FILE_COMMENT);
 
         // using String message body for single parameter "commentId"
@@ -105,7 +104,7 @@ public class BoxCommentsManagerIT extends AbstractBoxITSupport {
     }
 
     @Test
-    public void testGetCommentInfo() throws Exception {
+    public void testGetCommentInfo() {
 
         BoxComment.Info commentInfo = testFile.addComment(CAMEL_TEST_FILE_COMMENT);
 
@@ -114,11 +113,11 @@ public class BoxCommentsManagerIT extends AbstractBoxITSupport {
 
         assertNotNull(result, "getCommentInfo result");
         assertEquals(CAMEL_TEST_FILE_COMMENT, result.getMessage(), "getCommentInfo message");
-        LOG.debug("getCommentInfo: " + result);
+        LOG.debug("getCommentInfo: {}", result);
     }
 
     @Test
-    public void testGetFileComments() throws Exception {
+    public void testGetFileComments() {
         testFile.addComment(CAMEL_TEST_FILE_COMMENT);
 
         // using String message body for single parameter "fileId"
@@ -127,11 +126,11 @@ public class BoxCommentsManagerIT extends AbstractBoxITSupport {
 
         assertNotNull(result, "getFileComments result");
         assertEquals(1, result.size(), "getFileComments size");
-        LOG.debug("getFileComments: " + result);
+        LOG.debug("getFileComments: {}", result);
     }
 
     @Test
-    public void testReplyToComment() throws Exception {
+    public void testReplyToComment() {
 
         BoxComment.Info commentInfo = testFile.addComment(CAMEL_TEST_FILE_COMMENT);
 
@@ -145,11 +144,11 @@ public class BoxCommentsManagerIT extends AbstractBoxITSupport {
 
         assertNotNull(result, "replyToComment result");
         assertEquals(CAMEL_TEST_FILE_REPLY_COMMENT, result.getInfo().getMessage(), "replyToComment result");
-        LOG.debug("replyToComment: " + result);
+        LOG.debug("replyToComment: {}", result);
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             public void configure() {
                 // test route for addFileComment
@@ -189,7 +188,7 @@ public class BoxCommentsManagerIT extends AbstractBoxITSupport {
         return endpoint.getBoxConnection();
     }
 
-    private void createTestFile() throws FileNotFoundException {
+    private void createTestFile() {
         BoxFolder rootFolder = BoxFolder.getRootFolder(getConnection());
         InputStream stream = getClass().getResourceAsStream(CAMEL_TEST_FILE);
         testFile = rootFolder.uploadFile(stream, CAMEL_TEST_FILE_NAME).getResource();

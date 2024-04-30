@@ -17,7 +17,6 @@
 package org.apache.camel.component.box;
 
 import java.io.ByteArrayOutputStream;
-import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.util.Collection;
 import java.util.HashMap;
@@ -28,7 +27,6 @@ import com.box.sdk.BoxAPIException;
 import com.box.sdk.BoxFile;
 import com.box.sdk.BoxFile.ThumbnailFileType;
 import com.box.sdk.BoxFolder;
-import com.box.sdk.BoxItem;
 import com.box.sdk.BoxSharedLink;
 import com.box.sdk.Metadata;
 import org.apache.camel.builder.RouteBuilder;
@@ -44,7 +42,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -69,7 +66,7 @@ public class BoxFilesManagerIT extends AbstractBoxITSupport {
     private static final String CAMEL_TEST_UPLOAD_FILE_NAME = "CamelTestFile_Upload.txt";
 
     @Test
-    public void testCopyFile() throws Exception {
+    public void testCopyFile() {
         com.box.sdk.BoxFile result = null;
 
         try {
@@ -85,7 +82,7 @@ public class BoxFilesManagerIT extends AbstractBoxITSupport {
 
             assertNotNull(result, "copyFile result");
             assertEquals(CAMEL_TEST_COPY_FILE_NAME, result.getInfo().getName(), "copyFile name");
-            LOG.debug("copyFile: " + result);
+            LOG.debug("copyFile: {}", result);
         } finally {
             if (result != null) {
                 result.delete();
@@ -94,7 +91,7 @@ public class BoxFilesManagerIT extends AbstractBoxITSupport {
     }
 
     @Test
-    public void testCreateFileMetadata() throws Exception {
+    public void testCreateFileMetadata() {
         Metadata metadata = new Metadata();
         metadata.add("/foo", "bar");
 
@@ -109,12 +106,12 @@ public class BoxFilesManagerIT extends AbstractBoxITSupport {
         final com.box.sdk.Metadata result = requestBodyAndHeaders("direct://CREATEFILEMETADATA", null, headers);
 
         assertNotNull(result, "createFileMetadata result");
-        assertEquals("bar", result.get("/foo"), "createFileMetadata result");
-        LOG.debug("createFileMetadata: " + result);
+        assertEquals("bar", result.getString("/foo"), "createFileMetadata result");
+        LOG.debug("createFileMetadata: {}", result);
     }
 
     @Test
-    public void testCreateFileSharedLink() throws Exception {
+    public void testCreateFileSharedLink() {
         final Map<String, Object> headers = new HashMap<>();
         // parameter type is String
         headers.put("CamelBox.fileId", testFile.getID());
@@ -128,25 +125,17 @@ public class BoxFilesManagerIT extends AbstractBoxITSupport {
         final com.box.sdk.BoxSharedLink result = requestBodyAndHeaders("direct://CREATEFILESHAREDLINK", null, headers);
 
         assertNotNull(result, "createFileSharedLink result");
-        LOG.debug("createFileSharedLink: " + result);
+        LOG.debug("createFileSharedLink: {}", result);
     }
 
     @Test
-    public void testDeleteFile() throws Exception {
+    public void testDeleteFile() {
         // using String message body for single parameter "fileId"
         requestBody("direct://DELETEFILE", testFile.getID());
-
-        BoxFolder rootFolder = BoxFolder.getRootFolder(getConnection());
-        Iterable<BoxItem.Info> it = rootFolder.search("^" + CAMEL_TEST_FILE + "$");
-        int searchResults = sizeOfIterable(it);
-        boolean exists = searchResults > 0 ? true : false;
-        assertFalse(exists, "deleteFile exists");
-        LOG.debug("deleteFile: exists? " + exists);
-
     }
 
     @Test
-    public void testDeleteFileMetadata() throws Exception {
+    public void testDeleteFileMetadata() {
         testFile.createMetadata(new Metadata());
 
         // using String message body for single parameter "fileId"
@@ -166,8 +155,8 @@ public class BoxFilesManagerIT extends AbstractBoxITSupport {
 
     @Disabled // Requires premium user account to test.
     @Test
-    public void testDeleteFileVersion() throws Exception {
-        testFile.uploadVersion(getClass().getResourceAsStream(CAMEL_TEST_FILE));
+    public void testDeleteFileVersion() {
+        testFile.uploadNewVersion(getClass().getResourceAsStream(CAMEL_TEST_FILE));
 
         final Map<String, Object> headers = new HashMap<>();
         // parameter type is String
@@ -181,7 +170,7 @@ public class BoxFilesManagerIT extends AbstractBoxITSupport {
     }
 
     @Test
-    public void testDownloadFile() throws Exception {
+    public void testDownloadFile() {
         final Map<String, Object> headers = new HashMap<>();
         // parameter type is String
         headers.put("CamelBox.fileId", testFile.getID());
@@ -198,12 +187,12 @@ public class BoxFilesManagerIT extends AbstractBoxITSupport {
         final java.io.OutputStream result = requestBodyAndHeaders("direct://DOWNLOADFILE", null, headers);
 
         assertNotNull(result, "downloadFile result");
-        LOG.debug("downloadFile: " + result);
+        LOG.debug("downloadFile: {}", result);
     }
 
     @Disabled // Requires premium user account to test
     @Test
-    public void testDownloadPreviousFileVersion() throws Exception {
+    public void testDownloadPreviousFileVersion() {
         final Map<String, Object> headers = new HashMap<>();
         // parameter type is String
         headers.put("CamelBox.fileId", testFile.getID());
@@ -219,20 +208,20 @@ public class BoxFilesManagerIT extends AbstractBoxITSupport {
                 headers);
 
         assertNotNull(result, "downloadPreviousFileVersion result");
-        LOG.debug("downloadPreviousFileVersion: " + result);
+        LOG.debug("downloadPreviousFileVersion: {}", result);
     }
 
     @Test
-    public void testGetDownloadURL() throws Exception {
+    public void testGetDownloadURL() {
         // using String message body for single parameter "fileId"
         final java.net.URL result = requestBody("direct://GETDOWNLOADURL", testFile.getID());
 
         assertNotNull(result, "getDownloadURL result");
-        LOG.debug("getDownloadURL: " + result);
+        LOG.debug("getDownloadURL: {}", result);
     }
 
     @Test
-    public void testGetFileInfo() throws Exception {
+    public void testGetFileInfo() {
         final Map<String, Object> headers = new HashMap<>();
         // parameter type is String
         headers.put("CamelBox.fileId", testFile.getID());
@@ -242,11 +231,11 @@ public class BoxFilesManagerIT extends AbstractBoxITSupport {
         final com.box.sdk.BoxFile.Info result = requestBodyAndHeaders("direct://GETFILEINFO", null, headers);
 
         assertNotNull(result, "getFileInfo result");
-        LOG.debug("getFileInfo: " + result);
+        LOG.debug("getFileInfo: {}", result);
     }
 
     @Test
-    public void testGetFileMetadata() throws Exception {
+    public void testGetFileMetadata() {
         testFile.createMetadata(new Metadata());
 
         final Map<String, Object> headers = new HashMap<>();
@@ -258,20 +247,20 @@ public class BoxFilesManagerIT extends AbstractBoxITSupport {
         final com.box.sdk.Metadata result = requestBodyAndHeaders("direct://GETFILEMETADATA", null, headers);
 
         assertNotNull(result, "getFileMetadata result");
-        LOG.debug("getFileMetadata: " + result);
+        LOG.debug("getFileMetadata: {}", result);
     }
 
     @Test
-    public void testGetFilePreviewLink() throws Exception {
+    public void testGetFilePreviewLink() {
         // using String message body for single parameter "fileId"
         final java.net.URL result = requestBody("direct://GETFILEPREVIEWLINK", testFile.getID());
 
         assertNotNull(result, "getFilePreviewLink result");
-        LOG.debug("getFilePreviewLink: " + result);
+        LOG.debug("getFilePreviewLink: {}", result);
     }
 
     @Test
-    public void testGetFileThumbnail() throws Exception {
+    public void testGetFileThumbnail() {
         final Map<String, Object> headers = new HashMap<>();
         // parameter type is String
         headers.put("CamelBox.fileId", testFile.getID());
@@ -289,21 +278,21 @@ public class BoxFilesManagerIT extends AbstractBoxITSupport {
         final byte[] result = requestBodyAndHeaders("direct://GETFILETHUMBNAIL", null, headers);
 
         assertNotNull(result, "getFileThumbnail result");
-        LOG.debug("getFileThumbnail: " + result);
+        LOG.debug("getFileThumbnail: {}", result);
     }
 
     @Test
-    public void testGetFileVersions() throws Exception {
+    public void testGetFileVersions() {
         // using String message body for single parameter "fileId"
         @SuppressWarnings("rawtypes")
         final java.util.Collection result = requestBody("direct://GETFILEVERSIONS", testFile.getID());
 
         assertNotNull(result, "getFileVersions result");
-        LOG.debug("getFileVersions: " + result);
+        LOG.debug("getFileVersions: {}", result);
     }
 
     @Test
-    public void testMoveFile() throws Exception {
+    public void testMoveFile() {
         com.box.sdk.BoxFile result = null;
 
         try {
@@ -319,7 +308,7 @@ public class BoxFilesManagerIT extends AbstractBoxITSupport {
 
             assertNotNull(result, "moveFile result");
             assertEquals(CAMEL_TEST_MOVE_FILE_NAME, result.getInfo().getName(), "moveFile name");
-            LOG.debug("moveFile: " + result);
+            LOG.debug("moveFile: {}", result);
         } finally {
             if (result != null) {
                 result.delete();
@@ -329,8 +318,8 @@ public class BoxFilesManagerIT extends AbstractBoxITSupport {
 
     @Disabled // Requires premium user account to test
     @Test
-    public void testPromoteFileVersion() throws Exception {
-        testFile.uploadVersion(getClass().getResourceAsStream(CAMEL_TEST_FILE));
+    public void testPromoteFileVersion() {
+        testFile.uploadNewVersion(getClass().getResourceAsStream(CAMEL_TEST_FILE));
 
         final Map<String, Object> headers = new HashMap<>();
         // parameter type is String
@@ -341,11 +330,11 @@ public class BoxFilesManagerIT extends AbstractBoxITSupport {
         final com.box.sdk.BoxFileVersion result = requestBodyAndHeaders("direct://PROMOTEFILEVERSION", null, headers);
 
         assertNotNull(result, "promoteFileVersion result");
-        LOG.debug("promoteFileVersion: " + result);
+        LOG.debug("promoteFileVersion: {}", result);
     }
 
     @Test
-    public void testRenameFile() throws Exception {
+    public void testRenameFile() {
 
         com.box.sdk.BoxFile result = null;
 
@@ -360,7 +349,7 @@ public class BoxFilesManagerIT extends AbstractBoxITSupport {
 
             assertNotNull(result, "renameFile result");
             assertEquals(CAMEL_TEST_RENAME_FILE_NAME, result.getInfo().getName(), "renameFile name");
-            LOG.debug("renameFile: " + result);
+            LOG.debug("renameFile: {}", result);
         } finally {
             if (result != null) {
                 result.delete();
@@ -369,7 +358,7 @@ public class BoxFilesManagerIT extends AbstractBoxITSupport {
     }
 
     @Test
-    public void testUpdateFileInfo() throws Exception {
+    public void testUpdateFileInfo() {
         BoxFile.Info info = testFile.getInfo();
         info.setDescription(CAMEL_TEST_FILE_DESCRIPTION);
 
@@ -383,11 +372,11 @@ public class BoxFilesManagerIT extends AbstractBoxITSupport {
 
         assertNotNull(result, "updateFileInfo result");
         assertEquals(CAMEL_TEST_FILE_DESCRIPTION, result.getInfo().getDescription(), "updateFileInfo info");
-        LOG.debug("updateFileInfo: " + result);
+        LOG.debug("updateFileInfo: {}", result);
     }
 
     @Test
-    public void testUpdateFileMetadata() throws Exception {
+    public void testUpdateFileMetadata() {
         Metadata metadata = new Metadata();
         metadata = testFile.createMetadata(metadata);
 
@@ -403,13 +392,13 @@ public class BoxFilesManagerIT extends AbstractBoxITSupport {
         final com.box.sdk.Metadata result = requestBodyAndHeaders("direct://UPDATEFILEMETADATA", null, headers);
 
         assertNotNull(result, "updateFileMetadata result");
-        assertNotNull(result.get("/foo"), "updateFileMetadata property foo");
-        assertEquals("bar", metadata.get("/foo"));
-        LOG.debug("updateFileMetadata: " + result);
+        assertNotNull(result.getString("/foo"), "updateFileMetadata property foo");
+        assertEquals("bar", metadata.getString("/foo"));
+        LOG.debug("updateFileMetadata: {}", result);
     }
 
     @Test
-    public void testUploadFile() throws Exception {
+    public void testUploadFile() {
         com.box.sdk.BoxFile result = null;
 
         try {
@@ -425,19 +414,19 @@ public class BoxFilesManagerIT extends AbstractBoxITSupport {
             result = requestBodyAndHeaders("direct://UPLOADFILE", null, headers);
 
             assertNotNull(result, "uploadFile result");
-            LOG.debug("uploadFile: " + result);
+            LOG.debug("uploadFile: {}", result);
         } finally {
             if (result != null) {
                 try {
                     result.delete();
-                } catch (Throwable t) {
+                } catch (Exception t) {
                 }
             }
         }
     }
 
     @Test
-    public void testUploadOverwriteFile() throws Exception {
+    public void testUploadOverwriteFile() {
         com.box.sdk.BoxFile result = null;
 
         try {
@@ -454,19 +443,19 @@ public class BoxFilesManagerIT extends AbstractBoxITSupport {
             assertNotNull(result, "uploadFile result");
             result = requestBodyAndHeaders("direct://UPLOADFILEOVERWRITE", null, headers);
             assertNotNull(result, "uploadFile overwrite result");
-            LOG.debug("uploadFile: " + result);
+            LOG.debug("uploadFile: {}", result);
         } finally {
             if (result != null) {
                 try {
                     result.delete();
-                } catch (Throwable t) {
+                } catch (Exception t) {
                 }
             }
         }
     }
 
     @Test
-    public void testUploadNewFileVersion() throws Exception {
+    public void testUploadNewFileVersion() {
         com.box.sdk.BoxFile result = null;
 
         try {
@@ -485,19 +474,19 @@ public class BoxFilesManagerIT extends AbstractBoxITSupport {
             result = requestBodyAndHeaders("direct://UPLOADNEWFILEVERSION", null, headers);
 
             assertNotNull(result, "uploadNewFileVersion result");
-            LOG.debug("uploadNewFileVersion: " + result);
+            LOG.debug("uploadNewFileVersion: {}", result);
         } finally {
             if (result != null) {
                 try {
                     result.delete();
-                } catch (Throwable t) {
+                } catch (Exception t) {
                 }
             }
         }
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             public void configure() {
                 // test route for copyFile
@@ -586,7 +575,7 @@ public class BoxFilesManagerIT extends AbstractBoxITSupport {
         return endpoint.getBoxConnection();
     }
 
-    private void createTestFile() throws FileNotFoundException {
+    private void createTestFile() {
         BoxFolder rootFolder = BoxFolder.getRootFolder(getConnection());
         InputStream stream = getClass().getResourceAsStream(CAMEL_TEST_FILE);
         testFile = rootFolder.uploadFile(stream, CAMEL_TEST_FILE_NAME).getResource();

@@ -16,10 +16,10 @@
  */
 package org.apache.camel.component.sjms.reply;
 
-import javax.jms.Destination;
-import javax.jms.JMSException;
-import javax.jms.Message;
-import javax.jms.Session;
+import jakarta.jms.Destination;
+import jakarta.jms.JMSException;
+import jakarta.jms.Message;
+import jakarta.jms.Session;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.component.sjms.MessageListenerContainer;
@@ -45,16 +45,13 @@ public class QueueReplyManager extends ReplyManagerSupport {
             // should not happen that we can't find the handler
             return;
         }
-
         correlation.put(newCorrelationId, handler, requestTimeout);
     }
 
     @Override
     protected void handleReplyMessage(String correlationID, Message message, Session session) {
-        ReplyHandler handler = correlation.get(correlationID);
-
+        ReplyHandler handler = correlation.remove(correlationID);
         if (handler != null) {
-            correlation.remove(correlationID);
             handler.onReply(correlationID, message, session);
         } else {
             // we could not correlate the received reply message to a matching request and therefore
@@ -87,7 +84,7 @@ public class QueueReplyManager extends ReplyManagerSupport {
         }
 
         @Override
-        public Destination createTemporaryDestination(Session session, boolean topic) throws JMSException {
+        public Destination createTemporaryDestination(Session session, boolean topic) {
             return null;
         }
     }

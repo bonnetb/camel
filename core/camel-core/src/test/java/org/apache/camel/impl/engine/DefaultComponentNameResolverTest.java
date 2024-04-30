@@ -19,8 +19,8 @@ package org.apache.camel.impl.engine;
 import java.util.Set;
 
 import org.apache.camel.ContextTestSupport;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.spi.ComponentNameResolver;
+import org.apache.camel.support.PluginHelper;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -34,10 +34,10 @@ public class DefaultComponentNameResolverTest extends ContextTestSupport {
     }
 
     @Test
-    public void testDefaultComponentNameResolver() throws Exception {
+    public void testDefaultComponentNameResolver() {
         context.start();
 
-        ComponentNameResolver resolver = context.adapt(ExtendedCamelContext.class).getComponentNameResolver();
+        ComponentNameResolver resolver = PluginHelper.getComponentNameResolver(context);
         assertNotNull(resolver);
 
         Set<String> names = resolver.resolveNames(context);
@@ -49,7 +49,7 @@ public class DefaultComponentNameResolverTest extends ContextTestSupport {
         assertTrue(names.contains("file"));
         assertTrue(names.contains("log"));
         assertTrue(names.contains("mock"));
-        assertTrue(names.contains("vm"));
+        assertTrue(names.contains("seda"));
         assertTrue(names.contains("xslt"));
 
         context.stop();

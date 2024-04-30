@@ -29,8 +29,9 @@ import org.junit.jupiter.api.Test;
 
 import static java.io.File.separator;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  *
@@ -38,7 +39,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 public class FileProducerMoveExistingTest extends ContextTestSupport {
 
     @Test
-    public void testExistingFileDoesNotExists() throws Exception {
+    public void testExistingFileDoesNotExists() {
         template.sendBodyAndHeader(
                 fileUri("?fileExist=Move&moveExisting=${file:parent}/renamed-${file:onlyname}"), "Hello World",
                 Exchange.FILE_NAME, "hello.txt");
@@ -157,6 +158,7 @@ public class FileProducerMoveExistingTest extends ContextTestSupport {
             String date = new SimpleDateFormat("yyyyMMdd").format(new Date());
             return new File(current, name).isDirectory() && name.startsWith(subdirPrefix + "-" + date);
         });
+        assertNotNull(directories, "There should be a list of directories");
         assertEquals(1, directories.length);
         File movedFilePath = testFile(directories[0] + separator + filename).toFile();
 
@@ -200,6 +202,7 @@ public class FileProducerMoveExistingTest extends ContextTestSupport {
             String date = new SimpleDateFormat("yyyyMMdd").format(new Date());
             return new File(current, name).isFile() && name.startsWith(filename + "." + date);
         });
+        assertNotNull(files, "There should be a list of files");
         assertEquals(1, files.length);
 
         assertFileExists(testFile(files[0]), fileContent1);
@@ -215,7 +218,7 @@ public class FileProducerMoveExistingTest extends ContextTestSupport {
 
         assertFileExists(testFile("hello.txt"), "Bye World");
 
-        // would move into sub directory and keep existing name as is
+        // would move into subdirectory and keep existing name as is
         assertFileExists(testFile("backup/hello.txt"), "Hello World");
     }
 
@@ -248,17 +251,17 @@ public class FileProducerMoveExistingTest extends ContextTestSupport {
                 fileUri("?fileExist=Move&moveExisting=${file:parent}/renamed-${file:onlyname}&eagerDeleteTargetFile=false"),
                 "Hello World",
                 Exchange.FILE_NAME, "hello.txt");
-        try {
+
+        CamelExecutionException e = assertThrows(CamelExecutionException.class, () -> {
             template.sendBodyAndHeader(
                     fileUri("?fileExist=Move&moveExisting=${file:parent}/renamed-${file:onlyname}&eagerDeleteTargetFile=false"),
                     "Bye World",
                     Exchange.FILE_NAME, "hello.txt");
-            fail("Should have thrown an exception");
-        } catch (CamelExecutionException e) {
-            GenericFileOperationFailedException cause
-                    = assertIsInstanceOf(GenericFileOperationFailedException.class, e.getCause());
-            assertTrue(cause.getMessage().startsWith("Cannot move existing file"));
-        }
+        }, "Should have thrown an exception");
+
+        GenericFileOperationFailedException cause
+                = assertIsInstanceOf(GenericFileOperationFailedException.class, e.getCause());
+        assertTrue(cause.getMessage().startsWith("Cannot move existing file"));
 
         // we could not write the new file so the previous context should be
         // there

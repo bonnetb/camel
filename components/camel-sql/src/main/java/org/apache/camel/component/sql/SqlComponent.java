@@ -24,7 +24,7 @@ import org.apache.camel.CamelContext;
 import org.apache.camel.Endpoint;
 import org.apache.camel.spi.Metadata;
 import org.apache.camel.spi.annotations.Component;
-import org.apache.camel.support.DefaultComponent;
+import org.apache.camel.support.HealthCheckComponent;
 import org.apache.camel.support.PropertyBindingSupport;
 import org.apache.camel.util.PropertiesHelper;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -34,12 +34,14 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * queries.
  */
 @Component("sql")
-public class SqlComponent extends DefaultComponent {
+public class SqlComponent extends HealthCheckComponent {
 
     @Metadata(autowired = true)
     private DataSource dataSource;
     @Metadata(label = "advanced", defaultValue = "true")
     private boolean usePlaceholder = true;
+    @Metadata(label = "advanced", autowired = true)
+    private RowMapperFactory rowMapperFactory;
 
     public SqlComponent() {
     }
@@ -85,6 +87,10 @@ public class SqlComponent extends DefaultComponent {
         if (onConsumeBatchComplete != null && usePlaceholder) {
             onConsumeBatchComplete = onConsumeBatchComplete.replaceAll(parameterPlaceholderSubstitute, "?");
         }
+        RowMapperFactory factory = getAndRemoveParameter(parameters, "rowMapperFactory", RowMapperFactory.class);
+        if (factory == null) {
+            factory = rowMapperFactory;
+        }
 
         // create endpoint
         SqlEndpoint endpoint = new SqlEndpoint(uri, this);
@@ -94,6 +100,7 @@ public class SqlComponent extends DefaultComponent {
         endpoint.setOnConsume(onConsume);
         endpoint.setOnConsumeFailed(onConsumeFailed);
         endpoint.setOnConsumeBatchComplete(onConsumeBatchComplete);
+        endpoint.setRowMapperFactory(factory);
         setProperties(endpoint, parameters);
 
         // endpoint configured data source takes precedence
@@ -140,5 +147,16 @@ public class SqlComponent extends DefaultComponent {
 
     public boolean isUsePlaceholder() {
         return usePlaceholder;
+    }
+
+    public RowMapperFactory getRowMapperFactory() {
+        return rowMapperFactory;
+    }
+
+    /**
+     * Factory for creating RowMapper
+     */
+    public void setRowMapperFactory(RowMapperFactory rowMapperFactory) {
+        this.rowMapperFactory = rowMapperFactory;
     }
 }

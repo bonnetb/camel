@@ -23,17 +23,15 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
-import org.apache.camel.component.as2.api.AS2Charset;
 import org.apache.camel.component.as2.api.AS2Header;
-import org.apache.http.Header;
-import org.apache.http.HeaderIterator;
-import org.apache.http.entity.AbstractHttpEntity;
-import org.apache.http.entity.ContentType;
-import org.apache.http.message.BasicHeader;
-import org.apache.http.message.HeaderGroup;
-import org.apache.http.protocol.HTTP;
-import org.apache.http.util.Args;
+import org.apache.camel.util.ObjectHelper;
+import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.http.Header;
+import org.apache.hc.core5.http.io.entity.AbstractHttpEntity;
+import org.apache.hc.core5.http.message.BasicHeader;
+import org.apache.hc.core5.http.message.HeaderGroup;
 
 public abstract class MimeEntity extends AbstractHttpEntity {
 
@@ -61,13 +59,19 @@ public abstract class MimeEntity extends AbstractHttpEntity {
 
     protected boolean isMainBody;
 
-    protected Header contentTransferEncoding;
-
     protected long contentLength = RECALCULATE_CONTENT_LENGTH;
 
     private final HeaderGroup headergroup = new HeaderGroup();
 
-    protected MimeEntity() {
+    protected MimeEntity(ContentType contentType, String contentTransferEncoding) {
+        super(contentType, contentTransferEncoding);
+        if (contentType != null) {
+            this.headergroup.addHeader(new BasicHeader(AS2Header.CONTENT_TYPE, contentType));
+        }
+        if (contentTransferEncoding != null) {
+            BasicHeader encoding = new BasicHeader(AS2Header.CONTENT_TRANSFER_ENCODING, contentTransferEncoding);
+            this.headergroup.addHeader(encoding);
+        }
     }
 
     public boolean isMainBody() {
@@ -76,46 +80,6 @@ public abstract class MimeEntity extends AbstractHttpEntity {
 
     public void setMainBody(boolean isMainBody) {
         this.isMainBody = isMainBody;
-    }
-
-    public String getContentTypeValue() {
-        Header contentTypeHeader = getContentType();
-        if (contentTypeHeader != null) {
-            return contentTypeHeader.getValue();
-        }
-        return null;
-    }
-
-    public void setContentType(ContentType contentType) {
-        super.setContentType(contentType == null ? null : contentType.toString());
-    }
-
-    @Override
-    public void setContentType(Header contentType) {
-        super.setContentType(contentType);
-        if (contentType != null) {
-            addHeader(contentType);
-        } else {
-            removeHeaders(AS2Header.CONTENT_TYPE);
-        }
-    }
-
-    public String getContentEncodingValue() {
-        Header contentEncodingHeader = getContentEncoding();
-        if (contentEncodingHeader != null) {
-            return contentEncodingHeader.getValue();
-        }
-        return null;
-    }
-
-    @Override
-    public void setContentEncoding(Header contentEncoding) {
-        super.setContentEncoding(contentEncoding);
-        if (contentEncoding != null) {
-            addHeader(contentEncoding);
-        } else {
-            removeHeaders(HTTP.CONTENT_ENCODING);
-        }
     }
 
     public String getContentTransferEncodingValue() {
@@ -127,42 +91,13 @@ public abstract class MimeEntity extends AbstractHttpEntity {
     }
 
     /**
-     * Obtains the Content-Transfer-Encoding header. The default implementation returns the value of the
-     * {@link #contentEncoding contentEncoding} attribute.
+     * Obtains the Content-Transfer-Encoding header.
      *
      * @return the Content-Transfer-Encoding header, or {@code null}
      */
     public Header getContentTransferEncoding() {
-        return this.contentTransferEncoding;
-    }
-
-    /**
-     * Specifies the Content-Transfer-Encoding header. The default implementation sets the value of the
-     * {@link #contentTransferEncoding contentTransferEncoding} attribute.
-     *
-     * @param contentTransferEncoding the new Content-Transfer-Encoding header, or {@code null} to unset
-     */
-    public void setContentTransferEncoding(final Header contentTransferEncoding) {
-        this.contentTransferEncoding = contentTransferEncoding;
-        if (contentTransferEncoding != null) {
-            addHeader(contentTransferEncoding);
-        } else {
-            removeHeaders(AS2Header.CONTENT_TRANSFER_ENCODING);
-        }
-    }
-
-    /**
-     * Specifies the Content-Transfer-Encoding header, as a string. The default implementation calls
-     * {@link #setContentTransferEncoding(Header) setContentTransferEncoding(Header)}.
-     *
-     * @param contentTranserEncoding - the new Content-Transfer-Encoding header, or {@code null} to unset
-     */
-    public void setContentTransferEncoding(final String contentTranserEncoding) {
-        Header h = null;
-        if (contentTranserEncoding != null) {
-            h = new BasicHeader(AS2Header.CONTENT_TRANSFER_ENCODING, contentTranserEncoding);
-        }
-        setContentTransferEncoding(h);
+        return (super.getContentEncoding() == null)
+                ? null : new BasicHeader(AS2Header.CONTENT_TRANSFER_ENCODING, super.getContentEncoding());
     }
 
     public boolean containsHeader(final String name) {
@@ -182,7 +117,7 @@ public abstract class MimeEntity extends AbstractHttpEntity {
     }
 
     public Header[] getAllHeaders() {
-        return this.headergroup.getAllHeaders();
+        return this.headergroup.getHeaders();
     }
 
     public void addHeader(final Header header) {
@@ -190,17 +125,17 @@ public abstract class MimeEntity extends AbstractHttpEntity {
     }
 
     public void addHeader(final String name, final String value) {
-        Args.notNull(name, "Header name");
+        ObjectHelper.notNull(name, "Header name");
         this.headergroup.addHeader(new BasicHeader(name, value));
     }
 
     public void setHeader(final Header header) {
-        this.headergroup.updateHeader(header);
+        this.headergroup.setHeader(header);
     }
 
     public void setHeader(final String name, final String value) {
-        Args.notNull(name, "Header name");
-        this.headergroup.updateHeader(new BasicHeader(name, value));
+        ObjectHelper.notNull(name, "Header name");
+        this.headergroup.setHeader(new BasicHeader(name, value));
     }
 
     public void setHeaders(final Header[] headers) {
@@ -215,24 +150,11 @@ public abstract class MimeEntity extends AbstractHttpEntity {
         if (name == null) {
             return;
         }
-        for (final HeaderIterator i = this.headergroup.iterator(); i.hasNext();) {
-            final Header header = i.nextHeader();
-            if (name.equalsIgnoreCase(header.getName())) {
-                i.remove();
-            }
-        }
+        this.headergroup.removeHeaders(name);
     }
 
     public void removeAllHeaders() {
         this.headergroup.clear();
-    }
-
-    public HeaderIterator headerIterator() {
-        return this.headergroup.iterator();
-    }
-
-    public HeaderIterator headerIterator(final String name) {
-        return this.headergroup.iterator(name);
     }
 
     @Override
@@ -270,14 +192,14 @@ public abstract class MimeEntity extends AbstractHttpEntity {
 
     public String getCharset() {
         if (getContentType() == null) {
-            return AS2Charset.US_ASCII;
+            return StandardCharsets.US_ASCII.name();
         }
-        ContentType contentType = ContentType.parse(getContentType().getValue());
+        ContentType contentType = ContentType.parse(getContentType());
         Charset charset = contentType.getCharset();
         if (charset != null) {
             return charset.name();
         }
-        return AS2Charset.US_ASCII;
+        return StandardCharsets.US_ASCII.name();
     }
 
 }

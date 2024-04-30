@@ -29,7 +29,7 @@ public class FtpConsumerMaxMessagesPerPollIT extends FtpServerTestSupport {
     }
 
     @BeforeEach
-    void prepareFtpServer() {
+    public void prepareFtpServer() {
         sendFile(getFtpUrl(), "Bye World", "bye.txt");
         sendFile(getFtpUrl(), "Hello World", "hello.txt");
         sendFile(getFtpUrl(), "Godday World", "godday.txt");
@@ -45,13 +45,13 @@ public class FtpConsumerMaxMessagesPerPollIT extends FtpServerTestSupport {
         mock.setResultWaitTime(4000);
         mock.expectedPropertyReceived(Exchange.BATCH_SIZE, 2);
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
 
         mock.reset();
         mock.expectedBodiesReceived("Hello World");
         mock.expectedPropertyReceived(Exchange.BATCH_SIZE, 1);
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Override

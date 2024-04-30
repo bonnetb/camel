@@ -62,10 +62,10 @@ public class DeadLetterChannelOnRedeliveryTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 // START SNIPPET: e1
                 // we configure our Dead Letter Channel to invoke
                 // MyRedeliveryProcessor before a redelivery is
@@ -76,7 +76,7 @@ public class DeadLetterChannelOnRedeliveryTest extends ContextTestSupport {
                 // END SNIPPET: e1
 
                 from("direct:start").process(new Processor() {
-                    public void process(Exchange exchange) throws Exception {
+                    public void process(Exchange exchange) {
                         // force some error so Camel will do redelivery
                         if (++counter <= 3) {
                             throw new IllegalArgumentException("Forced by unit test");
@@ -92,10 +92,10 @@ public class DeadLetterChannelOnRedeliveryTest extends ContextTestSupport {
     // This is our processor that is executed before every redelivery attempt
     // here we can do what we want in the java code, such as altering the
     // message
-    public class MyRedeliverProcessor implements Processor {
+    public static class MyRedeliverProcessor implements Processor {
 
         @Override
-        public void process(Exchange exchange) throws Exception {
+        public void process(Exchange exchange) {
             // the message is being redelivered so we can alter it
 
             // we just append the redelivery counter to the body

@@ -29,7 +29,7 @@ import org.apache.camel.util.ObjectHelper;
 import software.amazon.awssdk.services.mq.MqClient;
 
 /**
- * Manage AWS MQ instances using AWS SDK version 2.x.
+ * Send messages to AWS MQ.
  */
 @UriEndpoint(firstVersion = "3.1.0", scheme = "aws2-mq", title = "AWS MQ", syntax = "aws2-mq:label", producerOnly = true,
              category = { Category.CLOUD, Category.MESSAGING }, headersClass = MQ2Constants.class)
@@ -43,6 +43,11 @@ public class MQ2Endpoint extends ScheduledPollEndpoint {
     public MQ2Endpoint(String uri, Component component, MQ2Configuration configuration) {
         super(uri, component);
         this.configuration = configuration;
+    }
+
+    @Override
+    public MQ2Component getComponent() {
+        return (MQ2Component) super.getComponent();
     }
 
     @Override

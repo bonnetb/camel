@@ -22,12 +22,13 @@ import org.apache.camel.model.ChoiceDefinition
 import org.apache.camel.model.ToDefinition
 import org.apache.camel.model.WhenDefinition
 import org.apache.camel.spi.Resource
+import org.apache.camel.support.PluginHelper
 
 class JSonPathSuppressTest extends YamlTestSupport {
 
     def "jsonpath-suppress definition (#resource.location)"(Resource resource) {
         when:
-            context.routesLoader.loadRoutes(resource)
+            PluginHelper.getRoutesLoader(context).loadRoutes(resource)
         then:
         with(context.routeDefinitions[0].outputs[0], ChoiceDefinition) {
             with(whenClauses[0], WhenDefinition) {
@@ -83,7 +84,7 @@ class JSonPathSuppressTest extends YamlTestSupport {
                           when:
                           - jsonpath: 
                               expression: "person.middlename"
-                              suppress-exceptions: true
+                              suppressExceptions: true
                             steps:
                             - to: "mock:middle"
                           otherwise:
@@ -118,7 +119,7 @@ class JSonPathSuppressTest extends YamlTestSupport {
                           when:
                           - jsonpath: 
                               expression: "person.middlename"
-                              suppress-exceptions: true
+                              suppressExceptions: true
                             steps:
                             - to: "mock:middle"
                           otherwise:
@@ -153,12 +154,12 @@ class JSonPathSuppressTest extends YamlTestSupport {
                           when:
                           - jsonpath: 
                               expression: "person.middlename"
-                              suppress-exceptions: true
+                              suppressExceptions: true
                             steps:
                             - to: "mock:middle"
                           - jsonpath: 
                               expression: "person.lastname"
-                              suppress-exceptions: true
+                              suppressExceptions: true
                             steps:
                             - to: "mock:last"
                           otherwise:
@@ -184,5 +185,31 @@ class JSonPathSuppressTest extends YamlTestSupport {
         }
         then:
         MockEndpoint.assertIsSatisfied(context)
+    }
+
+    def "Error: kebab-case: suppress-exceptions"() {
+        when:
+        var route = """
+                - from:
+                    uri: "direct:start"
+                    steps:    
+                      - choice:  
+                          when:
+                          - jsonpath: 
+                              expression: "person.middlename"
+                              suppress-exceptions: true
+                            steps:
+                            - to: "mock:middle"
+                          otherwise:
+                            steps:
+                              - to: "mock:other"
+            """
+        then:
+        try {
+            loadRoutes route
+            Assertions.fail("Should have thrown exception")
+        } catch (e) {
+            assert e.message.contains("additional properties")
+        }
     }
 }

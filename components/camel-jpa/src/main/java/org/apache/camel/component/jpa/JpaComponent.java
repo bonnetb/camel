@@ -20,24 +20,22 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
-import javax.persistence.EntityManagerFactory;
+import jakarta.persistence.EntityManagerFactory;
 
 import org.apache.camel.Endpoint;
 import org.apache.camel.spi.Metadata;
 import org.apache.camel.spi.annotations.Component;
-import org.apache.camel.support.DefaultComponent;
+import org.apache.camel.support.HealthCheckComponent;
 import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.util.PropertiesHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * A JPA Component
  */
 @Component("jpa")
-public class JpaComponent extends DefaultComponent {
+public class JpaComponent extends HealthCheckComponent {
 
     private static final Logger LOG = LoggerFactory.getLogger(JpaComponent.class);
 
@@ -46,7 +44,7 @@ public class JpaComponent extends DefaultComponent {
     @Metadata
     private EntityManagerFactory entityManagerFactory;
     @Metadata
-    private PlatformTransactionManager transactionManager;
+    private TransactionStrategy transactionStrategy;
     @Metadata(defaultValue = "true")
     private boolean joinTransaction = true;
     @Metadata
@@ -55,6 +53,7 @@ public class JpaComponent extends DefaultComponent {
     private Map<String, Class<?>> aliases = new HashMap<>();
 
     public JpaComponent() {
+        // default constructor
     }
 
     // Properties
@@ -70,15 +69,15 @@ public class JpaComponent extends DefaultComponent {
         this.entityManagerFactory = entityManagerFactory;
     }
 
-    public PlatformTransactionManager getTransactionManager() {
-        return transactionManager;
+    public TransactionStrategy getTransactionStrategy() {
+        return transactionStrategy;
     }
 
     /**
-     * To use the {@link PlatformTransactionManager} for managing transactions.
+     * To use the {@link TransactionStrategy} for running the operations in a transaction.
      */
-    public void setTransactionManager(PlatformTransactionManager transactionManager) {
-        this.transactionManager = transactionManager;
+    public void setTransactionStrategy(TransactionStrategy transactionStrategy) {
+        this.transactionStrategy = transactionStrategy;
     }
 
     public boolean isJoinTransaction() {
@@ -162,10 +161,7 @@ public class JpaComponent extends DefaultComponent {
         return endpoint;
     }
 
-    @Override
-    protected void doInit() throws Exception {
-        super.doInit();
-
+    private void initEntityManagerFactory() {
         // lookup entity manager factory and use it if only one provided
         if (entityManagerFactory == null) {
             Map<String, EntityManagerFactory> map
@@ -183,47 +179,29 @@ public class JpaComponent extends DefaultComponent {
         } else {
             LOG.info("Using EntityManagerFactory configured: {}", entityManagerFactory);
         }
+    }
 
-        // lookup transaction manager and use it if only one provided
-        if (transactionManager == null) {
-            Map<String, PlatformTransactionManager> map
-                    = getCamelContext().getRegistry().findByTypeWithName(PlatformTransactionManager.class);
-            if (map != null) {
-                if (map.size() == 1) {
-                    transactionManager = map.values().iterator().next();
-                    LOG.info("Using TransactionManager found in registry with id [{}] {}",
-                            map.keySet().iterator().next(), transactionManager);
-                } else {
-                    LOG.debug("Could not find a single TransactionManager in registry as there was {} instances.", map.size());
-                }
-            }
-        } else {
-            LOG.info("Using TransactionManager configured on this component: {}", transactionManager);
-        }
-
-        // transaction manager could also be hidden in a template
-        if (transactionManager == null) {
-            Map<String, TransactionTemplate> map
-                    = getCamelContext().getRegistry().findByTypeWithName(TransactionTemplate.class);
-            if (map != null) {
-                if (map.size() == 1) {
-                    transactionManager = map.values().iterator().next().getTransactionManager();
-                    LOG.info("Using TransactionManager found in registry with id [{}] {}",
-                            map.keySet().iterator().next(), transactionManager);
-                } else {
-                    LOG.debug("Could not find a single TransactionTemplate in registry as there was {} instances.", map.size());
-                }
-            }
-        }
+    @Override
+    protected void doInit() throws Exception {
+        super.doInit();
+        initEntityManagerFactory();
 
         // warn about missing configuration
         if (entityManagerFactory == null) {
             LOG.warn(
                     "No EntityManagerFactory has been configured on this JpaComponent. Each JpaEndpoint will auto create their own EntityManagerFactory.");
         }
-        if (transactionManager == null) {
-            LOG.warn(
-                    "No TransactionManager has been configured on this JpaComponent. Each JpaEndpoint will auto create their own JpaTransactionManager.");
+
+        if (transactionStrategy != null) {
+            LOG.info("Using TransactionStrategy configured: {}", transactionStrategy);
+        } else {
+            createTransactionStrategy();
+        }
+    }
+
+    private void createTransactionStrategy() {
+        if (transactionStrategy == null && getEntityManagerFactory() != null) {
+            transactionStrategy = new DefaultTransactionStrategy(getCamelContext(), getEntityManagerFactory());
         }
     }
 

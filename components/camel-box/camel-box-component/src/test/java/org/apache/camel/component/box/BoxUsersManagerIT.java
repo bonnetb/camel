@@ -66,7 +66,7 @@ public class BoxUsersManagerIT extends AbstractBoxITSupport {
 
     @Disabled
     @Test
-    public void testAddUserEmailAlias() throws Exception {
+    public void testAddUserEmailAlias() {
         com.box.sdk.EmailAlias result = null;
         try {
             final Map<String, Object> headers = new HashMap<>();
@@ -76,19 +76,19 @@ public class BoxUsersManagerIT extends AbstractBoxITSupport {
             headers.put("CamelBox.email", CAMEL_TEST_USER_EMAIL_ALIAS);
             result = requestBodyAndHeaders("direct://ADDUSEREMAILALIAS", null, headers);
             assertNotNull(result, "addUserEmailAlias result");
-            LOG.debug("addUserEmailAlias: " + result);
+            LOG.debug("addUserEmailAlias: {}", result);
         } finally {
             if (result != null) {
                 try {
                     testUser.deleteEmailAlias(result.getID());
-                } catch (Throwable t) {
+                } catch (Exception t) {
                 }
             }
         }
     }
 
     @Test
-    public void testCreateAppUser() throws Exception {
+    public void testCreateAppUser() {
         //This test makes sense only with JWT authentication. With standard (OAuth) it will always fail.
         assumeTrue(jwtAuthentication, "Test has to be executed with standard authentication.");
 
@@ -107,24 +107,24 @@ public class BoxUsersManagerIT extends AbstractBoxITSupport {
             result = requestBodyAndHeaders("direct://CREATEAPPUSER", null, headers);
 
             assertNotNull(result, "createAppUser result");
-            LOG.debug("createAppUser: " + result);
+            LOG.debug("createAppUser: {}", result);
         } finally {
             if (result != null) {
                 try {
                     result.delete(false, true);
-                } catch (Throwable t) {
+                } catch (Exception t) {
                 }
             }
         }
     }
 
     @Test
-    public void testCreateEnterpriseUser() throws Exception {
+    public void testCreateEnterpriseUser() {
         //This test makes sense only with standard (OAuth) authentication, with JWT it will always fail with return code 403
         assumeFalse(jwtAuthentication, "Test has to be executed with standard authentication.");
 
         String enterpriseUser1Login = (String) options.get(CAMEL_TEST_ENTERPRISE_USER_LOGIN_KEY);
-        if (enterpriseUser1Login != null && "".equals(enterpriseUser1Login.trim())) {
+        if (enterpriseUser1Login != null && enterpriseUser1Login.isBlank()) {
             enterpriseUser1Login = null;
         }
 
@@ -148,12 +148,12 @@ public class BoxUsersManagerIT extends AbstractBoxITSupport {
             result = requestBodyAndHeaders("direct://CREATEENTERPRISEUSER", null, headers);
 
             assertNotNull(result, "createEnterpriseUser result");
-            LOG.debug("createEnterpriseUser: " + result);
+            LOG.debug("createEnterpriseUser: {}", result);
         } finally {
             if (result != null) {
                 try {
                     result.delete(false, true);
-                } catch (Throwable t) {
+                } catch (Exception t) {
                 }
             }
         }
@@ -183,7 +183,7 @@ public class BoxUsersManagerIT extends AbstractBoxITSupport {
 
     @Disabled
     @Test
-    public void testDeleteUserEmailAlias() throws Exception {
+    public void testDeleteUserEmailAlias() {
         EmailAlias emailAlias = null;
         try {
             emailAlias = testUser.addEmailAlias(CAMEL_TEST_USER_EMAIL_ALIAS);
@@ -205,7 +205,7 @@ public class BoxUsersManagerIT extends AbstractBoxITSupport {
     }
 
     @Test
-    public void testGetAllEnterpriseOrExternalUsers() throws Exception {
+    public void testGetAllEnterpriseOrExternalUsers() {
         final Map<String, Object> headers = new HashMap<>();
         // parameter type is String
         headers.put("CamelBox.filterTerm", null);
@@ -216,38 +216,38 @@ public class BoxUsersManagerIT extends AbstractBoxITSupport {
         final java.util.List result = requestBodyAndHeaders("direct://GETALLENTERPRISEOREXTERNALUSERS", null, headers);
 
         assertNotNull(result, "getAllEnterpriseOrExternalUsers result");
-        LOG.debug("getAllEnterpriseOrExternalUsers: " + result);
+        LOG.debug("getAllEnterpriseOrExternalUsers: {}", result);
     }
 
     @Test
-    public void testGetCurrentUser() throws Exception {
+    public void testGetCurrentUser() {
         final com.box.sdk.BoxUser result = requestBody("direct://GETCURRENTUSER", testUser.getID());
 
         assertNotNull(result, "getCurrentUser result");
-        LOG.debug("getCurrentUser: " + result);
+        LOG.debug("getCurrentUser: {}", result);
     }
 
     @Test
-    public void testGetUserEmailAlias() throws Exception {
+    public void testGetUserEmailAlias() {
         // using String message body for single parameter "userId"
         @SuppressWarnings("rawtypes")
         final java.util.Collection result = requestBody("direct://GETUSEREMAILALIAS", testUser.getID());
 
         assertNotNull(result, "getUserEmailAlias result");
-        LOG.debug("getUserEmailAlias: " + result);
+        LOG.debug("getUserEmailAlias: {}", result);
     }
 
     @Test
-    public void testGetUserInfo() throws Exception {
+    public void testGetUserInfo() {
         // using String message body for single parameter "userId"
         final com.box.sdk.BoxUser.Info result = requestBody("direct://GETUSERINFO", testUser.getID());
 
         assertNotNull(result, "getUserInfo result");
-        LOG.debug("getUserInfo: " + result);
+        LOG.debug("getUserInfo: {}", result);
     }
 
     @Test
-    public void testUpdateUserInfo() throws Exception {
+    public void testUpdateUserInfo() {
         //This test makes sense only with standard (OAuth) authentication, with JWT it will always fail with return code 403
         assumeFalse(jwtAuthentication, "Test has to be executed with standard authentication.");
 
@@ -262,7 +262,7 @@ public class BoxUsersManagerIT extends AbstractBoxITSupport {
             headers.put("CamelBox.info", info);
             final com.box.sdk.BoxUser result = requestBodyAndHeaders("direct://UPDATEUSERINFO", null, headers);
             assertNotNull(result, "updateUserInfo result");
-            LOG.debug("updateUserInfo: " + result);
+            LOG.debug("updateUserInfo: {}", result);
         } finally {
             info = testUser.getInfo();
             info.setJobTitle("");
@@ -271,16 +271,16 @@ public class BoxUsersManagerIT extends AbstractBoxITSupport {
     }
 
     @Test
-    public void testmMoveFolderToUser() throws Exception {
+    public void testmMoveFolderToUser() {
         //This test makes sense only with standard (OAuth) authentication, with JWT it will always fail with return code 403
         assumeFalse(jwtAuthentication, "Test has to be executed with standard authentication.");
 
         String enterpriseUser1Login = (String) options.get(CAMEL_TEST_ENTERPRISE_USER_LOGIN_KEY);
         String enterpriseUser2Login = (String) options.get(CAMEL_TEST_ENTERPRISE_USER2_LOGIN_KEY);
-        if (enterpriseUser1Login != null && "".equals(enterpriseUser1Login.trim())) {
+        if (enterpriseUser1Login != null && enterpriseUser1Login.isBlank()) {
             enterpriseUser1Login = null;
         }
-        if (enterpriseUser2Login != null && "".equals(enterpriseUser2Login.trim())) {
+        if (enterpriseUser2Login != null && enterpriseUser2Login.isBlank()) {
             enterpriseUser2Login = null;
         }
 
@@ -308,20 +308,20 @@ public class BoxUsersManagerIT extends AbstractBoxITSupport {
             if (user1 != null) {
                 try {
                     user1.getResource().delete(false, true);
-                } catch (Throwable t) {
+                } catch (Exception t) {
                 }
             }
             if (user2 != null) {
                 try {
                     user2.getResource().delete(false, true);
-                } catch (Throwable t) {
+                } catch (Exception t) {
                 }
             }
         }
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             public void configure() {
                 // test route for addUserEmailAlias
@@ -362,7 +362,7 @@ public class BoxUsersManagerIT extends AbstractBoxITSupport {
     }
 
     @BeforeEach
-    public void setupTest() throws Exception {
+    public void setupTest() {
         createTestUser();
     }
 

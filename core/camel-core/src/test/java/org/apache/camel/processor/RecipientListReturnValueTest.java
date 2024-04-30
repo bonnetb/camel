@@ -30,8 +30,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class RecipientListReturnValueTest extends ContextTestSupport {
 
     @Override
-    protected Registry createRegistry() throws Exception {
-        Registry jndi = super.createRegistry();
+    protected Registry createCamelRegistry() throws Exception {
+        Registry jndi = super.createCamelRegistry();
         jndi.bind("myBean", new MyBean());
         return jndi;
     }
@@ -72,7 +72,7 @@ public class RecipientListReturnValueTest extends ContextTestSupport {
         };
     }
 
-    public class MyBean {
+    public static class MyBean {
 
         @org.apache.camel.RecipientList
         public String[] route() {

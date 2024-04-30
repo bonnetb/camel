@@ -35,6 +35,7 @@ public class ComponentModel extends ArtifactModel<ComponentModel.ComponentOption
     protected boolean consumerOnly;
     protected boolean producerOnly;
     protected boolean lenientProperties;
+    protected boolean remote;
     protected String verifiers;
     protected final List<EndpointOptionModel> endpointOptions = new ArrayList<>();
     protected final List<EndpointHeaderModel> headers = new ArrayList<>();
@@ -45,8 +46,8 @@ public class ComponentModel extends ArtifactModel<ComponentModel.ComponentOption
     }
 
     @Override
-    public String getKind() {
-        return "component";
+    public Kind getKind() {
+        return Kind.component;
     }
 
     public String getScheme() {
@@ -137,6 +138,14 @@ public class ComponentModel extends ArtifactModel<ComponentModel.ComponentOption
         this.lenientProperties = lenientProperties;
     }
 
+    public boolean isRemote() {
+        return remote;
+    }
+
+    public void setRemote(boolean remote) {
+        this.remote = remote;
+    }
+
     public String getVerifiers() {
         return verifiers;
     }
@@ -187,6 +196,18 @@ public class ComponentModel extends ArtifactModel<ComponentModel.ComponentOption
 
     public static class EndpointHeaderModel extends BaseOptionModel {
 
+        /**
+         * The name of the constant that defines the header.
+         */
+        private String constantName;
+
+        public String getConstantName() {
+            return constantName;
+        }
+
+        public void setConstantName(String constantName) {
+            this.constantName = constantName;
+        }
     }
 
     public static class ComponentOptionModel extends BaseOptionModel {

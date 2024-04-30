@@ -16,12 +16,15 @@
  */
 package org.apache.camel.console;
 
+import java.util.Optional;
+
 import org.apache.camel.CamelContextAware;
+import org.apache.camel.StaticService;
 
 /**
  * A pluggable strategy for resolving dev consoles in a loosely coupled manner
  */
-public interface DevConsoleResolver extends CamelContextAware {
+public interface DevConsoleResolver extends CamelContextAware, StaticService {
 
     /**
      * Resolves the given {@link DevConsole}.
@@ -30,5 +33,13 @@ public interface DevConsoleResolver extends CamelContextAware {
      * @return    the resolved {@link DevConsole}, or <tt>null</tt> if not found
      */
     DevConsole resolveDevConsole(String id);
+
+    /**
+     * Lookup existing resolved {@link DevConsole}.
+     *
+     * @param  id the id of the {@link DevConsole}
+     * @return    the existing {@link DevConsole}, or <tt>null</tt> if not yet resolved or not found
+     */
+    Optional<DevConsole> lookupDevConsole(String id);
 
 }

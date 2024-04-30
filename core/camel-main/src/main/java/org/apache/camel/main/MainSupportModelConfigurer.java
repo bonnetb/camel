@@ -16,6 +16,7 @@
  */
 package org.apache.camel.main;
 
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -25,6 +26,11 @@ import org.apache.camel.model.FaultToleranceConfigurationDefinition;
 import org.apache.camel.model.ModelCamelContext;
 import org.apache.camel.model.Resilience4jConfigurationDefinition;
 import org.apache.camel.spi.ThreadPoolProfile;
+import org.apache.camel.spi.VariableRepository;
+import org.apache.camel.spi.VariableRepositoryFactory;
+import org.apache.camel.support.LanguageSupport;
+import org.apache.camel.support.ResourceHelper;
+import org.apache.camel.util.IOHelper;
 import org.apache.camel.util.OrderedLocationProperties;
 import org.apache.camel.util.PropertiesHelper;
 import org.apache.camel.util.StringHelper;
@@ -51,7 +57,7 @@ public final class MainSupportModelConfigurer {
             OrderedLocationProperties faultToleranceProperties)
             throws Exception {
 
-        ModelCamelContext model = camelContext.adapt(ModelCamelContext.class);
+        ModelCamelContext model = (ModelCamelContext) camelContext;
 
         if (!resilience4jProperties.isEmpty() || mainConfigurationProperties.hasResilience4jConfiguration()) {
             Resilience4jConfigurationProperties resilience4j = mainConfigurationProperties.resilience4j();
@@ -82,11 +88,48 @@ public final class MainSupportModelConfigurer {
         }
     }
 
+    static void setVariableProperties(
+            CamelContext camelContext,
+            OrderedLocationProperties variableProperties,
+            OrderedLocationProperties autoConfiguredProperties)
+            throws Exception {
+
+        for (String key : variableProperties.stringPropertyNames()) {
+            String value = variableProperties.getProperty(key);
+            String id = "global";
+            if (key.startsWith("route.")) {
+                id = "route";
+                key = key.substring(6);
+                key = StringHelper.replaceFirst(key, ".", ":");
+            } else if (key.startsWith("global.")) {
+                id = "global";
+                key = key.substring(7);
+                key = StringHelper.replaceFirst(key, ".", ":");
+            }
+            VariableRepository repo = camelContext.getCamelContextExtension().getContextPlugin(VariableRepositoryFactory.class)
+                    .getVariableRepository(id);
+            // it may be a resource to load from disk then
+            if (value.startsWith(LanguageSupport.RESOURCE)) {
+                value = value.substring(9);
+                if (ResourceHelper.hasScheme(value)) {
+                    InputStream is = ResourceHelper.resolveMandatoryResourceAsInputStream(camelContext, value);
+                    value = IOHelper.loadText(is);
+                    IOHelper.close(is);
+                }
+            }
+            repo.setVariable(key, value);
+        }
+        for (var e : variableProperties.entrySet()) {
+            String loc = variableProperties.getLocation(e.getKey());
+            autoConfiguredProperties.put(loc, "camel.variable." + e.getKey(), e.getValue());
+        }
+    }
+
     static void setThreadPoolProperties(
             CamelContext camelContext,
             MainConfigurationProperties mainConfigurationProperties,
             OrderedLocationProperties threadPoolProperties,
-            boolean failIfNotSet, OrderedLocationProperties autoConfiguredProperties)
+            OrderedLocationProperties autoConfiguredProperties)
             throws Exception {
 
         ThreadPoolConfigurationProperties tp = mainConfigurationProperties.threadPool();

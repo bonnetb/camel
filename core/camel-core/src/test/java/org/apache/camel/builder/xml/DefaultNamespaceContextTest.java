@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class DefaultNamespaceContextTest extends ContextTestSupport {
 
     @Test
-    public void testDefaultNamespaceContextEmpty() throws Exception {
+    public void testDefaultNamespaceContextEmpty() {
         XPathBuilder builder = XPathBuilder.xpath("/foo");
         builder.start();
         DefaultNamespaceContext context = builder.getNamespaceContext();
@@ -44,11 +44,11 @@ public class DefaultNamespaceContextTest extends ContextTestSupport {
         assertNull(prefix);
 
         Iterator<String> it = context.getPrefixes("foo");
-        assertEquals(false, it.hasNext());
+        assertFalse(it.hasNext());
     }
 
     @Test
-    public void testDefaultNamespaceContextPre() throws Exception {
+    public void testDefaultNamespaceContextPre() {
         XPathBuilder builder = XPathBuilder.xpath("/foo").namespace("pre", "http://acme/cheese");
         builder.start();
         DefaultNamespaceContext context = builder.getNamespaceContext();
@@ -61,12 +61,12 @@ public class DefaultNamespaceContextTest extends ContextTestSupport {
         assertEquals("pre", prefix);
 
         Iterator<String> it = context.getPrefixes("http://acme/cheese");
-        assertEquals(true, it.hasNext());
+        assertTrue(it.hasNext());
         assertEquals("pre", it.next());
     }
 
     @Test
-    public void testDefaultNamespaceContextDualNamespaces() throws Exception {
+    public void testDefaultNamespaceContextDualNamespaces() {
         XPathBuilder builder
                 = XPathBuilder.xpath("/foo").namespace("pre", "http://acme/cheese").namespace("bar", "http://acme/bar");
         builder.start();
@@ -84,16 +84,16 @@ public class DefaultNamespaceContextTest extends ContextTestSupport {
         assertEquals("bar", prefix2);
 
         Iterator<String> it = context.getPrefixes("http://acme/cheese");
-        assertEquals(true, it.hasNext());
+        assertTrue(it.hasNext());
         assertEquals("pre", it.next());
 
         Iterator<String> it2 = context.getPrefixes("http://acme/bar");
-        assertEquals(true, it2.hasNext());
+        assertTrue(it2.hasNext());
         assertEquals("bar", it2.next());
     }
 
     @Test
-    public void testDefaultNamespaceContextParent() throws Exception {
+    public void testDefaultNamespaceContextParent() {
         XPathBuilder builder = XPathBuilder.xpath("/foo");
         builder.start();
         DefaultNamespaceContext context = builder.getNamespaceContext();
@@ -104,7 +104,7 @@ public class DefaultNamespaceContextTest extends ContextTestSupport {
         String prefix = context.getPrefix(Namespaces.IN_NAMESPACE);
         assertEquals("in", prefix);
         Iterator<String> it = context.getPrefixes(Namespaces.IN_NAMESPACE);
-        assertEquals(true, it.hasNext());
+        assertTrue(it.hasNext());
         assertEquals("in", it.next());
 
         String uri2 = context.getNamespaceURI("out");
@@ -118,23 +118,23 @@ public class DefaultNamespaceContextTest extends ContextTestSupport {
     }
 
     @Test
-    public void testDefaultNamespaceContextCtr() throws Exception {
+    public void testDefaultNamespaceContextCtr() {
         DefaultNamespaceContext context = new DefaultNamespaceContext();
 
         // should not have any namespaces
         String uri = context.getNamespaceURI("in");
-        assertEquals(null, uri);
+        assertNull(uri);
     }
 
     @Test
-    public void testDefaultNamespaceContextAnotherCtr() throws Exception {
+    public void testDefaultNamespaceContextAnotherCtr() {
         Map<String, String> map = new HashMap<>();
         map.put("foo", "http://acme/cheese");
         DefaultNamespaceContext context = new DefaultNamespaceContext(null, map);
 
         // should not have any default namespaces
         String uri = context.getNamespaceURI("in");
-        assertEquals(null, uri);
+        assertNull(uri);
 
         String uri2 = context.getNamespaceURI("foo");
         assertEquals("http://acme/cheese", uri2);

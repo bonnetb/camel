@@ -32,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 public class SqsProducerPurgeTest extends CamelTestSupport {
 
     @BindToRegistry("client")
-    AmazonSQSClientMock mock = new AmazonSQSClientMock();
+    AmazonSQSClientMock mock = new AmazonSQSClientMock("camel-1");
 
     @EndpointInject("direct:start")
     private ProducerTemplate template;
@@ -50,7 +50,7 @@ public class SqsProducerPurgeTest extends CamelTestSupport {
             public void process(Exchange exchange) {
             }
         });
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
         PurgeQueueResponse res = result.getExchanges().get(0).getIn().getBody(PurgeQueueResponse.class);
         assertNotNull(res);
     }

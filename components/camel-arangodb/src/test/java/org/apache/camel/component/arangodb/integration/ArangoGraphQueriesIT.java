@@ -22,6 +22,8 @@ import com.arangodb.ArangoDBException;
 import org.apache.camel.Exchange;
 import org.apache.camel.builder.RouteBuilder;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIfSystemProperties;
+import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 
 import static org.apache.camel.component.arangodb.ArangoDbConstants.AQL_QUERY;
 import static org.apache.camel.component.arangodb.ArangoDbConstants.RESULT_CLASS_TYPE;
@@ -30,6 +32,12 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@DisabledIfSystemProperties({
+        @DisabledIfSystemProperty(named = "ci.env.name", matches = "apache.org",
+                                  disabledReason = "Apache CI nodes are too resource constrained for this test"),
+        @DisabledIfSystemProperty(named = "arangodb.tests.disable", matches = "true",
+                                  disabledReason = "Manually disabled tests")
+})
 public class ArangoGraphQueriesIT extends BaseGraph {
     @Override
     protected RouteBuilder createRouteBuilder() {
@@ -78,7 +86,6 @@ public class ArangoGraphQueriesIT extends BaseGraph {
         assertTrue(result.getMessage().getBody() instanceof Collection);
 
         Collection<String> list = (Collection<String>) result.getMessage().getBody();
-        list = (Collection<String>) result.getMessage().getBody();
         assertEquals(3, list.size());
         assertThat(list, hasItems("A", "B", "D"));
 

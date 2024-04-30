@@ -48,6 +48,7 @@ import org.w3c.dom.NodeList;
 import org.apache.camel.CamelContext;
 import org.apache.camel.CamelContextAware;
 import org.apache.camel.Exchange;
+import org.apache.camel.StreamCache;
 import org.apache.camel.language.xpath.DefaultNamespaceContext;
 import org.apache.camel.language.xpath.XPathBuilder;
 import org.apache.camel.spi.DataFormat;
@@ -271,7 +272,7 @@ public class XMLSecurityDataFormat extends ServiceSupport implements DataFormat,
 
     @Override
     protected void doStart() throws Exception {
-        // noop
+        CamelContextAware.trySetCamelContext(keyOrTrustStoreParameters, getCamelContext());
     }
 
     @Override
@@ -456,6 +457,12 @@ public class XMLSecurityDataFormat extends ServiceSupport implements DataFormat,
     @Override
     public Object unmarshal(Exchange exchange, InputStream stream) throws Exception {
         Document encodedDocument = exchange.getContext().getTypeConverter().convertTo(Document.class, exchange, stream);
+
+        // we may access the message body on the exchange again when decoding, so we need to reset stream cache
+        Object body = exchange.getMessage().getBody();
+        if (body instanceof StreamCache) {
+            ((StreamCache) body).reset();
+        }
 
         if (null != keyCipherAlgorithm
                 && (keyCipherAlgorithm.equals(XMLCipher.RSA_v1dot5) || keyCipherAlgorithm.equals(XMLCipher.RSA_OAEP)

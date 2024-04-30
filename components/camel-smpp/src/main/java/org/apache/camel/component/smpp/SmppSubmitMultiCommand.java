@@ -25,6 +25,7 @@ import java.util.Map;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.Message;
+import org.apache.camel.support.ExchangeHelper;
 import org.jsmpp.bean.Address;
 import org.jsmpp.bean.DataCodings;
 import org.jsmpp.bean.ESMClass;
@@ -37,10 +38,10 @@ import org.jsmpp.bean.RegisteredDelivery;
 import org.jsmpp.bean.ReplaceIfPresentFlag;
 import org.jsmpp.bean.SMSCDeliveryReceipt;
 import org.jsmpp.bean.SubmitMulti;
-import org.jsmpp.bean.SubmitMultiResult;
 import org.jsmpp.bean.TypeOfNumber;
 import org.jsmpp.bean.UnsuccessDelivery;
 import org.jsmpp.session.SMPPSession;
+import org.jsmpp.session.SubmitMultiResult;
 
 public class SmppSubmitMultiCommand extends SmppSmCommand {
 
@@ -113,7 +114,7 @@ public class SmppSubmitMultiCommand extends SmppSmCommand {
             messageIDs.add(result.getMessageId());
         }
 
-        Message message = getResponseMessage(exchange);
+        Message message = ExchangeHelper.getResultMessage(exchange);
         message.setHeader(SmppConstants.ID, messageIDs);
         message.setHeader(SmppConstants.SENT_MESSAGE_COUNT, messageIDs.size());
         if (!errors.isEmpty()) {
@@ -263,12 +264,12 @@ public class SmppSubmitMultiCommand extends SmppSmCommand {
         Map<java.lang.Short, Object> optinalParamater = in.getHeader(SmppConstants.OPTIONAL_PARAMETER, Map.class);
         if (optinalParamater != null) {
             List<OptionalParameter> optParams = createOptionalParametersByCode(optinalParamater);
-            submitMulti.setOptionalParameters(optParams.toArray(new OptionalParameter[optParams.size()]));
+            submitMulti.setOptionalParameters(optParams.toArray(new OptionalParameter[0]));
         } else {
             Map<String, String> optinalParamaters = in.getHeader(SmppConstants.OPTIONAL_PARAMETERS, Map.class);
             if (optinalParamaters != null) {
                 List<OptionalParameter> optParams = createOptionalParametersByName(optinalParamaters);
-                submitMulti.setOptionalParameters(optParams.toArray(new OptionalParameter[optParams.size()]));
+                submitMulti.setOptionalParameters(optParams.toArray(new OptionalParameter[0]));
             } else {
                 submitMulti.setOptionalParameters(new OptionalParameter[] {});
             }

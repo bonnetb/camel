@@ -16,7 +16,6 @@
  */
 package org.apache.camel.reactive;
 
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.reactive.tomcat.TomcatReactiveExecutor;
@@ -34,9 +33,9 @@ public class SimpleMockTest extends CamelTestSupport {
 
         template.sendBody("direct:start", "Hello World");
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
 
-        ReactiveExecutor re = context.adapt(ExtendedCamelContext.class).getReactiveExecutor();
+        ReactiveExecutor re = context.getCamelContextExtension().getReactiveExecutor();
         Assertions.assertInstanceOf(TomcatReactiveExecutor.class, re);
     }
 
@@ -48,9 +47,9 @@ public class SimpleMockTest extends CamelTestSupport {
         template.sendBody("direct:start", "Hello World");
         template.sendBody("direct:start", "Bye World");
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
 
-        ReactiveExecutor re = context.adapt(ExtendedCamelContext.class).getReactiveExecutor();
+        ReactiveExecutor re = context.getCamelContextExtension().getReactiveExecutor();
         Assertions.assertInstanceOf(TomcatReactiveExecutor.class, re);
     }
 

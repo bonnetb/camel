@@ -16,8 +16,6 @@
  */
 package org.apache.camel.dsl.yaml.deserializers;
 
-import java.util.stream.Collectors;
-
 import org.apache.camel.dsl.yaml.common.YamlDeserializerBase;
 import org.apache.camel.model.BeanFactoryDefinition;
 import org.apache.camel.model.PropertyDefinition;
@@ -29,6 +27,7 @@ import org.snakeyaml.engine.v2.nodes.Node;
  * @param <T> the type of nodes that define a bean factory
  */
 public abstract class BeanFactoryDefinitionDeserializer<T extends BeanFactoryDefinition<?, ?>> extends YamlDeserializerBase<T> {
+
     protected BeanFactoryDefinitionDeserializer(Class<T> clazz) {
         super(clazz);
     }
@@ -37,12 +36,8 @@ public abstract class BeanFactoryDefinitionDeserializer<T extends BeanFactoryDef
     protected boolean setProperty(
             T target, String propertyKey,
             String propertyName, Node node) {
+        propertyKey = org.apache.camel.util.StringHelper.dashToCamelCase(propertyKey);
         switch (propertyKey) {
-            case "bean-type": {
-                String val = asText(node);
-                target.setBeanType(val);
-                break;
-            }
             case "name": {
                 String val = asText(node);
                 target.setName(val);
@@ -51,14 +46,16 @@ public abstract class BeanFactoryDefinitionDeserializer<T extends BeanFactoryDef
             case "property": {
                 java.util.List<PropertyDefinition> val
                         = asFlatList(node, PropertyDefinition.class);
-                target.setProperties(val);
+                target.setPropertyDefinitions(val);
                 break;
             }
             case "properties": {
-                target.setProperties(
-                        asMap(node).entrySet().stream()
-                                .map(e -> new PropertyDefinition(e.getKey(), (String) e.getValue()))
-                                .collect(Collectors.toList()));
+                target.setProperties(asMap(node));
+                break;
+            }
+            case "scriptLanguage": {
+                String val = asText(node);
+                target.setScriptLanguage(val);
                 break;
             }
             case "script": {

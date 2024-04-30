@@ -16,13 +16,15 @@
  */
 package org.apache.camel.model;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
 
-import org.apache.camel.ResumeStrategy;
+import org.apache.camel.resume.ResumeStrategy;
+import org.apache.camel.resume.ResumeStrategyConfiguration;
+import org.apache.camel.resume.ResumeStrategyConfigurationBuilder;
 import org.apache.camel.spi.Metadata;
 
 /**
@@ -37,8 +39,20 @@ public class ResumableDefinition extends NoOutputDefinition<ResumableDefinition>
     private ResumeStrategy resumeStrategyBean;
 
     @XmlAttribute(required = true)
-    @Metadata(required = true, javaType = "org.apache.camel.ResumeStrategy")
+    @Metadata(required = true, javaType = "org.apache.camel.resume.ResumeStrategy")
     private String resumeStrategy;
+
+    @XmlAttribute
+    @Metadata(label = "advanced", javaType = "org.apache.camel.LoggingLevel", defaultValue = "ERROR",
+              enums = "TRACE,DEBUG,INFO,WARN,ERROR,OFF")
+    private String loggingLevel;
+
+    @XmlAttribute
+    @Metadata(label = "advanced", javaType = "java.lang.Boolean", defaultValue = "false")
+    private String intermittent;
+
+    @XmlTransient
+    private ResumeStrategyConfiguration resumeStrategyConfiguration;
 
     @Override
     public String getShortName() {
@@ -66,6 +80,30 @@ public class ResumableDefinition extends NoOutputDefinition<ResumableDefinition>
         this.resumeStrategyBean = resumeStrategyBean;
     }
 
+    public String getLoggingLevel() {
+        return loggingLevel;
+    }
+
+    public void setLoggingLevel(String loggingLevelRef) {
+        this.loggingLevel = loggingLevelRef;
+    }
+
+    public String getIntermittent() {
+        return intermittent;
+    }
+
+    public void setIntermittent(String intermitent) {
+        this.intermittent = intermitent;
+    }
+
+    public ResumeStrategyConfiguration getResumeStrategyConfiguration() {
+        return resumeStrategyConfiguration;
+    }
+
+    public void setResumeStrategyConfiguration(ResumeStrategyConfiguration resumeStrategyConfiguration) {
+        this.resumeStrategyConfiguration = resumeStrategyConfiguration;
+    }
+
     // Fluent API
     // -------------------------------------------------------------------------
 
@@ -80,8 +118,44 @@ public class ResumableDefinition extends NoOutputDefinition<ResumableDefinition>
     /**
      * Sets the resume strategy to use
      */
+    public ResumableDefinition resumeStrategy(String resumeStrategyRef, String loggingLevelRef) {
+        setResumeStrategy(resumeStrategyRef);
+        setLoggingLevel(loggingLevelRef);
+        return this;
+    }
+
+    /**
+     * Sets the resume strategy to use
+     */
     public ResumableDefinition resumeStrategy(ResumeStrategy resumeStrategy) {
         setResumeStrategy(resumeStrategy);
+        return this;
+    }
+
+    /**
+     * Sets the resume strategy to use
+     */
+    public ResumableDefinition resumeStrategy(ResumeStrategy resumeStrategy, String loggingLevelRef) {
+        setResumeStrategy(resumeStrategy);
+        setLoggingLevel(loggingLevelRef);
+        return this;
+    }
+
+    /***
+     * Uses a configuration builder to auto-instantiate the resume strategy
+     */
+    public ResumableDefinition configuration(
+            ResumeStrategyConfigurationBuilder<? extends ResumeStrategyConfigurationBuilder, ? extends ResumeStrategyConfiguration> builder) {
+        setResumeStrategyConfiguration(builder.build());
+        return this;
+    }
+
+    /**
+     * Sets whether the offsets will be intermittently present or whether they must be present in every exchange
+     */
+    public ResumableDefinition intermittent(boolean intermittent) {
+        setIntermittent(Boolean.toString(intermittent));
+
         return this;
     }
 }

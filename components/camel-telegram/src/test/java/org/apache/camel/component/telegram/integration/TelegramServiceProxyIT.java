@@ -20,6 +20,8 @@ import org.apache.camel.component.telegram.model.IncomingMessage;
 import org.apache.camel.component.telegram.model.OutgoingTextMessage;
 import org.apache.camel.component.telegram.util.TelegramApiConfig;
 import org.apache.camel.component.telegram.util.TelegramTestSupport;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
@@ -36,8 +38,13 @@ public class TelegramServiceProxyIT extends TelegramTestSupport {
     @BeforeAll
     public static void configureProxyFromEnv() {
         proxyHost = System.getenv("TELEGRAM_PROXY_HOST");
+        Assumptions.assumeTrue(proxyHost != null, "There is no proxy host defined on this environment");
+
         proxyPort = System.getenv("TELEGRAM_PROXY_PORT");
+        Assumptions.assumeTrue(proxyPort != null, "There is no proxy port defined on this environment");
+
         proxyType = System.getenv("TELEGRAM_PROXY_TYPE");
+        Assumptions.assumeTrue(proxyType != null, "There is no proxy type defined on this environment");
     }
 
     protected TelegramApiConfig getTelegramApiConfig() {
@@ -57,10 +64,10 @@ public class TelegramServiceProxyIT extends TelegramTestSupport {
         OutgoingTextMessage msg = new OutgoingTextMessage();
         msg.setChatId(chatId);
         msg.setText("This is an auto-generated message from the Bot");
-        template.requestBody(
+        Assertions.assertDoesNotThrow(() -> template.requestBody(
                 String.format("telegram://bots?chatId=%s&proxyHost=%s&proxyPort=%s&proxyType=%s", chatId, proxyHost, proxyPort,
                         proxyType),
-                msg);
+                msg));
     }
 
 }

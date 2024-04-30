@@ -66,10 +66,9 @@ public class ManagedFromRestPlaceholderTest extends ManagementTestSupport {
         assertTrue(xml.contains("</rests>"));
 
         assertTrue(xml.contains(
-                "<param collectionFormat=\"multi\" dataType=\"string\" defaultValue=\"b\" description=\"header param description2\" "
-                                + "name=\"header_letter\" required=\"false\" type=\"query\">"));
-        assertTrue(xml.contains("<param dataType=\"integer\" defaultValue=\"1\" description=\"header param description1\" "
-                                + "name=\"header_count\" required=\"true\" type=\"header\">"));
+                "<param dataType=\"integer\" defaultValue=\"1\" description=\"header param description1\" name=\"header_count\" required=\"true\" type=\"header\">"));
+        assertTrue(xml.contains(
+                "<param collectionFormat=\"multi\" dataType=\"string\" defaultValue=\"b\" description=\"header param description2\" name=\"header_letter\" required=\"false\" type=\"query\">"));
         assertTrue(xml.contains("<value>1</value>"));
         assertTrue(xml.contains("<value>a</value>"));
 
@@ -80,15 +79,15 @@ public class ManagedFromRestPlaceholderTest extends ManagementTestSupport {
         // and we should have rest in the routes that indicate its from a rest dsl
         assertTrue(xml2.contains("rest=\"true\""));
 
-        // there should be 3 + 2 routes
-        assertEquals(3 + 2, context.getRouteDefinitions().size());
+        // there should be 3 routes (inlined)
+        assertEquals(3, context.getRouteDefinitions().size());
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 restConfiguration().host("localhost");
                 rest("{{foo}}")
                         .get().to("direct:hello");

@@ -25,8 +25,7 @@
     <packaging>jar</packaging>
     <description>An IT ensuring that headers are supported.</description>
     <properties>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
+        <maven.compiler.release>17</maven.compiler.release>
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -34,7 +33,10 @@
             <dependency>
                 <groupId>org.apache.camel</groupId>
                 <artifactId>camel-bom</artifactId>
-                <version>@project.version@</version>
+                <!-- Testing against @project.version@ would cause a circular dependency -->
+                <!-- between camel-package-maven-plugin and camel-core. -->
+                <!-- Hence we have to use some recent enough public release here -->
+                <version>4.0.0-M3</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -63,6 +65,11 @@
                         <phase>process-classes</phase>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
             </plugin>
         </plugins>
     </build>

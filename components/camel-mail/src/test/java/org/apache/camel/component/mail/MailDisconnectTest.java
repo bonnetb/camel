@@ -16,42 +16,52 @@
  */
 package org.apache.camel.component.mail;
 
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.camel.builder.RouteBuilder;
+import org.apache.camel.component.mail.Mailbox.MailboxUser;
+import org.apache.camel.component.mail.Mailbox.Protocol;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.test.junit5.CamelTestSupport;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 /**
  * Unit test for batch consumer.
  */
 public class MailDisconnectTest extends CamelTestSupport {
+    private static final MailboxUser jones = Mailbox.getOrCreateUser("jones", "secret");
+
+    private CountDownLatch latch = new CountDownLatch(5);
 
     @Test
     public void testDisconnect() throws Exception {
+        Mailbox.clearAll();
         MockEndpoint mock = getMockEndpoint("mock:result");
         mock.expectedMessageCount(5);
 
         // send 5 mails with some delay so we do multiple polls with disconnect between
-        template.sendBodyAndHeader("smtp://jones@localhost", "A Bla bla", "Subject", "Hello A");
-        template.sendBodyAndHeader("smtp://jones@localhost", "B Bla bla", "Subject", "Hello B");
+        template.sendBodyAndHeader(jones.uriPrefix(Protocol.smtp), "A Bla bla", "Subject", "Hello A");
+        template.sendBodyAndHeader(jones.uriPrefix(Protocol.smtp), "B Bla bla", "Subject", "Hello B");
+        template.sendBodyAndHeader(jones.uriPrefix(Protocol.smtp), "C Bla bla", "Subject", "Hello C");
+        template.sendBodyAndHeader(jones.uriPrefix(Protocol.smtp), "D Bla bla", "Subject", "Hello D");
+        template.sendBodyAndHeader(jones.uriPrefix(Protocol.smtp), "E Bla bla", "Subject", "Hello E");
 
-        Thread.sleep(500);
-        template.sendBodyAndHeader("smtp://jones@localhost", "C Bla bla", "Subject", "Hello C");
+        if (!latch.await(2500, TimeUnit.MILLISECONDS)) {
+            Assertions.fail("Not all messages were received as expected");
+        }
 
-        Thread.sleep(500);
-        template.sendBodyAndHeader("smtp://jones@localhost", "D Bla bla", "Subject", "Hello D");
-
-        Thread.sleep(500);
-        template.sendBodyAndHeader("smtp://jones@localhost", "E Bla bla", "Subject", "Hello E");
-
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Override
     protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             public void configure() {
-                from("pop3://jones@localhost?password=secret&disconnect=true&initialDelay=100&delay=100").to("mock:result");
+                from(jones.uriPrefix(Protocol.imap) + "&disconnect=true&initialDelay=100&delay=100")
+                        .process(e -> latch.countDown())
+                        .to("mock:result");
             }
         };
     }

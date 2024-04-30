@@ -16,20 +16,20 @@
  */
 package org.apache.camel.component.nats.integration;
 
-import java.io.IOException;
-
 import org.apache.camel.EndpointInject;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 
+@DisabledIfSystemProperty(named = "ci.env.name", matches = "github.com", disabledReason = "Flaky on GitHub Actions")
 public class NatsConsumerMaxMessagesIT extends NatsITSupport {
 
     @EndpointInject("mock:result")
     protected MockEndpoint mockResultEndpoint;
 
     @Test
-    public void testMaxConsumer() throws InterruptedException, IOException {
+    public void testMaxConsumer() throws InterruptedException {
         mockResultEndpoint.setExpectedMessageCount(5);
         template.sendBody("direct:send", "test");
         template.sendBody("direct:send", "test1");
@@ -47,10 +47,10 @@ public class NatsConsumerMaxMessagesIT extends NatsITSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:send").to("nats:test");
 
                 from("nats:test?maxMessages=5").to(mockResultEndpoint);

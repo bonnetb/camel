@@ -19,8 +19,8 @@ package org.apache.camel.component.file.remote.sftp.integration;
 import org.apache.camel.Exchange;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.file.remote.BaseServerTestSupport;
-import org.apache.camel.component.file.remote.services.SftpEmbeddedService;
 import org.apache.camel.component.mock.MockEndpoint;
+import org.apache.camel.test.infra.ftp.services.embedded.SftpEmbeddedService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -47,7 +47,7 @@ public class FromSftpRecursiveNotStepwiseNoBasePathIT extends BaseServerTestSupp
         // CAMEL-13400
         MockEndpoint mock = getMockEndpoint("mock:result");
         mock.expectedBodiesReceivedInAnyOrder("Bye World", "Hello World", "Goodday World");
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Override

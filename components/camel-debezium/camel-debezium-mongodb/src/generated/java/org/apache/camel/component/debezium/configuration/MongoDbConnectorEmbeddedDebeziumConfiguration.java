@@ -13,16 +13,20 @@ public class MongoDbConnectorEmbeddedDebeziumConfiguration
 
     private static final String LABEL_NAME = "consumer,mongodb";
     @UriParam(label = LABEL_NAME)
+    private String customMetricTags;
+    @UriParam(label = LABEL_NAME)
+    private String mongodbConnectionString;
+    @UriParam(label = LABEL_NAME)
     @Metadata(required = true)
     private String mongodbPassword;
     @UriParam(label = LABEL_NAME, defaultValue = "0")
     private int queryFetchSize = 0;
+    @UriParam(label = LABEL_NAME, defaultValue = "source")
+    private String signalEnabledChannels = "source";
     @UriParam(label = LABEL_NAME, defaultValue = "false")
     private boolean mongodbSslEnabled = false;
     @UriParam(label = LABEL_NAME, javaType = "java.time.Duration")
     private int cursorMaxAwaitTimeMs;
-    @UriParam(label = LABEL_NAME, defaultValue = "true")
-    private boolean mongodbMembersAutoDiscover = true;
     @UriParam(label = LABEL_NAME)
     private String fieldRenames;
     @UriParam(label = LABEL_NAME, defaultValue = "30s", javaType = "java.time.Duration")
@@ -38,31 +42,35 @@ public class MongoDbConnectorEmbeddedDebeziumConfiguration
     @UriParam(label = LABEL_NAME, defaultValue = "10s", javaType = "java.time.Duration")
     private int mongodbConnectTimeoutMs = 10000;
     @UriParam(label = LABEL_NAME)
-    private String mongodbHosts;
-    @UriParam(label = LABEL_NAME)
     private int snapshotFetchSize;
     @UriParam(label = LABEL_NAME, defaultValue = "30s", javaType = "java.time.Duration")
     private long mongodbPollIntervalMs = 30000;
-    @UriParam(label = LABEL_NAME, defaultValue = "false")
-    private boolean sanitizeFieldNames = false;
+    @UriParam(label = LABEL_NAME, defaultValue = "INSERT_INSERT")
+    private String incrementalSnapshotWatermarkingStrategy = "INSERT_INSERT";
     @UriParam(label = LABEL_NAME)
     private String mongodbUser;
-    @UriParam(label = LABEL_NAME, defaultValue = "v2")
-    private String sourceStructVersion = "v2";
     @UriParam(label = LABEL_NAME, defaultValue = "0ms", javaType = "java.time.Duration")
     private int heartbeatIntervalMs = 0;
+    @UriParam(label = LABEL_NAME, defaultValue = "false")
+    private boolean snapshotModeConfigurationBasedSnapshotOnSchemaError = false;
     @UriParam(label = LABEL_NAME)
     private String snapshotCollectionFilterOverrides;
     @UriParam(label = LABEL_NAME)
     private String fieldExcludeList;
+    @UriParam(label = LABEL_NAME, defaultValue = "-1")
+    private int errorsMaxRetries = -1;
     @UriParam(label = LABEL_NAME)
     private String databaseExcludeList;
     @UriParam(label = LABEL_NAME, defaultValue = "2048")
     private int maxBatchSize = 2048;
-    @UriParam(label = LABEL_NAME)
-    private String skippedOperations;
+    @UriParam(label = LABEL_NAME, defaultValue = "t")
+    private String skippedOperations = "t";
+    @UriParam(label = LABEL_NAME, defaultValue = "io.debezium.schema.SchemaTopicNamingStrategy")
+    private String topicNamingStrategy = "io.debezium.schema.SchemaTopicNamingStrategy";
     @UriParam(label = LABEL_NAME, defaultValue = "initial")
     private String snapshotMode = "initial";
+    @UriParam(label = LABEL_NAME, defaultValue = "false")
+    private boolean snapshotModeConfigurationBasedSnapshotData = false;
     @UriParam(label = LABEL_NAME, defaultValue = "8192")
     private int maxQueueSize = 8192;
     @UriParam(label = LABEL_NAME)
@@ -76,38 +84,77 @@ public class MongoDbConnectorEmbeddedDebeziumConfiguration
     @UriParam(label = LABEL_NAME, defaultValue = "false")
     private boolean provideTransactionMetadata = false;
     @UriParam(label = LABEL_NAME, defaultValue = "false")
+    private boolean snapshotModeConfigurationBasedSnapshotOnDataError = false;
+    @UriParam(label = LABEL_NAME)
+    private String schemaHistoryInternalFileFilename;
+    @UriParam(label = LABEL_NAME, defaultValue = "false")
     private boolean tombstonesOnDelete = false;
+    @UriParam(label = LABEL_NAME)
+    @Metadata(required = true)
+    private String topicPrefix;
+    @UriParam(label = LABEL_NAME, defaultValue = "io.debezium.connector.mongodb.MongoDbSourceInfoStructMaker")
+    private String sourceinfoStructMaker = "io.debezium.connector.mongodb.MongoDbSourceInfoStructMaker";
     @UriParam(label = LABEL_NAME, defaultValue = "admin")
     private String mongodbAuthsource = "admin";
-    @UriParam(label = LABEL_NAME, defaultValue = "1s", javaType = "java.time.Duration")
-    private long connectBackoffInitialDelayMs = 1000;
     @UriParam(label = LABEL_NAME)
     private String collectionExcludeList;
     @UriParam(label = LABEL_NAME)
     private String snapshotIncludeCollectionList;
-    @UriParam(label = LABEL_NAME)
-    private String databaseHistoryFileFilename;
-    @UriParam(label = LABEL_NAME, defaultValue = "16")
-    private int connectMaxAttempts = 16;
+    @UriParam(label = LABEL_NAME, defaultValue = "false")
+    private boolean snapshotModeConfigurationBasedStartStream = false;
     @UriParam(label = LABEL_NAME, defaultValue = "0")
     private long maxQueueSizeInBytes = 0;
-    @UriParam(label = LABEL_NAME, defaultValue = "${database.server.name}.transaction")
-    private String transactionTopic = "${database.server.name}.transaction";
+    @UriParam(label = LABEL_NAME, defaultValue = "false")
+    private boolean snapshotModeConfigurationBasedSnapshotSchema = false;
+    @UriParam(label = LABEL_NAME, defaultValue = "5s", javaType = "java.time.Duration")
+    private long signalPollIntervalMs = 5000;
+    @UriParam(label = LABEL_NAME)
+    private String postProcessors;
+    @UriParam(label = LABEL_NAME)
+    private String notificationEnabledChannels;
     @UriParam(label = LABEL_NAME, defaultValue = "0ms", javaType = "java.time.Duration")
     private int mongodbSocketTimeoutMs = 0;
     @UriParam(label = LABEL_NAME, defaultValue = "fail")
     private String eventProcessingFailureHandlingMode = "fail";
-    @UriParam(label = LABEL_NAME)
-    @Metadata(required = true)
-    private String mongodbName;
     @UriParam(label = LABEL_NAME, defaultValue = "1")
     private int snapshotMaxThreads = 1;
-    @UriParam(label = LABEL_NAME, defaultValue = "2m", javaType = "java.time.Duration")
-    private long connectBackoffMaxDelayMs = 120000;
+    @UriParam(label = LABEL_NAME)
+    private String notificationSinkTopicName;
+    @UriParam(label = LABEL_NAME)
+    private String snapshotModeCustomName;
+    @UriParam(label = LABEL_NAME, defaultValue = "none")
+    private String schemaNameAdjustmentMode = "none";
     @UriParam(label = LABEL_NAME, defaultValue = "false")
     private boolean mongodbSslInvalidHostnameAllowed = false;
+    @UriParam(label = LABEL_NAME, defaultValue = "10s", javaType = "java.time.Duration")
+    private int mongodbHeartbeatFrequencyMs = 10000;
     @UriParam(label = LABEL_NAME)
     private String databaseIncludeList;
+
+    /**
+     * The custom metric tags will accept key-value pairs to customize the MBean
+     * object name which should be appended the end of regular name, each key
+     * would represent a tag for the MBean object name, and the corresponding
+     * value would be the value of that tag the key is. For example: k1=v1,k2=v2
+     */
+    public void setCustomMetricTags(String customMetricTags) {
+        this.customMetricTags = customMetricTags;
+    }
+
+    public String getCustomMetricTags() {
+        return customMetricTags;
+    }
+
+    /**
+     * Database connection string.
+     */
+    public void setMongodbConnectionString(String mongodbConnectionString) {
+        this.mongodbConnectionString = mongodbConnectionString;
+    }
+
+    public String getMongodbConnectionString() {
+        return mongodbConnectionString;
+    }
 
     /**
      * Password to be used when connecting to MongoDB, if necessary.
@@ -122,7 +169,7 @@ public class MongoDbConnectorEmbeddedDebeziumConfiguration
 
     /**
      * The maximum number of records that should be loaded into memory while
-     * streaming.  A value of `0` uses the default JDBC fetch size.
+     * streaming. A value of '0' uses the default JDBC fetch size.
      */
     public void setQueryFetchSize(int queryFetchSize) {
         this.queryFetchSize = queryFetchSize;
@@ -130,6 +177,18 @@ public class MongoDbConnectorEmbeddedDebeziumConfiguration
 
     public int getQueryFetchSize() {
         return queryFetchSize;
+    }
+
+    /**
+     * List of channels names that are enabled. Source channel is enabled by
+     * default
+     */
+    public void setSignalEnabledChannels(String signalEnabledChannels) {
+        this.signalEnabledChannels = signalEnabledChannels;
+    }
+
+    public String getSignalEnabledChannels() {
+        return signalEnabledChannels;
     }
 
     /**
@@ -153,20 +212,6 @@ public class MongoDbConnectorEmbeddedDebeziumConfiguration
 
     public int getCursorMaxAwaitTimeMs() {
         return cursorMaxAwaitTimeMs;
-    }
-
-    /**
-     * Specifies whether the addresses in 'hosts' are seeds that should be used
-     * to discover all members of the cluster or replica set ('true'), or
-     * whether the address(es) in 'hosts' should be used as is ('false'). The
-     * default is 'true'.
-     */
-    public void setMongodbMembersAutoDiscover(boolean mongodbMembersAutoDiscover) {
-        this.mongodbMembersAutoDiscover = mongodbMembersAutoDiscover;
-    }
-
-    public boolean isMongodbMembersAutoDiscover() {
-        return mongodbMembersAutoDiscover;
     }
 
     /**
@@ -261,20 +306,8 @@ public class MongoDbConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * The hostname and port pairs (in the form 'host' or 'host:port') of the
-     * MongoDB server(s) in the replica set.
-     */
-    public void setMongodbHosts(String mongodbHosts) {
-        this.mongodbHosts = mongodbHosts;
-    }
-
-    public String getMongodbHosts() {
-        return mongodbHosts;
-    }
-
-    /**
      * The maximum number of records that should be loaded into memory while
-     * performing a snapshot
+     * performing a snapshot.
      */
     public void setSnapshotFetchSize(int snapshotFetchSize) {
         this.snapshotFetchSize = snapshotFetchSize;
@@ -286,7 +319,7 @@ public class MongoDbConnectorEmbeddedDebeziumConfiguration
 
     /**
      * Interval for looking for new, removed, or changed replica sets, given in
-     * milliseconds.  Defaults to 30 seconds (30,000 ms).
+     * milliseconds. Defaults to 30 seconds (30,000 ms).
      */
     public void setMongodbPollIntervalMs(long mongodbPollIntervalMs) {
         this.mongodbPollIntervalMs = mongodbPollIntervalMs;
@@ -297,14 +330,19 @@ public class MongoDbConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * Whether field names will be sanitized to Avro naming conventions
+     * Specify the strategy used for watermarking during an incremental
+     * snapshot: 'insert_insert' both open and close signal is written into
+     * signal data collection (default); 'insert_delete' only open signal is
+     * written on signal data collection, the close will delete the relative
+     * open signal;
      */
-    public void setSanitizeFieldNames(boolean sanitizeFieldNames) {
-        this.sanitizeFieldNames = sanitizeFieldNames;
+    public void setIncrementalSnapshotWatermarkingStrategy(
+            String incrementalSnapshotWatermarkingStrategy) {
+        this.incrementalSnapshotWatermarkingStrategy = incrementalSnapshotWatermarkingStrategy;
     }
 
-    public boolean isSanitizeFieldNames() {
-        return sanitizeFieldNames;
+    public String getIncrementalSnapshotWatermarkingStrategy() {
+        return incrementalSnapshotWatermarkingStrategy;
     }
 
     /**
@@ -319,18 +357,6 @@ public class MongoDbConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * A version of the format of the publicly visible source part in the
-     * message
-     */
-    public void setSourceStructVersion(String sourceStructVersion) {
-        this.sourceStructVersion = sourceStructVersion;
-    }
-
-    public String getSourceStructVersion() {
-        return sourceStructVersion;
-    }
-
-    /**
      * Length of an interval in milli-seconds in in which the connector
      * periodically sends heartbeat messages to a heartbeat topic. Use 0 to
      * disable heartbeat messages. Disabled by default.
@@ -341,6 +367,20 @@ public class MongoDbConnectorEmbeddedDebeziumConfiguration
 
     public int getHeartbeatIntervalMs() {
         return heartbeatIntervalMs;
+    }
+
+    /**
+     * When 'snapshot.mode' is set as configuration_based, this setting permits
+     * to specify whenever the schema should be snapshotted or not in case of
+     * error.
+     */
+    public void setSnapshotModeConfigurationBasedSnapshotOnSchemaError(
+            boolean snapshotModeConfigurationBasedSnapshotOnSchemaError) {
+        this.snapshotModeConfigurationBasedSnapshotOnSchemaError = snapshotModeConfigurationBasedSnapshotOnSchemaError;
+    }
+
+    public boolean isSnapshotModeConfigurationBasedSnapshotOnSchemaError() {
+        return snapshotModeConfigurationBasedSnapshotOnSchemaError;
     }
 
     /**
@@ -372,8 +412,20 @@ public class MongoDbConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * A comma-separated list of regular expressions that match the database
-     * names for which changes are to be excluded
+     * The maximum number of retries on connection errors before failing (-1 =
+     * no limit, 0 = disabled, > 0 = num of retries).
+     */
+    public void setErrorsMaxRetries(int errorsMaxRetries) {
+        this.errorsMaxRetries = errorsMaxRetries;
+    }
+
+    public int getErrorsMaxRetries() {
+        return errorsMaxRetries;
+    }
+
+    /**
+     * A comma-separated list of regular expressions or literals that match the
+     * database names for which changes are to be excluded
      */
     public void setDatabaseExcludeList(String databaseExcludeList) {
         this.databaseExcludeList = databaseExcludeList;
@@ -396,8 +448,9 @@ public class MongoDbConnectorEmbeddedDebeziumConfiguration
 
     /**
      * The comma-separated list of operations to skip during streaming, defined
-     * as: 'c' for inserts/create; 'u' for updates; 'd' for deletes. By default,
-     * no operations will be skipped.
+     * as: 'c' for inserts/create; 'u' for updates; 'd' for deletes, 't' for
+     * truncates, and 'none' to indicate nothing skipped. By default, only
+     * truncate operations will be skipped.
      */
     public void setSkippedOperations(String skippedOperations) {
         this.skippedOperations = skippedOperations;
@@ -408,10 +461,27 @@ public class MongoDbConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * The criteria for running a snapshot upon startup of the connector.
-     * Options include: 'initial' (the default) to specify the connector should
-     * always perform an initial sync when required; 'never' to specify the
-     * connector should never perform an initial sync 
+     * The name of the TopicNamingStrategy class that should be used to
+     * determine the topic name for data change, schema change, transaction,
+     * heartbeat event etc.
+     */
+    public void setTopicNamingStrategy(String topicNamingStrategy) {
+        this.topicNamingStrategy = topicNamingStrategy;
+    }
+
+    public String getTopicNamingStrategy() {
+        return topicNamingStrategy;
+    }
+
+    /**
+     * The criteria for running a snapshot upon startup of the connector. Select
+     * one of the following snapshot options: 'initial' (default):  If the
+     * connector does not detect any offsets for the logical server name, it
+     * runs a snapshot that captures the current full state of the configured
+     * tables. After the snapshot completes, the connector begins to stream
+     * changes from the oplog. 'never': The connector does not run a snapshot.
+     * Upon first startup, the connector immediately begins reading from the
+     * beginning of the oplog.
      */
     public void setSnapshotMode(String snapshotMode) {
         this.snapshotMode = snapshotMode;
@@ -419,6 +489,19 @@ public class MongoDbConnectorEmbeddedDebeziumConfiguration
 
     public String getSnapshotMode() {
         return snapshotMode;
+    }
+
+    /**
+     * When 'snapshot.mode' is set as configuration_based, this setting permits
+     * to specify whenever the data should be snapshotted or not.
+     */
+    public void setSnapshotModeConfigurationBasedSnapshotData(
+            boolean snapshotModeConfigurationBasedSnapshotData) {
+        this.snapshotModeConfigurationBasedSnapshotData = snapshotModeConfigurationBasedSnapshotData;
+    }
+
+    public boolean isSnapshotModeConfigurationBasedSnapshotData() {
+        return snapshotModeConfigurationBasedSnapshotData;
     }
 
     /**
@@ -435,8 +518,8 @@ public class MongoDbConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * A comma-separated list of regular expressions that match the collection
-     * names for which changes are to be captured
+     * A comma-separated list of regular expressions or literals that match the
+     * collection names for which changes are to be captured
      */
     public void setCollectionIncludeList(String collectionIncludeList) {
         this.collectionIncludeList = collectionIncludeList;
@@ -461,10 +544,10 @@ public class MongoDbConnectorEmbeddedDebeziumConfiguration
 
     /**
      * The method used to capture changes from MongoDB server. Options include:
-     * 'oplog' to capture changes from the oplog; 'change_streams' to capture
-     * changes via MongoDB Change Streams, update events do not contain full
-     * documents; 'change_streams_update_full' (the default) to capture changes
-     * via MongoDB Change Streams, update events contain full documents
+     * 'change_streams' to capture changes via MongoDB Change Streams, update
+     * events do not contain full documents; 'change_streams_update_full' (the
+     * default) to capture changes via MongoDB Change Streams, update events
+     * contain full documents
      */
     public void setCaptureMode(String captureMode) {
         this.captureMode = captureMode;
@@ -498,8 +581,35 @@ public class MongoDbConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
+     * When 'snapshot.mode' is set as configuration_based, this setting permits
+     * to specify whenever the data should be snapshotted or not in case of
+     * error.
+     */
+    public void setSnapshotModeConfigurationBasedSnapshotOnDataError(
+            boolean snapshotModeConfigurationBasedSnapshotOnDataError) {
+        this.snapshotModeConfigurationBasedSnapshotOnDataError = snapshotModeConfigurationBasedSnapshotOnDataError;
+    }
+
+    public boolean isSnapshotModeConfigurationBasedSnapshotOnDataError() {
+        return snapshotModeConfigurationBasedSnapshotOnDataError;
+    }
+
+    /**
+     * The path to the file that will be used to record the database schema
+     * history
+     */
+    public void setSchemaHistoryInternalFileFilename(
+            String schemaHistoryInternalFileFilename) {
+        this.schemaHistoryInternalFileFilename = schemaHistoryInternalFileFilename;
+    }
+
+    public String getSchemaHistoryInternalFileFilename() {
+        return schemaHistoryInternalFileFilename;
+    }
+
+    /**
      * Whether delete operations should be represented by a delete event and a
-     * subsquenttombstone event (true) or only by a delete event (false).
+     * subsequent tombstone event (true) or only by a delete event (false).
      * Emitting the tombstone event (the default behavior) allows Kafka to
      * completely delete all events pertaining to the given key once the source
      * record got deleted.
@@ -510,6 +620,33 @@ public class MongoDbConnectorEmbeddedDebeziumConfiguration
 
     public boolean isTombstonesOnDelete() {
         return tombstonesOnDelete;
+    }
+
+    /**
+     * Topic prefix that identifies and provides a namespace for the particular
+     * database server/cluster is capturing changes. The topic prefix should be
+     * unique across all other connectors, since it is used as a prefix for all
+     * Kafka topic names that receive events emitted by this connector. Only
+     * alphanumeric characters, hyphens, dots and underscores must be accepted.
+     */
+    public void setTopicPrefix(String topicPrefix) {
+        this.topicPrefix = topicPrefix;
+    }
+
+    public String getTopicPrefix() {
+        return topicPrefix;
+    }
+
+    /**
+     * The name of the SourceInfoStructMaker class that returns SourceInfo
+     * schema and struct.
+     */
+    public void setSourceinfoStructMaker(String sourceinfoStructMaker) {
+        this.sourceinfoStructMaker = sourceinfoStructMaker;
+    }
+
+    public String getSourceinfoStructMaker() {
+        return sourceinfoStructMaker;
     }
 
     /**
@@ -524,22 +661,8 @@ public class MongoDbConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * The initial delay when trying to reconnect to a primary after a
-     * connection cannot be made or when no primary is available, given in
-     * milliseconds. Defaults to 1 second (1,000 ms).
-     */
-    public void setConnectBackoffInitialDelayMs(
-            long connectBackoffInitialDelayMs) {
-        this.connectBackoffInitialDelayMs = connectBackoffInitialDelayMs;
-    }
-
-    public long getConnectBackoffInitialDelayMs() {
-        return connectBackoffInitialDelayMs;
-    }
-
-    /**
-     * A comma-separated list of regular expressions that match the collection
-     * names for which changes are to be excluded
+     * A comma-separated list of regular expressions or literals that match the
+     * collection names for which changes are to be excluded
      */
     public void setCollectionExcludeList(String collectionExcludeList) {
         this.collectionExcludeList = collectionExcludeList;
@@ -550,7 +673,7 @@ public class MongoDbConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * this setting must be set to specify a list of tables/collections whose
+     * This setting must be set to specify a list of tables/collections whose
      * snapshot must be taken on creating or restarting the connector.
      */
     public void setSnapshotIncludeCollectionList(
@@ -563,30 +686,16 @@ public class MongoDbConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * The path to the file that will be used to record the database history
+     * When 'snapshot.mode' is set as configuration_based, this setting permits
+     * to specify whenever the stream should start or not after snapshot.
      */
-    public void setDatabaseHistoryFileFilename(
-            String databaseHistoryFileFilename) {
-        this.databaseHistoryFileFilename = databaseHistoryFileFilename;
+    public void setSnapshotModeConfigurationBasedStartStream(
+            boolean snapshotModeConfigurationBasedStartStream) {
+        this.snapshotModeConfigurationBasedStartStream = snapshotModeConfigurationBasedStartStream;
     }
 
-    public String getDatabaseHistoryFileFilename() {
-        return databaseHistoryFileFilename;
-    }
-
-    /**
-     * Maximum number of failed connection attempts to a replica set primary
-     * before an exception occurs and task is aborted. Defaults to 16, which
-     * with the defaults for 'connect.backoff.initial.delay.ms' and
-     * 'connect.backoff.max.delay.ms' results in just over 20 minutes of
-     * attempts before failing.
-     */
-    public void setConnectMaxAttempts(int connectMaxAttempts) {
-        this.connectMaxAttempts = connectMaxAttempts;
-    }
-
-    public int getConnectMaxAttempts() {
-        return connectMaxAttempts;
+    public boolean isSnapshotModeConfigurationBasedStartStream() {
+        return snapshotModeConfigurationBasedStartStream;
     }
 
     /**
@@ -603,16 +712,53 @@ public class MongoDbConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * The name of the transaction metadata topic. The placeholder
-     * ${database.server.name} can be used for referring to the connector's
-     * logical name; defaults to ${database.server.name}.transaction.
+     * When 'snapshot.mode' is set as configuration_based, this setting permits
+     * to specify whenever the schema should be snapshotted or not.
      */
-    public void setTransactionTopic(String transactionTopic) {
-        this.transactionTopic = transactionTopic;
+    public void setSnapshotModeConfigurationBasedSnapshotSchema(
+            boolean snapshotModeConfigurationBasedSnapshotSchema) {
+        this.snapshotModeConfigurationBasedSnapshotSchema = snapshotModeConfigurationBasedSnapshotSchema;
     }
 
-    public String getTransactionTopic() {
-        return transactionTopic;
+    public boolean isSnapshotModeConfigurationBasedSnapshotSchema() {
+        return snapshotModeConfigurationBasedSnapshotSchema;
+    }
+
+    /**
+     * Interval for looking for new signals in registered channels, given in
+     * milliseconds. Defaults to 5 seconds.
+     */
+    public void setSignalPollIntervalMs(long signalPollIntervalMs) {
+        this.signalPollIntervalMs = signalPollIntervalMs;
+    }
+
+    public long getSignalPollIntervalMs() {
+        return signalPollIntervalMs;
+    }
+
+    /**
+     * Optional list of post processors. The processors are defined using
+     * '<post.processor.prefix>.type' config option and configured using options
+     * '<post.processor.prefix.<option>'
+     */
+    public void setPostProcessors(String postProcessors) {
+        this.postProcessors = postProcessors;
+    }
+
+    public String getPostProcessors() {
+        return postProcessors;
+    }
+
+    /**
+     * List of notification channels names that are enabled.
+     */
+    public void setNotificationEnabledChannels(
+            String notificationEnabledChannels) {
+        this.notificationEnabledChannels = notificationEnabledChannels;
+    }
+
+    public String getNotificationEnabledChannels() {
+        return notificationEnabledChannels;
     }
 
     /**
@@ -628,10 +774,10 @@ public class MongoDbConnectorEmbeddedDebeziumConfiguration
 
     /**
      * Specify how failures during processing of events (i.e. when encountering
-     * a corrupted event) should be handled, including:'fail' (the default) an
+     * a corrupted event) should be handled, including: 'fail' (the default) an
      * exception indicating the problematic event and its position is raised,
      * causing the connector to be stopped; 'warn' the problematic event and its
-     * position will be logged and the event will be skipped;'ignore' the
+     * position will be logged and the event will be skipped; 'ignore' the
      * problematic event will be skipped.
      */
     public void setEventProcessingFailureHandlingMode(
@@ -644,21 +790,7 @@ public class MongoDbConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * Unique name that identifies the MongoDB replica set or cluster and all
-     * recorded offsets, andthat is used as a prefix for all schemas and topics.
-     * Each distinct MongoDB installation should have a separate namespace and
-     * monitored by at most one Debezium connector.
-     */
-    public void setMongodbName(String mongodbName) {
-        this.mongodbName = mongodbName;
-    }
-
-    public String getMongodbName() {
-        return mongodbName;
-    }
-
-    /**
-     * The maximum number of threads used to perform the snapshot.  Defaults to
+     * The maximum number of threads used to perform the snapshot. Defaults to
      * 1.
      */
     public void setSnapshotMaxThreads(int snapshotMaxThreads) {
@@ -670,16 +802,46 @@ public class MongoDbConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * The maximum delay when trying to reconnect to a primary after a
-     * connection cannot be made or when no primary is available, given in
-     * milliseconds. Defaults to 120 second (120,000 ms).
+     * The name of the topic for the notifications. This is required in case
+     * 'sink' is in the list of enabled channels
      */
-    public void setConnectBackoffMaxDelayMs(long connectBackoffMaxDelayMs) {
-        this.connectBackoffMaxDelayMs = connectBackoffMaxDelayMs;
+    public void setNotificationSinkTopicName(String notificationSinkTopicName) {
+        this.notificationSinkTopicName = notificationSinkTopicName;
     }
 
-    public long getConnectBackoffMaxDelayMs() {
-        return connectBackoffMaxDelayMs;
+    public String getNotificationSinkTopicName() {
+        return notificationSinkTopicName;
+    }
+
+    /**
+     * When 'snapshot.mode' is set as custom, this setting must be set to
+     * specify a the name of the custom implementation provided in the 'name()'
+     * method. The implementations must implement the 'Snapshotter' interface
+     * and is called on each app boot to determine whether to do a snapshot.
+     */
+    public void setSnapshotModeCustomName(String snapshotModeCustomName) {
+        this.snapshotModeCustomName = snapshotModeCustomName;
+    }
+
+    public String getSnapshotModeCustomName() {
+        return snapshotModeCustomName;
+    }
+
+    /**
+     * Specify how schema names should be adjusted for compatibility with the
+     * message converter used by the connector, including: 'avro' replaces the
+     * characters that cannot be used in the Avro type name with underscore;
+     * 'avro_unicode' replaces the underscore or characters that cannot be used
+     * in the Avro type name with corresponding unicode like _uxxxx. Note: _ is
+     * an escape sequence like backslash in Java;'none' does not apply any
+     * adjustment (default)
+     */
+    public void setSchemaNameAdjustmentMode(String schemaNameAdjustmentMode) {
+        this.schemaNameAdjustmentMode = schemaNameAdjustmentMode;
+    }
+
+    public String getSchemaNameAdjustmentMode() {
+        return schemaNameAdjustmentMode;
     }
 
     /**
@@ -696,8 +858,20 @@ public class MongoDbConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * A comma-separated list of regular expressions that match the database
-     * names for which changes are to be captured
+     * The frequency that the cluster monitor attempts to reach each server.
+     * Defaults to 10 seconds (10,000 ms).
+     */
+    public void setMongodbHeartbeatFrequencyMs(int mongodbHeartbeatFrequencyMs) {
+        this.mongodbHeartbeatFrequencyMs = mongodbHeartbeatFrequencyMs;
+    }
+
+    public int getMongodbHeartbeatFrequencyMs() {
+        return mongodbHeartbeatFrequencyMs;
+    }
+
+    /**
+     * A comma-separated list of regular expressions or literals that match the
+     * database names for which changes are to be captured
      */
     public void setDatabaseIncludeList(String databaseIncludeList) {
         this.databaseIncludeList = databaseIncludeList;
@@ -711,11 +885,13 @@ public class MongoDbConnectorEmbeddedDebeziumConfiguration
     protected Configuration createConnectorConfiguration() {
         final Configuration.Builder configBuilder = Configuration.create();
         
+        addPropertyIfNotNull(configBuilder, "custom.metric.tags", customMetricTags);
+        addPropertyIfNotNull(configBuilder, "mongodb.connection.string", mongodbConnectionString);
         addPropertyIfNotNull(configBuilder, "mongodb.password", mongodbPassword);
         addPropertyIfNotNull(configBuilder, "query.fetch.size", queryFetchSize);
+        addPropertyIfNotNull(configBuilder, "signal.enabled.channels", signalEnabledChannels);
         addPropertyIfNotNull(configBuilder, "mongodb.ssl.enabled", mongodbSslEnabled);
         addPropertyIfNotNull(configBuilder, "cursor.max.await.time.ms", cursorMaxAwaitTimeMs);
-        addPropertyIfNotNull(configBuilder, "mongodb.members.auto.discover", mongodbMembersAutoDiscover);
         addPropertyIfNotNull(configBuilder, "field.renames", fieldRenames);
         addPropertyIfNotNull(configBuilder, "mongodb.server.selection.timeout.ms", mongodbServerSelectionTimeoutMs);
         addPropertyIfNotNull(configBuilder, "poll.interval.ms", pollIntervalMs);
@@ -723,40 +899,49 @@ public class MongoDbConnectorEmbeddedDebeziumConfiguration
         addPropertyIfNotNull(configBuilder, "converters", converters);
         addPropertyIfNotNull(configBuilder, "heartbeat.topics.prefix", heartbeatTopicsPrefix);
         addPropertyIfNotNull(configBuilder, "mongodb.connect.timeout.ms", mongodbConnectTimeoutMs);
-        addPropertyIfNotNull(configBuilder, "mongodb.hosts", mongodbHosts);
         addPropertyIfNotNull(configBuilder, "snapshot.fetch.size", snapshotFetchSize);
         addPropertyIfNotNull(configBuilder, "mongodb.poll.interval.ms", mongodbPollIntervalMs);
-        addPropertyIfNotNull(configBuilder, "sanitize.field.names", sanitizeFieldNames);
+        addPropertyIfNotNull(configBuilder, "incremental.snapshot.watermarking.strategy", incrementalSnapshotWatermarkingStrategy);
         addPropertyIfNotNull(configBuilder, "mongodb.user", mongodbUser);
-        addPropertyIfNotNull(configBuilder, "source.struct.version", sourceStructVersion);
         addPropertyIfNotNull(configBuilder, "heartbeat.interval.ms", heartbeatIntervalMs);
+        addPropertyIfNotNull(configBuilder, "snapshot.mode.configuration.based.snapshot.on.schema.error", snapshotModeConfigurationBasedSnapshotOnSchemaError);
         addPropertyIfNotNull(configBuilder, "snapshot.collection.filter.overrides", snapshotCollectionFilterOverrides);
         addPropertyIfNotNull(configBuilder, "field.exclude.list", fieldExcludeList);
+        addPropertyIfNotNull(configBuilder, "errors.max.retries", errorsMaxRetries);
         addPropertyIfNotNull(configBuilder, "database.exclude.list", databaseExcludeList);
         addPropertyIfNotNull(configBuilder, "max.batch.size", maxBatchSize);
         addPropertyIfNotNull(configBuilder, "skipped.operations", skippedOperations);
+        addPropertyIfNotNull(configBuilder, "topic.naming.strategy", topicNamingStrategy);
         addPropertyIfNotNull(configBuilder, "snapshot.mode", snapshotMode);
+        addPropertyIfNotNull(configBuilder, "snapshot.mode.configuration.based.snapshot.data", snapshotModeConfigurationBasedSnapshotData);
         addPropertyIfNotNull(configBuilder, "max.queue.size", maxQueueSize);
         addPropertyIfNotNull(configBuilder, "collection.include.list", collectionIncludeList);
         addPropertyIfNotNull(configBuilder, "retriable.restart.connector.wait.ms", retriableRestartConnectorWaitMs);
         addPropertyIfNotNull(configBuilder, "capture.mode", captureMode);
         addPropertyIfNotNull(configBuilder, "snapshot.delay.ms", snapshotDelayMs);
         addPropertyIfNotNull(configBuilder, "provide.transaction.metadata", provideTransactionMetadata);
+        addPropertyIfNotNull(configBuilder, "snapshot.mode.configuration.based.snapshot.on.data.error", snapshotModeConfigurationBasedSnapshotOnDataError);
+        addPropertyIfNotNull(configBuilder, "schema.history.internal.file.filename", schemaHistoryInternalFileFilename);
         addPropertyIfNotNull(configBuilder, "tombstones.on.delete", tombstonesOnDelete);
+        addPropertyIfNotNull(configBuilder, "topic.prefix", topicPrefix);
+        addPropertyIfNotNull(configBuilder, "sourceinfo.struct.maker", sourceinfoStructMaker);
         addPropertyIfNotNull(configBuilder, "mongodb.authsource", mongodbAuthsource);
-        addPropertyIfNotNull(configBuilder, "connect.backoff.initial.delay.ms", connectBackoffInitialDelayMs);
         addPropertyIfNotNull(configBuilder, "collection.exclude.list", collectionExcludeList);
         addPropertyIfNotNull(configBuilder, "snapshot.include.collection.list", snapshotIncludeCollectionList);
-        addPropertyIfNotNull(configBuilder, "database.history.file.filename", databaseHistoryFileFilename);
-        addPropertyIfNotNull(configBuilder, "connect.max.attempts", connectMaxAttempts);
+        addPropertyIfNotNull(configBuilder, "snapshot.mode.configuration.based.start.stream", snapshotModeConfigurationBasedStartStream);
         addPropertyIfNotNull(configBuilder, "max.queue.size.in.bytes", maxQueueSizeInBytes);
-        addPropertyIfNotNull(configBuilder, "transaction.topic", transactionTopic);
+        addPropertyIfNotNull(configBuilder, "snapshot.mode.configuration.based.snapshot.schema", snapshotModeConfigurationBasedSnapshotSchema);
+        addPropertyIfNotNull(configBuilder, "signal.poll.interval.ms", signalPollIntervalMs);
+        addPropertyIfNotNull(configBuilder, "post.processors", postProcessors);
+        addPropertyIfNotNull(configBuilder, "notification.enabled.channels", notificationEnabledChannels);
         addPropertyIfNotNull(configBuilder, "mongodb.socket.timeout.ms", mongodbSocketTimeoutMs);
         addPropertyIfNotNull(configBuilder, "event.processing.failure.handling.mode", eventProcessingFailureHandlingMode);
-        addPropertyIfNotNull(configBuilder, "mongodb.name", mongodbName);
         addPropertyIfNotNull(configBuilder, "snapshot.max.threads", snapshotMaxThreads);
-        addPropertyIfNotNull(configBuilder, "connect.backoff.max.delay.ms", connectBackoffMaxDelayMs);
+        addPropertyIfNotNull(configBuilder, "notification.sink.topic.name", notificationSinkTopicName);
+        addPropertyIfNotNull(configBuilder, "snapshot.mode.custom.name", snapshotModeCustomName);
+        addPropertyIfNotNull(configBuilder, "schema.name.adjustment.mode", schemaNameAdjustmentMode);
         addPropertyIfNotNull(configBuilder, "mongodb.ssl.invalid.hostname.allowed", mongodbSslInvalidHostnameAllowed);
+        addPropertyIfNotNull(configBuilder, "mongodb.heartbeat.frequency.ms", mongodbHeartbeatFrequencyMs);
         addPropertyIfNotNull(configBuilder, "database.include.list", databaseIncludeList);
         
         return configBuilder.build();
@@ -772,8 +957,8 @@ public class MongoDbConnectorEmbeddedDebeziumConfiguration
         if (isFieldValueNotSet(mongodbPassword)) {
         	return ConfigurationValidation.notValid("Required field 'mongodbPassword' must be set.");
         }
-        if (isFieldValueNotSet(mongodbName)) {
-        	return ConfigurationValidation.notValid("Required field 'mongodbName' must be set.");
+        if (isFieldValueNotSet(topicPrefix)) {
+        	return ConfigurationValidation.notValid("Required field 'topicPrefix' must be set.");
         }
         return ConfigurationValidation.valid();
     }

@@ -35,7 +35,7 @@ public class LineNumberProcessorTest extends ContextTestSupport {
 
     @Test
     public void testLineNumber() throws Exception {
-        getMockEndpoint("mock:result").expectedBodiesReceived("org.apache.camel.processor.LineNumberProcessorTest$1:51");
+        getMockEndpoint("mock:result").expectedBodiesReceived("LineNumberProcessorTest.java:51");
 
         template.sendBody("direct:start", "Hello World");
 
@@ -43,10 +43,10 @@ public class LineNumberProcessorTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:start")
                         .process(new MyProcessor())
                         .to("mock:result");
@@ -80,7 +80,7 @@ public class LineNumberProcessorTest extends ContextTestSupport {
         }
 
         @Override
-        public void process(Exchange exchange) throws Exception {
+        public void process(Exchange exchange) {
             exchange.getMessage().setBody(location + ":" + lineNumber);
         }
     }

@@ -22,17 +22,13 @@ import org.apache.camel.CamelContext;
 import org.apache.camel.Endpoint;
 import org.apache.camel.spi.Metadata;
 import org.apache.camel.spi.annotations.Component;
-import org.apache.camel.support.DefaultComponent;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.camel.support.HealthCheckComponent;
 
 /**
  * For working with Amazon ECS SDK v2.
  */
 @Component("aws2-ecs")
-public class ECS2Component extends DefaultComponent {
-
-    private static final Logger LOG = LoggerFactory.getLogger(ECS2Component.class);
+public class ECS2Component extends HealthCheckComponent {
 
     @Metadata
     private ECS2Configuration configuration = new ECS2Configuration();
@@ -43,8 +39,6 @@ public class ECS2Component extends DefaultComponent {
 
     public ECS2Component(CamelContext context) {
         super(context);
-
-        registerExtension(new ECS2ComponentVerifierExtension());
     }
 
     @Override
@@ -52,10 +46,13 @@ public class ECS2Component extends DefaultComponent {
         ECS2Configuration configuration = this.configuration != null ? this.configuration.copy() : new ECS2Configuration();
         ECS2Endpoint endpoint = new ECS2Endpoint(uri, this, configuration);
         setProperties(endpoint, parameters);
-        if (!configuration.isUseDefaultCredentialsProvider() && configuration.getEcsClient() == null
+        if (Boolean.FALSE.equals(configuration.isUseDefaultCredentialsProvider())
+                && Boolean.FALSE.equals(configuration.isUseProfileCredentialsProvider())
+                && Boolean.FALSE.equals(configuration.isUseSessionCredentials())
+                && configuration.getEcsClient() == null
                 && (configuration.getAccessKey() == null || configuration.getSecretKey() == null)) {
             throw new IllegalArgumentException(
-                    "useDefaultCredentialsProvider is set to false, Amazon ecs client or accessKey and secretKey must be specified");
+                    "useDefaultCredentialsProvider is set to false, useProfileCredentialsProvider is set to false, useSessionCredentials is set to false, Amazon ecs client or accessKey and secretKey must be specified");
         }
 
         return endpoint;

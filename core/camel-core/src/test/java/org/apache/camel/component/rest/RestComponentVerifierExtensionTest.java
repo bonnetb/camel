@@ -40,21 +40,21 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class RestComponentVerifierExtensionTest extends ContextTestSupport {
     @Override
-    protected Registry createRegistry() throws Exception {
-        Registry registry = super.createRegistry();
+    protected Registry createCamelRegistry() throws Exception {
+        Registry registry = super.createCamelRegistry();
         registry.bind("rest", new RestComponent());
         registry.bind("rest-component", new MyComponent());
         return registry;
     }
 
     @Test
-    public void testParameters() throws Exception {
+    public void testParameters() {
         RestComponent component = context.getComponent("rest", RestComponent.class);
         RestComponentVerifierExtension verifier
                 = component.getExtension(RestComponentVerifierExtension.class).orElseThrow(() -> new IllegalStateException());
 
         Map<String, Object> parameters = new HashMap<>();
-        parameters.put("componentName", "rest-component");
+        parameters.put("producerComponentName", "rest-component");
         parameters.put("host", "http://localhost:1234");
         parameters.put("path", "verify");
         parameters.put("method", "get");
@@ -70,13 +70,13 @@ public class RestComponentVerifierExtensionTest extends ContextTestSupport {
     }
 
     @Test
-    public void testMissingParameters() throws Exception {
+    public void testMissingParameters() {
         RestComponent component = context.getComponent("rest", RestComponent.class);
         RestComponentVerifierExtension verifier
                 = component.getExtension(RestComponentVerifierExtension.class).orElseThrow(() -> new IllegalStateException());
 
         Map<String, Object> parameters = new HashMap<>();
-        parameters.put("componentName", "rest-component");
+        parameters.put("producerComponentName", "rest-component");
         parameters.put("host", "http://localhost:" + 1234);
         parameters.put("path", "verify");
 
@@ -99,7 +99,7 @@ public class RestComponentVerifierExtensionTest extends ContextTestSupport {
     //
     // ***************************************************
 
-    private final class MyComponent extends DefaultComponent implements RestProducerFactory, RestConsumerFactory {
+    private static final class MyComponent extends DefaultComponent implements RestProducerFactory, RestConsumerFactory {
 
         public MyComponent() {
             registerExtension(new ComponentVerifierExtension() {
@@ -113,7 +113,7 @@ public class RestComponentVerifierExtensionTest extends ContextTestSupport {
         }
 
         @Override
-        protected Endpoint createEndpoint(String uri, String remaining, Map<String, Object> parameters) throws Exception {
+        protected Endpoint createEndpoint(String uri, String remaining, Map<String, Object> parameters) {
             throw new UnsupportedOperationException();
         }
 
@@ -121,8 +121,7 @@ public class RestComponentVerifierExtensionTest extends ContextTestSupport {
         public Producer createProducer(
                 CamelContext camelContext, String host, String verb, String basePath, String uriTemplate,
                 String queryParameters, String consumes,
-                String produces, RestConfiguration configuration, Map<String, Object> parameters)
-                throws Exception {
+                String produces, RestConfiguration configuration, Map<String, Object> parameters) {
             throw new UnsupportedOperationException();
         }
 
@@ -130,8 +129,7 @@ public class RestComponentVerifierExtensionTest extends ContextTestSupport {
         public Consumer createConsumer(
                 CamelContext camelContext, Processor processor, String verb, String basePath, String uriTemplate,
                 String consumes, String produces,
-                RestConfiguration configuration, Map<String, Object> parameters)
-                throws Exception {
+                RestConfiguration configuration, Map<String, Object> parameters) {
             throw new UnsupportedOperationException();
         }
     }

@@ -24,13 +24,14 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.xml.bind.JAXBElement;
-import javax.xml.bind.JAXBIntrospector;
+import jakarta.xml.bind.JAXBElement;
+import jakarta.xml.bind.JAXBIntrospector;
+import jakarta.xml.soap.SOAPException;
+import jakarta.xml.soap.SOAPFactory;
+import jakarta.xml.ws.WebFault;
+import jakarta.xml.ws.soap.SOAPFaultException;
+
 import javax.xml.namespace.QName;
-import javax.xml.soap.SOAPException;
-import javax.xml.soap.SOAPFactory;
-import javax.xml.ws.WebFault;
-import javax.xml.ws.soap.SOAPFaultException;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePropertyKey;
@@ -91,7 +92,7 @@ public class Soap12DataFormatAdapter implements SoapDataFormatAdapter {
                     headerContent.addAll(inboundSoapHeaders);
                 }
             }
-            bodyContent = getDataFormat().createContentFromObject(inputObject, soapAction, headerContent);
+            bodyContent = getDataFormat().createContentFromObject(inputObject, soapAction);
         }
 
         for (Object elem : bodyContent) {
@@ -105,14 +106,13 @@ public class Soap12DataFormatAdapter implements SoapDataFormatAdapter {
             envelope.setHeader(header);
         }
         envelope.setBody(body);
-        JAXBElement<Envelope> envelopeEl = objectFactory.createEnvelope(envelope);
-        return envelopeEl;
+        return objectFactory.createEnvelope(envelope);
     }
 
     /**
      * Creates a SOAP fault from the exception and populates the message as well as the detail. The detail object is
      * read from the method getFaultInfo of the throwable if present
-     * 
+     *
      * @param  exception the cause exception
      * @return           SOAP fault from given Throwable
      */
@@ -185,7 +185,8 @@ public class Soap12DataFormatAdapter implements SoapDataFormatAdapter {
         Object payloadEl = anyElement.get(0);
         Object payload = JAXBIntrospector.getValue(payloadEl);
         if (payload instanceof Fault) {
-            Exception exception = createExceptionFromFault((Fault) payload);
+            String soapAction = exchange.getProperty(Exchange.SOAP_ACTION, String.class);
+            Exception exception = createExceptionFromFault(soapAction, (Fault) payload);
             exchange.setException(exception);
             return null;
         } else {
@@ -196,12 +197,12 @@ public class Soap12DataFormatAdapter implements SoapDataFormatAdapter {
     /**
      * Creates an exception and eventually an embedded bean that contains the fault detail. The exception class is
      * determined by using the elementNameStrategy. The qName of the fault detail should match the WebFault annotation
-     * of the Exception class. If no fault detail is set a {@link javax.xml.ws.soap.SOAPFaultException} is created.
-     * 
+     * of the Exception class. If no fault detail is set a {@link jakarta.xml.ws.soap.SOAPFaultException} is created.
+     *
      * @param  fault Soap fault
      * @return       created Exception
      */
-    private Exception createExceptionFromFault(Fault fault) {
+    private Exception createExceptionFromFault(String soapAction, Fault fault) {
         StringBuilder sb = new StringBuilder();
         for (Reasontext text : fault.getReason().getText()) {
             sb.append(text.getValue());
@@ -229,7 +230,8 @@ public class Soap12DataFormatAdapter implements SoapDataFormatAdapter {
 
         JAXBElement<?> detailEl = (JAXBElement<?>) detailObj;
         Class<? extends Exception> exceptionClass
-                = getDataFormat().getElementNameStrategy().findExceptionForFaultName(detailEl.getName());
+                = getDataFormat().getElementNameStrategy().findExceptionForSoapActionAndFaultName(soapAction,
+                        detailEl.getName());
         Constructor<? extends Exception> messageConstructor;
         Constructor<? extends Exception> constructor;
 

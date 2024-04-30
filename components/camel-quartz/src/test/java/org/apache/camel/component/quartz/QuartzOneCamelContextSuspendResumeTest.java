@@ -23,6 +23,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+
 public class QuartzOneCamelContextSuspendResumeTest {
 
     private DefaultCamelContext camel1;
@@ -32,7 +34,7 @@ public class QuartzOneCamelContextSuspendResumeTest {
         camel1 = new DefaultCamelContext();
         camel1.addRoutes(new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("quartz://myGroup/myTimerName?cron=0/1+*+*+*+*+?").to("mock:one");
             }
         });
@@ -40,7 +42,7 @@ public class QuartzOneCamelContextSuspendResumeTest {
     }
 
     @AfterEach
-    public void tearDown() throws Exception {
+    public void tearDown() {
         camel1.stop();
     }
 
@@ -50,12 +52,12 @@ public class QuartzOneCamelContextSuspendResumeTest {
         mock1.expectedMinimumMessageCount(2);
         mock1.assertIsSatisfied();
 
-        camel1.suspend();
+        assertDoesNotThrow(() -> camel1.suspend());
 
         // should resume triggers when we start camel 1 again
         mock1.reset();
         mock1.expectedMinimumMessageCount(2);
-        camel1.resume();
+        assertDoesNotThrow(() -> camel1.resume());
 
         mock1.assertIsSatisfied();
     }

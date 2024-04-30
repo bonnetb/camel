@@ -5,6 +5,7 @@
 :description: Send and receive messages to/from an XMPP chat server.
 :since: 1.0
 :supportlevel: Stable
+:tabs-sync-option:
 :component-header: Both producer and consumer are supported
 //Manually maintained attributes
 :camel-spring-boot-name: xmpp
@@ -55,7 +56,9 @@ include::partial$component-endpoint-options.adoc[]
 
 // endpoint options: END
 
-
+// component headers: START
+include::partial$component-endpoint-headers.adoc[]
+// component headers: END
 
 
 == Headers and setting Subject or Language

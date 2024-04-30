@@ -17,22 +17,26 @@
 package org.apache.camel.component.kafka;
 
 import java.time.Duration;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Pattern;
 
+import org.apache.camel.CamelContext;
 import org.apache.camel.component.kafka.consumer.CommitManager;
 import org.apache.camel.component.kafka.consumer.CommitManagers;
+import org.apache.camel.component.kafka.consumer.errorhandler.KafkaConsumerListener;
 import org.apache.camel.component.kafka.consumer.errorhandler.KafkaErrorStrategies;
-import org.apache.camel.component.kafka.consumer.support.KafkaConsumerResumeStrategy;
 import org.apache.camel.component.kafka.consumer.support.KafkaRecordProcessorFacade;
-import org.apache.camel.component.kafka.consumer.support.PartitionAssignmentListener;
 import org.apache.camel.component.kafka.consumer.support.ProcessingResult;
-import org.apache.camel.component.kafka.consumer.support.ResumeStrategyFactory;
+import org.apache.camel.component.kafka.consumer.support.TopicHelper;
+import org.apache.camel.component.kafka.consumer.support.batching.KafkaRecordBatchingProcessorFacade;
+import org.apache.camel.component.kafka.consumer.support.classic.ClassicRebalanceListener;
+import org.apache.camel.component.kafka.consumer.support.resume.ResumeRebalanceListener;
+import org.apache.camel.component.kafka.consumer.support.streaming.KafkaRecordStreamingProcessorFacade;
+import org.apache.camel.component.kafka.consumer.support.subcription.DefaultSubscribeAdapter;
+import org.apache.camel.component.kafka.consumer.support.subcription.SubscribeAdapter;
+import org.apache.camel.component.kafka.consumer.support.subcription.TopicInfo;
 import org.apache.camel.support.BridgeExceptionHandlerToErrorHandler;
 import org.apache.camel.support.task.ForegroundTask;
 import org.apache.camel.support.task.Tasks;
@@ -41,47 +45,69 @@ import org.apache.camel.util.IOHelper;
 import org.apache.camel.util.ReflectionHelper;
 import org.apache.camel.util.TimeUtils;
 import org.apache.kafka.clients.CommonClientConfigs;
+import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.internals.ConsumerNetworkClient;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.InterruptException;
 import org.apache.kafka.common.errors.WakeupException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static java.rmi.registry.LocateRegistry.getRegistry;
+
 public class KafkaFetchRecords implements Runnable {
+    /*
+     This keeps track of the state the record fetcher is. Because the Kafka consumer is not thread safe, it may take
+     some time between the pause or resume request is triggered and it is actually set.
+     Some of the states may be set but not read. This is done deliberately to avoid the code to enter multiple times
+     the branches that handle the *_REQUESTED states.
+     */
+    private enum State {
+        RUNNING,
+        PAUSE_REQUESTED,
+        PAUSED,
+        RESUME_REQUESTED,
+    }
+
     private static final Logger LOG = LoggerFactory.getLogger(KafkaFetchRecords.class);
+
+    // There are a few of volatile fields here because they are usually read from other threads,
+    // like from the health check thread. They are usually only read on those contexts.
 
     private final KafkaConsumer kafkaConsumer;
     private org.apache.kafka.clients.consumer.Consumer consumer;
-    private String clientId;
+    private volatile String clientId;
     private final String topicName;
     private final Pattern topicPattern;
     private final String threadId;
     private final Properties kafkaProps;
-    private final Map<String, Long> lastProcessedOffset = new HashMap<>();
-    private final PollExceptionStrategy pollExceptionStrategy;
+    private PollExceptionStrategy pollExceptionStrategy;
     private final BridgeExceptionHandlerToErrorHandler bridge;
     private final ReentrantLock lock = new ReentrantLock();
     private CommitManager commitManager;
-    private Exception lastError;
+    private volatile Exception lastError;
+    private final KafkaConsumerListener consumerListener;
 
-    private boolean terminated;
-    private long currentBackoffInterval;
-    private boolean retry = true;
-    private boolean reconnect; // must be false at init (this is the policy whether to reconnect)
-    private boolean connected; // this is the state (connected or not)
+    private volatile boolean terminated;
+    private volatile long currentBackoffInterval;
+
+    private volatile boolean reconnect; // The reconnect must be false at init (this is the policy whether to reconnect).
+    private volatile boolean connected; // this is the state (connected or not)
+
+    private volatile State state = State.RUNNING;
 
     KafkaFetchRecords(KafkaConsumer kafkaConsumer,
                       BridgeExceptionHandlerToErrorHandler bridge, String topicName, Pattern topicPattern, String id,
-                      Properties kafkaProps) {
+                      Properties kafkaProps, KafkaConsumerListener consumerListener) {
         this.kafkaConsumer = kafkaConsumer;
         this.bridge = bridge;
         this.topicName = topicName;
         this.topicPattern = topicPattern;
+        this.consumerListener = consumerListener;
         this.threadId = topicName + "-" + "Thread " + id;
         this.kafkaProps = kafkaProps;
-
-        this.pollExceptionStrategy = KafkaErrorStrategies.strategies(this, kafkaConsumer.getEndpoint(), consumer);
     }
 
     @Override
@@ -94,6 +120,11 @@ public class KafkaFetchRecords implements Runnable {
             terminated = false;
 
             if (!isConnected()) {
+
+                // shutdown existing consumer instance to release resources (heartbeat)
+                if (this.consumer != null) {
+                    safeConsumerClose();
+                }
 
                 // task that deals with creating kafka consumer
                 currentBackoffInterval = kafkaConsumer.getEndpoint().getComponent().getCreateConsumerBackoffInterval();
@@ -138,33 +169,33 @@ public class KafkaFetchRecords implements Runnable {
                 setConnected(true);
             }
 
-            lastError = null;
+            setLastError(null);
             startPolling();
-        } while ((isRetrying() || isReconnect()) && isKafkaConsumerRunnable());
+        } while ((pollExceptionStrategy.canContinue() || isReconnect()) && isKafkaConsumerRunnable());
 
         if (LOG.isInfoEnabled()) {
             LOG.info("Terminating KafkaConsumer thread {} receiving from {}", threadId, getPrintableTopic());
         }
 
-        safeUnsubscribe();
-        IOHelper.close(consumer);
+        safeConsumerClose();
     }
 
     private void setupInitializeErrorException(ForegroundTask task, int max) {
-        String time = TimeUtils.printDuration(task.elapsed());
+        String time = TimeUtils.printDuration(task.elapsed(), true);
         String topic = getPrintableTopic();
         String msg = "Gave up subscribing org.apache.kafka.clients.consumer.KafkaConsumer " +
                      threadId + " to " + topic + " after " + max + " attempts (elapsed: " + time + ").";
         LOG.warn(msg);
-        lastError = new KafkaConsumerFatalException(msg, lastError);
+        setLastError(new KafkaConsumerFatalException(msg, lastError));
     }
 
     private void setupCreateConsumerException(ForegroundTask task, int max) {
-        String time = TimeUtils.printDuration(task.elapsed());
+        String time = TimeUtils.printDuration(task.elapsed(), true);
         String topic = getPrintableTopic();
         String msg = "Gave up creating org.apache.kafka.clients.consumer.KafkaConsumer "
                      + threadId + " to " + topic + " after " + max + " attempts (elapsed: " + time + ").";
-        lastError = new KafkaConsumerFatalException(msg, lastError);
+
+        setLastError(new KafkaConsumerFatalException(msg, lastError));
     }
 
     private boolean initializeConsumerTask() {
@@ -175,7 +206,7 @@ public class KafkaFetchRecords implements Runnable {
             // ensure this is logged so users can see the problem
             LOG.warn("Error subscribing org.apache.kafka.clients.consumer.KafkaConsumer due to: {}", e.getMessage(),
                     e);
-            lastError = e;
+            setLastError(e);
             return false;
         }
 
@@ -188,12 +219,25 @@ public class KafkaFetchRecords implements Runnable {
             commitManager
                     = CommitManagers.createCommitManager(consumer, kafkaConsumer, threadId, getPrintableTopic());
 
+            if (consumerListener != null) {
+                consumerListener.setConsumer(consumer);
+
+                SeekPolicy seekPolicy = kafkaConsumer.getEndpoint().getConfiguration().getSeekTo();
+                if (seekPolicy == null) {
+                    seekPolicy = kafkaConsumer.getEndpoint().getComponent().getConfiguration().getSeekTo();
+                    if (seekPolicy == null) {
+                        seekPolicy = SeekPolicy.BEGINNING;
+                    }
+                }
+
+                consumerListener.setSeekPolicy(seekPolicy);
+            }
         } catch (Exception e) {
             setConnected(false);
             // ensure this is logged so users can see the problem
             LOG.warn("Error creating org.apache.kafka.clients.consumer.KafkaConsumer due to: {}", e.getMessage(),
                     e);
-            lastError = e;
+            setLastError(e);
             return false;
         }
 
@@ -216,6 +260,11 @@ public class KafkaFetchRecords implements Runnable {
             // this may throw an exception if something is wrong with kafka consumer
             this.consumer = kafkaConsumer.getEndpoint().getKafkaClientFactory().getConsumer(kafkaProps);
 
+            var krbLocation = kafkaConsumer.getEndpoint().getConfiguration().getKerberosConfigLocation();
+            if (krbLocation != null) {
+                System.setProperty("java.security.krb5.conf", krbLocation);
+            }
+
             // init client id which we may need to get from the kafka producer via reflection
             if (clientId == null) {
                 clientId = getKafkaProps().getProperty(CommonClientConfigs.CLIENT_ID_CONFIG);
@@ -229,6 +278,8 @@ public class KafkaFetchRecords implements Runnable {
                     }
                 }
             }
+
+            this.pollExceptionStrategy = KafkaErrorStrategies.strategies(this, kafkaConsumer.getEndpoint(), consumer);
         } finally {
             Thread.currentThread().setContextClassLoader(threadClassLoader);
         }
@@ -240,31 +291,40 @@ public class KafkaFetchRecords implements Runnable {
         // set reconnect to false as the connection and resume is done at this point
         setConnected(false);
 
-        // set retry to true to continue polling
-        setRetry(true);
+        pollExceptionStrategy.reset();
     }
 
     private void subscribe() {
-        KafkaConsumerResumeStrategy resumeStrategy = ResumeStrategyFactory.newResumeStrategy(kafkaConsumer);
-        resumeStrategy.setConsumer(consumer);
+        ConsumerRebalanceListener listener;
 
-        PartitionAssignmentListener listener = new PartitionAssignmentListener(
-                threadId, kafkaConsumer.getEndpoint().getConfiguration(), lastProcessedOffset,
-                this::isRunnable, commitManager, resumeStrategy);
-
-        if (LOG.isInfoEnabled()) {
-            LOG.info("Subscribing {} to {}", threadId, getPrintableTopic());
-        }
-
-        if (topicPattern != null) {
-            consumer.subscribe(topicPattern, listener);
+        if (kafkaConsumer.getResumeStrategy() == null) {
+            listener = new ClassicRebalanceListener(
+                    threadId, kafkaConsumer.getEndpoint().getConfiguration(), commitManager, consumer);
         } else {
-            consumer.subscribe(Arrays.asList(topicName.split(",")), listener);
+            listener = new ResumeRebalanceListener(
+                    threadId, kafkaConsumer.getEndpoint().getConfiguration(),
+                    commitManager, consumer, kafkaConsumer.getResumeStrategy());
         }
+
+        TopicInfo topicInfo = new TopicInfo(topicPattern, topicName);
+
+        final CamelContext camelContext = kafkaConsumer.getEndpoint().getCamelContext();
+        LOG.info("Searching for a custom subscribe adapter on the registry");
+        final SubscribeAdapter adapter = resolveSubscribeAdapter(camelContext);
+
+        adapter.subscribe(consumer, listener, topicInfo);
+    }
+
+    private static SubscribeAdapter resolveSubscribeAdapter(CamelContext camelContext) {
+        SubscribeAdapter adapter = camelContext.getRegistry().lookupByNameAndType(KafkaConstants.KAFKA_SUBSCRIBE_ADAPTER,
+                SubscribeAdapter.class);
+        if (adapter == null) {
+            adapter = new DefaultSubscribeAdapter();
+        }
+        return adapter;
     }
 
     protected void startPolling() {
-        long partitionLastOffset = -1;
 
         try {
             /*
@@ -274,28 +334,31 @@ public class KafkaFetchRecords implements Runnable {
             lock.lock();
 
             long pollTimeoutMs = kafkaConsumer.getEndpoint().getConfiguration().getPollTimeoutMs();
+            Duration pollDuration = Duration.ofMillis(pollTimeoutMs);
 
             if (LOG.isTraceEnabled()) {
                 LOG.trace("Polling {} from {} with timeout: {}", threadId, getPrintableTopic(), pollTimeoutMs);
             }
 
-            KafkaRecordProcessorFacade recordProcessorFacade = new KafkaRecordProcessorFacade(
-                    kafkaConsumer, lastProcessedOffset, threadId, commitManager);
+            final KafkaRecordProcessorFacade recordProcessorFacade = createRecordProcessor();
 
-            Duration pollDuration = Duration.ofMillis(pollTimeoutMs);
-            while (isKafkaConsumerRunnable() && isRetrying() && isConnected()) {
+            while (isKafkaConsumerRunnableAndNotStopped() && isConnected() && pollExceptionStrategy.canContinue()) {
                 ConsumerRecords<Object, Object> allRecords = consumer.poll(pollDuration);
-
-                commitManager.processAsyncCommits();
+                if (consumerListener != null) {
+                    if (!consumerListener.afterConsume(consumer)) {
+                        continue;
+                    }
+                }
 
                 ProcessingResult result = recordProcessorFacade.processPolledRecords(allRecords);
+                updateTaskState();
 
-                if (result.isBreakOnErrorHit()) {
+                // when breakOnFirstError we want to unsubscribe from Kafka
+                if (result != null && result.isBreakOnErrorHit() && !this.state.equals(State.PAUSED)) {
                     LOG.debug("We hit an error ... setting flags to force reconnect");
                     // force re-connect
                     setReconnect(true);
                     setConnected(false);
-                    setRetry(false); // to close the current consumer
                 }
 
             }
@@ -307,7 +370,8 @@ public class KafkaFetchRecords implements Runnable {
 
             safeUnsubscribe();
         } catch (InterruptException e) {
-            kafkaConsumer.getExceptionHandler().handleException("Interrupted while consuming " + threadId + " from kafka topic",
+            kafkaConsumer.getExceptionHandler().handleException(
+                    "Thread " + threadId + " interrupted while consuming from kafka topic",
                     e);
             commitManager.commit();
 
@@ -320,27 +384,76 @@ public class KafkaFetchRecords implements Runnable {
             if (LOG.isTraceEnabled()) {
                 LOG.trace("The kafka consumer was woken up while polling on thread {} for {}", threadId, getPrintableTopic());
             }
-
-            safeUnsubscribe();
         } catch (Exception e) {
             if (LOG.isDebugEnabled()) {
-                LOG.warn("Exception {} caught while polling {} from kafka {} at offset {}: {}",
-                        e.getClass().getName(), threadId, getPrintableTopic(), lastProcessedOffset, e.getMessage(), e);
+                LOG.warn("Exception {} caught by thread {} while polling {} from kafka: {}",
+                        e.getClass().getName(), threadId, getPrintableTopic(), e.getMessage(), e);
             } else {
-                LOG.warn("Exception {} caught while polling {} from kafka {} at offset {}: {}",
-                        e.getClass().getName(), threadId, getPrintableTopic(), lastProcessedOffset, e.getMessage());
+                LOG.warn("Exception {} caught by thread {} while polling {} from kafka: {}",
+                        e.getClass().getName(), threadId, getPrintableTopic(), e.getMessage());
             }
 
+            // why do we set this to -1
+            long partitionLastOffset = -1;
             pollExceptionStrategy.handle(partitionLastOffset, e);
         } finally {
             // only close if not retry
-            if (!isRetrying()) {
-                LOG.debug("Closing consumer {}", threadId);
+            if (!pollExceptionStrategy.canContinue()) {
                 safeUnsubscribe();
-                IOHelper.close(consumer);
+                safeConsumerClose();
             }
-
             lock.unlock();
+        }
+    }
+
+    private KafkaRecordProcessorFacade createRecordProcessor() {
+        final KafkaConfiguration configuration = kafkaConsumer.getEndpoint().getConfiguration();
+        if (configuration.isBatching()) {
+            return new KafkaRecordBatchingProcessorFacade(
+                    kafkaConsumer, threadId, commitManager, consumerListener);
+        } else {
+            return new KafkaRecordStreamingProcessorFacade(
+                    kafkaConsumer, threadId, commitManager, consumerListener);
+        }
+    }
+
+    private void updateTaskState() {
+        switch (state) {
+            case PAUSE_REQUESTED:
+                LOG.info("Pausing the consumer as a response to a pause request");
+                consumer.pause(consumer.assignment());
+                state = State.PAUSED;
+                break;
+            case RESUME_REQUESTED:
+                LOG.info("Resuming the consumer as a response to a resume request");
+                if (consumer.committed(this.consumer.assignment()) != null) {
+                    consumer.committed(this.consumer.assignment()).forEach((k, v) -> {
+                        if (v != null) {
+                            final TopicPartition tp = (TopicPartition) k;
+                            LOG.info("Resuming from the offset {} for the topic {} with partition {}",
+                                    ((OffsetAndMetadata) v).offset(), tp.topic(), tp.partition());
+                            consumer.seek(tp, ((OffsetAndMetadata) v).offset());
+                        }
+                    });
+                }
+                consumer.resume(consumer.assignment());
+                state = State.RUNNING;
+                break;
+            default:
+                break;
+        }
+    }
+
+    private void safeConsumerClose() {
+        /*
+         IOHelper.close only catches IOExceptions, thus other Kafka exceptions may leak from the fetcher causing
+         unspecified behavior.
+         */
+        try {
+            LOG.debug("Closing consumer {}", threadId);
+            IOHelper.close(consumer, "Kafka consumer (thread ID " + threadId + ")", LOG);
+        } catch (Exception e) {
+            LOG.error("Error closing the Kafka consumer: {} (this error will be ignored)", e.getMessage(), e);
         }
     }
 
@@ -351,11 +464,14 @@ public class KafkaFetchRecords implements Runnable {
 
         final String printableTopic = getPrintableTopic();
         try {
+            LOG.debug("Unsubscribing from Kafka");
             consumer.unsubscribe();
+            LOG.debug("Done unsubscribing from Kafka");
         } catch (IllegalStateException e) {
             LOG.warn("The consumer is likely already closed. Skipping unsubscribing thread {} from kafka {}", threadId,
                     printableTopic);
         } catch (Exception e) {
+            LOG.debug("Something went wrong while unsubscribing from Kafka: {}", e.getMessage());
             kafkaConsumer.getExceptionHandler().handleException(
                     "Error unsubscribing thread " + threadId + " from kafka " + printableTopic, e);
         }
@@ -366,11 +482,7 @@ public class KafkaFetchRecords implements Runnable {
      * or a topic pattern.
      */
     private String getPrintableTopic() {
-        if (topicPattern != null) {
-            return "topic pattern " + topicPattern;
-        } else {
-            return "topic " + topicName;
-        }
+        return TopicHelper.getPrintableTopic(topicPattern, topicName);
     }
 
     private boolean isKafkaConsumerRunnable() {
@@ -378,16 +490,8 @@ public class KafkaFetchRecords implements Runnable {
                 && !kafkaConsumer.isSuspendingOrSuspended();
     }
 
-    private boolean isRunnable() {
-        return kafkaConsumer.getEndpoint().getCamelContext().isStopping() && !kafkaConsumer.isRunAllowed();
-    }
-
-    private boolean isRetrying() {
-        return retry;
-    }
-
-    public void setRetry(boolean value) {
-        retry = value;
+    private boolean isKafkaConsumerRunnableAndNotStopped() {
+        return kafkaConsumer.isRunAllowed() && !kafkaConsumer.isStoppingOrStopped();
     }
 
     private boolean isReconnect() {
@@ -423,8 +527,10 @@ public class KafkaFetchRecords implements Runnable {
             }
 
             // As advised in the KAFKA-1894 ticket, calling this wakeup method breaks the infinite loop
+            LOG.trace("Waking up Kafka consumer");
             consumer.wakeup();
         } catch (InterruptedException e) {
+            LOG.trace("Interrupted while waiting for processing to finish: waking up Kafka consumer");
             consumer.wakeup();
             Thread.currentThread().interrupt();
         } finally {
@@ -442,11 +548,15 @@ public class KafkaFetchRecords implements Runnable {
         return connected;
     }
 
+    public boolean isPaused() {
+        return !consumer.paused().isEmpty();
+    }
+
     public void setConnected(boolean connected) {
         this.connected = connected;
     }
 
-    public boolean isReady() {
+    private boolean isReady() {
         if (!connected) {
             return false;
         }
@@ -457,11 +567,15 @@ public class KafkaFetchRecords implements Runnable {
                 // need to use reflection to access the network client which has API to check if the client has ready
                 // connections
                 org.apache.kafka.clients.consumer.KafkaConsumer kc = (org.apache.kafka.clients.consumer.KafkaConsumer) consumer;
-                ConsumerNetworkClient nc
-                        = (ConsumerNetworkClient) ReflectionHelper.getField(kc.getClass().getDeclaredField("client"), kc);
-                LOG.trace(
-                        "Health-Check calling org.apache.kafka.clients.consumer.internals.ConsumerNetworkClient.hasReadyNode");
-                ready = nc.hasReadyNodes(System.currentTimeMillis());
+                Object client = ReflectionHelper.getField(kc.getClass().getDeclaredField("delegate"), kc);
+                if (client != null) {
+                    ConsumerNetworkClient nc
+                            = (ConsumerNetworkClient) ReflectionHelper.getField(client.getClass().getDeclaredField("client"),
+                                    client);
+                    LOG.trace(
+                            "Health-Check calling org.apache.kafka.clients.consumer.internals.ConsumerNetworkClient.hasReadyNode");
+                    ready = nc.hasReadyNodes(System.currentTimeMillis());
+                }
             }
         } catch (Exception e) {
             // ignore
@@ -472,31 +586,49 @@ public class KafkaFetchRecords implements Runnable {
         return ready;
     }
 
-    Properties getKafkaProps() {
+    private Properties getKafkaProps() {
         return kafkaProps;
     }
 
-    String getClientId() {
-        return clientId;
-    }
-
-    Exception getLastError() {
-        return lastError;
-    }
-
-    boolean isTerminated() {
+    private boolean isTerminated() {
         return terminated;
     }
 
-    boolean isRecoverable() {
-        return (isRetrying() || isReconnect()) && isKafkaConsumerRunnable();
+    private boolean isRecoverable() {
+        return (pollExceptionStrategy != null && pollExceptionStrategy.canContinue() || isReconnect())
+                && isKafkaConsumerRunnable();
     }
 
-    long getCurrentRecoveryInterval() {
-        return currentBackoffInterval;
+    // concurrent access happens here
+    public TaskHealthState healthState() {
+        return new TaskHealthState(
+                isReady(), isTerminated(), isRecoverable(), lastError, clientId,
+                currentBackoffInterval, kafkaProps);
     }
 
     public BridgeExceptionHandlerToErrorHandler getBridge() {
         return bridge;
+    }
+
+    /*
+     * This is for manually pausing the consumer. This is mostly used for directly calling pause from Java code
+     * or via JMX
+     */
+    public void pause() {
+        LOG.info("A pause request was issued and the consumer thread will pause after current processing has finished");
+        state = State.PAUSE_REQUESTED;
+    }
+
+    /*
+     * This is for manually resuming the consumer (not to be confused w/ the Resume API). This is
+     * mostly used for directly calling resume from Java code or via JMX
+     */
+    public void resume() {
+        LOG.info("A resume request was issued and the consumer thread will resume after current processing has finished");
+        state = State.RESUME_REQUESTED;
+    }
+
+    private synchronized void setLastError(Exception lastError) {
+        this.lastError = lastError;
     }
 }

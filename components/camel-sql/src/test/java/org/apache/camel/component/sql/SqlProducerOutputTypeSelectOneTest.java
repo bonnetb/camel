@@ -43,18 +43,20 @@ public class SqlProducerOutputTypeSelectOneTest {
     public void setUp() {
         db = new EmbeddedDatabaseBuilder()
                 .setName(getClass().getSimpleName())
-                .setType(EmbeddedDatabaseType.DERBY)
+                .setType(EmbeddedDatabaseType.H2)
                 .addScript("sql/createAndPopulateDatabase.sql").build();
 
         camel1 = new DefaultCamelContext();
-        camel1.setName("camel-1");
+        camel1.getCamelContextExtension().setName("camel-1");
         camel1.getComponent("sql", SqlComponent.class).setDataSource(db);
     }
 
     @AfterEach
     public void tearDown() {
         camel1.stop();
-        db.shutdown();
+        if (db != null) {
+            db.shutdown();
+        }
     }
 
     @Test

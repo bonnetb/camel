@@ -23,11 +23,17 @@ import org.apache.camel.spi.Metadata;
  */
 public final class JpaConstants {
 
-    @Metadata(description = "The JPA `EntityManager` object.", javaType = "javax.persistence.EntityManager")
+    @Metadata(description = "The JPA `EntityManager` object.", javaType = "jakarta.persistence.EntityManager")
     public static final String ENTITY_MANAGER = "CamelEntityManager";
     @Metadata(label = "producer", description = "Alternative way for passing query parameters as an Exchange header.",
               javaType = "Map<String, Object>")
     public static final String JPA_PARAMETERS_HEADER = "CamelJpaParameters";
+    @Metadata(label = "producer", description = "Defines the maximum number of results to retrieve on the query; " +
+                                                "takes precedence over the value set on the endpoint, if any.")
+    public static final String JPA_MAXIMUM_RESULTS = "CamelJpaMaximumResults";
+    @Metadata(label = "producer", description = "Defines the position of the first result to retrieve; " +
+                                                "takes precedence over the value set on the endpoint, if any.")
+    public static final String JPA_FIRST_RESULT = "CamelJpaFirstResult";
 
     /**
      * @deprecated use {@link #ENTITY_MANAGER}

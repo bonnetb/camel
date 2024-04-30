@@ -65,6 +65,11 @@ public class SetExchangePatternTest extends ContextTestSupport {
     }
 
     @Test
+    public void testSetAsString() throws Exception {
+        assertMessageReceivedWithPattern("direct:asString", ExchangePattern.InOut);
+    }
+
+    @Test
     public void testPreserveOldMEPInOut() throws Exception {
         // the mock should get an InOut MEP
         getMockEndpoint("mock:result").expectedMessageCount(1);
@@ -73,7 +78,7 @@ public class SetExchangePatternTest extends ContextTestSupport {
         // we send an InOnly
         Exchange out = template.send("direct:testInOut", new Processor() {
             @Override
-            public void process(Exchange exchange) throws Exception {
+            public void process(Exchange exchange) {
                 exchange.getIn().setBody("Hello World");
                 exchange.setPattern(ExchangePattern.InOnly);
             }
@@ -95,7 +100,7 @@ public class SetExchangePatternTest extends ContextTestSupport {
         // we send an InOut
         Exchange out = template.send("direct:testInOnly", new Processor() {
             @Override
-            public void process(Exchange exchange) throws Exception {
+            public void process(Exchange exchange) {
                 exchange.getIn().setBody("Hello World");
                 exchange.setPattern(ExchangePattern.InOut);
             }
@@ -156,6 +161,8 @@ public class SetExchangePatternTest extends ContextTestSupport {
                 // Set the exchange pattern to InOut, then send it on
                 from("direct:testSetExchangePatternInOnly").setExchangePattern(ExchangePattern.InOnly).to("mock:result");
                 // END SNIPPET: example
+
+                from("direct:asString").setExchangePattern("InOut").to("mock:result");
             }
         };
     }

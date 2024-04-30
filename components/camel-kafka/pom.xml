@@ -23,7 +23,7 @@
     <parent>
         <groupId>org.apache.camel</groupId>
         <artifactId>components</artifactId>
-        <version>3.17.0-SNAPSHOT</version>
+        <version>4.6.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>camel-kafka</artifactId>
@@ -47,6 +47,7 @@
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
+            <version>${kafka-version}</version>
         </dependency>
 
         <dependency>
@@ -56,6 +57,28 @@
 
         <!-- test -->
         <dependency>
+            <groupId>org.awaitility</groupId>
+            <artifactId>awaitility</artifactId>
+            <version>${awaitility-version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.hamcrest</groupId>
+            <artifactId>hamcrest</artifactId>
+            <version>${hamcrest-version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.camel</groupId>
+            <artifactId>camel-test-infra-core</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+            <type>test-jar</type>
+        </dependency>
+
+        <dependency>
             <groupId>org.apache.camel</groupId>
             <artifactId>camel-test-infra-kafka</artifactId>
             <version>${project.version}</version>
@@ -63,7 +86,29 @@
             <scope>test</scope>
         </dependency>
 
+        <dependency>
+            <groupId>org.apache.camel</groupId>
+            <artifactId>camel-jackson</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <!-- Required by the admin client-->
+        <dependency>
+            <groupId>org.apache.camel</groupId>
+            <artifactId>camel-direct</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.camel</groupId>
+            <artifactId>camel-resilience4j</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!--
+        It does not really have a dependency on camel-test-junit5, but it brings a lot of dependencies that are needed for
+        running the tests
+        -->
         <dependency>
             <groupId>org.apache.camel</groupId>
             <artifactId>camel-test-junit5</artifactId>
@@ -82,48 +127,104 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-junit-jupiter</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-slf4j-impl</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-1.2-api</artifactId>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-lang3</artifactId>
-            <version>${commons-lang3-version}</version>
+            <version>${mockito-version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
 
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-failsafe-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>kafka-3</id>
+    <profiles>
+        <profile>
+            <!-- This is needed only for camel-kafka to skip itests selected in the backwards-compatibility profile -->
+            <id>quickly</id>
+            <activation>
+                <property>
+                    <name>quickly</name>
+                </property>
+            </activation>
+            <properties>
+                <skipITs>true</skipITs>
+                <skipTests>true</skipTests>
+            </properties>
+        </profile>
+        <profile>
+            <id>backwards-compatibility</id>
+            <activation>
+                <os>
+                    <arch>amd64</arch>
+                </os>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
                         <configuration>
-                            <systemPropertyVariables>
-                                <kafka.instance.type>local-kafka3-container</kafka.instance.type>
-                            </systemPropertyVariables>
-                            <reportNameSuffix>kafka-3</reportNameSuffix>
+                            <skipITs>${skipITs}</skipITs>
                         </configuration>
-                        <goals>
-                            <goal>integration-test</goal>
-                            <goal>verify</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
-    </build>
+                        <executions>
+                            <execution>
+                                <id>kafka-2</id>
+                                <configuration>
+                                    <skipITs>${skipITs}</skipITs>
+                                    <systemPropertyVariables>
+                                        <kafka.instance.type>local-kafka2-container</kafka.instance.type>
+                                    </systemPropertyVariables>
+                                    <reportNameSuffix>kafka-2</reportNameSuffix>
+                                    <excludedGroups>non-abstract,health,idempotent</excludedGroups>
+                                </configuration>
+                                <goals>
+                                    <goal>integration-test</goal>
+                                    <goal>verify</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>full</id>
+            <activation>
+                <property>
+                    <name>!quickly</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <configuration>
+                            <skipITs>${skipITs}</skipITs>
+                            <skipTests>${skipTests}</skipTests>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>integration-test</id>
+                                <goals>
+                                    <goal>integration-test</goal>
+                                    <goal>verify</goal>
+                                </goals>
+                                <configuration>
+                                    <skipITs>${skipITs}</skipITs>
+                                    <excludedGroups>health,idempotent,breakOnFirstError</excludedGroups>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>serials-test</id>
+                                <goals>
+                                    <goal>integration-test</goal>
+                                </goals>
+                                <configuration>
+                                    <reuseForks>false</reuseForks>
+                                    <groups>health,idempotent,breakOnFirstError</groups>
+                                    <forkedProcessTimeoutInSeconds>1200</forkedProcessTimeoutInSeconds>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

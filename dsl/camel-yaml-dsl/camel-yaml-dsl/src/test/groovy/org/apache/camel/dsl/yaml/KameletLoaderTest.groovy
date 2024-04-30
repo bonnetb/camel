@@ -30,7 +30,7 @@ class KameletLoaderTest extends YamlTestSupport {
     def "kamelet with flow"() {
         when:
             loadKamelets('''
-                apiVersion: camel.apache.org/v1alpha1
+                apiVersion: camel.apache.org/v1
                 kind: Kamelet
                 metadata:
                   name: aws-s3-sink                  
@@ -62,7 +62,19 @@ class KameletLoaderTest extends YamlTestSupport {
                         default: false
                         x-descriptors:
                         - 'urn:alm:descriptor:com.tectonic.ui:checkbox'
-                  flow:
+                  template:
+                    beans:
+                      - name: kameletBean
+                        type: org.apache.camel.dsl.yaml.KameletBean
+                        property:
+                          - key: kbProp
+                            value: kbValue
+                      - name: kameletBean2
+                        type: org.apache.camel.dsl.yaml.KameletBean
+                        properties:
+                          kbProp2: kbValue2
+                          kbObjProp:
+                            kbObjPropProp: kbObjPropPropVal
                     from:
                       uri: "kamelet:source"
                       steps:
@@ -93,11 +105,11 @@ class KameletLoaderTest extends YamlTestSupport {
 
                 with(route) {
                     input.endpointUri == 'kamelet:source'
-                    input.lineNumber == 35
+                    input.lineNumber == 47
                     outputs.size() == 1
                     with (outputs[0], ToDefinition) {
                         endpointUri ==~ /aws2-s3:.*/
-                        lineNumber == 38
+                        lineNumber == 50
                     }
                 }
             }
@@ -106,7 +118,7 @@ class KameletLoaderTest extends YamlTestSupport {
     def "kamelet with template"() {
         when:
             loadKamelets('''
-                apiVersion: camel.apache.org/v1alpha1
+                apiVersion: camel.apache.org/v1
                 kind: Kamelet
                 metadata:
                   name: aws-s3-sink                  
@@ -180,7 +192,7 @@ class KameletLoaderTest extends YamlTestSupport {
     def "kamelet with template and optional parameters"() {
         setup:
             loadKamelets """
-                apiVersion: camel.apache.org/v1alpha1
+                apiVersion: camel.apache.org/v1
                 kind: Kamelet
                 metadata:
                   name: myTemplate
@@ -263,7 +275,7 @@ class KameletLoaderTest extends YamlTestSupport {
     def "kamelet with filter and flow"() {
         setup:
             loadKamelets '''
-                apiVersion: camel.apache.org/v1alpha1
+                apiVersion: camel.apache.org/v1
                 kind: Kamelet
                 metadata:
                   name: filter-action
@@ -271,7 +283,7 @@ class KameletLoaderTest extends YamlTestSupport {
                   definition:
                     title: "Filter"
                     description: "Filter based on the body"
-                  flow:
+                  template:
                     from:
                       uri: kamelet:source
                       steps:

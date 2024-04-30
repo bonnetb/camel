@@ -35,23 +35,23 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class EventNotifierExchangeSentTest extends ContextTestSupport {
 
-    protected List<CamelEvent> events = new ArrayList<>();
+    protected final List<CamelEvent> events = new ArrayList<>();
 
     @BeforeEach
-    public void clearEvents() throws Exception {
+    public void clearEvents() {
         events.clear();
     }
 
     @Override
     protected CamelContext createCamelContext() throws Exception {
-        DefaultCamelContext context = new DefaultCamelContext(createRegistry());
+        DefaultCamelContext context = new DefaultCamelContext(createCamelRegistry());
         context.getManagementStrategy().addEventNotifier(new EventNotifierSupport() {
-            public void notify(CamelEvent event) throws Exception {
+            public void notify(CamelEvent event) {
                 events.add(event);
             }
 
             @Override
-            protected void doStart() throws Exception {
+            protected void doStart() {
                 // filter out unwanted events
                 setIgnoreCamelContextEvents(true);
                 setIgnoreServiceEvents(true);
@@ -60,6 +60,7 @@ public class EventNotifierExchangeSentTest extends ContextTestSupport {
                 setIgnoreExchangeCompletedEvent(true);
                 setIgnoreExchangeFailedEvents(true);
                 setIgnoreExchangeRedeliveryEvents(true);
+                setIgnoreExchangeAsyncProcessingStartedEvents(true);
             }
         });
         return context;
@@ -74,6 +75,7 @@ public class EventNotifierExchangeSentTest extends ContextTestSupport {
         assertMockEndpointsSatisfied();
 
         assertEquals(8, events.size());
+
         ExchangeSendingEvent e0 = assertIsInstanceOf(ExchangeSendingEvent.class, events.get(0));
         ExchangeSendingEvent e1 = assertIsInstanceOf(ExchangeSendingEvent.class, events.get(1));
         ExchangeSentEvent e2 = assertIsInstanceOf(ExchangeSentEvent.class, events.get(2));
@@ -175,10 +177,10 @@ public class EventNotifierExchangeSentTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:start").to("log:foo").to("direct:bar").to("mock:result");
 
                 from("direct:bar").delay(500);

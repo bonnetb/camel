@@ -27,11 +27,11 @@ import org.junit.jupiter.api.Test;
  */
 public class FileProduceTempPrefixTest extends ContextTestSupport {
 
-    private String fileUrl = fileUri("?tempPrefix=inprogress.");
+    public static final String FILE_QUERY = "?tempPrefix=inprogress.";
 
     @Test
     public void testCreateTempFileName() throws Exception {
-        Endpoint endpoint = context.getEndpoint(fileUrl);
+        Endpoint endpoint = context.getEndpoint(fileUri(FILE_QUERY));
         GenericFileProducer<?> producer = (GenericFileProducer<?>) endpoint.createProducer();
         Exchange exchange = endpoint.createExchange();
         exchange.getIn().setHeader(Exchange.FILE_NAME, "claus.txt");
@@ -42,7 +42,7 @@ public class FileProduceTempPrefixTest extends ContextTestSupport {
 
     @Test
     public void testCreateTempFileNameUsingComplexName() throws Exception {
-        Endpoint endpoint = context.getEndpoint(fileUrl);
+        Endpoint endpoint = context.getEndpoint(fileUri(FILE_QUERY));
         GenericFileProducer<?> producer = (GenericFileProducer<?>) endpoint.createProducer();
         Exchange exchange = endpoint.createExchange();
         exchange.getIn().setHeader(Exchange.FILE_NAME, "foo/claus.txt");
@@ -53,7 +53,7 @@ public class FileProduceTempPrefixTest extends ContextTestSupport {
 
     @Test
     public void testNoPathCreateTempFileName() throws Exception {
-        Endpoint endpoint = context.getEndpoint(fileUrl);
+        Endpoint endpoint = context.getEndpoint(fileUri(FILE_QUERY));
         GenericFileProducer<?> producer = (GenericFileProducer<?>) endpoint.createProducer();
         Exchange exchange = endpoint.createExchange();
         exchange.getIn().setHeader(Exchange.FILE_NAME, "claus.txt");
@@ -63,22 +63,22 @@ public class FileProduceTempPrefixTest extends ContextTestSupport {
     }
 
     @Test
-    public void testTempPrefix() throws Exception {
+    public void testTempPrefix() {
         template.sendBodyAndHeader("direct:a", "Hello World", Exchange.FILE_NAME, "hello.txt");
 
         assertFileExists(testFile("hello.txt"));
     }
 
     @Test
-    public void testTempPrefixUUIDFilename() throws Exception {
+    public void testTempPrefixUUIDFilename() {
         template.sendBody("direct:a", "Bye World");
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
-            public void configure() throws Exception {
-                from("direct:a").to(fileUrl);
+            public void configure() {
+                from("direct:a").to(fileUri(FILE_QUERY));
             }
         };
     }

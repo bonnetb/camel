@@ -26,7 +26,8 @@ import org.apache.camel.TypeConverterExists;
  * Registry for type converters.
  * <p/>
  * The utilization {@link Statistics} is by default disabled, as it has a slight performance impact under very high
- * concurrent load. The statistics can be enabled using {@link Statistics#setStatisticsEnabled(boolean)} method.
+ * concurrent load. The statistics can be enabled using
+ * {@link org.apache.camel.CamelContext#setTypeConverterStatisticsEnabled(Boolean)} (boolean)} method.
  */
 public interface TypeConverterRegistry extends StaticService, CamelContextAware {
 
@@ -186,5 +187,15 @@ public interface TypeConverterRegistry extends StaticService, CamelContextAware 
      * The default behavior is to ignore the duplicate.
      */
     void setTypeConverterExists(TypeConverterExists typeConverterExists);
+
+    /**
+     * Adds a type convertible pair to the registry
+     *
+     * @param typeConvertible A type convertible pair
+     * @param typeConverter   The type converter to associate with the type convertible pair
+     */
+    default void addConverter(TypeConvertible<?, ?> typeConvertible, TypeConverter typeConverter) {
+
+    }
 
 }

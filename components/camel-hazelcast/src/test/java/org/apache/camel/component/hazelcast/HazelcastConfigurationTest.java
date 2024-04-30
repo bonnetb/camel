@@ -27,8 +27,12 @@ import org.apache.camel.component.hazelcast.map.HazelcastMapComponent;
 import org.apache.camel.impl.DefaultCamelContext;
 import org.apache.camel.support.SimpleRegistry;
 import org.apache.camel.test.AvailablePortFinder;
+import org.apache.camel.test.infra.common.TestEntityNameGenerator;
+import org.apache.camel.test.infra.hazelcast.services.HazelcastService;
+import org.apache.camel.test.infra.hazelcast.services.HazelcastServiceFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -38,26 +42,28 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class HazelcastConfigurationTest {
+class HazelcastConfigurationTest {
+
+    @RegisterExtension
+    public static HazelcastService hazelcastService = HazelcastServiceFactory.createService();
+
+    @RegisterExtension
+    public static TestEntityNameGenerator nameGenerator = new TestEntityNameGenerator();
+
     @AfterEach
-    public void tearDown() throws Exception {
+    public void tearDown() {
         Hazelcast.shutdownAll();
     }
 
     @Test
-    public void testNamedInstance() throws Exception {
+    void testNamedInstance() {
         DefaultCamelContext context = null;
 
-        try {
+        try (AvailablePortFinder.Port port = AvailablePortFinder.find()) {
+            int portNumber = port.getPort();
             String instanceName = UUID.randomUUID().toString();
-            Config config = new Config();
-            config.setInstanceName(instanceName);
-            config.getNetworkConfig().setPort(6789);
-            config.getNetworkConfig().getJoin().getAwsConfig().setEnabled(false);
-            config.getNetworkConfig().getJoin().getMulticastConfig().setEnabled(true);
-            config.getNetworkConfig().getJoin().getTcpIpConfig().setEnabled(false);
-
-            Hazelcast.newHazelcastInstance(config);
+            Hazelcast.newHazelcastInstance(
+                    hazelcastService.createConfiguration(null, portNumber, instanceName, "configuration"));
 
             context = new DefaultCamelContext();
             context.start();
@@ -80,7 +86,7 @@ public class HazelcastConfigurationTest {
                 assertFalse(hz.getConfig().getNetworkConfig().getJoin().getAwsConfig().isEnabled());
                 assertTrue(hz.getConfig().getNetworkConfig().getJoin().getMulticastConfig().isEnabled());
                 assertFalse(hz.getConfig().getNetworkConfig().getJoin().getTcpIpConfig().isEnabled());
-                assertEquals(6789, hz.getConfig().getNetworkConfig().getPort());
+                assertEquals(port.getPort(), hz.getConfig().getNetworkConfig().getPort());
             }
         } finally {
             if (context != null) {
@@ -90,7 +96,7 @@ public class HazelcastConfigurationTest {
     }
 
     @Test
-    public void testDefaultConfiguration() throws Exception {
+    void testDefaultConfiguration() {
         DefaultCamelContext context = null;
 
         try {
@@ -122,7 +128,7 @@ public class HazelcastConfigurationTest {
     }
 
     @Test
-    public void testNamedInstanceWithConfigurationUri() throws Exception {
+    void testNamedInstanceWithConfigurationUri() {
         DefaultCamelContext context = null;
 
         try {
@@ -155,7 +161,7 @@ public class HazelcastConfigurationTest {
     }
 
     @Test
-    public void testCustomConfigurationUri() throws Exception {
+    void testCustomConfigurationUri() {
         DefaultCamelContext context = null;
 
         try {
@@ -190,18 +196,14 @@ public class HazelcastConfigurationTest {
     }
 
     @Test
-    public void testCustomConfigurationReference() throws Exception {
+    void testCustomConfigurationReference() {
         DefaultCamelContext context = null;
 
-        try {
-            Config config = new Config();
-            config.getNetworkConfig().setPort(6789);
-            config.getNetworkConfig().getJoin().getAwsConfig().setEnabled(false);
-            config.getNetworkConfig().getJoin().getMulticastConfig().setEnabled(true);
-            config.getNetworkConfig().getJoin().getTcpIpConfig().setEnabled(false);
+        try (AvailablePortFinder.Port port = AvailablePortFinder.find()) {
+            int portNumber = port.getPort();
 
             SimpleRegistry reg = new SimpleRegistry();
-            reg.bind("my-config", config);
+            reg.bind("my-config", hazelcastService.createConfiguration(null, portNumber, null, "configuration"));
 
             context = new DefaultCamelContext(reg);
             context.start();
@@ -217,7 +219,7 @@ public class HazelcastConfigurationTest {
             assertFalse(hz.getConfig().getNetworkConfig().getJoin().getAwsConfig().isEnabled());
             assertTrue(hz.getConfig().getNetworkConfig().getJoin().getMulticastConfig().isEnabled());
             assertFalse(hz.getConfig().getNetworkConfig().getJoin().getTcpIpConfig().isEnabled());
-            assertEquals(6789, hz.getConfig().getNetworkConfig().getPort());
+            assertEquals(port.getPort(), hz.getConfig().getNetworkConfig().getPort());
 
         } finally {
             if (context != null) {
@@ -227,38 +229,30 @@ public class HazelcastConfigurationTest {
     }
 
     @Test
-    public void testMix() throws Exception {
+    void testMix() {
         DefaultCamelContext context = null;
 
         try (AvailablePortFinder.Port port1 = AvailablePortFinder.find();
              AvailablePortFinder.Port port2 = AvailablePortFinder.find();
              AvailablePortFinder.Port port3 = AvailablePortFinder.find();
              AvailablePortFinder.Port port4 = AvailablePortFinder.find()) {
+            int portNumber1 = port1.getPort();
+            int portNumber2 = port2.getPort();
+            int portNumber3 = port3.getPort();
+            int portNumber4 = port4.getPort();
             String instanceName = UUID.randomUUID().toString();
 
             Config namedConfig = new Config();
-            namedConfig.setInstanceName("named-" + instanceName);
-            namedConfig.getMetricsConfig().setEnabled(false);
-            namedConfig.getNetworkConfig().setPort(port1.getPort());
-            namedConfig.getNetworkConfig().getJoin().getAutoDetectionConfig().setEnabled(false);
+            namedConfig = hazelcastService.createConfiguration("named", portNumber1, instanceName, "configuration");
 
             Config customConfig = new Config();
-            customConfig.setInstanceName("custom-" + instanceName);
-            customConfig.getMetricsConfig().setEnabled(false);
-            customConfig.getNetworkConfig().setPort(port2.getPort());
-            customConfig.getNetworkConfig().getJoin().getAutoDetectionConfig().setEnabled(false);
+            customConfig = hazelcastService.createConfiguration("custom", portNumber2, instanceName, "configuration");
 
             Config sharedConfig = new Config();
-            sharedConfig.setInstanceName("shared-" + instanceName);
-            sharedConfig.getMetricsConfig().setEnabled(false);
-            sharedConfig.getNetworkConfig().setPort(port3.getPort());
-            sharedConfig.getNetworkConfig().getJoin().getAutoDetectionConfig().setEnabled(false);
+            sharedConfig = hazelcastService.createConfiguration("shared", portNumber3, instanceName, "configuration");
 
             Config componentConfig = new Config();
-            componentConfig.setInstanceName("component-" + instanceName);
-            componentConfig.getMetricsConfig().setEnabled(false);
-            componentConfig.getNetworkConfig().setPort(port4.getPort());
-            componentConfig.getNetworkConfig().getJoin().getAutoDetectionConfig().setEnabled(false);
+            componentConfig = hazelcastService.createConfiguration("component", portNumber4, instanceName, "configuration");
 
             HazelcastInstance hzNamed = Hazelcast.newHazelcastInstance(namedConfig);
             HazelcastInstance hzShared = Hazelcast.newHazelcastInstance(sharedConfig);

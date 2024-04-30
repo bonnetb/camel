@@ -20,12 +20,14 @@ import org.apache.camel.component.mock.MockEndpoint
 import org.apache.camel.dsl.yaml.support.YamlTestSupport
 import org.apache.camel.dsl.yaml.support.model.MyUppercaseProcessor
 import org.apache.camel.model.RouteDefinition
+import org.junit.jupiter.api.Assertions
 
 class TemplatedRouteTest extends YamlTestSupport {
+
     def "create templated route"() {
         setup:
         loadRoutes """
-                - template:
+                - routeTemplate:
                     id: "myTemplate"
                     from:
                       uri: "direct:{{directName}}"
@@ -33,27 +35,28 @@ class TemplatedRouteTest extends YamlTestSupport {
                         - process:
                             ref: "{{myProcessor}}"
                         - to: "mock:result"
-                - templated-route:
-                    route-id: "myRoute"
-                    route-template-ref: "myTemplate"
+                - templatedRoute:
+                    routeId: "myRoute"
+                    routeTemplateRef: "myTemplate"
                     parameters:
                       - name: "directName"
                         value: "foo"
                     beans:
                       - name: "myProcessor"
-                        type: "groovy"
+                        type: "${MyUppercaseProcessor.class.name}" 
+                        scriptLanguage: "groovy"
                         script: |
                             new ${MyUppercaseProcessor.class.name}()
-                - templated-route:
-                    route-id: "myRoute2"
-                    route-template-ref: "myTemplate"
+                - templatedRoute:
+                    routeId: "myRoute2"
+                    routeTemplateRef: "myTemplate"
                     parameters:
                       - name: "directName"
                         value: "foo2"
                     beans:
                       - name: "myProcessor"
-                        type: "groovy"
-                        bean-type: "org.apache.camel.Processor"
+                        type: "org.apache.camel.Processor"
+                        scriptLanguage: "groovy"
                         script: "new ${MyUppercaseProcessor.class.name}()"                 
             """
         withMock('mock:result') {
@@ -77,6 +80,112 @@ class TemplatedRouteTest extends YamlTestSupport {
             routeId == 'myRoute2'
         }
         MockEndpoint.assertIsSatisfied(context)
+    }
+
+    def "create templatedRoute"() {
+        setup:
+        loadRoutes """
+                - routeTemplate:
+                    id: "myTemplate"
+                    from:
+                      uri: "direct:{{directName}}"
+                      steps:
+                        - process:
+                            ref: "{{myProcessor}}"
+                        - to: "mock:result"
+                - templatedRoute:
+                    routeId: "myRoute"
+                    routeTemplateRef: "myTemplate"
+                    parameters:
+                      - name: "directName"
+                        value: "foo"
+                    beans:
+                      - name: "myProcessor"
+                        type: "org.apache.camel.Processor"
+                        scriptLanguage: "groovy"
+                        script: |
+                            new ${MyUppercaseProcessor.class.name}()
+                - templatedRoute:
+                    routeId: "myRoute2"
+                    routeTemplateRef: "myTemplate"
+                    parameters:
+                      - name: "directName"
+                        value: "foo2"
+                    beans:
+                      - name: "myProcessor"
+                        type: "org.apache.camel.Processor"
+                        scriptLanguage: "groovy"
+                        script: "new ${MyUppercaseProcessor.class.name}()"                 
+            """
+        withMock('mock:result') {
+            expectedMessageCount 2
+            expectedBodiesReceived 'HELLO', "WORLD"
+        }
+        when:
+        context.start()
+        withTemplate {
+            to('direct:foo').withBody('hello').send()
+            to('direct:foo2').withBody('world').send()
+        }
+        then:
+        context.routeTemplateDefinitions.size() == 1
+        context.routeDefinitions.size() == 2
+
+        with(context.routeDefinitions[0], RouteDefinition) {
+            routeId == 'myRoute'
+        }
+        with(context.routeDefinitions[1], RouteDefinition) {
+            routeId == 'myRoute2'
+        }
+        MockEndpoint.assertIsSatisfied(context)
+    }
+
+    def "Error: kebab-case: templated-route"() {
+        when:
+        var route = """
+                - templated-route:
+                    routeId: "myRoute"
+                    routeTemplateRef: "myTemplate"
+                    parameters:
+                      - name: "directName"
+                        value: "foo"
+                    beans:
+                      - name: "myProcessor"
+                        type: "groovy"
+                        script: |
+                            new ${MyUppercaseProcessor.class.name}()
+            """
+        then:
+        try {
+            loadRoutes(route)
+            Assertions.fail("Should have thrown exception")
+        } catch (Exception e) {
+            Assertions.assertTrue(e.message.contains("additional properties"), e.getMessage())
+        }
+    }
+
+    def "Error: kebab-case: route-id"() {
+        when:
+        var route = """
+                - templatedRoute:
+                    route-id: "myRoute"
+                    routeTemplateRef: "myTemplate"
+                    parameters:
+                      - name: "directName"
+                        value: "foo"
+                    beans:
+                      - name: "myProcessor"
+                        type: "groovy"
+                        script: |
+                            new ${MyUppercaseProcessor.class.name}()
+            """
+        then:
+        try {
+            loadRoutes(route)
+            Assertions.fail("Should have thrown exception")
+        } catch (Exception e) {
+            Assertions.assertTrue(e.message.contains("additional properties"), e.getMessage())
+        }
     }
 
 }

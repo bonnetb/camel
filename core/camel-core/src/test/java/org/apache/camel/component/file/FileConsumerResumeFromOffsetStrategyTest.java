@@ -24,58 +24,60 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.camel.ContextTestSupport;
 import org.apache.camel.Exchange;
-import org.apache.camel.Resumable;
 import org.apache.camel.RuntimeCamelException;
-import org.apache.camel.UpdatableConsumerResumeStrategy;
 import org.apache.camel.builder.RouteBuilder;
-import org.apache.camel.component.file.consumer.GenericFileResumable;
-import org.apache.camel.component.file.consumer.GenericFileResumeStrategy;
+import org.apache.camel.component.file.consumer.DirectoryEntriesResumeAdapter;
+import org.apache.camel.component.file.consumer.FileOffsetResumeAdapter;
+import org.apache.camel.component.file.consumer.FileResumeAdapter;
 import org.apache.camel.component.mock.MockEndpoint;
-import org.apache.camel.resume.Resumables;
+import org.apache.camel.processor.resume.TransientResumeStrategy;
+import org.apache.camel.support.resume.Resumables;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class FileConsumerResumeFromOffsetStrategyTest extends ContextTestSupport {
+    private static final Logger LOG = LoggerFactory.getLogger(FileConsumerResumeFromOffsetStrategyTest.class);
 
-    private static class TestResumeStrategy implements GenericFileResumeStrategy<File> {
+    private static class TestFileResumeAdapter implements FileResumeAdapter, FileOffsetResumeAdapter {
+        private GenericFile<File> resumable;
+
         @Override
-        public void resume(GenericFileResumable<File> resumable) {
-            if (!resumable.getAddressable().getName().startsWith("resume-from-offset")) {
+        public void setResumePayload(GenericFile<File> resumable) {
+            if (!resumable.getFile().getName().startsWith("resume-from-offset")) {
                 throw new RuntimeCamelException("Invalid file - resume strategy should not have been called!");
             }
 
-            resumable.updateLastOffset(3L);
+            this.resumable = resumable;
         }
 
         @Override
         public void resume() {
-            throw new UnsupportedOperationException("Unsupported operation");
-            // NO-OP
-        }
-
-        @Override
-        public void start() {
-
-        }
-
-        @Override
-        public void stop() {
-
+            if (resumable != null) {
+                resumable.updateLastOffsetValue(3L);
+                resumable = null;
+            }
         }
     }
 
-    private static class FailResumeStrategy extends TestResumeStrategy
-            implements UpdatableConsumerResumeStrategy<File, Long, Resumable<File, Long>> {
-        private boolean called;
+    private static class FailResumeAdapter
+            implements FileResumeAdapter, DirectoryEntriesResumeAdapter {
 
         @Override
-        public void updateLastOffset(Resumable<File, Long> offset) {
-            called = true;
+        public void resume() {
+
         }
+
+        @Override
+        public boolean resume(File file) {
+            return false;
+        }
+
     }
 
-    private static final FailResumeStrategy FAIL_RESUME_STRATEGY = new FailResumeStrategy();
+    private static final TransientResumeStrategy FAIL_RESUME_STRATEGY = new TransientResumeStrategy(new FailResumeAdapter());
 
     @DisplayName("Tests whether it can resume from an offset")
     @Test
@@ -106,7 +108,21 @@ public class FileConsumerResumeFromOffsetStrategyTest extends ContextTestSupport
 
         List<Exchange> exchangeList = mock.getExchanges();
         Assertions.assertFalse(exchangeList.isEmpty(), "It should have received a few messages");
-        Assertions.assertFalse(FAIL_RESUME_STRATEGY.called);
+    }
+
+    @DisplayName("Tests whether it a missing offset does not cause a failure when using intermittent mode")
+    @Test
+    public void testMissingOffsetWithIntermittentMode() throws InterruptedException {
+        MockEndpoint mock = getMockEndpoint("mock:result");
+        mock.expectedBodiesReceivedInAnyOrder("01234567890");
+
+        template.sendBodyAndHeader(fileUri("resumeMissingOffsetIntermittent"), "01234567890", Exchange.FILE_NAME,
+                "resume-from-offset.txt");
+
+        assertMockEndpointsSatisfied();
+
+        List<Exchange> exchangeList = mock.getExchanges();
+        Assertions.assertFalse(exchangeList.isEmpty(), "It should have received a few messages");
     }
 
     @DisplayName("Tests whether we can start from the beginning (i.e.: no resume strategy)")
@@ -122,12 +138,12 @@ public class FileConsumerResumeFromOffsetStrategyTest extends ContextTestSupport
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
             public void configure() {
 
-                bindToRegistry("myResumeStrategy", new TestResumeStrategy());
+                bindToRegistry("myResumeStrategy", new TransientResumeStrategy(new TestFileResumeAdapter()));
                 bindToRegistry("resumeNotToBeCalledStrategy", FAIL_RESUME_STRATEGY);
 
                 from(fileUri("resumeOff?noop=true&recursive=true"))
@@ -139,6 +155,11 @@ public class FileConsumerResumeFromOffsetStrategyTest extends ContextTestSupport
 
                 from(fileUri("resumeMissingOffset?noop=true&recursive=true"))
                         .resumable().resumeStrategy("resumeNotToBeCalledStrategy")
+                        .log("${body}")
+                        .convertBodyTo(String.class).to("mock:result");
+
+                from(fileUri("resumeMissingOffsetIntermittent?noop=true&recursive=true"))
+                        .resumable().resumeStrategy("resumeNotToBeCalledStrategy").intermittent(true)
                         .log("${body}")
                         .convertBodyTo(String.class).to("mock:result");
 

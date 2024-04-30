@@ -25,7 +25,6 @@ import org.apache.camel.AsyncProcessor;
 import org.apache.camel.CamelContext;
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePropertyKey;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.Navigate;
 import org.apache.camel.Processor;
 import org.apache.camel.Traceable;
@@ -57,7 +56,7 @@ public class TryProcessor extends AsyncProcessorSupport implements Navigate<Proc
     public TryProcessor(CamelContext camelContext, Processor tryProcessor, List<Processor> catchClauses,
                         Processor finallyProcessor) {
         this.camelContext = camelContext;
-        this.reactiveExecutor = camelContext.adapt(ExtendedCamelContext.class).getReactiveExecutor();
+        this.reactiveExecutor = camelContext.getCamelContextExtension().getReactiveExecutor();
         this.tryProcessor = tryProcessor;
         this.catchClauses = catchClauses;
         this.finallyProcessor = finallyProcessor;
@@ -144,6 +143,14 @@ public class TryProcessor extends AsyncProcessorSupport implements Navigate<Proc
         ServiceHelper.stopService(tryProcessor, catchClauses, finallyProcessor);
     }
 
+    public List<Processor> getCatchClauses() {
+        return catchClauses;
+    }
+
+    public Processor getFinallyProcessor() {
+        return finallyProcessor;
+    }
+
     @Override
     public List<Processor> next() {
         if (!hasNext()) {
@@ -153,7 +160,7 @@ public class TryProcessor extends AsyncProcessorSupport implements Navigate<Proc
         if (tryProcessor != null) {
             answer.add(tryProcessor);
         }
-        if (catchClauses != null) {
+        if (catchClauses != null && !catchClauses.isEmpty()) {
             answer.addAll(catchClauses);
         }
         if (finallyProcessor != null) {

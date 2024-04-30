@@ -18,14 +18,16 @@
 package org.apache.camel.test.infra.kafka.services;
 
 import com.github.dockerjava.api.command.CreateContainerCmd;
+import org.apache.camel.test.infra.common.LocalPropertyResolver;
+import org.apache.camel.test.infra.kafka.common.KafkaProperties;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.wait.strategy.Wait;
 
 public class StrimziContainer extends GenericContainer<StrimziContainer> {
-    public static final String DEFAULT_STRIMZI_CONTAINER = "quay.io/strimzi/kafka:0.28.0-kafka-3.1.0";
-    private static final String STRIMZI_CONTAINER
-            = System.getProperty("itest.strimzi.container.image", DEFAULT_STRIMZI_CONTAINER);
+    static final String STRIMZI_CONTAINER = LocalPropertyResolver.getProperty(
+            StrimziContainer.class,
+            KafkaProperties.STRIMZI_CONTAINER);
     private static final int KAFKA_PORT = 9092;
 
     public StrimziContainer(Network network, String name, String zookeeperInstanceName) {
@@ -35,22 +37,19 @@ public class StrimziContainer extends GenericContainer<StrimziContainer> {
     public StrimziContainer(Network network, String name, String containerName, String zookeeperInstanceName) {
         super(containerName);
 
-        withEnv("LOG_DIR", "/tmp/logs");
-        withExposedPorts(KAFKA_PORT);
-        withEnv("KAFKA_ADVERTISED_LISTENERS", String.format("PLAINTEXT://%s:9092", getContainerIpAddress()));
-        withEnv("KAFKA_LISTENERS", "PLAINTEXT://0.0.0.0:9092");
-        withEnv("KAFKA_ZOOKEEPER_CONNECT", zookeeperInstanceName + ":2181");
-        withNetwork(network);
-
-        withCreateContainerCmdModifier(createContainerCmd -> setupContainer(name, createContainerCmd));
-
-        withCommand("sh", "-c",
-                "bin/kafka-server-start.sh config/server.properties "
-                                + "--override listeners=${KAFKA_LISTENERS} "
-                                + "--override advertised.listeners=${KAFKA_ADVERTISED_LISTENERS} "
-                                + "--override zookeeper.connect=${KAFKA_ZOOKEEPER_CONNECT}");
-
-        waitingFor(Wait.forListeningPort());
+        withEnv("LOG_DIR", "/tmp/logs")
+                .withExposedPorts(KAFKA_PORT)
+                .withEnv("KAFKA_ADVERTISED_LISTENERS", String.format("PLAINTEXT://%s:9092", getHost()))
+                .withEnv("KAFKA_LISTENERS", "PLAINTEXT://0.0.0.0:9092")
+                .withEnv("KAFKA_ZOOKEEPER_CONNECT", zookeeperInstanceName + ":2181")
+                .withNetwork(network)
+                .withCreateContainerCmdModifier(createContainerCmd -> setupContainer(name, createContainerCmd))
+                .withCommand("sh", "-c",
+                        "bin/kafka-server-start.sh config/server.properties "
+                                         + "--override listeners=${KAFKA_LISTENERS} "
+                                         + "--override advertised.listeners=${KAFKA_ADVERTISED_LISTENERS} "
+                                         + "--override zookeeper.connect=${KAFKA_ZOOKEEPER_CONNECT}")
+                .waitingFor(Wait.forListeningPort());
     }
 
     private void setupContainer(String name, CreateContainerCmd createContainerCmd) {

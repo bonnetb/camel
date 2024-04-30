@@ -48,7 +48,7 @@ public class LambdaGetFunctionIT extends Aws2LambdaBase {
         template.send("direct:createFunction", ExchangePattern.InOut, new Processor() {
             @Override
             public void process(Exchange exchange) throws Exception {
-                exchange.getIn().setHeader(Lambda2Constants.RUNTIME, "nodejs6.10");
+                exchange.getIn().setHeader(Lambda2Constants.RUNTIME, "nodejs16.x");
                 exchange.getIn().setHeader(Lambda2Constants.HANDLER, "GetHelloWithName.handler");
                 exchange.getIn().setHeader(Lambda2Constants.DESCRIPTION, "Hello with node.js on Lambda");
                 exchange.getIn().setHeader(Lambda2Constants.ROLE,
@@ -71,7 +71,7 @@ public class LambdaGetFunctionIT extends Aws2LambdaBase {
             }
         });
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
         GetFunctionResponse resp = result.getExchanges().get(0).getIn().getBody(GetFunctionResponse.class);
         assertEquals("GetHelloWithName", resp.configuration().functionName());
         assertEquals("Hello with node.js on Lambda", resp.configuration().description());

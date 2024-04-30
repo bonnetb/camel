@@ -16,25 +16,34 @@
  */
 package org.apache.camel.component.jms;
 
-import javax.jms.ConnectionFactory;
-
 import org.apache.camel.Body;
 import org.apache.camel.CamelContext;
+import org.apache.camel.ConsumerTemplate;
 import org.apache.camel.Exchange;
 import org.apache.camel.Header;
+import org.apache.camel.ProducerTemplate;
 import org.apache.camel.builder.RouteBuilder;
-import org.apache.camel.test.junit5.CamelTestSupport;
+import org.apache.camel.test.infra.artemis.services.ArtemisService;
+import org.apache.camel.test.infra.core.CamelContextExtension;
+import org.apache.camel.test.infra.core.DefaultCamelContextExtension;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
-import static org.apache.camel.component.jms.JmsComponent.jmsComponentAutoAcknowledge;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class RequestReplyCorrelatedWithCustomHeaderTest extends CamelTestSupport {
+public class RequestReplyCorrelatedWithCustomHeaderTest extends AbstractJMSTest {
 
-    private ConnectionFactory connectionFactory;
+    @Order(2)
+    @RegisterExtension
+    public static CamelContextExtension camelContextExtension = new DefaultCamelContextExtension();
+    protected CamelContext context;
+    protected ProducerTemplate template;
+    protected ConsumerTemplate consumer;
 
     public static void processRequest(
             @Body final String body,
@@ -63,17 +72,15 @@ public class RequestReplyCorrelatedWithCustomHeaderTest extends CamelTestSupport
     }
 
     @Override
-    protected CamelContext createCamelContext() throws Exception {
-        final CamelContext camelContext = super.createCamelContext();
+    protected String getComponentName() {
+        return "activemq";
+    }
 
-        connectionFactory = CamelJmsTestHelper.createConnectionFactory();
-
-        final JmsComponent activeMq = jmsComponentAutoAcknowledge(connectionFactory);
-        activeMq.getConfiguration().setCorrelationProperty("CustomCorrelation");
-
-        camelContext.addComponent("activemq", activeMq);
-
-        return camelContext;
+    @Override
+    protected JmsComponent setupComponent(CamelContext camelContext, ArtemisService service, String componentName) {
+        final JmsComponent component = super.setupComponent(camelContext, service, componentName);
+        component.getConfiguration().setCorrelationProperty("CustomCorrelation");
+        return component;
     }
 
     @Override
@@ -84,5 +91,17 @@ public class RequestReplyCorrelatedWithCustomHeaderTest extends CamelTestSupport
                 from("activemq:queue:request").bean(RequestReplyCorrelatedWithCustomHeaderTest.class, "processRequest");
             }
         };
+    }
+
+    @Override
+    public CamelContextExtension getCamelContextExtension() {
+        return camelContextExtension;
+    }
+
+    @BeforeEach
+    void setUpRequirements() {
+        context = camelContextExtension.getContext();
+        template = camelContextExtension.getProducerTemplate();
+        consumer = camelContextExtension.getConsumerTemplate();
     }
 }

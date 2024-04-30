@@ -18,23 +18,11 @@ package org.apache.camel.test.infra.ignite.services;
 
 import org.apache.camel.test.infra.common.services.TestService;
 import org.apache.ignite.configuration.IgniteConfiguration;
-import org.junit.jupiter.api.extension.AfterAllCallback;
-import org.junit.jupiter.api.extension.BeforeAllCallback;
-import org.junit.jupiter.api.extension.ExtensionContext;
 
 /**
  * Test infra service for Ignite
  */
-public interface IgniteService extends BeforeAllCallback, AfterAllCallback, TestService {
-    @Override
-    default void beforeAll(ExtensionContext extensionContext) throws Exception {
-        initialize();
-    }
-
-    @Override
-    default void afterAll(ExtensionContext extensionContext) throws Exception {
-        shutdown();
-    }
+public interface IgniteService extends TestService {
 
     IgniteConfiguration createConfiguration();
 }

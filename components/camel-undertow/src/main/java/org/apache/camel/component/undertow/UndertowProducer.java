@@ -84,7 +84,7 @@ public class UndertowProducer extends DefaultAsyncProducer {
     boolean isSendToAll(Message in) {
         // header may be null; have to be careful here (and fallback to use sendToAll option configured from endpoint)
         Boolean value = in.getHeader(UndertowConstants.SEND_TO_ALL, endpoint.getSendToAll(), Boolean.class);
-        return value == null ? false : value;
+        return value != null && value;
     }
 
     @Override
@@ -132,7 +132,7 @@ public class UndertowProducer extends DefaultAsyncProducer {
 
         // Set the Host header
         final Message message = camelExchange.getIn();
-        final String host = message.getHeader(Headers.HOST_STRING, String.class);
+        final String host = message.getHeader(UndertowConstants.HOST_STRING, String.class);
         if (endpoint.isPreserveHostHeader()) {
             requestHeaders.put(Headers.HOST, Optional.ofNullable(host).orElseGet(uri::getAuthority));
         } else {

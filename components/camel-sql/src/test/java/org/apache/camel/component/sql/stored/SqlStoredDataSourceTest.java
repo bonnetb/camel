@@ -55,7 +55,9 @@ public class SqlStoredDataSourceTest extends CamelTestSupport {
     @AfterEach
     public void tearDown() throws Exception {
         super.tearDown();
-        db.shutdown();
+        if (db != null) {
+            db.shutdown();
+        }
     }
 
     @Test
@@ -65,7 +67,7 @@ public class SqlStoredDataSourceTest extends CamelTestSupport {
 
         template.requestBody("direct:query", "");
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
 
         Exchange exchange = mock.getExchanges().get(0);
         assertNotNull(exchange.getIn().getHeader(SqlStoredConstants.SQL_STORED_UPDATE_COUNT));

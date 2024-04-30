@@ -30,7 +30,6 @@ import org.apache.camel.CamelContext;
 import org.apache.camel.CamelContextAware;
 import org.apache.camel.Channel;
 import org.apache.camel.ErrorHandlerFactory;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.Processor;
 import org.apache.camel.Route;
 import org.apache.camel.StartupStep;
@@ -42,6 +41,8 @@ import org.apache.camel.model.ChoiceDefinition;
 import org.apache.camel.model.CircuitBreakerDefinition;
 import org.apache.camel.model.ClaimCheckDefinition;
 import org.apache.camel.model.ConvertBodyDefinition;
+import org.apache.camel.model.ConvertHeaderDefinition;
+import org.apache.camel.model.ConvertVariableDefinition;
 import org.apache.camel.model.DelayDefinition;
 import org.apache.camel.model.DynamicRouterDefinition;
 import org.apache.camel.model.EnrichDefinition;
@@ -49,8 +50,6 @@ import org.apache.camel.model.ExecutorServiceAwareDefinition;
 import org.apache.camel.model.FilterDefinition;
 import org.apache.camel.model.FinallyDefinition;
 import org.apache.camel.model.IdempotentConsumerDefinition;
-import org.apache.camel.model.InOnlyDefinition;
-import org.apache.camel.model.InOutDefinition;
 import org.apache.camel.model.InterceptDefinition;
 import org.apache.camel.model.InterceptFromDefinition;
 import org.apache.camel.model.InterceptSendToEndpointDefinition;
@@ -66,6 +65,7 @@ import org.apache.camel.model.OnExceptionDefinition;
 import org.apache.camel.model.OnFallbackDefinition;
 import org.apache.camel.model.OptionalIdentifiedDefinition;
 import org.apache.camel.model.OtherwiseDefinition;
+import org.apache.camel.model.PausableDefinition;
 import org.apache.camel.model.PipelineDefinition;
 import org.apache.camel.model.PolicyDefinition;
 import org.apache.camel.model.PollEnrichDefinition;
@@ -77,6 +77,7 @@ import org.apache.camel.model.RemoveHeaderDefinition;
 import org.apache.camel.model.RemoveHeadersDefinition;
 import org.apache.camel.model.RemovePropertiesDefinition;
 import org.apache.camel.model.RemovePropertyDefinition;
+import org.apache.camel.model.RemoveVariableDefinition;
 import org.apache.camel.model.ResequenceDefinition;
 import org.apache.camel.model.ResumableDefinition;
 import org.apache.camel.model.RollbackDefinition;
@@ -89,7 +90,10 @@ import org.apache.camel.model.ScriptDefinition;
 import org.apache.camel.model.SetBodyDefinition;
 import org.apache.camel.model.SetExchangePatternDefinition;
 import org.apache.camel.model.SetHeaderDefinition;
+import org.apache.camel.model.SetHeadersDefinition;
 import org.apache.camel.model.SetPropertyDefinition;
+import org.apache.camel.model.SetVariableDefinition;
+import org.apache.camel.model.SetVariablesDefinition;
 import org.apache.camel.model.SortDefinition;
 import org.apache.camel.model.SplitDefinition;
 import org.apache.camel.model.StepDefinition;
@@ -116,13 +120,25 @@ import org.apache.camel.spi.ErrorHandlerAware;
 import org.apache.camel.spi.ExecutorServiceManager;
 import org.apache.camel.spi.IdAware;
 import org.apache.camel.spi.InterceptStrategy;
+import org.apache.camel.spi.NodeIdFactory;
+import org.apache.camel.spi.ProcessorFactory;
 import org.apache.camel.spi.ReifierStrategy;
 import org.apache.camel.spi.RouteIdAware;
+import org.apache.camel.support.CamelContextHelper;
+import org.apache.camel.support.PluginHelper;
 import org.apache.camel.util.ObjectHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class ProcessorReifier<T extends ProcessorDefinition<?>> extends AbstractReifier {
+
+    /**
+     * Global option on {@link CamelContext#getGlobalOptions()} that tooling can use to disable all route processors,
+     * which allows to startup Camel without wiring up and initializing all route EIPs that may use custom processors,
+     * beans, and other services that may not be available, or is unwanted to be in use; for example to have fast
+     * startup, and being able to introspect CamelContext and the route models.
+     */
+    public static final String DISABLE_ALL_PROCESSORS = "DisableAllProcessors";
 
     private static final Logger LOG = LoggerFactory.getLogger(ProcessorReifier.class);
 
@@ -157,6 +173,18 @@ public abstract class ProcessorReifier<T extends ProcessorDefinition<?>> extends
 
     public static ProcessorReifier<? extends ProcessorDefinition<?>> reifier(Route route, ProcessorDefinition<?> definition) {
         ProcessorReifier<? extends ProcessorDefinition<?>> answer = null;
+
+        // special if the EIP is disabled
+        if (route != null && route.getCamelContext() != null) {
+            Boolean disabled = CamelContextHelper.parseBoolean(route.getCamelContext(), definition.getDisabled());
+            if (disabled == null) {
+                disabled = "true".equalsIgnoreCase(route.getCamelContext().getGlobalOption(DISABLE_ALL_PROCESSORS));
+            }
+            if (disabled) {
+                return new DisabledReifier<>(route, definition);
+            }
+        }
+
         if (!PROCESSORS.isEmpty()) {
             // custom take precedence
             BiFunction<Route, ProcessorDefinition<?>, ProcessorReifier<? extends ProcessorDefinition<?>>> reifier
@@ -174,7 +202,6 @@ public abstract class ProcessorReifier<T extends ProcessorDefinition<?>> extends
         return answer;
     }
 
-    // CHECKSTYLE:OFF
     public static ProcessorReifier<? extends ProcessorDefinition<?>> coreReifier(
             Route route, ProcessorDefinition<?> definition) {
 
@@ -192,6 +219,10 @@ public abstract class ProcessorReifier<T extends ProcessorDefinition<?>> extends
             return new ClaimCheckReifier(route, definition);
         } else if (definition instanceof ConvertBodyDefinition) {
             return new ConvertBodyReifier(route, definition);
+        } else if (definition instanceof ConvertHeaderDefinition) {
+            return new ConvertHeaderReifier(route, definition);
+        } else if (definition instanceof ConvertVariableDefinition) {
+            return new ConvertVariableReifier(route, definition);
         } else if (definition instanceof DelayDefinition) {
             return new DelayReifier(route, definition);
         } else if (definition instanceof DynamicRouterDefinition) {
@@ -204,10 +235,6 @@ public abstract class ProcessorReifier<T extends ProcessorDefinition<?>> extends
             return new FinallyReifier(route, definition);
         } else if (definition instanceof IdempotentConsumerDefinition) {
             return new IdempotentConsumerReifier(route, definition);
-        } else if (definition instanceof InOnlyDefinition) {
-            return new SendReifier(route, definition);
-        } else if (definition instanceof InOutDefinition) {
-            return new SendReifier(route, definition);
         } else if (definition instanceof InterceptFromDefinition) {
             return new InterceptFromReifier(route, definition);
         } else if (definition instanceof InterceptDefinition) {
@@ -252,6 +279,8 @@ public abstract class ProcessorReifier<T extends ProcessorDefinition<?>> extends
             return new RemovePropertyReifier(route, definition);
         } else if (definition instanceof RemovePropertiesDefinition) {
             return new RemovePropertiesReifier(route, definition);
+        } else if (definition instanceof RemoveVariableDefinition) {
+            return new RemoveVariableReifier(route, definition);
         } else if (definition instanceof ResequenceDefinition) {
             return new ResequenceReifier(route, definition);
         } else if (definition instanceof RollbackDefinition) {
@@ -272,8 +301,14 @@ public abstract class ProcessorReifier<T extends ProcessorDefinition<?>> extends
             return new SetExchangePatternReifier(route, definition);
         } else if (definition instanceof SetHeaderDefinition) {
             return new SetHeaderReifier(route, definition);
+        } else if (definition instanceof SetHeadersDefinition) {
+            return new SetHeadersReifier(route, definition);
         } else if (definition instanceof SetPropertyDefinition) {
             return new SetPropertyReifier(route, definition);
+        } else if (definition instanceof SetVariableDefinition) {
+            return new SetVariableReifier(route, definition);
+        } else if (definition instanceof SetVariablesDefinition) {
+            return new SetVariablesReifier(route, definition);
         } else if (definition instanceof SortDefinition) {
             return new SortReifier<>(route, definition);
         } else if (definition instanceof SplitDefinition) {
@@ -310,10 +345,11 @@ public abstract class ProcessorReifier<T extends ProcessorDefinition<?>> extends
             return new WhenReifier(route, definition);
         } else if (definition instanceof ResumableDefinition) {
             return new ResumableReifier(route, definition);
+        } else if (definition instanceof PausableDefinition) {
+            return new PausableReifier(route, definition);
         }
         return null;
     }
-    // CHECKSTYLE:OFF
 
     /**
      * Determines whether a new thread pool will be created or not.
@@ -346,9 +382,9 @@ public abstract class ProcessorReifier<T extends ProcessorDefinition<?>> extends
     }
 
     /**
-     * Will lookup and get the configured {@link ExecutorService} from the given definition.
+     * Will look up and get the configured {@link ExecutorService} from the given definition.
      * <p/>
-     * This method will lookup for configured thread pool in the following order
+     * This method will look up for configured thread pool in the following order
      * <ul>
      * <li>from the definition if any explicit configured executor service.</li>
      * <li>from the {@link org.apache.camel.spi.Registry} if found</li>
@@ -393,10 +429,10 @@ public abstract class ProcessorReifier<T extends ProcessorDefinition<?>> extends
     }
 
     /**
-     * Will lookup and get the configured {@link java.util.concurrent.ScheduledExecutorService} from the given
+     * Will look up and get the configured {@link java.util.concurrent.ScheduledExecutorService} from the given
      * definition.
      * <p/>
-     * This method will lookup for configured thread pool in the following order
+     * This method will look up for configured thread pool in the following order
      * <ul>
      * <li>from the definition if any explicit configured executor service.</li>
      * <li>from the {@link org.apache.camel.spi.Registry} if found</li>
@@ -565,8 +601,9 @@ public abstract class ProcessorReifier<T extends ProcessorDefinition<?>> extends
     protected Processor createChildProcessor(boolean mandatory) throws Exception {
         Processor children = null;
         // at first use custom factory
-        if (camelContext.adapt(ExtendedCamelContext.class).getProcessorFactory() != null) {
-            children = camelContext.adapt(ExtendedCamelContext.class).getProcessorFactory().createChildProcessor(route,
+        final ProcessorFactory processorFactory = PluginHelper.getProcessorFactory(camelContext);
+        if (processorFactory != null) {
+            children = processorFactory.createChildProcessor(route,
                     definition, mandatory);
         }
         // fallback to default implementation if factory did not create the
@@ -620,13 +657,13 @@ public abstract class ProcessorReifier<T extends ProcessorDefinition<?>> extends
     protected Channel wrapChannel(Processor processor, ProcessorDefinition<?> child, Boolean inheritErrorHandler)
             throws Exception {
         // put a channel in between this and each output to control the route flow logic
-        Channel channel = camelContext.adapt(ExtendedCamelContext.class).getInternalProcessorFactory()
+        Channel channel = PluginHelper.getInternalProcessorFactory(camelContext)
                 .createChannel(camelContext);
 
         // add interceptor strategies to the channel must be in this order:
         // camel context, route context, local
         List<InterceptStrategy> interceptors = new ArrayList<>();
-        interceptors.addAll(camelContext.adapt(ExtendedCamelContext.class).getInterceptStrategies());
+        interceptors.addAll(camelContext.getCamelContextExtension().getInterceptStrategies());
         interceptors.addAll(route.getInterceptStrategies());
         interceptors.addAll(definition.getInterceptStrategies());
 
@@ -689,12 +726,11 @@ public abstract class ProcessorReifier<T extends ProcessorDefinition<?>> extends
             } else {
                 LOG.trace("{} is part of CircuitBreaker so no error handler is applied", definition);
             }
-        } else if (definition instanceof MulticastDefinition) {
-            // do not use error handler for multicast as it offers fine grained
+        } else if (definition instanceof MulticastDefinition def) {
+            // do not use error handler for multicast as it offers fine-grained
             // error handlers for its outputs
             // however if share unit of work is enabled, we need to wrap an
             // error handler on the multicast parent
-            MulticastDefinition def = (MulticastDefinition) definition;
             boolean isShareUnitOfWork = parseBoolean(def.getShareUnitOfWork(), false);
             if (isShareUnitOfWork && child == null) {
                 // only wrap the parent (not the children of the multicast)
@@ -748,7 +784,7 @@ public abstract class ProcessorReifier<T extends ProcessorDefinition<?>> extends
         ErrorHandlerFactory builder = route.getErrorHandlerFactory();
 
         // create error handler
-        Processor errorHandler = camelContext.adapt(ModelCamelContext.class).getModelReifierFactory().createErrorHandler(route,
+        Processor errorHandler = ((ModelCamelContext) camelContext).getModelReifierFactory().createErrorHandler(route,
                 builder, output);
 
         if (output instanceof ErrorHandlerAware) {
@@ -808,20 +844,21 @@ public abstract class ProcessorReifier<T extends ProcessorDefinition<?>> extends
 
     protected Processor createProcessor(ProcessorDefinition<?> output) throws Exception {
         // ensure node has id assigned
-        String outputId = output.idOrCreate(camelContext.adapt(ExtendedCamelContext.class).getNodeIdFactory());
-        StartupStep step = camelContext.adapt(ExtendedCamelContext.class).getStartupStepRecorder().beginStep(ProcessorReifier.class, outputId, "Create processor");
+        String outputId = output.idOrCreate(camelContext.getCamelContextExtension().getContextPlugin(NodeIdFactory.class));
+        StartupStep step = camelContext.getCamelContextExtension().getStartupStepRecorder().beginStep(ProcessorReifier.class,
+                outputId, "Create processor");
 
         Processor processor = null;
         // at first use custom factory
-        if (camelContext.adapt(ExtendedCamelContext.class).getProcessorFactory() != null) {
-            processor = camelContext.adapt(ExtendedCamelContext.class).getProcessorFactory().createProcessor(route, output);
+        final ProcessorFactory processorFactory = PluginHelper.getProcessorFactory(camelContext);
+        if (processorFactory != null) {
+            processor = processorFactory.createProcessor(route, output);
         }
         // fallback to default implementation if factory did not create the processor
         if (processor == null) {
             processor = reifier(route, output).createProcessor();
         }
-
-        camelContext.adapt(ExtendedCamelContext.class).getStartupStepRecorder().endStep(step);
+        camelContext.getCamelContextExtension().getStartupStepRecorder().endStep(step);
         return processor;
     }
 
@@ -835,8 +872,9 @@ public abstract class ProcessorReifier<T extends ProcessorDefinition<?>> extends
         preCreateProcessor();
 
         // at first use custom factory
-        if (camelContext.adapt(ExtendedCamelContext.class).getProcessorFactory() != null) {
-            processor = camelContext.adapt(ExtendedCamelContext.class).getProcessorFactory().createProcessor(route, definition);
+        final ProcessorFactory processorFactory = PluginHelper.getProcessorFactory(camelContext);
+        if (processorFactory != null) {
+            processor = processorFactory.createProcessor(route, definition);
         }
         // fallback to default implementation if factory did not create the
         // processor
@@ -877,7 +915,7 @@ public abstract class ProcessorReifier<T extends ProcessorDefinition<?>> extends
     }
 
     protected String getId(OptionalIdentifiedDefinition<?> def) {
-        return def.idOrCreate(camelContext.adapt(ExtendedCamelContext.class).getNodeIdFactory());
+        return def.idOrCreate(camelContext.getCamelContextExtension().getContextPlugin(NodeIdFactory.class));
     }
 
     /**
@@ -893,10 +931,10 @@ public abstract class ProcessorReifier<T extends ProcessorDefinition<?>> extends
      * configured executor services in the same coherent way.
      *
      * @param  definition               the node definition which may leverage aggregation strategy
-     * @throws IllegalArgumentException is thrown if lookup of aggregation strategy in {@link org.apache.camel.spi.Registry}
-     *                                  was not found
+     * @throws IllegalArgumentException is thrown if lookup of aggregation strategy in
+     *                                  {@link org.apache.camel.spi.Registry} was not found
      */
-    public AggregationStrategy getConfiguredAggregationStrategy(AggregationStrategyAwareDefinition definition) {
+    public AggregationStrategy getConfiguredAggregationStrategy(AggregationStrategyAwareDefinition<?> definition) {
         AggregationStrategy strategy = definition.getAggregationStrategyBean();
         if (strategy == null && definition.getAggregationStrategyRef() != null) {
             Object aggStrategy = lookupByName(definition.getAggregationStrategyRef());

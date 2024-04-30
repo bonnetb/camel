@@ -139,11 +139,7 @@ public final class OgnlHelper {
      * @return                the Camel OGNL expression without any trailing operators.
      */
     public static String removeTrailingOperators(String ognlExpression) {
-        int pos = ognlExpression.indexOf('[');
-        if (pos != -1) {
-            return ognlExpression.substring(0, pos);
-        }
-        return ognlExpression;
+        return StringHelper.before(ognlExpression, "[", ognlExpression);
     }
 
     public static String removeOperators(String ognlExpression) {
@@ -182,8 +178,8 @@ public final class OgnlHelper {
      */
     public static List<String> splitOgnl(String ognl) {
         // return an empty list if ognl is empty
-        if (ognl == null || ognl.isEmpty() || ognl.trim().isEmpty()) {
-            return Collections.EMPTY_LIST;
+        if (ognl == null || ognl.isBlank()) {
+            return Collections.emptyList();
         }
 
         List<String> methods = new ArrayList<>(4);
@@ -276,7 +272,7 @@ public final class OgnlHelper {
         }
 
         // add remainder in buffer when reached end of data
-        if (sb.length() > 0) {
+        if (!sb.isEmpty()) {
             methods.add(sb.toString());
         }
 

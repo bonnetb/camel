@@ -32,6 +32,7 @@ import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
 
 import static org.apache.camel.test.junit5.TestSupport.assertIsInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 public class SqlProducerInsertNullTest extends CamelTestSupport {
 
@@ -42,7 +43,7 @@ public class SqlProducerInsertNullTest extends CamelTestSupport {
     public void setUp() throws Exception {
         db = new EmbeddedDatabaseBuilder()
                 .setName(getClass().getSimpleName())
-                .setType(EmbeddedDatabaseType.DERBY)
+                .setType(EmbeddedDatabaseType.H2)
                 .addScript("sql/createAndPopulateDatabase2.sql").build();
 
         super.setUp();
@@ -53,7 +54,9 @@ public class SqlProducerInsertNullTest extends CamelTestSupport {
     public void tearDown() throws Exception {
         super.tearDown();
 
-        db.shutdown();
+        if (db != null) {
+            db.shutdown();
+        }
     }
 
     @Test
@@ -78,7 +81,7 @@ public class SqlProducerInsertNullTest extends CamelTestSupport {
         Map<?, ?> row = assertIsInstanceOf(Map.class, received.get(0));
         assertEquals("Foo", row.get("project"));
         assertEquals("ASF", row.get("license"));
-        assertEquals(null, row.get("description"));
+        assertNull(row.get("description"));
     }
 
     @Override

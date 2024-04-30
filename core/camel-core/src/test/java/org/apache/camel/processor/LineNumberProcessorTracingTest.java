@@ -36,7 +36,7 @@ public class LineNumberProcessorTracingTest extends ContextTestSupport {
 
         context.addRoutes(new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:start")
                         .process(new LineNumberProcessorTracingTest.MyProcessor());
             }
@@ -47,7 +47,7 @@ public class LineNumberProcessorTracingTest extends ContextTestSupport {
         ProducerTemplate template = context.createProducerTemplate();
 
         Object out = template.requestBody("direct:start", "Hello World");
-        Assertions.assertEquals("org.apache.camel.processor.LineNumberProcessorTracingTest$1:41", out);
+        Assertions.assertEquals("LineNumberProcessorTracingTest.java:41", out);
     }
 
     private static class MyProcessor implements Processor, LineNumberAware {
@@ -76,7 +76,7 @@ public class LineNumberProcessorTracingTest extends ContextTestSupport {
         }
 
         @Override
-        public void process(Exchange exchange) throws Exception {
+        public void process(Exchange exchange) {
             exchange.getMessage().setBody(location + ":" + lineNumber);
         }
     }

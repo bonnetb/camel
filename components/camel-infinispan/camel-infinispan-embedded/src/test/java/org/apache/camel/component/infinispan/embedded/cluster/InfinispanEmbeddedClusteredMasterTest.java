@@ -36,11 +36,11 @@ public class InfinispanEmbeddedClusteredMasterTest extends AbstractInfinispanEmb
 
         try (DefaultCamelContext context = new DefaultCamelContext()) {
             context.disableJMX();
-            context.setName("context-" + id);
+            context.getCamelContextExtension().setName("context-" + id);
             context.addService(clusterService);
             context.addRoutes(new RouteBuilder() {
                 @Override
-                public void configure() throws Exception {
+                public void configure() {
                     fromF("master:%s:timer:%s?delay=1000&period=1000", namespace, id)
                             .routeId("route-" + id)
                             .log("From ${routeId}")

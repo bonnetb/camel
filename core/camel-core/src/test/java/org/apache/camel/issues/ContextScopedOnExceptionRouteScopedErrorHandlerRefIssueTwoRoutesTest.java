@@ -20,7 +20,6 @@ import java.io.IOException;
 
 import org.apache.camel.ContextTestSupport;
 import org.apache.camel.builder.DeadLetterChannelBuilder;
-import org.apache.camel.builder.ErrorHandlerBuilderRef;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.spi.Registry;
 import org.junit.jupiter.api.Test;
@@ -53,23 +52,23 @@ public class ContextScopedOnExceptionRouteScopedErrorHandlerRefIssueTwoRoutesTes
     }
 
     @Override
-    protected Registry createRegistry() throws Exception {
-        Registry jndi = super.createRegistry();
+    protected Registry createCamelRegistry() throws Exception {
+        Registry jndi = super.createCamelRegistry();
         jndi.bind("myDLC", new DeadLetterChannelBuilder("mock:dead"));
         return jndi;
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 onException(IllegalArgumentException.class).handled(true).to("mock:handled").end();
 
-                from("direct:foo").errorHandler(new ErrorHandlerBuilderRef("myDLC")).to("mock:foo")
+                from("direct:foo").errorHandler("myDLC").to("mock:foo")
                         .throwException(new IOException("Damn IO"));
 
-                from("direct:start").errorHandler(new ErrorHandlerBuilderRef("myDLC")).to("mock:a")
+                from("direct:start").errorHandler("myDLC").to("mock:a")
                         .throwException(new IllegalArgumentException("Damn"));
             }
         };

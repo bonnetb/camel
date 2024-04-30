@@ -38,14 +38,14 @@ public class GoogleCloudFunctionsComponent extends DefaultComponent {
     }
 
     protected Endpoint createEndpoint(String uri, String remaining, Map<String, Object> parameters) throws Exception {
-        if (remaining == null || remaining.trim().length() == 0) {
+        if (remaining == null || remaining.isBlank()) {
             throw new IllegalArgumentException("Function name must be specified.");
         }
-        final GoogleCloudFunctionsConfiguration configuration
+        final GoogleCloudFunctionsConfiguration configurationCopy
                 = this.configuration != null ? this.configuration.copy() : new GoogleCloudFunctionsConfiguration();
-        configuration.setFunctionName(remaining);
+        configurationCopy.setFunctionName(remaining);
 
-        Endpoint endpoint = new GoogleCloudFunctionsEndpoint(uri, this, configuration);
+        Endpoint endpoint = new GoogleCloudFunctionsEndpoint(uri, this, configurationCopy);
         setProperties(endpoint, parameters);
         return endpoint;
     }

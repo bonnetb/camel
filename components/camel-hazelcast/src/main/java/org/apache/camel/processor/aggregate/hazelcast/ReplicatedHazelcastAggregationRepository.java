@@ -50,18 +50,20 @@ import org.slf4j.LoggerFactory;
  * {@link HazelcastInstance} it will DESTROY this instance on {@link #doStop()}. You should control
  * {@link HazelcastInstance} lifecycle yourself whenever you instantiate
  * {@link ReplicatedHazelcastAggregationRepository} passing a reference to the instance.
- *
  */
 public class ReplicatedHazelcastAggregationRepository extends HazelcastAggregationRepository {
     private static final Logger LOG = LoggerFactory.getLogger(ReplicatedHazelcastAggregationRepository.class.getName());
     protected Map<String, DefaultExchangeHolder> replicatedCache;
     protected Map<String, DefaultExchangeHolder> replicatedPersistedCache;
 
+    public ReplicatedHazelcastAggregationRepository() {
+    }
+
     /**
      * Creates new {@link ReplicatedHazelcastAggregationRepository} that defaults to non-optimistic locking with
      * recoverable behavior and a local Hazelcast instance. Recoverable repository name defaults to
      * {@code repositoryName} + "-compeleted".
-     * 
+     *
      * @param repositoryName {@link IMap} repository name;
      */
     public ReplicatedHazelcastAggregationRepository(final String repositoryName) {
@@ -71,7 +73,7 @@ public class ReplicatedHazelcastAggregationRepository extends HazelcastAggregati
     /**
      * Creates new {@link ReplicatedHazelcastAggregationRepository} that defaults to non-optimistic locking with
      * recoverable behavior and a local Hazelcast instance.
-     * 
+     *
      * @param repositoryName           {@link IMap} repository name;
      * @param persistentRepositoryName {@link IMap} recoverable repository name;
      */
@@ -82,7 +84,7 @@ public class ReplicatedHazelcastAggregationRepository extends HazelcastAggregati
     /**
      * Creates new {@link ReplicatedHazelcastAggregationRepository} with recoverable behavior and a local Hazelcast
      * instance. Recoverable repository name defaults to {@code repositoryName} + "-compeleted".
-     * 
+     *
      * @param repositoryName {@link IMap} repository name;
      * @param optimistic     whether to use optimistic locking manner.
      */
@@ -93,7 +95,7 @@ public class ReplicatedHazelcastAggregationRepository extends HazelcastAggregati
     /**
      * Creates new {@link ReplicatedHazelcastAggregationRepository} with recoverable behavior and a local Hazelcast
      * instance.
-     * 
+     *
      * @param repositoryName           {@link IMap} repository name;
      * @param persistentRepositoryName {@link IMap} recoverable repository name;
      * @param optimistic               whether to use optimistic locking manner.
@@ -106,7 +108,7 @@ public class ReplicatedHazelcastAggregationRepository extends HazelcastAggregati
     /**
      * Creates new {@link ReplicatedHazelcastAggregationRepository} that defaults to non-optimistic locking with
      * recoverable behavior. Recoverable repository name defaults to {@code repositoryName} + "-compeleted".
-     * 
+     *
      * @param repositoryName {@link IMap} repository name;
      * @param hzInstanse     externally configured {@link HazelcastInstance}.
      */
@@ -117,7 +119,7 @@ public class ReplicatedHazelcastAggregationRepository extends HazelcastAggregati
     /**
      * Creates new {@link ReplicatedHazelcastAggregationRepository} that defaults to non-optimistic locking with
      * recoverable behavior.
-     * 
+     *
      * @param repositoryName           {@link IMap} repository name;
      * @param persistentRepositoryName {@link IMap} recoverable repository name;
      * @param hzInstanse               externally configured {@link HazelcastInstance}.
@@ -130,7 +132,7 @@ public class ReplicatedHazelcastAggregationRepository extends HazelcastAggregati
     /**
      * Creates new {@link ReplicatedHazelcastAggregationRepository} with recoverable behavior. Recoverable repository
      * name defaults to {@code repositoryName} + "-compeleted".
-     * 
+     *
      * @param repositoryName {@link IMap} repository name;
      * @param optimistic     whether to use optimistic locking manner;
      * @param hzInstance     externally configured {@link HazelcastInstance}.
@@ -142,7 +144,7 @@ public class ReplicatedHazelcastAggregationRepository extends HazelcastAggregati
 
     /**
      * Creates new {@link ReplicatedHazelcastAggregationRepository} with recoverable behavior.
-     * 
+     *
      * @param repositoryName           {@link IMap} repository name;
      * @param optimistic               whether to use optimistic locking manner;
      * @param persistentRepositoryName {@link IMap} recoverable repository name;
@@ -190,7 +192,7 @@ public class ReplicatedHazelcastAggregationRepository extends HazelcastAggregati
             throw new UnsupportedOperationException();
         }
         LOG.trace("Adding an Exchange with ID {} for key {} in a thread-safe manner.", exchange.getExchangeId(), key);
-        Lock l = hzInstance.getCPSubsystem().getLock(mapName);
+        Lock l = hazelcastInstance.getCPSubsystem().getLock(mapName);
         try {
             l.lock();
             DefaultExchangeHolder newHolder = DefaultExchangeHolder.marshal(exchange, true, allowSerializedHeaders);
@@ -230,7 +232,7 @@ public class ReplicatedHazelcastAggregationRepository extends HazelcastAggregati
 
     /**
      * Checks if the key in question is in the repository.
-     * 
+     *
      * @param key Object - key in question
      */
     @Override
@@ -246,7 +248,7 @@ public class ReplicatedHazelcastAggregationRepository extends HazelcastAggregati
      * This method performs transactional operation on removing the {@code exchange} from the operational storage and
      * moving it into the persistent one if the {@link HazelcastAggregationRepository} runs in recoverable mode and
      * {@code optimistic} is false. It will act at <u>your own</u> risk otherwise.
-     * 
+     *
      * @param camelContext the current CamelContext
      * @param key          the correlation key
      * @param exchange     the exchange to remove
@@ -279,7 +281,7 @@ public class ReplicatedHazelcastAggregationRepository extends HazelcastAggregati
                 TransactionOptions tOpts = new TransactionOptions();
 
                 tOpts.setTransactionType(TransactionOptions.TransactionType.ONE_PHASE);
-                TransactionContext tCtx = hzInstance.newTransactionContext(tOpts);
+                TransactionContext tCtx = hazelcastInstance.newTransactionContext(tOpts);
 
                 try {
                     tCtx.beginTransaction();
@@ -297,7 +299,7 @@ public class ReplicatedHazelcastAggregationRepository extends HazelcastAggregati
                             key);
                     LOG.trace("Put an exchange with ID {} for key {} into a recoverable storage in a thread-safe manner.",
                             exchange.getExchangeId(), key);
-                } catch (Throwable throwable) {
+                } catch (Exception throwable) {
                     tCtx.rollbackTransaction();
 
                     final String msg = String.format(
@@ -334,16 +336,17 @@ public class ReplicatedHazelcastAggregationRepository extends HazelcastAggregati
             throw new IllegalArgumentException("Recovery interval must be zero or a positive integer.");
         }
         StringHelper.notEmpty(mapName, "repositoryName");
-        if (useLocalHzInstance) {
+        if (hazelcastInstance == null) {
+            useLocalHzInstance = true;
             Config cfg = new XmlConfigBuilder().build();
             cfg.setProperty("hazelcast.version.check.enabled", "false");
-            hzInstance = Hazelcast.newHazelcastInstance(cfg);
+            hazelcastInstance = Hazelcast.newHazelcastInstance(cfg);
         } else {
-            ObjectHelper.notNull(hzInstance, "hzInstanse");
+            ObjectHelper.notNull(hazelcastInstance, "hazelcastInstance");
         }
-        replicatedCache = hzInstance.getReplicatedMap(mapName);
+        replicatedCache = hazelcastInstance.getReplicatedMap(mapName);
         if (useRecovery) {
-            replicatedPersistedCache = hzInstance.getReplicatedMap(persistenceMapName);
+            replicatedPersistedCache = hazelcastInstance.getReplicatedMap(persistenceMapName);
         }
     }
 

@@ -35,7 +35,7 @@ class KameletTemplatingTest extends YamlTestSupport {
             '''.stripIndent().bytes)
 
             loadKamelets """
-                apiVersion: camel.apache.org/v1alpha1
+                apiVersion: camel.apache.org/v1
                 kind: Kamelet
                 metadata:
                   name: mustache-template-action
@@ -52,7 +52,7 @@ class KameletTemplatingTest extends YamlTestSupport {
                         title: Template
                         description: The inline template
                         type: binary
-                  flow:
+                  template:
                     from:
                       uri: "kamelet:source"
                       steps:

@@ -31,6 +31,7 @@ public class Main extends MainCommandLineSupport {
 
     protected static Main instance;
     protected final MainRegistry registry = new MainRegistry();
+    protected Class<?> mainClass;
 
     /**
      * Camel main application
@@ -46,6 +47,7 @@ public class Main extends MainCommandLineSupport {
      * @param mainClass the main class
      */
     public Main(Class<?> mainClass) {
+        this.mainClass = mainClass;
         configure().withBasePackageScan(mainClass.getPackageName());
     }
 
@@ -58,6 +60,7 @@ public class Main extends MainCommandLineSupport {
     @SafeVarargs
     public Main(Class<?> mainClass, Class<CamelConfiguration>... configurationClasses) {
         super(configurationClasses);
+        this.mainClass = mainClass;
         configure().withBasePackageScan(mainClass.getPackageName());
     }
 
@@ -166,7 +169,12 @@ public class Main extends MainCommandLineSupport {
     protected CamelContext createCamelContext() {
         // do not build/init camel context yet
         DefaultCamelContext answer = new DefaultCamelContext(false);
-        answer.setRegistry(registry);
+        answer.getCamelContextExtension().setRegistry(registry);
+        if (mainClass != null) {
+            answer.getGlobalOptions().put("CamelMainClass", mainClass.getName());
+        } else {
+            answer.getGlobalOptions().put("CamelMainClass", this.getClass().getName());
+        }
         return answer;
     }
 

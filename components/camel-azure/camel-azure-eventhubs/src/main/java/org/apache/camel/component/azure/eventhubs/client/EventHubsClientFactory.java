@@ -19,6 +19,7 @@ package org.apache.camel.component.azure.eventhubs.client;
 import java.util.Locale;
 import java.util.function.Consumer;
 
+import com.azure.identity.DefaultAzureCredentialBuilder;
 import com.azure.messaging.eventhubs.CheckpointStore;
 import com.azure.messaging.eventhubs.EventHubClientBuilder;
 import com.azure.messaging.eventhubs.EventHubConsumerAsyncClient;
@@ -31,6 +32,7 @@ import com.azure.messaging.eventhubs.models.EventContext;
 import com.azure.storage.blob.BlobContainerAsyncClient;
 import com.azure.storage.blob.BlobContainerClientBuilder;
 import com.azure.storage.common.StorageSharedKeyCredential;
+import org.apache.camel.component.azure.eventhubs.CredentialType;
 import org.apache.camel.component.azure.eventhubs.EventHubsConfiguration;
 import org.apache.camel.util.ObjectHelper;
 
@@ -43,37 +45,87 @@ public final class EventHubsClientFactory {
     }
 
     public static EventHubProducerAsyncClient createEventHubProducerAsyncClient(final EventHubsConfiguration configuration) {
-        return new EventHubClientBuilder()
-                .connectionString(buildConnectionString(configuration))
+        EventHubClientBuilder eventHubClientBuilder = new EventHubClientBuilder()
                 .transportType(configuration.getAmqpTransportType())
-                .retry(configuration.getAmqpRetryOptions())
+                .retryOptions(configuration.getAmqpRetryOptions());
+
+        if (configuration.getCredentialType().equals(CredentialType.CONNECTION_STRING)) {
+            return eventHubClientBuilder
+                    .connectionString(buildConnectionString(configuration))
+                    .buildAsyncProducerClient();
+        } else if (configuration.getCredentialType().equals(CredentialType.TOKEN_CREDENTIAL)) {
+
+            checkTokenCredentialConfiguration(configuration);
+            return eventHubClientBuilder
+                    .fullyQualifiedNamespace(getFullyQualifiedNamespace(configuration))
+                    .eventHubName(configuration.getEventHubName())
+                    .credential(configuration.getTokenCredential())
+                    .buildAsyncProducerClient();
+        }
+        return eventHubClientBuilder
+                .fullyQualifiedNamespace(getFullyQualifiedNamespace(configuration))
+                .eventHubName(configuration.getEventHubName())
+                .credential(new DefaultAzureCredentialBuilder().build())
                 .buildAsyncProducerClient();
     }
 
     public static EventHubConsumerAsyncClient createEventHubConsumerAsyncClient(final EventHubsConfiguration configuration) {
-        return new EventHubClientBuilder()
-                .connectionString(buildConnectionString(configuration))
+        EventHubClientBuilder eventHubClientBuilder = new EventHubClientBuilder()
                 .consumerGroup(configuration.getConsumerGroupName())
                 .prefetchCount(configuration.getPrefetchCount())
                 .transportType(configuration.getAmqpTransportType())
-                .retry(configuration.getAmqpRetryOptions())
+                .retryOptions(configuration.getAmqpRetryOptions());
+
+        if (configuration.getCredentialType().equals(CredentialType.CONNECTION_STRING)) {
+            return eventHubClientBuilder
+                    .connectionString(buildConnectionString(configuration))
+                    .buildAsyncConsumerClient();
+        } else if (configuration.getCredentialType().equals(CredentialType.TOKEN_CREDENTIAL)) {
+
+            checkTokenCredentialConfiguration(configuration);
+            return eventHubClientBuilder
+                    .fullyQualifiedNamespace(getFullyQualifiedNamespace(configuration))
+                    .eventHubName(configuration.getEventHubName())
+                    .credential(configuration.getTokenCredential())
+                    .buildAsyncConsumerClient();
+        }
+        return eventHubClientBuilder
+                .fullyQualifiedNamespace(getFullyQualifiedNamespace(configuration))
+                .eventHubName(configuration.getEventHubName())
+                .credential(new DefaultAzureCredentialBuilder().build())
                 .buildAsyncConsumerClient();
     }
 
     public static EventProcessorClient createEventProcessorClient(
             final EventHubsConfiguration configuration, final Consumer<EventContext> processEvent,
             final Consumer<ErrorContext> processError) {
-        return new EventProcessorClientBuilder()
+        EventProcessorClientBuilder eventProcessorClientBuilder = new EventProcessorClientBuilder()
                 .initialPartitionEventPosition(configuration.getEventPosition())
-                .connectionString(buildConnectionString(configuration))
                 .checkpointStore(createCheckpointStore(configuration))
                 .consumerGroup(configuration.getConsumerGroupName())
-                .retry(configuration.getAmqpRetryOptions())
+                .retryOptions(configuration.getAmqpRetryOptions())
                 .transportType(configuration.getAmqpTransportType())
                 .processError(processError)
-                .processEvent(processEvent)
-                .buildEventProcessorClient();
+                .processEvent(processEvent);
 
+        if (configuration.getCredentialType().equals(CredentialType.CONNECTION_STRING)) {
+            return eventProcessorClientBuilder
+                    .connectionString(buildConnectionString(configuration))
+                    .buildEventProcessorClient();
+        } else if (configuration.getCredentialType().equals(CredentialType.TOKEN_CREDENTIAL)) {
+
+            checkTokenCredentialConfiguration(configuration);
+            return eventProcessorClientBuilder
+                    .fullyQualifiedNamespace(getFullyQualifiedNamespace(configuration))
+                    .eventHubName(configuration.getEventHubName())
+                    .credential(configuration.getTokenCredential())
+                    .buildEventProcessorClient();
+        }
+        return eventProcessorClientBuilder
+                .fullyQualifiedNamespace(getFullyQualifiedNamespace(configuration))
+                .eventHubName(configuration.getEventHubName())
+                .credential(new DefaultAzureCredentialBuilder().build())
+                .buildEventProcessorClient();
     }
 
     // public for testing purposes
@@ -85,14 +137,19 @@ public final class EventHubsClientFactory {
                 .buildAsyncClient();
     }
 
+    private static void checkTokenCredentialConfiguration(final EventHubsConfiguration configuration) {
+        if (ObjectHelper.isEmpty(configuration.getNamespace()) || ObjectHelper.isEmpty(configuration.getEventHubName())) {
+            throw new IllegalArgumentException("EventHub's namespace and name is required for the Azure-AD authentication");
+        }
+    }
+
     private static CheckpointStore createCheckpointStore(final EventHubsConfiguration configuration) {
         if (ObjectHelper.isNotEmpty(configuration.getCheckpointStore())) {
             return configuration.getCheckpointStore();
         }
         // so we have no checkpoint store, we fallback to default BlobCheckpointStore
         // first we check if we have all required params for BlobCheckpointStore
-        if (ObjectHelper.isEmpty(configuration.getBlobContainerName())
-                || !isCredentialsSet(configuration)) {
+        if (ObjectHelper.isEmpty(configuration.getBlobContainerName()) || !isCredentialsSet(configuration)) {
             throw new IllegalArgumentException(
                     "Since there is no provided CheckpointStore, you will need to set blobAccountName, blobAccessName"
                                                + " or blobContainerName in order to use the default BlobCheckpointStore");
@@ -140,5 +197,9 @@ public final class EventHubsClientFactory {
         return ObjectHelper.isNotEmpty(configuration.getBlobStorageSharedKeyCredential())
                 ? configuration.getBlobStorageSharedKeyCredential().getAccountName()
                 : configuration.getBlobAccountName();
+    }
+
+    private static String getFullyQualifiedNamespace(EventHubsConfiguration configuration) {
+        return configuration.getNamespace() + "." + SERVICE_URI_SEGMENT;
     }
 }

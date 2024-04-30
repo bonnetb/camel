@@ -24,7 +24,7 @@
     <parent>
         <groupId>org.apache.camel</groupId>
         <artifactId>camel-box-parent</artifactId>
-        <version>3.17.0-SNAPSHOT</version>
+        <version>4.6.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>camel-box</artifactId>
@@ -39,6 +39,8 @@
         <outPackage>org.apache.camel.component.box.internal</outPackage>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+        <camel.surefire.fork.vmargs>-Xshare:off</camel.surefire.fork.vmargs>
     </properties>
 
     <dependencies>
@@ -58,9 +60,9 @@
         </dependency>
 
         <dependency>
-            <groupId>org.apache.httpcomponents</groupId>
-            <artifactId>httpclient</artifactId>
-            <version>${httpclient4-version}</version>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+            <version>${httpclient-version}</version>
         </dependency>
 
 
@@ -68,17 +70,6 @@
             <groupId>org.jsoup</groupId>
             <artifactId>jsoup</artifactId>
             <version>${jsoup-version}</version>
-        </dependency>
-
-        <!-- logging -->
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-slf4j-impl</artifactId>
-            <scope>test</scope>
         </dependency>
 
         <!-- testing -->
@@ -89,41 +80,15 @@
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
-            <artifactId>mockito-junit-jupiter</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-inline</artifactId>
+            <artifactId>mockito-core</artifactId>
             <version>${mockito-version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
 
     <build>
-        <defaultGoal>install</defaultGoal>
 
         <plugins>
-
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-            </plugin>
-
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-resources-plugin</artifactId>
-            </plugin>
-
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <configuration>
-                    <!-- Avoid 'bootstrap classpath has been appended' error message caused by mockito-inline -->
-                    <argLine>-Xshare:off</argLine>
-                </configuration>
-            </plugin>
-
             <plugin>
                 <groupId>org.apache.camel</groupId>
                 <artifactId>camel-api-component-maven-plugin</artifactId>
@@ -612,5 +577,4 @@
         </pluginManagement>
 
     </build>
-
 </project>

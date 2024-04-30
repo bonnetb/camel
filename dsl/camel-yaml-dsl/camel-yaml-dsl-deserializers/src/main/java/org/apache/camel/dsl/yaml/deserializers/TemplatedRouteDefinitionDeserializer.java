@@ -35,15 +35,18 @@ import org.snakeyaml.engine.v2.nodes.Node;
           properties = {
                   @YamlProperty(name = "route-id",
                                 type = "string"),
+                  @YamlProperty(name = "prefix-id",
+                                type = "string"),
                   @YamlProperty(name = "route-template-ref",
                                 type = "string",
                                 required = true),
                   @YamlProperty(name = "parameters",
                                 type = "array:org.apache.camel.model.TemplatedRouteParameterDefinition"),
                   @YamlProperty(name = "beans",
-                                type = "array:org.apache.camel.dsl.yaml.deserializers.NamedBeanDefinition")
+                                type = "array:org.apache.camel.model.TemplatedRouteBeanDefinition")
           })
 public class TemplatedRouteDefinitionDeserializer extends YamlDeserializerBase<TemplatedRouteDefinition> {
+
     public TemplatedRouteDefinitionDeserializer() {
         super(TemplatedRouteDefinition.class);
     }
@@ -57,12 +60,17 @@ public class TemplatedRouteDefinitionDeserializer extends YamlDeserializerBase<T
     protected boolean setProperty(
             TemplatedRouteDefinition target, String propertyKey, String propertyName, Node node) {
 
+        propertyKey = org.apache.camel.util.StringHelper.dashToCamelCase(propertyKey);
         switch (propertyKey) {
-            case "route-id": {
+            case "routeId": {
                 target.setRouteId(asText(node));
                 break;
             }
-            case "route-template-ref": {
+            case "prefixId": {
+                target.setPrefixId(asText(node));
+                break;
+            }
+            case "routeTemplateRef": {
                 target.setRouteTemplateRef(asText(node));
                 break;
             }

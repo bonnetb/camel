@@ -31,25 +31,23 @@ import org.apache.camel.ResolveEndpointFailedException;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
-import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
+@DisabledOnOs(OS.WINDOWS)
 public class FileProducerChmodOptionTest extends ContextTestSupport {
 
     @Test
     public void testWriteValidChmod0755() throws Exception {
-        assumeFalse(isPlatform("windows"));
-
         runChmodCheck("0755", "rwxr-xr-x");
     }
 
     @Test
     public void testWriteValidChmod666() throws Exception {
-        assumeFalse(isPlatform("windows"));
-
         runChmodCheck("666", "rw-rw-rw-");
     }
 
@@ -70,36 +68,31 @@ public class FileProducerChmodOptionTest extends ContextTestSupport {
     }
 
     @Test
-    public void testInvalidChmod() throws Exception {
-        assumeFalse(isPlatform("windows"));
-
-        try {
+    public void testInvalidChmod() {
+        FailedToCreateRouteException e = assertThrows(FailedToCreateRouteException.class, () -> {
             context.addRoutes(new RouteBuilder() {
 
                 @Override
-                public void configure() throws Exception {
+                public void configure() {
                     from("direct:writeBadChmod1").to(fileUri("?chmod=abc")).to("mock:badChmod1");
                 }
             });
-            fail("Expected FailedToCreateRouteException");
-        } catch (FailedToCreateRouteException e) {
-            assertIsInstanceOf(ResolveEndpointFailedException.class, e.getCause());
-            PropertyBindingException pbe = assertIsInstanceOf(PropertyBindingException.class, e.getCause().getCause());
-            assertEquals("chmod", pbe.getPropertyName());
-            IllegalArgumentException iae = assertIsInstanceOf(IllegalArgumentException.class, pbe.getCause());
-            assertTrue(iae.getMessage().contains("chmod option [abc] is not valid"));
-        }
+        }, "Expected FailedToCreateRouteException");
+
+        assertIsInstanceOf(ResolveEndpointFailedException.class, e.getCause());
+        PropertyBindingException pbe = assertIsInstanceOf(PropertyBindingException.class, e.getCause().getCause());
+        assertEquals("chmod", pbe.getPropertyName());
+        IllegalArgumentException iae = assertIsInstanceOf(IllegalArgumentException.class, pbe.getCause());
+        assertTrue(iae.getMessage().contains("chmod option [abc] is not valid"));
     }
 
     /**
      * Write a file without chmod set, should work normally and not throw an exception for invalid chmod value
-     * 
+     *
      * @throws Exception
      */
     @Test
     public void testWriteNoChmod() throws Exception {
-        assumeFalse(isPlatform("windows"));
-
         MockEndpoint mock = getMockEndpoint("mock:noChmod");
         mock.expectedMessageCount(1);
         String testFileName = "noChmod.txt";

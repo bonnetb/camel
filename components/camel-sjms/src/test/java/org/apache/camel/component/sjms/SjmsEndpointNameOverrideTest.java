@@ -16,7 +16,7 @@
  */
 package org.apache.camel.component.sjms;
 
-import org.apache.activemq.ActiveMQConnectionFactory;
+import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
 import org.apache.camel.CamelContext;
 import org.apache.camel.Endpoint;
 import org.apache.camel.ExchangePattern;
@@ -38,28 +38,28 @@ public class SjmsEndpointNameOverrideTest extends CamelTestSupport {
 
     @Test
     public void testDefaults() {
-        Endpoint endpoint = context.getEndpoint(BEAN_NAME + ":test");
+        Endpoint endpoint = context.getEndpoint(BEAN_NAME + ":test.SjmsEndpointNameOverrideTest");
         assertNotNull(endpoint);
         assertTrue(endpoint instanceof SjmsEndpoint);
         SjmsEndpoint sjms = (SjmsEndpoint) endpoint;
-        assertEquals(BEAN_NAME + "://test", sjms.getEndpointUri());
+        assertEquals(BEAN_NAME + "://test.SjmsEndpointNameOverrideTest", sjms.getEndpointUri());
         assertEquals(ExchangePattern.InOnly, sjms.createExchange().getPattern());
     }
 
     @Test
     public void testQueueEndpoint() {
-        Endpoint sjms = context.getEndpoint(BEAN_NAME + ":queue:test");
+        Endpoint sjms = context.getEndpoint(BEAN_NAME + ":queue:test.SjmsEndpointNameOverrideTest");
         assertNotNull(sjms);
         assertTrue(sjms instanceof SjmsEndpoint);
-        assertEquals(BEAN_NAME + "://queue:test", sjms.getEndpointUri());
+        assertEquals(BEAN_NAME + "://queue:test.SjmsEndpointNameOverrideTest", sjms.getEndpointUri());
     }
 
     @Test
     public void testTopicEndpoint() {
-        Endpoint sjms = context.getEndpoint(BEAN_NAME + ":topic:test");
+        Endpoint sjms = context.getEndpoint(BEAN_NAME + ":topic:test.SjmsEndpointNameOverrideTest");
         assertNotNull(sjms);
         assertTrue(sjms instanceof SjmsEndpoint);
-        assertEquals(BEAN_NAME + "://topic:test", sjms.getEndpointUri());
+        assertEquals(BEAN_NAME + "://topic:test.SjmsEndpointNameOverrideTest", sjms.getEndpointUri());
     }
 
     @Override

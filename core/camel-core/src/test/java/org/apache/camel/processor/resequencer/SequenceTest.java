@@ -16,11 +16,11 @@
  */
 package org.apache.camel.processor.resequencer;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 public class SequenceTest {
 
@@ -31,7 +31,7 @@ public class SequenceTest {
     private Sequence<TestObject> set;
 
     @BeforeEach
-    public void setUp() throws Exception {
+    public void setUp() {
         e1 = new TestObject(3);
         e2 = new TestObject(4);
         e3 = new TestObject(7);
@@ -41,22 +41,18 @@ public class SequenceTest {
         set.add(e2);
     }
 
-    @AfterEach
-    public void tearDown() throws Exception {
-    }
-
     @Test
     public void testPredecessor() {
         assertEquals(e1, set.predecessor(e2));
-        assertEquals(null, set.predecessor(e1));
-        assertEquals(null, set.predecessor(e3));
+        assertNull(set.predecessor(e1));
+        assertNull(set.predecessor(e3));
     }
 
     @Test
     public void testSuccessor() {
         assertEquals(e2, set.successor(e1));
-        assertEquals(null, set.successor(e2));
-        assertEquals(null, set.successor(e3));
+        assertNull(set.successor(e2));
+        assertNull(set.successor(e3));
     }
 
 }

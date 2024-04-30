@@ -43,8 +43,8 @@ public class LogProcessorWithProvidedLoggerTest extends ContextTestSupport {
         sw = new StringWriter();
 
         ConsumingAppender.newAppender("org.apache.camel.customlogger", "customlogger", Level.TRACE,
-                event -> sw.append(event.getLoggerName() + " " + event.getLevel().toString() + " "
-                                   + event.getMessage().getFormattedMessage()));
+                event -> sw.append(event.getLoggerName()).append(" ").append(event.getLevel().toString()).append(" ")
+                        .append(event.getMessage().getFormattedMessage()));
     }
 
     @Test
@@ -77,10 +77,10 @@ public class LogProcessorWithProvidedLoggerTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:foo").routeId("foo").log(LoggingLevel.INFO, "Got ${body}").to("mock:foo");
                 from("direct:bar").routeId("bar")
                         .log(LoggingLevel.INFO, LoggerFactory.getLogger("org.apache.camel.customlogger"), "Also got ${body}")

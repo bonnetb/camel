@@ -50,7 +50,7 @@ public final class LazyStartProducer extends DefaultAsyncProducer implements Del
                     }
                 }
             }
-        } catch (Throwable e) {
+        } catch (Exception e) {
             // error creating or starting delegated failed, so allow to re-create on next call
             delegate = null;
             exchange.setException(e);
@@ -70,37 +70,27 @@ public final class LazyStartProducer extends DefaultAsyncProducer implements Del
     }
 
     @Override
-    protected void doBuild() throws Exception {
+    protected void doStart() {
         // noop as we dont want to start the delegate but its started on the first message processed
     }
 
     @Override
-    protected void doInit() throws Exception {
-        // noop as we dont want to start the delegate but its started on the first message processed
-    }
-
-    @Override
-    protected void doStart() throws Exception {
-        // noop as we dont want to start the delegate but its started on the first message processed
-    }
-
-    @Override
-    protected void doStop() throws Exception {
+    protected void doStop() {
         ServiceHelper.stopService(delegate);
     }
 
     @Override
-    protected void doSuspend() throws Exception {
+    protected void doSuspend() {
         ServiceHelper.suspendService(delegate);
     }
 
     @Override
-    protected void doResume() throws Exception {
+    protected void doResume() {
         ServiceHelper.resumeService(delegate);
     }
 
     @Override
-    protected void doShutdown() throws Exception {
+    protected void doShutdown() {
         ServiceHelper.stopAndShutdownService(delegate);
     }
 

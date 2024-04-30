@@ -23,6 +23,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+
 public class QuartzTwoCamelContextRestartTest {
 
     private DefaultCamelContext camel1;
@@ -33,7 +35,7 @@ public class QuartzTwoCamelContextRestartTest {
         camel1 = new DefaultCamelContext();
         camel1.addRoutes(new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("quartz://myGroup/myTimerName?cron=0/1+*+*+*+*+?").to("log:one", "mock:one");
             }
         });
@@ -43,7 +45,7 @@ public class QuartzTwoCamelContextRestartTest {
         camel2.getComponent("quartz", QuartzComponent.class).setEnableJmx(false);
         camel2.addRoutes(new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("quartz://myOtherGroup/myOtherTimerName?cron=0/1+*+*+*+*+?").to("log:two", "mock:two");
             }
         });
@@ -51,7 +53,7 @@ public class QuartzTwoCamelContextRestartTest {
     }
 
     @AfterEach
-    public void tearDown() throws Exception {
+    public void tearDown() {
         camel1.stop();
         camel2.stop();
     }
@@ -65,13 +67,13 @@ public class QuartzTwoCamelContextRestartTest {
         mock2.expectedMinimumMessageCount(6);
         mock1.assertIsSatisfied();
 
-        camel1.stop();
+        assertDoesNotThrow(() -> camel1.stop());
 
         mock2.assertIsSatisfied();
 
         // should resume triggers when we start camel 1 again
         // fetch mock endpoint again because we have stopped camel context
-        camel1.start();
+        assertDoesNotThrow(() -> camel1.start());
         mock1 = camel1.getEndpoint("mock:one", MockEndpoint.class);
         mock1.expectedMinimumMessageCount(3);
 

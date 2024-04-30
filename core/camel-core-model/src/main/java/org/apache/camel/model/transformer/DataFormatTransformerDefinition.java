@@ -16,15 +16,14 @@
  */
 package org.apache.camel.model.transformer;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlElements;
-import javax.xml.bind.annotation.XmlType;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlElements;
+import jakarta.xml.bind.annotation.XmlType;
 
 import org.apache.camel.model.DataFormatDefinition;
 import org.apache.camel.model.dataformat.ASN1DataFormat;
-import org.apache.camel.model.dataformat.Any23DataFormat;
 import org.apache.camel.model.dataformat.AvroDataFormat;
 import org.apache.camel.model.dataformat.BarcodeDataFormat;
 import org.apache.camel.model.dataformat.Base64DataFormat;
@@ -48,9 +47,12 @@ import org.apache.camel.model.dataformat.JsonDataFormat;
 import org.apache.camel.model.dataformat.LZFDataFormat;
 import org.apache.camel.model.dataformat.MimeMultipartDataFormat;
 import org.apache.camel.model.dataformat.PGPDataFormat;
+import org.apache.camel.model.dataformat.ParquetAvroDataFormat;
 import org.apache.camel.model.dataformat.ProtobufDataFormat;
 import org.apache.camel.model.dataformat.RssDataFormat;
 import org.apache.camel.model.dataformat.SoapDataFormat;
+import org.apache.camel.model.dataformat.SwiftMtDataFormat;
+import org.apache.camel.model.dataformat.SwiftMxDataFormat;
 import org.apache.camel.model.dataformat.SyslogDataFormat;
 import org.apache.camel.model.dataformat.TarFileDataFormat;
 import org.apache.camel.model.dataformat.ThriftDataFormat;
@@ -59,7 +61,6 @@ import org.apache.camel.model.dataformat.UniVocityCsvDataFormat;
 import org.apache.camel.model.dataformat.UniVocityFixedDataFormat;
 import org.apache.camel.model.dataformat.UniVocityTsvDataFormat;
 import org.apache.camel.model.dataformat.XMLSecurityDataFormat;
-import org.apache.camel.model.dataformat.XStreamDataFormat;
 import org.apache.camel.model.dataformat.YAMLDataFormat;
 import org.apache.camel.model.dataformat.ZipDeflaterDataFormat;
 import org.apache.camel.model.dataformat.ZipFileDataFormat;
@@ -76,7 +77,6 @@ import org.apache.camel.spi.Metadata;
 public class DataFormatTransformerDefinition extends TransformerDefinition {
 
     @XmlElements({
-            @XmlElement(name = "any23", type = Any23DataFormat.class),
             @XmlElement(name = "asn1", type = ASN1DataFormat.class),
             @XmlElement(name = "avro", type = AvroDataFormat.class),
             @XmlElement(name = "barcode", type = BarcodeDataFormat.class),
@@ -100,9 +100,12 @@ public class DataFormatTransformerDefinition extends TransformerDefinition {
             @XmlElement(name = "jsonApi", type = JsonApiDataFormat.class),
             @XmlElement(name = "lzf", type = LZFDataFormat.class),
             @XmlElement(name = "mimeMultipart", type = MimeMultipartDataFormat.class),
+            @XmlElement(name = "parquetAvro", type = ParquetAvroDataFormat.class),
             @XmlElement(name = "protobuf", type = ProtobufDataFormat.class),
             @XmlElement(name = "rss", type = RssDataFormat.class),
             @XmlElement(name = "soap", type = SoapDataFormat.class),
+            @XmlElement(name = "swiftMt", type = SwiftMtDataFormat.class),
+            @XmlElement(name = "swiftMx", type = SwiftMxDataFormat.class),
             @XmlElement(name = "syslog", type = SyslogDataFormat.class),
             @XmlElement(name = "tarFile", type = TarFileDataFormat.class),
             @XmlElement(name = "thrift", type = ThriftDataFormat.class),
@@ -111,7 +114,6 @@ public class DataFormatTransformerDefinition extends TransformerDefinition {
             @XmlElement(name = "univocityFixed", type = UniVocityFixedDataFormat.class),
             @XmlElement(name = "univocityTsv", type = UniVocityTsvDataFormat.class),
             @XmlElement(name = "xmlSecurity", type = XMLSecurityDataFormat.class),
-            @XmlElement(name = "xstream", type = XStreamDataFormat.class),
             @XmlElement(name = "pgp", type = PGPDataFormat.class),
             @XmlElement(name = "yaml", type = YAMLDataFormat.class),
             @XmlElement(name = "zipDeflater", type = ZipDeflaterDataFormat.class),

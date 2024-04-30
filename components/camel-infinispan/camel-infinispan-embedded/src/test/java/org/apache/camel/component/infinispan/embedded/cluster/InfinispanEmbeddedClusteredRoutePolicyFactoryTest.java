@@ -37,12 +37,12 @@ public class InfinispanEmbeddedClusteredRoutePolicyFactoryTest extends AbstractI
 
         try (DefaultCamelContext context = new DefaultCamelContext()) {
             context.disableJMX();
-            context.setName("context-" + id);
+            context.getCamelContextExtension().setName("context-" + id);
             context.addService(clusterService);
             context.addRoutePolicyFactory(ClusteredRoutePolicyFactory.forNamespace(namespace));
             context.addRoutes(new RouteBuilder() {
                 @Override
-                public void configure() throws Exception {
+                public void configure() {
                     fromF("timer:%s?delay=1000&period=1000", id)
                             .routeId("route-" + id)
                             .log("From ${routeId}")

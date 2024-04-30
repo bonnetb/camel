@@ -41,6 +41,8 @@ public class GoogleMailStreamConfiguration implements Cloneable {
     @UriParam(label = "security", secret = true)
     private String refreshToken;
     @UriParam
+    private boolean raw;
+    @UriParam
     private String applicationName;
     @UriParam(defaultValue = "is:unread")
     private String query = "is:unread";
@@ -52,7 +54,7 @@ public class GoogleMailStreamConfiguration implements Cloneable {
     private boolean markAsRead = true;
     /* Service account */
     @UriParam(label = "security")
-    private String keyResource;
+    private String serviceAccountKey;
     @UriParam
     private String delegate;
     @UriParam
@@ -101,6 +103,18 @@ public class GoogleMailStreamConfiguration implements Cloneable {
      */
     public void setRefreshToken(String refreshToken) {
         this.refreshToken = refreshToken;
+    }
+
+    public boolean isRaw() {
+        return raw;
+    }
+
+    /**
+     * Whether to store the entire email message in an RFC 2822 formatted and base64url encoded string (in JSon format),
+     * in the Camel message body.
+     */
+    public void setRaw(boolean raw) {
+        this.raw = raw;
     }
 
     public String getApplicationName() {
@@ -169,17 +183,17 @@ public class GoogleMailStreamConfiguration implements Cloneable {
         this.markAsRead = markAsRead;
     }
 
-    public String getKeyResource() {
-        return keyResource;
+    public String getServiceAccountKey() {
+        return serviceAccountKey;
     }
 
     /**
      * Sets "*.json" file with credentials for Service account
-     * 
-     * @param keyResource String file, classpath, or http url
+     *
+     * @param serviceAccountKey String file, classpath, or http url
      */
-    public void setKeyResource(String keyResource) {
-        this.keyResource = keyResource;
+    public void setServiceAccountKey(String serviceAccountKey) {
+        this.serviceAccountKey = serviceAccountKey;
     }
 
     public String getDelegate() {
@@ -199,7 +213,7 @@ public class GoogleMailStreamConfiguration implements Cloneable {
 
     /**
      * GMail scopes
-     * 
+     *
      * @see com.google.api.services.gmail.GmailScopes
      */
     public void setScopes(List<String> scopes) {

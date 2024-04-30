@@ -51,11 +51,11 @@ import org.springframework.retry.interceptor.RetryOperationsInterceptor;
 import static org.apache.camel.component.springrabbit.SpringRabbitMQConstants.DIRECT_MESSAGE_LISTENER_CONTAINER;
 
 /**
- * Send and receive messages from RabbitMQ using Spring RabbitMQ client.
+ * Send and receive messages from RabbitMQ using the Spring RabbitMQ client.
  */
 @UriEndpoint(firstVersion = "3.8.0", scheme = "spring-rabbitmq", title = "Spring RabbitMQ",
              syntax = "spring-rabbitmq:exchangeName",
-             category = { Category.MESSAGING })
+             category = { Category.MESSAGING }, headersClass = SpringRabbitMQConstants.class)
 public class SpringRabbitMQEndpoint extends DefaultEndpoint implements AsyncEndpoint {
 
     public static final String ARG_PREFIX = "arg.";
@@ -84,9 +84,9 @@ public class SpringRabbitMQEndpoint extends DefaultEndpoint implements AsyncEndp
     @UriParam(label = "common",
               description = "The connection factory to be use. A connection factory must be configured either on the component or endpoint.")
     private ConnectionFactory connectionFactory;
-    @UriParam(label = "consumer",
-              description = "The queue(s) to use for consuming messages. Multiple queue names can be separated by comma."
-                            + " If none has been configured then Camel will generate an unique id as the queue name for the consumer.")
+    @UriParam(label = "common",
+              description = "The queue(s) to use for consuming or producing messages. Multiple queue names can be separated by comma."
+                            + " If none has been configured then Camel will generate an unique id as the queue name.")
     private String queues;
     @UriParam(label = "consumer", defaultValue = "true",
               description = "Specifies whether the consumer container should auto-startup.")
@@ -130,13 +130,13 @@ public class SpringRabbitMQEndpoint extends DefaultEndpoint implements AsyncEndp
     private boolean exclusive;
     @UriParam(label = "consumer", description = "Set to true for an no-local consumer")
     private boolean noLocal;
-    @UriParam(label = "consumer", description = "The name of the dead letter exchange")
+    @UriParam(label = "common", description = "The name of the dead letter exchange")
     private String deadLetterExchange;
-    @UriParam(label = "consumer", description = "The name of the dead letter queue")
+    @UriParam(label = "common", description = "The name of the dead letter queue")
     private String deadLetterQueue;
-    @UriParam(label = "consumer", description = "The routing key for the dead letter exchange")
+    @UriParam(label = "common", description = "The routing key for the dead letter exchange")
     private String deadLetterRoutingKey;
-    @UriParam(label = "consumer", defaultValue = "direct", enums = "direct,fanout,headers,topic",
+    @UriParam(label = "common", defaultValue = "direct", enums = "direct,fanout,headers,topic",
               description = "The type of the dead letter exchange")
     private String deadLetterExchangeType = "direct";
     @UriParam(label = "common",
@@ -146,13 +146,27 @@ public class SpringRabbitMQEndpoint extends DefaultEndpoint implements AsyncEndp
                             + " handles the reply message. You can also use this option if you want to use Camel as a proxy between different"
                             + " message brokers and you want to route message from one system to another.")
     private boolean disableReplyTo;
+    @UriParam(label = "producer",
+              description = "Specifies whether the producer should auto declare binding between exchange, queue and routing key when starting.")
+    private boolean autoDeclareProducer;
+    @UriParam(label = "producer", javaType = "java.time.Duration", defaultValue = "30000",
+              description = "Specify the timeout in milliseconds to be used when waiting for a reply message when doing request/reply (InOut) messaging."
+                            + " The default value is 30 seconds. A negative value indicates an indefinite timeout (Beware that this will cause a memory leak if a reply is not received).")
+    private long replyTimeout = 30000;
     @UriParam(label = "producer", javaType = "java.time.Duration", defaultValue = "5000",
-              description = "Specify the timeout in milliseconds to be used when waiting for a reply message when doing request/reply messaging."
+              description = "Specify the timeout in milliseconds to be used when waiting for a message sent to be confirmed by RabbitMQ when doing send only messaging (InOnly)."
                             + " The default value is 5 seconds. A negative value indicates an indefinite timeout.")
-    private long replyTimeout = 5000;
+    private long confirmTimeout = 5000;
+    @UriParam(label = "producer", enums = "auto,enabled,disabled", defaultValue = "auto",
+              description = "Controls whether to wait for confirms. The connection factory must be configured for publisher confirms and this method."
+                            + " auto = Camel detects if the connection factory uses confirms or not. disabled = Confirms is disabled. enabled = Confirms is enabled.")
+    private String confirm = "auto";
     @UriParam(label = "producer", defaultValue = "false",
               description = "Use a separate connection for publishers and consumers")
     private boolean usePublisherConnection;
+    @UriParam(label = "producer", defaultValue = "false",
+              description = "Whether to allow sending messages with no body. If this option is false and the message body is null, then an MessageConversionException is thrown.")
+    private boolean allowNullBody;
     @UriParam(defaultValue = "false", label = "advanced",
               description = "Sets whether synchronous processing should be strictly used")
     private boolean synchronous;
@@ -173,7 +187,7 @@ public class SpringRabbitMQEndpoint extends DefaultEndpoint implements AsyncEndp
               description = "How many times a Rabbitmq consumer will retry the same message if Camel failed to process the message")
     private int maximumRetryAttempts = 5;
     @UriParam(label = "consumer", defaultValue = "1000",
-              description = "Delay in msec a Rabbitmq consumer will wait before redelivering a message that Camel failed to process")
+              description = "Delay in millis a Rabbitmq consumer will wait before redelivering a message that Camel failed to process")
     private int retryDelay = 1000;
     @UriParam(label = "consumer", defaultValue = "true",
               description = "Whether a Rabbitmq consumer should reject the message without requeuing. This enables failed messages to be sent to a Dead Letter Exchange/Queue, if the broker is so configured.")
@@ -187,6 +201,14 @@ public class SpringRabbitMQEndpoint extends DefaultEndpoint implements AsyncEndp
     @Override
     public SpringRabbitMQComponent getComponent() {
         return (SpringRabbitMQComponent) super.getComponent();
+    }
+
+    @Override
+    protected void doInit() throws Exception {
+        if (allowNullBody) {
+            // need to wrap message converter in allow null
+            messageConverter = new AllowNullBodyMessageConverter(messageConverter);
+        }
     }
 
     public String getExchangeName() {
@@ -223,6 +245,14 @@ public class SpringRabbitMQEndpoint extends DefaultEndpoint implements AsyncEndp
 
     public void setAutoDeclare(boolean autoDeclare) {
         this.autoDeclare = autoDeclare;
+    }
+
+    public boolean isAutoDeclareProducer() {
+        return autoDeclareProducer;
+    }
+
+    public void setAutoDeclareProducer(boolean autoDeclareProducer) {
+        this.autoDeclareProducer = autoDeclareProducer;
     }
 
     public boolean isAsyncConsumer() {
@@ -353,12 +383,36 @@ public class SpringRabbitMQEndpoint extends DefaultEndpoint implements AsyncEndp
         this.replyTimeout = replyTimeout;
     }
 
+    public long getConfirmTimeout() {
+        return confirmTimeout;
+    }
+
+    public void setConfirmTimeout(long confirmTimeout) {
+        this.confirmTimeout = confirmTimeout;
+    }
+
+    public String getConfirm() {
+        return confirm;
+    }
+
+    public void setConfirm(String confirm) {
+        this.confirm = confirm;
+    }
+
     public boolean isUsePublisherConnection() {
         return usePublisherConnection;
     }
 
     public void setUsePublisherConnection(boolean usePublisherConnection) {
         this.usePublisherConnection = usePublisherConnection;
+    }
+
+    public boolean isAllowNullBody() {
+        return allowNullBody;
+    }
+
+    public void setAllowNullBody(boolean allowNullBody) {
+        this.allowNullBody = allowNullBody;
     }
 
     public boolean isSynchronous() {
@@ -526,9 +580,11 @@ public class SpringRabbitMQEndpoint extends DefaultEndpoint implements AsyncEndp
     public AsyncRabbitTemplate createInOutTemplate() {
         RabbitTemplate template = new RabbitTemplate(getConnectionFactory());
         template.setRoutingKey(routingKey);
-        template.setReplyTimeout(replyTimeout);
         template.setUsePublisherConnection(usePublisherConnection);
-        return new AsyncRabbitTemplate(template);
+        AsyncRabbitTemplate asyncTemplate = new AsyncRabbitTemplate(template);
+        // use receive timeout (for reply timeout) on the async template
+        asyncTemplate.setReceiveTimeout(replyTimeout);
+        return asyncTemplate;
     }
 
     public AbstractMessageListenerContainer createMessageListenerContainer() {
@@ -565,10 +621,13 @@ public class SpringRabbitMQEndpoint extends DefaultEndpoint implements AsyncEndp
     }
 
     public void declareElements(AbstractMessageListenerContainer container) {
-        AmqpAdmin admin = null;
         if (container instanceof MessageListenerContainer) {
-            admin = ((MessageListenerContainer) container).getAmqpAdmin();
+            AmqpAdmin admin = ((MessageListenerContainer) container).getAmqpAdmin();
+            declareElements(container, admin);
         }
+    }
+
+    public void declareElements(AbstractMessageListenerContainer container, AmqpAdmin admin) {
         if (admin != null && autoDeclare) {
             // bind dead letter exchange
             if (deadLetterExchange != null) {
@@ -666,7 +725,7 @@ public class SpringRabbitMQEndpoint extends DefaultEndpoint implements AsyncEndp
                 String qn = admin.declareQueue(rabbitQueue);
 
                 // if we auto created a new unique queue then the container needs to know the queue name
-                if (generateUniqueQueue) {
+                if (generateUniqueQueue && container != null) {
                     container.setQueueNames(qn);
                 }
 

@@ -31,9 +31,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.camel.CamelContext;
@@ -48,10 +50,10 @@ import org.apache.camel.component.salesforce.internal.dto.LoginToken;
 import org.apache.camel.support.jsse.KeyStoreParameters;
 import org.apache.camel.support.service.ServiceSupport;
 import org.apache.camel.util.ObjectHelper;
-import org.eclipse.jetty.client.HttpConversation;
-import org.eclipse.jetty.client.api.ContentResponse;
-import org.eclipse.jetty.client.api.Request;
-import org.eclipse.jetty.client.util.FormContentProvider;
+import org.eclipse.jetty.client.ContentResponse;
+import org.eclipse.jetty.client.FormRequestContent;
+import org.eclipse.jetty.client.Request;
+import org.eclipse.jetty.client.transport.HttpConversation;
 import org.eclipse.jetty.http.HttpMethod;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.util.Fields;
@@ -82,8 +84,12 @@ public class SalesforceSession extends ServiceSupport {
 
     private volatile String accessToken;
     private volatile String instanceUrl;
+    private volatile String id;
+    private volatile String orgId;
 
-    private CamelContext camelContext;
+    private final CamelContext camelContext;
+    private final AtomicBoolean loggingIn = new AtomicBoolean();
+    private CountDownLatch latch = new CountDownLatch(1);
 
     public SalesforceSession(CamelContext camelContext, SalesforceHttpClient httpClient, long timeout,
                              SalesforceLoginConfig config) {
@@ -99,6 +105,56 @@ public class SalesforceSession extends ServiceSupport {
 
         this.objectMapper = JsonUtils.createObjectMapper();
         this.listeners = new CopyOnWriteArraySet<>();
+    }
+
+    public void attemptLoginUntilSuccessful(long backoffIncrement, long maxBackoff) {
+        // if another thread is logging in, we will just wait until it's successful
+        if (!loggingIn.compareAndSet(false, true)) {
+            LOG.debug("waiting on login from another thread");
+            // TODO: This is janky
+            try {
+                while (latch == null) {
+                    Thread.sleep(100);
+                }
+                latch.await();
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException("Failed to login.", ex);
+            }
+            LOG.debug("done waiting");
+            return;
+        }
+        LOG.debug("Attempting to login, no other threads logging in");
+        latch = new CountDownLatch(1);
+
+        long backoff = 0;
+
+        try {
+            for (;;) {
+                try {
+                    if (isStoppingOrStopped()) {
+                        return;
+                    }
+                    login(getAccessToken());
+                    break;
+                } catch (SalesforceException e) {
+                    backoff = backoff + backoffIncrement;
+                    if (backoff > maxBackoff) {
+                        backoff = maxBackoff;
+                    }
+                    LOG.warn(String.format("Salesforce login failed. Pausing for %d milliseconds", backoff), e);
+                    try {
+                        Thread.sleep(backoff);
+                    } catch (InterruptedException ex) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException("Failed to login.", ex);
+                    }
+                }
+            }
+        } finally {
+            loggingIn.set(false);
+            latch.countDown();
+        }
     }
 
     public synchronized String login(String oldToken) throws SalesforceException {
@@ -126,14 +182,14 @@ public class SalesforceSession extends ServiceSupport {
                 parseLoginResponse(loginResponse, loginResponse.getContentAsString());
 
             } catch (InterruptedException e) {
-                throw new SalesforceException("Login error: " + e.getMessage(), e);
+                Thread.currentThread().interrupt();
+                throw new SalesforceException("Login error: interrupted", e);
             } catch (TimeoutException e) {
                 throw new SalesforceException("Login request timeout: " + e.getMessage(), e);
             } catch (ExecutionException e) {
                 throw new SalesforceException("Unexpected login error: " + e.getCause().getMessage(), e.getCause());
             }
         }
-
         return accessToken;
     }
 
@@ -168,6 +224,10 @@ public class SalesforceSession extends ServiceSupport {
                 fields.put("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer");
                 fields.put("assertion", generateJwtAssertion());
                 break;
+            case CLIENT_CREDENTIALS:
+                fields.put("grant_type", "client_credentials");
+                fields.put("client_secret", config.getClientSecret());
+                break;
             default:
                 throw new IllegalArgumentException("Unsupported login configuration type: " + type);
         }
@@ -179,7 +239,7 @@ public class SalesforceSession extends ServiceSupport {
             post = httpClient.newHttpRequest(conversation, URI.create(loginUrl)).method(HttpMethod.POST);
         }
 
-        return post.content(new FormContentProvider(fields)).timeout(timeout, TimeUnit.MILLISECONDS);
+        return post.body(new FormRequestContent(fields)).timeout(timeout, TimeUnit.MILLISECONDS);
     }
 
     String generateJwtAssertion() {
@@ -255,6 +315,8 @@ public class SalesforceSession extends ServiceSupport {
                     LOG.info("Login successful");
                     accessToken = token.getAccessToken();
                     instanceUrl = Optional.ofNullable(config.getInstanceUrl()).orElse(token.getInstanceUrl());
+                    id = token.getId();
+                    orgId = id.substring(id.indexOf("id/") + 3, id.indexOf("id/") + 21);
                     // strip trailing '/'
                     int lastChar = instanceUrl.length() - 1;
                     if (instanceUrl.charAt(lastChar) == '/') {
@@ -304,7 +366,6 @@ public class SalesforceSession extends ServiceSupport {
             final ContentResponse logoutResponse = logoutGet.send();
 
             final int statusCode = logoutResponse.getStatus();
-            final String reason = logoutResponse.getReason();
 
             if (statusCode == HttpStatus.OK_200) {
                 LOG.debug("Logout successful");
@@ -313,8 +374,8 @@ public class SalesforceSession extends ServiceSupport {
             }
 
         } catch (InterruptedException e) {
-            String msg = "Logout error: " + e.getMessage();
-            throw new SalesforceException(msg, e);
+            Thread.currentThread().interrupt();
+            throw new SalesforceException("Interrupted while logging out", e);
         } catch (ExecutionException e) {
             final Throwable ex = e.getCause();
             throw new SalesforceException("Unexpected logout exception: " + ex.getMessage(), ex);
@@ -341,6 +402,14 @@ public class SalesforceSession extends ServiceSupport {
 
     public String getInstanceUrl() {
         return instanceUrl;
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public String getOrgId() {
+        return orgId;
     }
 
     public boolean addListener(SalesforceSessionListener listener) {

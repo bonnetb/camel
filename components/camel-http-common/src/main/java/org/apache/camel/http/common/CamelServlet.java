@@ -28,12 +28,12 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
-import javax.servlet.AsyncContext;
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.AsyncContext;
+import jakarta.servlet.ServletConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import org.apache.camel.AsyncProcessor;
 import org.apache.camel.CamelContext;
@@ -43,6 +43,7 @@ import org.apache.camel.Processor;
 import org.apache.camel.RuntimeCamelException;
 import org.apache.camel.spi.ExecutorServiceManager;
 import org.apache.camel.support.LifecycleStrategySupport;
+import org.apache.camel.support.RestConsumerContextPathMatcher;
 import org.apache.camel.util.ObjectHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,14 +84,27 @@ public class CamelServlet extends HttpServlet implements HttpRegistryProvider {
         this.servletName = config.getServletName();
 
         final String asyncParam = config.getInitParameter(ASYNC_PARAM);
-        this.async = asyncParam == null ? false : ObjectHelper.toBoolean(asyncParam);
+        this.async = asyncParam != null && ObjectHelper.toBoolean(asyncParam);
         this.forceAwait = Boolean.parseBoolean(config.getInitParameter(FORCE_AWAIT_PARAM));
         this.executorRef = config.getInitParameter(EXECUTOR_REF_PARAM);
         log.trace("servlet '{}' initialized with: async={}", servletName, async);
     }
 
     @Override
-    protected void service(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+    protected void service(HttpServletRequest request, HttpServletResponse response) {
+        log.trace("Service: {}", request);
+        try {
+            handleService(request, response);
+        } catch (Exception e) {
+            // do not leak exception back to caller
+            log.warn("Error handling request due to: {}", e.getMessage(), e);
+            if (!response.isCommitted()) {
+                sendError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            }
+        }
+    }
+
+    protected void handleService(HttpServletRequest req, HttpServletResponse resp) throws Exception {
         if (isAsync()) {
             if (executorRef != null) {
                 HttpConsumer consumer = doResolve(req, resp); // can be done sync
@@ -132,13 +146,9 @@ public class CamelServlet extends HttpServlet implements HttpRegistryProvider {
     }
 
     private void onError(HttpServletResponse resp, Exception e) {
-        //An error shouldn't occur as we should handle most of error in doService
+        //An error shouldn't occur as we should handle most error in doService
         log.error("Error processing request", e);
-        try {
-            resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-        } catch (Exception e1) {
-            log.debug("Cannot send reply to client!", e1);
-        }
+        sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         //Need to wrap it in RuntimeException as it occurs in a Runnable
         throw new RuntimeCamelException(e);
     }
@@ -202,12 +212,10 @@ public class CamelServlet extends HttpServlet implements HttpRegistryProvider {
      * This is the logical implementation to handle request with {@link CamelServlet} This is where most exceptions
      * should be handled
      *
-     * @param  request          the {@link HttpServletRequest}
-     * @param  response         the {@link HttpServletResponse}
-     * @throws ServletException
-     * @throws IOException
+     * @param request  the {@link HttpServletRequest}
+     * @param response the {@link HttpServletResponse}
      */
-    protected void doService(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    protected void doService(HttpServletRequest request, HttpServletResponse response) throws Exception {
         log.trace("Service: {}", request);
         HttpConsumer consumer = doResolve(request, response);
         if (consumer != null) {
@@ -216,11 +224,11 @@ public class CamelServlet extends HttpServlet implements HttpRegistryProvider {
     }
 
     private CompletionStage<?> doExecute(HttpServletRequest req, HttpServletResponse res, HttpConsumer consumer)
-            throws IOException, ServletException {
+            throws Exception {
         // are we suspended?
         if (consumer.isSuspended()) {
             log.debug("Consumer suspended, cannot service request {}", req);
-            res.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+            sendError(res, HttpServletResponse.SC_SERVICE_UNAVAILABLE);
             return null;
         }
 
@@ -246,12 +254,12 @@ public class CamelServlet extends HttpServlet implements HttpRegistryProvider {
 
         if (consumer.getEndpoint().getHttpMethodRestrict() != null
                 && !consumer.getEndpoint().getHttpMethodRestrict().contains(req.getMethod())) {
-            res.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+            sendError(res, HttpServletResponse.SC_METHOD_NOT_ALLOWED);
             return null;
         }
 
         if ("TRACE".equals(req.getMethod()) && !consumer.isTraceEnabled()) {
-            res.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+            sendError(res, HttpServletResponse.SC_METHOD_NOT_ALLOWED);
             return null;
         }
 
@@ -288,8 +296,7 @@ public class CamelServlet extends HttpServlet implements HttpRegistryProvider {
         try {
             consumer.createUoW(exchange);
         } catch (Exception e) {
-            log.error("Error processing request", e);
-            throw new ServletException(e);
+            exchange.setException(e);
         }
 
         boolean isAsync = false;
@@ -310,7 +317,7 @@ public class CamelServlet extends HttpServlet implements HttpRegistryProvider {
                             } else {
                                 try {
                                     afterProcess(res, consumer, exchange, false);
-                                } catch (final IOException | ServletException e) {
+                                } catch (Exception e) {
                                     exchange.setException(e);
                                 }
                             }
@@ -335,7 +342,7 @@ public class CamelServlet extends HttpServlet implements HttpRegistryProvider {
     protected void afterProcess(
             HttpServletResponse res, HttpConsumer consumer, Exchange exchange,
             boolean rethrow)
-            throws IOException, ServletException {
+            throws Exception {
         try {
             // now lets output to the res
             if (log.isTraceEnabled()) {
@@ -357,7 +364,7 @@ public class CamelServlet extends HttpServlet implements HttpRegistryProvider {
         } catch (Exception e) {
             log.error("Error processing request", e);
             if (rethrow) {
-                throw new ServletException(e);
+                throw new RuntimeCamelException(e);
             } else {
                 exchange.setException(e);
             }
@@ -367,9 +374,9 @@ public class CamelServlet extends HttpServlet implements HttpRegistryProvider {
         }
     }
 
-    private HttpConsumer doResolve(HttpServletRequest request, HttpServletResponse response) throws IOException {
+    private HttpConsumer doResolve(HttpServletRequest request, HttpServletResponse response) throws Exception {
         // Is there a consumer registered for the request.
-        HttpConsumer consumer = resolve(request);
+        HttpConsumer consumer = getServletResolveConsumerStrategy().resolve(request, getConsumers());
         if (consumer == null) {
             // okay we cannot process this requires so return either 404 or 405.
             // to know if its 405 then we need to check if any other HTTP method would have a consumer for the "same" request
@@ -377,36 +384,33 @@ public class CamelServlet extends HttpServlet implements HttpRegistryProvider {
                     .anyMatch(m -> getServletResolveConsumerStrategy().isHttpMethodAllowed(request, m, getConsumers()));
             if (hasAnyMethod) {
                 log.debug("No consumer to service request {} as method {} is not allowed", request, request.getMethod());
-                response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+                sendError(response, HttpServletResponse.SC_METHOD_NOT_ALLOWED);
                 return null;
             } else {
                 log.debug("No consumer to service request {} as resource is not found", request);
-                response.sendError(HttpServletResponse.SC_NOT_FOUND);
+                sendError(response, HttpServletResponse.SC_NOT_FOUND);
                 return null;
             }
         }
         return consumer;
     }
 
-    /**
-     * @deprecated use
-     *             {@link ServletResolveConsumerStrategy#resolve(javax.servlet.http.HttpServletRequest, java.util.Map)}
-     */
-    @Deprecated
-    protected HttpConsumer resolve(HttpServletRequest request) {
-        return getServletResolveConsumerStrategy().resolve(request, getConsumers());
-    }
-
     @Override
     public void connect(HttpConsumer consumer) {
         log.debug("Connecting consumer: {}", consumer);
-        consumers.put(consumer.getEndpoint().getEndpointUri(), consumer);
+        String endpointUri = consumer.getEndpoint().getEndpointUri();
+        if (consumers.containsKey(endpointUri)) {
+            throw new IllegalStateException("Duplicate request path for " + endpointUri);
+        }
+        consumers.put(endpointUri, consumer);
+        RestConsumerContextPathMatcher.register(consumer.getPath());
     }
 
     @Override
     public void disconnect(HttpConsumer consumer) {
         log.debug("Disconnecting consumer: {}", consumer);
         consumers.remove(consumer.getEndpoint().getEndpointUri());
+        RestConsumerContextPathMatcher.unRegister(consumer.getPath());
     }
 
     @Override
@@ -436,6 +440,14 @@ public class CamelServlet extends HttpServlet implements HttpRegistryProvider {
 
     public Map<String, HttpConsumer> getConsumers() {
         return Collections.unmodifiableMap(consumers);
+    }
+
+    protected static void sendError(HttpServletResponse res, int code) {
+        try {
+            res.sendError(code);
+        } catch (IOException e) {
+            // ignore
+        }
     }
 
     /**

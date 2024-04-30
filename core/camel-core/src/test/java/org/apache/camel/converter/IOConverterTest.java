@@ -29,7 +29,9 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.io.Writer;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Properties;
 
@@ -238,7 +240,7 @@ public class IOConverterTest extends ContextTestSupport {
     @Test
     public void testInputStreamToString() throws Exception {
         String data = "46\u00B037'00\"N\"";
-        ByteArrayInputStream is = new ByteArrayInputStream(data.getBytes("UTF-8"));
+        ByteArrayInputStream is = new ByteArrayInputStream(data.getBytes(StandardCharsets.UTF_8));
         Exchange exchange = new DefaultExchange(context);
         exchange.setProperty(Exchange.CHARSET_NAME, "UTF-8");
         String result = IOConverter.toString(is, exchange);
@@ -260,9 +262,18 @@ public class IOConverterTest extends ContextTestSupport {
         Properties p = IOConverter.toProperties(new File("src/test/resources/log4j2.properties"));
         assertNotNull(p);
         assertTrue(p.size() >= 8, "Should be 8 or more properties, was " + p.size());
-        String root = (String) p.get("rootLogger.level");
-        assertNotNull(root);
-        assertTrue(root.contains("INFO"));
+        String fn = (String) p.get("appender.file.fileName");
+        assertNotNull(fn);
+        assertTrue(fn.contains("camel-core-test.log"));
+    }
+
+    @Test
+    public void testToPathFromFile() {
+        File file = new File("src/test/resources/log4j2.properties");
+        Path p = IOConverter.toPath(file);
+        assertNotNull(p);
+        assertEquals(file.getName(), p.getFileName().toString());
+        assertEquals("log4j2.properties", p.getFileName().toString());
     }
 
 }

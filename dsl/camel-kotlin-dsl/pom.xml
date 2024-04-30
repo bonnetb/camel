@@ -17,15 +17,14 @@
     limitations under the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
         <groupId>org.apache.camel</groupId>
         <artifactId>dsl</artifactId>
-        <version>3.17.0-SNAPSHOT</version>
+        <version>4.6.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>camel-kotlin-dsl</artifactId>
@@ -44,6 +43,11 @@
         <sourcecheckExcludesComma>
             ${sourcecheckExcludes},
         </sourcecheckExcludesComma>
+        <annotations>
+            routes.language=kotlin
+        </annotations>
+
+        <camel.surefire.reuseForks>false</camel.surefire.reuseForks>
     </properties>
 
     <dependencies>
@@ -52,11 +56,6 @@
             <artifactId>camel-endpointdsl-support</artifactId>
         </dependency>
 
-        <dependency>
-            <groupId>org.jetbrains.kotlin</groupId>
-            <artifactId>kotlin-script-util</artifactId>
-            <version>${kotlin-version}</version>
-        </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-scripting-jvm</artifactId>
@@ -122,6 +121,7 @@
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
+            <version>${assertj-version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -137,7 +137,7 @@
         </dependency>
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-slf4j-impl</artifactId>
+            <artifactId>log4j-slf4j2-impl</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -149,19 +149,6 @@
 
     <build>
         <plugins>
-            <plugin>
-                <groupId>org.apache.camel</groupId>
-                <artifactId>camel-package-maven-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>generate-spi</id>
-                        <goals>
-                            <goal>generate-spi</goal>
-                            <goal>generate-others-list</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
             <plugin>
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-maven-plugin</artifactId>
@@ -227,15 +214,6 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <configuration>
-                    <forkCount>1</forkCount>
-                    <reuseForks>false</reuseForks>
-                </configuration>
-            </plugin>
         </plugins>
     </build>
-
 </project>

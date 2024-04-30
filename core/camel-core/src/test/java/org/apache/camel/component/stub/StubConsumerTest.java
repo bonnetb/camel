@@ -20,16 +20,14 @@ import org.apache.camel.ContextTestSupport;
 import org.apache.camel.ExchangePattern;
 import org.apache.camel.builder.RouteBuilder;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.parallel.ResourceLock;
 
-@ResourceLock("VmComponent")
 public class StubConsumerTest extends ContextTestSupport {
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:InOnly").setExchangePattern(ExchangePattern.InOnly).to("stub:foo").to("mock:result");
 
                 from("direct:InOut").setExchangePattern(ExchangePattern.InOut).to("stub:foo").to("mock:result");

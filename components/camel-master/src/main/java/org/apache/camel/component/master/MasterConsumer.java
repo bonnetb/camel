@@ -21,8 +21,6 @@ import java.util.Optional;
 import org.apache.camel.Consumer;
 import org.apache.camel.Endpoint;
 import org.apache.camel.Processor;
-import org.apache.camel.ResumeAware;
-import org.apache.camel.ResumeStrategy;
 import org.apache.camel.StartupListener;
 import org.apache.camel.SuspendableService;
 import org.apache.camel.api.management.ManagedAttribute;
@@ -31,7 +29,11 @@ import org.apache.camel.cluster.CamelClusterEventListener;
 import org.apache.camel.cluster.CamelClusterMember;
 import org.apache.camel.cluster.CamelClusterService;
 import org.apache.camel.cluster.CamelClusterView;
+import org.apache.camel.resume.ResumeAdapter;
+import org.apache.camel.resume.ResumeAware;
+import org.apache.camel.resume.ResumeStrategy;
 import org.apache.camel.support.DefaultConsumer;
+import org.apache.camel.support.resume.AdapterHelper;
 import org.apache.camel.support.service.ServiceHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -138,9 +140,14 @@ public class MasterConsumer extends DefaultConsumer implements ResumeAware {
             getEndpoint().getCamelContext().addStartupListener((StartupListener) delegatedConsumer);
         }
 
-        if (delegatedConsumer instanceof ResumeAware) {
+        if (delegatedConsumer instanceof ResumeAware resumeAwareConsumer && resumeStrategy != null) {
+            LOG.info("Setting up the resume adapter for the resume strategy in the delegated consumer");
+            ResumeAdapter resumeAdapter
+                    = AdapterHelper.eval(clusterService.getCamelContext(), resumeAwareConsumer, resumeStrategy);
+            resumeStrategy.setAdapter(resumeAdapter);
+
             LOG.info("Setting up the resume strategy for the delegated consumer");
-            ((ResumeAware) delegatedConsumer).setResumeStrategy(resumeStrategy);
+            resumeAwareConsumer.setResumeStrategy(resumeStrategy);
         }
 
         ServiceHelper.startService(delegatedEndpoint, delegatedConsumer);

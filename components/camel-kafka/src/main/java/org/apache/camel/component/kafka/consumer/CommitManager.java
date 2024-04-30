@@ -23,18 +23,34 @@ import org.apache.kafka.common.TopicPartition;
 
 public interface CommitManager {
 
-    KafkaManualCommit getManualCommit(Exchange exchange, TopicPartition partition, ConsumerRecord<Object, Object> record);
+    KafkaManualCommit getManualCommit(
+            Exchange exchange, TopicPartition partition, ConsumerRecord<Object, Object> consumerRecord);
 
-    void commitOffset(TopicPartition partition, long partitionLastOffset);
-
-    void commitOffsetForce(TopicPartition partition, long partitionLastOffset);
-
-    void commitOffsetOnStop(TopicPartition partition, long partitionLastOffset);
-
-    @Deprecated
-    default void processAsyncCommits() {
-
-    }
-
+    /**
+     * Commits everything that has been cached
+     */
     void commit();
+
+    /**
+     * Commits the offsets of the given partition
+     *
+     * @param partition the partition to commit the offsets
+     */
+    void commit(TopicPartition partition);
+
+    /**
+     * Forcefully commits the offset of the given partition
+     *
+     * @param partition           the partition to commit the offsets
+     * @param partitionLastOffset the last offset to commit
+     */
+    void forceCommit(TopicPartition partition, long partitionLastOffset);
+
+    /**
+     * Record the last processed offset for future commit
+     *
+     * @param partition           the partition to commit the offsets
+     * @param partitionLastOffset the last offset to commit
+     */
+    void recordOffset(TopicPartition partition, long partitionLastOffset);
 }

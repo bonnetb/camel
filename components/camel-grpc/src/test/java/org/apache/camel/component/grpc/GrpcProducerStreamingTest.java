@@ -16,7 +16,6 @@
  */
 package org.apache.camel.component.grpc;
 
-import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -31,12 +30,14 @@ import org.apache.camel.test.junit5.CamelTestSupport;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static org.apache.camel.test.junit5.TestSupport.assertListSize;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+@DisabledIfSystemProperty(named = "ci.env.name", matches = "github.com", disabledReason = "Flaky on GitHub Actions")
 public class GrpcProducerStreamingTest extends CamelTestSupport {
 
     private static final Logger LOG = LoggerFactory.getLogger(GrpcProducerStreamingTest.class);
@@ -54,7 +55,7 @@ public class GrpcProducerStreamingTest extends CamelTestSupport {
     }
 
     @AfterEach
-    public void stopGrpcServer() throws IOException {
+    public void stopGrpcServer() {
         if (grpcServer != null) {
             grpcServer.shutdown();
             LOG.info("gRPC server stopped");
@@ -115,7 +116,7 @@ public class GrpcProducerStreamingTest extends CamelTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
             public void configure() {

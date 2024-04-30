@@ -16,13 +16,14 @@
  */
 package org.apache.camel.model;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
 
 import org.apache.camel.ExchangePattern;
+import org.apache.camel.Message;
 import org.apache.camel.builder.EndpointProducerBuilder;
 import org.apache.camel.spi.AsEndpointUri;
 import org.apache.camel.spi.Metadata;
@@ -33,7 +34,7 @@ import org.apache.camel.spi.Metadata;
 @Metadata(label = "eip,routing")
 @XmlRootElement(name = "toD")
 @XmlAccessorType(XmlAccessType.FIELD)
-public class ToDynamicDefinition extends NoOutputDefinition<ToDynamicDefinition> {
+public class ToDynamicDefinition extends NoOutputDefinition<ToDynamicDefinition> implements Copyable {
 
     @XmlTransient
     protected EndpointProducerBuilder endpointProducerBuilder;
@@ -42,7 +43,11 @@ public class ToDynamicDefinition extends NoOutputDefinition<ToDynamicDefinition>
     @Metadata(required = true)
     private String uri;
     @XmlAttribute
-    @Metadata(label = "advanced", javaType = "org.apache.camel.ExchangePattern", enums = "InOnly,InOut,InOptionalOut")
+    private String variableSend;
+    @XmlAttribute
+    private String variableReceive;
+    @XmlAttribute
+    @Metadata(label = "advanced", javaType = "org.apache.camel.ExchangePattern", enums = "InOnly,InOut")
     private String pattern;
     @XmlAttribute
     @Metadata(label = "advanced", javaType = "java.lang.Integer")
@@ -62,6 +67,19 @@ public class ToDynamicDefinition extends NoOutputDefinition<ToDynamicDefinition>
 
     public ToDynamicDefinition(String uri) {
         this.uri = uri;
+    }
+
+    protected ToDynamicDefinition(ToDynamicDefinition source) {
+        super(source);
+        this.endpointProducerBuilder = source.endpointProducerBuilder;
+        this.uri = source.uri;
+        this.variableSend = source.variableSend;
+        this.variableReceive = source.variableReceive;
+        this.pattern = source.pattern;
+        this.cacheSize = source.cacheSize;
+        this.ignoreInvalidEndpoint = source.ignoreInvalidEndpoint;
+        this.allowOptimisedComponents = source.allowOptimisedComponents;
+        this.autoStartComponents = source.autoStartComponents;
     }
 
     @Override
@@ -102,6 +120,31 @@ public class ToDynamicDefinition extends NoOutputDefinition<ToDynamicDefinition>
     }
 
     /**
+     * To use a variable as the source for the message body to send. This makes it handy to use variables for user data
+     * and to easily control what data to use for sending and receiving.
+     *
+     * Important: When using send variable then the message body is taken from this variable instead of the current
+     * {@link Message}, however the headers from the {@link Message} will still be used as well. In other words, the
+     * variable is used instead of the message body, but everything else is as usual.
+     */
+    public ToDynamicDefinition variableReceive(String variableReceive) {
+        setVariableReceive(variableReceive);
+        return this;
+    }
+
+    /**
+     * To use a variable to store the received message body (only body, not headers). This is handy for easy access to
+     * the received message body via variables.
+     *
+     * Important: When using receive variable then the received body is stored only in this variable and <b>not</b> on
+     * the current {@link org.apache.camel.Message}.
+     */
+    public ToDynamicDefinition variableSend(String variableSend) {
+        setVariableSend(variableSend);
+        return this;
+    }
+
+    /**
      * Sets the optional {@link ExchangePattern} used to invoke this endpoint
      */
     public ToDynamicDefinition pattern(ExchangePattern pattern) {
@@ -121,7 +164,7 @@ public class ToDynamicDefinition extends NoOutputDefinition<ToDynamicDefinition>
      * producers when using this recipient list, when uris are reused.
      *
      * Beware that when using dynamic endpoints then it affects how well the cache can be utilized. If each dynamic
-     * endpoint is unique then its best to turn of caching by setting this to -1, which allows Camel to not cache both
+     * endpoint is unique then its best to turn off caching by setting this to -1, which allows Camel to not cache both
      * the producers and endpoints; they are regarded as prototype scoped and will be stopped and discarded after use.
      * This reduces memory usage as otherwise producers/endpoints are stored in memory in the caches.
      *
@@ -144,7 +187,7 @@ public class ToDynamicDefinition extends NoOutputDefinition<ToDynamicDefinition>
      * producers when using this recipient list, when uris are reused.
      *
      * Beware that when using dynamic endpoints then it affects how well the cache can be utilized. If each dynamic
-     * endpoint is unique then its best to turn of caching by setting this to -1, which allows Camel to not cache both
+     * endpoint is unique then its best to turn off caching by setting this to -1, which allows Camel to not cache both
      * the producers and endpoints; they are regarded as prototype scoped and will be stopped and discarded after use.
      * This reduces memory usage as otherwise producers/endpoints are stored in memory in the caches.
      *
@@ -164,18 +207,14 @@ public class ToDynamicDefinition extends NoOutputDefinition<ToDynamicDefinition>
     }
 
     /**
-     * Ignore the invalidate endpoint exception when try to create a producer with that endpoint
-     *
-     * @return the builder
+     * Whether to ignore invalid endpoint URIs and skip sending the message.
      */
     public ToDynamicDefinition ignoreInvalidEndpoint(boolean ignoreInvalidEndpoint) {
         return ignoreInvalidEndpoint(Boolean.toString(ignoreInvalidEndpoint));
     }
 
     /**
-     * Ignore the invalidate endpoint exception when try to create a producer with that endpoint
-     *
-     * @return the builder
+     * Whether to ignore invalid endpoint URIs and skip sending the message.
      */
     public ToDynamicDefinition ignoreInvalidEndpoint(String ignoreInvalidEndpoint) {
         setIgnoreInvalidEndpoint(ignoreInvalidEndpoint);
@@ -234,6 +273,22 @@ public class ToDynamicDefinition extends NoOutputDefinition<ToDynamicDefinition>
         this.endpointProducerBuilder = endpointProducerBuilder;
     }
 
+    public String getVariableSend() {
+        return variableSend;
+    }
+
+    public void setVariableSend(String variableSend) {
+        this.variableSend = variableSend;
+    }
+
+    public String getVariableReceive() {
+        return variableReceive;
+    }
+
+    public void setVariableReceive(String variableReceive) {
+        this.variableReceive = variableReceive;
+    }
+
     public String getPattern() {
         return pattern;
     }
@@ -272,5 +327,9 @@ public class ToDynamicDefinition extends NoOutputDefinition<ToDynamicDefinition>
 
     public void setAutoStartComponents(String autoStartComponents) {
         this.autoStartComponents = autoStartComponents;
+    }
+
+    public ToDynamicDefinition copy() {
+        return new ToDynamicDefinition(this);
     }
 }

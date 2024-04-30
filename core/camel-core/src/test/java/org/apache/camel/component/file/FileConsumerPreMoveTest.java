@@ -22,7 +22,6 @@ import java.nio.file.Path;
 import org.apache.camel.ContextTestSupport;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
-import org.apache.camel.TestSupport;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.junit.jupiter.api.Test;
@@ -60,10 +59,11 @@ public class FileConsumerPreMoveTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
+        context.getRegistry().bind("testDirectory", testDirectory());
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from(fileUri("?preMove=work/work-${file:name}&initialDelay=0&delay=10"))
                         .process(new MyPreMoveCheckerProcessor()).to("mock:result");
             }
@@ -73,12 +73,10 @@ public class FileConsumerPreMoveTest extends ContextTestSupport {
     public static class MyPreMoveCheckerProcessor implements Processor {
 
         @Override
-        public void process(Exchange exchange) throws Exception {
-            Class<?> cl = getClass();
-            while (cl.getEnclosingClass() != null) {
-                cl = cl.getEnclosingClass();
-            }
-            Path file = TestSupport.testDirectory(cl, false).resolve("work/work-hello.txt");
+        public void process(Exchange exchange) {
+            Path testDirectory = (Path) exchange.getContext().getRegistry()
+                    .lookupByName("testDirectory");
+            Path file = testDirectory.resolve("work/work-hello.txt");
             assertTrue(Files.exists(file), "Pre move file should exist");
         }
     }

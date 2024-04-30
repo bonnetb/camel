@@ -38,6 +38,7 @@ import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -65,7 +66,7 @@ public class KubernetesConfigMapsConsumerIT extends KubernetesTestSupport {
 
     @Test
     @Order(1)
-    public void createConfigMapWithProperties() throws Exception {
+    void createConfigMapWithProperties() {
         configureMock();
 
         Exchange ex = template.request("direct:createConfigmap", exchange -> {
@@ -87,7 +88,7 @@ public class KubernetesConfigMapsConsumerIT extends KubernetesTestSupport {
 
     @Test
     @Order(2)
-    public void createConfigMap() throws Exception {
+    void createConfigMap() {
         configureMock();
 
         Exchange ex = template.request("direct:createConfigmap", exchange -> {
@@ -105,10 +106,33 @@ public class KubernetesConfigMapsConsumerIT extends KubernetesTestSupport {
         assertNotNull(message.getBody());
     }
 
-    @ParameterizedTest
+    @Test
     @Order(3)
+    void updateConfigMap() {
+        configureMock();
+
+        Map<String, String> configMapData = Map.of("test1", "test1");
+        Exchange ex = template.request("direct:updateConfigmap", exchange -> {
+            exchange.getIn().removeHeader(KubernetesConstants.KUBERNETES_CONFIGMAPS_LABELS);
+            exchange.getIn().setHeader(KubernetesConstants.KUBERNETES_NAMESPACE_NAME, "default");
+            exchange.getIn().setHeader(KubernetesConstants.KUBERNETES_CONFIGMAP_NAME, "test1");
+            exchange.getIn().setHeader(KubernetesConstants.KUBERNETES_CONFIGMAP_DATA, configMapData);
+        });
+
+        Message message = ex.getMessage();
+
+        assertNotNull(message);
+        ConfigMap result = ex.getMessage().getBody(ConfigMap.class);
+
+        assertEquals("default", result.getMetadata().getNamespace());
+        assertEquals("test1", result.getMetadata().getName());
+        assertEquals(configMapData, result.getData());
+    }
+
+    @ParameterizedTest
+    @Order(4)
     @ValueSource(strings = { "test", "test1" })
-    public void deleteConfigMaps(String configMapName) throws Exception {
+    void deleteConfigMaps(String configMapName) {
         Exchange ex = template.request("direct:deleteConfigmap", exchange -> {
             exchange.getIn().setHeader(KubernetesConstants.KUBERNETES_NAMESPACE_NAME, "default");
             exchange.getIn().setHeader(KubernetesConstants.KUBERNETES_CONFIGMAP_NAME, configMapName);
@@ -125,12 +149,15 @@ public class KubernetesConfigMapsConsumerIT extends KubernetesTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:createConfigmap")
                         .toF("kubernetes-config-maps://%s?oauthToken=%s&operation=createConfigMap", host,
+                                authToken);
+                from("direct:updateConfigmap")
+                        .toF("kubernetes-config-maps://%s?oauthToken=%s&operation=updateConfigMap", host,
                                 authToken);
 
                 from("direct:deleteConfigmap")
@@ -145,12 +172,12 @@ public class KubernetesConfigMapsConsumerIT extends KubernetesTestSupport {
 
     public class KubernetesProcessor implements Processor {
         @Override
-        public void process(Exchange exchange) throws Exception {
+        public void process(Exchange exchange) {
             Message in = exchange.getIn();
             ConfigMap cm = exchange.getIn().getBody(ConfigMap.class);
 
-            log.info("Got event with configmap name: " + cm.getMetadata().getName() + " and action "
-                     + in.getHeader(KubernetesConstants.KUBERNETES_EVENT_ACTION));
+            log.info("Got event with configmap name: {} and action {}", cm.getMetadata().getName(),
+                    in.getHeader(KubernetesConstants.KUBERNETES_EVENT_ACTION));
         }
     }
 }

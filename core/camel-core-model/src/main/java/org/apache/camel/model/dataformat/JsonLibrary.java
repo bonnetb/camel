@@ -16,8 +16,8 @@
  */
 package org.apache.camel.model.dataformat;
 
-import javax.xml.bind.annotation.XmlEnum;
-import javax.xml.bind.annotation.XmlType;
+import jakarta.xml.bind.annotation.XmlEnum;
+import jakarta.xml.bind.annotation.XmlType;
 
 /**
  * Supported JSON libraries.
@@ -30,8 +30,7 @@ public enum JsonLibrary {
     Gson("gson"),
     Jackson("jackson"),
     Johnzon("johnzon"),
-    Jsonb("jsonb"),
-    XStream("xstreamJson");
+    Jsonb("jsonb");
 
     private final String dataFormatName;
 

@@ -18,15 +18,14 @@ package org.apache.camel.maven.packaging;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
 import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Date;
@@ -38,15 +37,17 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlElementRef;
-import javax.xml.bind.annotation.XmlElements;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlType;
-import javax.xml.bind.annotation.XmlValue;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlElementRef;
+import jakarta.xml.bind.annotation.XmlElementWrapper;
+import jakarta.xml.bind.annotation.XmlElements;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlType;
+import jakarta.xml.bind.annotation.XmlValue;
 
 import org.apache.camel.maven.packaging.generics.GenericsUtil;
+import org.apache.camel.maven.packaging.generics.PackagePluginUtils;
 import org.apache.camel.spi.AsPredicate;
 import org.apache.camel.spi.Metadata;
 import org.apache.camel.tooling.model.EipModel;
@@ -71,8 +72,9 @@ import org.jboss.jandex.AnnotationValue;
 import org.jboss.jandex.ClassInfo;
 import org.jboss.jandex.ClassInfo.NestingType;
 import org.jboss.jandex.DotName;
-import org.jboss.jandex.IndexReader;
 import org.jboss.jandex.IndexView;
+
+import static java.lang.reflect.Modifier.isStatic;
 
 @Mojo(name = "generate-schema", threadSafe = true, requiresDependencyResolution = ResolutionScope.COMPILE_PLUS_RUNTIME,
       defaultPhase = LifecyclePhase.PROCESS_CLASSES)
@@ -80,6 +82,15 @@ public class SchemaGeneratorMojo extends AbstractGeneratorMojo {
 
     public static final DotName XML_ROOT_ELEMENT = DotName.createSimple(XmlRootElement.class.getName());
     public static final DotName XML_TYPE = DotName.createSimple(XmlType.class.getName());
+
+    // special for app package
+    private static final DotName APP_PACKAGE = DotName.createSimple("org.apache.camel.model.app");
+    private static final Map<String, String> APP_NAME_MAPPINGS = Map.of(
+            "BeanConstructorDefinition", "constructor",
+            "BeanConstructorsDefinition", "constructors",
+            "BeanPropertiesDefinition", "properties",
+            "BeanPropertyDefinition", "property",
+            "RegistryBeanDefinition", "bean");
 
     // special when using expression/predicates in the model
     private static final String ONE_OF_TYPE_NAME = "org.apache.camel.model.ExpressionSubElementDefinition";
@@ -150,12 +161,27 @@ public class SchemaGeneratorMojo extends AbstractGeneratorMojo {
                 .filter(cpa -> cpa.target().asClass().name().toString().startsWith("org.apache.camel.model."))
                 .map(cpa -> cpa.target().asClass())
                 .collect(Collectors.toSet());
+
         if (!coreElements.isEmpty()) {
             getLog().info(String.format("Found %d core elements", coreElements.size()));
         }
 
+        // add special for bean DSL in app package
+        Set<ClassInfo> appElements = index.getClassesInPackage(APP_PACKAGE).stream()
+                .filter(cpa -> cpa.hasAnnotation(XML_TYPE))
+                .filter(cpa -> cpa.kind() == Kind.CLASS)
+                .collect(Collectors.toSet());
+
+        if (!coreElements.isEmpty()) {
+            getLog().info(String.format("Found %d app elements", appElements.size()));
+        }
+
+        Set<ClassInfo> classes = new TreeSet<>(Comparator.comparing(ClassInfo::name));
+        classes.addAll(coreElements);
+        classes.addAll(appElements);
+
         // we want them to be sorted
-        for (ClassInfo element : coreElements) {
+        for (ClassInfo element : classes) {
             processModelClass(element);
         }
 
@@ -189,10 +215,26 @@ public class SchemaGeneratorMojo extends AbstractGeneratorMojo {
             return;
         }
 
-        AnnotationValue annotationValue = element.classAnnotation(XML_ROOT_ELEMENT).value("name");
-        String aName = annotationValue != null ? annotationValue.asString() : null;
+        String aName = null;
+        if (element.hasAnnotation(XML_ROOT_ELEMENT)) {
+            AnnotationValue av = element.declaredAnnotation(XML_ROOT_ELEMENT).value("name");
+            aName = av != null ? av.asString() : null;
+        }
         if (Strings.isNullOrEmpty(aName) || "##default".equals(aName)) {
-            aName = element.classAnnotation(XML_TYPE).value("name").asString();
+            if (element.hasAnnotation(XML_TYPE)) {
+                AnnotationValue av = element.declaredAnnotation(XML_TYPE).value("name");
+                aName = av != null ? av.asString() : null;
+            }
+        }
+        if (aName == null) {
+            // special for app package
+            String sn = element.name().withoutPackagePrefix();
+            aName = APP_NAME_MAPPINGS.get(sn);
+        }
+        if (aName == null) {
+            getLog().warn(
+                    "Class is not annotated with @XmlRootElement or @XmlType. Skipping class: " + element.name().toString());
+            return;
         }
         final String name = aName;
 
@@ -207,8 +249,9 @@ public class SchemaGeneratorMojo extends AbstractGeneratorMojo {
         String javaTypeName = element.name().toString();
         Class<?> classElement = loadClass(javaTypeName);
 
-        // gather eip information
+        // gather eip information and what metadata the EIP can store as exchange properties
         EipModel eipModel = findEipModelProperties(classElement, name);
+        findEipModelExchangeProperties(classElement, name, eipModel);
 
         // get endpoint information which is divided into paths and options
         // (though there should really only be one path)
@@ -216,6 +259,11 @@ public class SchemaGeneratorMojo extends AbstractGeneratorMojo {
         findClassProperties(eipOptions, classElement, classElement, "", name);
 
         eipOptions.forEach(eipModel::addOption);
+        eipOptions.forEach(o -> {
+            // compute group based on label for each option
+            String group = EndpointHelper.labelAsGroupName(o.getLabel(), false, false);
+            o.setGroup(group);
+        });
 
         // after we have found all the options then figure out if the model
         // accepts input/output
@@ -226,9 +274,13 @@ public class SchemaGeneratorMojo extends AbstractGeneratorMojo {
         if (Strings.isNullOrEmpty(eipModel.getTitle())) {
             eipModel.setTitle(Strings.asTitle(eipModel.getName()));
         }
-        if (eipModel.isOutput()) {
+        if (!eipModel.isOutput()) {
             // filter out outputs if we do not support it
             eipModel.getOptions().removeIf(o -> "outputs".equals(o.getName()));
+        }
+        if ("route".equals(eipModel.getName())) {
+            // route should not have disabled
+            eipModel.getOptions().removeIf(o -> "disabled".equals(o.getName()));
         }
 
         // write json schema file
@@ -236,19 +288,13 @@ public class SchemaGeneratorMojo extends AbstractGeneratorMojo {
         String json = JsonMapper.createParameterJsonSchema(eipModel);
         updateResource(
                 resourcesOutputDir.toPath(),
-                packageName.replace('.', '/') + "/" + fileName,
+                "META-INF/" + packageName.replace('.', '/') + "/" + fileName,
                 json);
-
     }
 
     private IndexView getIndex() {
         if (indexView == null) {
-            Path output = Paths.get(project.getBuild().getOutputDirectory());
-            try (InputStream is = Files.newInputStream(output.resolve("META-INF/jandex.idx"))) {
-                indexView = new IndexReader(is).read();
-            } catch (IOException e) {
-                throw new RuntimeException("IOException: " + e.getMessage(), e);
-            }
+            indexView = PackagePluginUtils.readJandexIndexQuietly(project);
         }
         return indexView;
     }
@@ -288,6 +334,57 @@ public class SchemaGeneratorMojo extends AbstractGeneratorMojo {
         }
 
         return model;
+    }
+
+    protected void findEipModelExchangeProperties(Class<?> classElement, String name, EipModel eipModel) {
+        // load Exchange and find options for this EIP
+        Class<?> clazz;
+        if ("circuitBreaker".equals(name)) {
+            // special for circuit breaker
+            clazz = loadClass("org.apache.camel.spi.CircuitBreakerConstants");
+        } else {
+            clazz = loadClass("org.apache.camel.Exchange");
+        }
+        for (Field field : clazz.getFields()) {
+            if ((isStatic(field.getModifiers()) && field.getType() == String.class)
+                    && field.isAnnotationPresent(Metadata.class)) {
+                Metadata metadata = field.getAnnotation(Metadata.class);
+                String labels = metadata.label();
+                for (String lab : labels.split(",")) {
+                    if (lab.equals(name)) {
+                        EipOptionModel o = new EipOptionModel();
+                        o.setKind("exchangeProperty");
+                        // SPLIT_INDEX => CamelSplitIndex
+                        String n = field.getName().toLowerCase().replace('_', '-');
+                        String n2 = SchemaHelper.dashToCamelCase(n);
+                        String valueName = "Camel" + Character.toUpperCase(n2.charAt(0)) + n2.substring(1);
+                        o.setName(valueName);
+                        o.setDescription(metadata.description());
+                        if (!metadata.displayName().isEmpty()) {
+                            o.setDisplayName(metadata.displayName());
+                        } else {
+                            o.setDisplayName(Strings.asTitle(o.getName().substring(5)));
+                        }
+                        o.setRequired(metadata.required());
+                        o.setDefaultValue(metadata.defaultValue());
+                        o.setDeprecated(field.isAnnotationPresent(Deprecated.class));
+                        if (!metadata.deprecationNote().isEmpty()) {
+                            o.setDeprecationNote(metadata.deprecationNote());
+                        }
+                        o.setSecret(metadata.secret());
+                        o.setJavaType(metadata.javaType());
+                        // special if the property is for input (such as AGGREGATION_COMPLETE_CURRENT_GROUP)
+                        if (labels.startsWith("consumer,")) {
+                            o.setLabel("consumer");
+                        } else {
+                            o.setLabel("producer");
+                        }
+                        eipModel.addExchangeProperty(o);
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     protected void findClassProperties(
@@ -332,7 +429,7 @@ public class SchemaGeneratorMojo extends AbstractGeneratorMojo {
                     processRoutes(originalClassType, fieldElement, fieldName, eipOptions);
 
                     // special for outputs
-                    processOutputs(originalClassType, elementRef, fieldElement, fieldName, eipOptions, prefix);
+                    processOutputs(originalClassType, elementRef, fieldElement, null, fieldName, eipOptions, prefix);
 
                     // special for when clauses (choice eip)
                     processRefWhenClauses(originalClassType, elementRef, fieldElement, fieldName, eipOptions, prefix);
@@ -347,6 +444,24 @@ public class SchemaGeneratorMojo extends AbstractGeneratorMojo {
                     processRefExpression(originalClassType, classElement, elementRef, fieldElement, fieldName, eipOptions,
                             prefix);
 
+                }
+            }
+
+            for (Method methodElement : classElement.getDeclaredMethods()) {
+                String methodName = methodElement.getName();
+                if (methodName.startsWith("set")) {
+                    methodName = Character.toLowerCase(methodName.charAt(3)) + methodName.substring(4);
+                }
+
+                // special for eips which has outputs or requires an expressions
+                XmlElementRef elementRef = methodElement.getAnnotation(XmlElementRef.class);
+                if (elementRef != null) {
+                    if ("RouteDefinition".equals(classElement.getSimpleName())) {
+                        // special for route as we handle this specially
+                        continue;
+                    }
+                    // special for outputs
+                    processOutputs(originalClassType, elementRef, null, methodElement, methodName, eipOptions, prefix);
                 }
             }
 
@@ -422,9 +537,7 @@ public class SchemaGeneratorMojo extends AbstractGeneratorMojo {
             isEnum = fieldTypeElement.isEnum();
             if (isEnum) {
                 for (Object val : fieldTypeElement.getEnumConstants()) {
-                    // make the enum nicely human readable instead of typically upper cased
                     String str = val.toString();
-                    str = SchemaHelper.camelCaseToDash(str);
                     enums.add(str);
                 }
             }
@@ -455,15 +568,14 @@ public class SchemaGeneratorMojo extends AbstractGeneratorMojo {
     private void processValue(
             Class<?> originalClassType, Class<?> classElement, Field fieldElement,
             String fieldName, Set<EipOptionModel> eipOptions, String prefix, String modelName) {
+
         // XmlValue has no name attribute
         String name = fieldName;
 
-        if ("method".equals(modelName) || "tokenize".equals(modelName) || "xtokenize".equals(modelName)) {
+        if ("expression".equals(name) && !expressionRequired(modelName)) {
             // skip expression attribute on these three languages as they are
             // solely configured using attributes
-            if ("expression".equals(name)) {
-                return;
-            }
+            return;
         }
 
         name = prefix + name;
@@ -511,10 +623,8 @@ public class SchemaGeneratorMojo extends AbstractGeneratorMojo {
             Set<EipOptionModel> eipOptions, String prefix) {
         String fieldName = fieldElement.getName();
         if (element != null) {
-
             Metadata metadata = fieldElement.getAnnotation(Metadata.class);
-
-            String name = fetchName(element.name(), fieldName, prefix);
+            String name = fetchElementName(element, fieldElement, prefix);
             Class<?> fieldTypeElement = fieldElement.getType();
             String fieldTypeName = getTypeName(GenericsUtil.resolveType(originalClassType, fieldElement));
             boolean isDuration = false;
@@ -553,9 +663,7 @@ public class SchemaGeneratorMojo extends AbstractGeneratorMojo {
                 isEnum = fieldTypeElement.isEnum();
                 if (isEnum) {
                     for (Object val : fieldTypeElement.getEnumConstants()) {
-                        // make the enum nicely human readable instead of typically upper cased
                         String str = val.toString();
-                        str = SchemaHelper.camelCaseToDash(str);
                         enums.add(str);
                     }
                 }
@@ -652,7 +760,35 @@ public class SchemaGeneratorMojo extends AbstractGeneratorMojo {
                         false, null, null, false, false);
         eipOptions.add(ep);
 
-        // group
+        // nodePrefixId
+        docComment = findJavaDoc(null, "nodePrefixId", null, classElement, true);
+        ep = createOption("nodePrefixId", "Node Prefix Id", "attribute", "java.lang.String", false, "", "", docComment, false,
+                null,
+                false, null, null, false, false);
+        eipOptions.add(ep);
+
+        // routeConfigurationId
+        docComment = findJavaDoc(null, "routeConfigurationId", null, classElement, true);
+        ep = createOption("routeConfigurationId", "Route Configuration Id", "attribute", "java.lang.String", false, "", "",
+                docComment, false, null,
+                false, null, null, false, false);
+        eipOptions.add(ep);
+
+        // autoStartup
+        docComment = findJavaDoc(null, "autoStartup", null, classElement, true);
+        ep = createOption("autoStartup", "Auto Startup", "attribute", "java.lang.String", false, "true", "", docComment, false,
+                null, false, null, null, false, false);
+        eipOptions.add(ep);
+
+        // startupOrder
+        docComment = findJavaDoc(null, "startupOrder", null, classElement, true);
+        ep = createOption("startupOrder", "Startup Order", "attribute", "java.lang.Integer", false, "", "advanced", docComment,
+                false,
+                null,
+                false, null, null, false, false);
+        eipOptions.add(ep);
+
+        // stream cache
         docComment = findJavaDoc(null, "streamCache", null, classElement, true);
         ep = createOption("streamCache", "Stream Cache", "attribute", "java.lang.String", false, "", "", docComment, false,
                 null,
@@ -668,7 +804,7 @@ public class SchemaGeneratorMojo extends AbstractGeneratorMojo {
 
         // message history
         docComment = findJavaDoc(null, "messageHistory", null, classElement, true);
-        ep = createOption("messageHistory", "Message History", "attribute", "java.lang.String", false, "true", "", docComment,
+        ep = createOption("messageHistory", "Message History", "attribute", "java.lang.String", false, "", "", docComment,
                 false, null, false, null, null, false, false);
         eipOptions.add(ep);
 
@@ -680,21 +816,9 @@ public class SchemaGeneratorMojo extends AbstractGeneratorMojo {
 
         // delayer
         docComment = findJavaDoc(null, "delayer", null, classElement, true);
-        ep = createOption("delayer", "Delayer", "attribute", "java.lang.String", false, "", "", docComment, false, null, false,
+        ep = createOption("delayer", "Delayer", "attribute", "java.lang.String", false, "advanced", "", docComment, false, null,
+                false,
                 null, null, false, true);
-        eipOptions.add(ep);
-
-        // autoStartup
-        docComment = findJavaDoc(null, "autoStartup", null, classElement, true);
-        ep = createOption("autoStartup", "Auto Startup", "attribute", "java.lang.String", false, "true", "", docComment, false,
-                null, false, null, null, false, false);
-        eipOptions.add(ep);
-
-        // startupOrder
-        docComment = findJavaDoc(null, "startupOrder", null, classElement, true);
-        ep = createOption("startupOrder", "Startup Order", "attribute", "java.lang.Integer", false, "", "", docComment, false,
-                null,
-                false, null, null, false, false);
         eipOptions.add(ep);
 
         // errorHandlerRef
@@ -716,7 +840,8 @@ public class SchemaGeneratorMojo extends AbstractGeneratorMojo {
         enums.add("Default");
         enums.add("Defer");
         docComment = findJavaDoc(null, "shutdownRoute", "Default", classElement, true);
-        ep = createOption("shutdownRoute", "Shutdown Route", "attribute", "org.apache.camel.ShutdownRoute", false, "", "",
+        ep = createOption("shutdownRoute", "Shutdown Route", "attribute", "org.apache.camel.ShutdownRoute", false, "",
+                "advanced",
                 docComment, false, null, true, enums, null, false, false);
         eipOptions.add(ep);
 
@@ -726,8 +851,37 @@ public class SchemaGeneratorMojo extends AbstractGeneratorMojo {
         enums.add("CompleteAllTasks");
         docComment = findJavaDoc(null, "shutdownRunningTask", "CompleteCurrentTaskOnly", classElement, true);
         ep = createOption("shutdownRunningTask", "Shutdown Running Task", "attribute", "org.apache.camel.ShutdownRunningTask",
-                false, "", "", docComment, false, null, true, enums,
+                false, "", "advanced", docComment, false, null, true, enums,
                 null, false, false);
+        eipOptions.add(ep);
+
+        // precondition
+        docComment = findJavaDoc(null, "precondition", null, classElement, true);
+        ep = createOption("precondition", "Precondition", "attribute", "java.lang.String", false, "", "advanced", docComment,
+                false,
+                null, false, null, null, false, false);
+        eipOptions.add(ep);
+
+        // error handler
+        docComment = findJavaDoc(null, "errorHandler", null, classElement, true);
+        ep = createOption("errorHandler", "Error Handler", "element", "org.apache.camel.model.ErrorHandlerDefinition", false,
+                "",
+                "error", docComment, false,
+                null, false, null, null, false, false);
+        eipOptions.add(ep);
+
+        // input type
+        docComment = findJavaDoc(null, "inputType", null, classElement, true);
+        ep = createOption("inputType", "Input Type", "element", "org.apache.camel.model.InputTypeDefinition", false, "",
+                "advanced", docComment, false,
+                null, false, null, null, false, false);
+        eipOptions.add(ep);
+
+        // output type
+        docComment = findJavaDoc(null, "outputType", null, classElement, true);
+        ep = createOption("outputType", "Output Type", "element", "org.apache.camel.model.OutputTypeDefinition", false, "",
+                "advanced", docComment, false,
+                null, false, null, null, false, false);
         eipOptions.add(ep);
 
         // input
@@ -777,7 +931,7 @@ public class SchemaGeneratorMojo extends AbstractGeneratorMojo {
 
         // description
         docComment = findJavaDoc(null, "description", null, classElement, true);
-        ep = createOption("description", "Description", "element", "org.apache.camel.model.DescriptionDefinition", false, "",
+        ep = createOption("description", "Description", "attribute", "java.lang.String", false, "",
                 "",
                 docComment, false, null, false, null, null,
                 false, false);
@@ -832,11 +986,16 @@ public class SchemaGeneratorMojo extends AbstractGeneratorMojo {
      */
     private void processOutputs(
             Class<?> originalClassType, XmlElementRef elementRef,
-            Field fieldElement, String fieldName, Set<EipOptionModel> eipOptions, String prefix) {
+            Field fieldElement, Method methodElement, String fieldOrMethodName, Set<EipOptionModel> eipOptions, String prefix) {
 
-        if ("outputs".equals(fieldName) && supportOutputs(originalClassType)) {
-            String name = fetchName(elementRef.name(), fieldName, prefix);
-            String fieldTypeName = getTypeName(GenericsUtil.resolveType(originalClassType, fieldElement));
+        if ("outputs".equals(fieldOrMethodName) && supportOutputs(originalClassType)) {
+            String name = fetchName(elementRef.name(), fieldOrMethodName, prefix);
+            String typeName;
+            if (fieldElement != null) {
+                typeName = getTypeName(GenericsUtil.resolveType(originalClassType, fieldElement));
+            } else {
+                typeName = getTypeName(GenericsUtil.resolveSetterType(originalClassType, methodElement));
+            }
 
             // gather oneOf which extends any of the output base classes
             Set<String> oneOfTypes = getOneOfs(ONE_OF_OUTPUTS);
@@ -844,11 +1003,18 @@ public class SchemaGeneratorMojo extends AbstractGeneratorMojo {
             // remove some types which are not intended as an output in eips
             oneOfTypes.remove("route");
             String displayName = null;
-            Metadata metadata = fieldElement.getAnnotation(Metadata.class);
+            Metadata metadata = fieldElement != null ? fieldElement.getAnnotation(Metadata.class) : null;
+            if (metadata == null) {
+                metadata = methodElement != null ? methodElement.getAnnotation(Metadata.class) : null;
+            }
             if (metadata != null) {
                 displayName = metadata.displayName();
             }
-            boolean deprecated = fieldElement.getAnnotation(Deprecated.class) != null;
+            boolean deprecated = false;
+            if (fieldElement != null && fieldElement.getAnnotation(Deprecated.class) != null
+                    || methodElement != null && methodElement.getAnnotation(Deprecated.class) != null) {
+                deprecated = true;
+            }
             String deprecationNote = null;
             if (metadata != null) {
                 deprecationNote = metadata.deprecationNote();
@@ -860,7 +1026,7 @@ public class SchemaGeneratorMojo extends AbstractGeneratorMojo {
 
             String kind = "element";
             EipOptionModel ep
-                    = createOption(name, displayName, kind, fieldTypeName, true, "", label, "", deprecated, deprecationNote,
+                    = createOption(name, displayName, kind, typeName, true, "", label, "", deprecated, deprecationNote,
                             false, null, oneOfTypes, false, false);
             eipOptions.add(ep);
         }
@@ -949,8 +1115,10 @@ public class SchemaGeneratorMojo extends AbstractGeneratorMojo {
             }
 
             final String kind = "expression";
-            EipOptionModel ep = createOption(name, displayName, kind, fieldTypeName, true, "", label, docComment, deprecated,
-                    deprecationNote, false, null, oneOfTypes, asPredicate, false);
+            final boolean required = expressionRequired(name);
+            EipOptionModel ep
+                    = createOption(name, displayName, kind, fieldTypeName, required, "", label, docComment, deprecated,
+                            deprecationNote, false, null, oneOfTypes, asPredicate, false);
             eipOptions.add(ep);
         }
     }
@@ -1025,6 +1193,24 @@ public class SchemaGeneratorMojo extends AbstractGeneratorMojo {
         return name;
     }
 
+    private String fetchElementName(XmlElement element, Field fieldElement, String prefix) {
+        String fieldName = fieldElement.getName();
+        String name = element.name();
+        if (Strings.isNullOrEmpty(name) || "##default".equals(name)) {
+            name = fieldName;
+        }
+        // special for value definition which can be wrapped
+        if ("value".equals(name)) {
+            XmlElementWrapper wrapper = fieldElement.getAnnotation(XmlElementWrapper.class);
+            String n = wrapper.name();
+            if (!"##default".equals(n)) {
+                name = n;
+            }
+        }
+        name = prefix + name;
+        return name;
+    }
+
     /**
      * Whether the class supports outputs.
      * <p/>
@@ -1050,6 +1236,15 @@ public class SchemaGeneratorMojo extends AbstractGeneratorMojo {
         }
 
         return defaultValue;
+    }
+
+    private boolean expressionRequired(String modelName) {
+        if ("method".equals(modelName) || "tokenize".equals(modelName)) {
+            // skip expression attribute on these two languages as they are
+            // solely configured using attributes
+            return false;
+        }
+        return true;
     }
 
     private boolean findRequired(Field fieldElement, boolean defaultValue) {
@@ -1222,7 +1417,10 @@ public class SchemaGeneratorMojo extends AbstractGeneratorMojo {
         try {
             Path srcDir = project.getBasedir().toPath().resolve("src/main/java");
             Path file = srcDir.resolve(className.replace('.', '/') + ".java");
-            return (JavaClassSource) Roaster.parse(file.toFile());
+
+            String fileContent = new String(Files.readAllBytes(file));
+
+            return (JavaClassSource) Roaster.parse(fileContent);
         } catch (IOException e) {
             throw new RuntimeException("Unable to parse java class " + className, e);
         }
@@ -1370,19 +1568,21 @@ public class SchemaGeneratorMojo extends AbstractGeneratorMojo {
                 return 20;
             }
 
-            // these should be first
+            // these should be in top
             if ("expression".equals(name)) {
                 return 10;
             }
 
-            // these should be last
-            if ("description".equals(name)) {
-                return -10;
+            // these should be first
+            if ("disabled".equals(name)) {
+                return 98;
+            } else if ("description".equals(name)) {
+                return 99;
             } else if ("id".equals(name)) {
-                return -9;
+                return 100;
             } else if ("pattern".equals(name) && "to".equals(model.getName())) {
                 // and pattern only for the to model
-                return -8;
+                return -10;
             }
             return 0;
         }

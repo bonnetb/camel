@@ -17,21 +17,18 @@
 
 package org.apache.camel.component.kafka.consumer.support;
 
-import org.apache.camel.Offset;
-import org.apache.camel.Resumable;
-import org.apache.camel.resume.Offsets;
+import org.apache.camel.resume.Offset;
+import org.apache.camel.resume.OffsetKey;
+import org.apache.camel.resume.Resumable;
+import org.apache.camel.support.resume.OffsetKeys;
+import org.apache.camel.support.resume.Offsets;
 
-public class KafkaResumable implements Resumable<String, String> {
-    private String partition;
-    private String offset;
+public class KafkaResumable implements Resumable {
+    private final String partition;
+    private final String offset;
 
     public KafkaResumable(String partition, String offset) {
         this.partition = partition;
-        this.offset = offset;
-    }
-
-    @Override
-    public void updateLastOffset(String offset) {
         this.offset = offset;
     }
 
@@ -41,7 +38,7 @@ public class KafkaResumable implements Resumable<String, String> {
     }
 
     @Override
-    public String getAddressable() {
-        return partition;
+    public OffsetKey<?> getOffsetKey() {
+        return OffsetKeys.unmodifiableOf(partition);
     }
 }

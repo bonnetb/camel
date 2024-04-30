@@ -16,45 +16,63 @@
  */
 package org.apache.camel.component.jms.async;
 
-import javax.jms.ConnectionFactory;
-
 import org.apache.camel.CamelContext;
+import org.apache.camel.ConsumerTemplate;
+import org.apache.camel.ProducerTemplate;
 import org.apache.camel.builder.RouteBuilder;
-import org.apache.camel.component.jms.CamelJmsTestHelper;
-import org.apache.camel.test.junit5.CamelTestSupport;
-import org.junit.jupiter.api.Test;
+import org.apache.camel.component.jms.AbstractJMSTest;
+import org.apache.camel.component.mock.MockEndpoint;
+import org.apache.camel.test.infra.core.CamelContextExtension;
+import org.apache.camel.test.infra.core.TransientCamelContextExtension;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.RepeatedTest;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
-import static org.apache.camel.component.jms.JmsComponent.jmsComponentAutoAcknowledge;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
-public class AsyncJmsProducerTest extends CamelTestSupport {
+public class AsyncJmsProducerTest extends AbstractJMSTest {
 
+    @Order(2)
+    @RegisterExtension
+    public static CamelContextExtension camelContextExtension = new TransientCamelContextExtension();
     private static String beforeThreadName;
     private static String afterThreadName;
+    protected CamelContext context;
+    protected ProducerTemplate template;
+    protected ConsumerTemplate consumer;
 
-    @Test
+    private MockEndpoint mockBefore;
+    private MockEndpoint mockAfter;
+    private MockEndpoint mockResult;
+
+    @BeforeEach
+    void setupMocks() {
+        mockBefore = getMockEndpoint("mock:before");
+        mockAfter = getMockEndpoint("mock:after");
+        mockResult = getMockEndpoint("mock:result");
+
+        mockBefore.expectedBodiesReceived("Hello Camel");
+        mockAfter.expectedBodiesReceived("Bye Camel");
+        mockResult.expectedBodiesReceived("Bye Camel");
+    }
+
+    @RepeatedTest(5)
     public void testAsyncEndpoint() throws Exception {
-        getMockEndpoint("mock:before").expectedBodiesReceived("Hello Camel");
-        getMockEndpoint("mock:after").expectedBodiesReceived("Bye Camel");
-        getMockEndpoint("mock:result").expectedBodiesReceived("Bye Camel");
-
         String reply = template.requestBody("direct:start", "Hello Camel", String.class);
         assertEquals("Bye Camel", reply);
 
-        assertMockEndpointsSatisfied();
+        mockBefore.assertIsSatisfied();
+        mockAfter.assertIsSatisfied();
+        mockResult.assertIsSatisfied();
 
         assertFalse(beforeThreadName.equalsIgnoreCase(afterThreadName), "Should use different threads");
     }
 
     @Override
-    protected CamelContext createCamelContext() throws Exception {
-        CamelContext camelContext = super.createCamelContext();
-
-        ConnectionFactory connectionFactory = CamelJmsTestHelper.createConnectionFactory();
-        camelContext.addComponent("activemq", jmsComponentAutoAcknowledge(connectionFactory));
-
-        return camelContext;
+    protected String getComponentName() {
+        return "activemq";
     }
 
     @Override
@@ -66,15 +84,27 @@ public class AsyncJmsProducerTest extends CamelTestSupport {
                         .to("mock:before")
                         .to("log:before")
                         .process(exchange -> beforeThreadName = Thread.currentThread().getName())
-                        .to("activemq:queue:foo")
+                        .to("activemq:queue:AsyncJmsProducerTest")
                         .process(exchange -> afterThreadName = Thread.currentThread().getName())
                         .to("log:after")
                         .to("mock:after")
                         .to("mock:result");
 
-                from("activemq:queue:foo")
+                from("activemq:queue:AsyncJmsProducerTest")
                         .transform(constant("Bye Camel"));
             }
         };
+    }
+
+    @Override
+    public CamelContextExtension getCamelContextExtension() {
+        return camelContextExtension;
+    }
+
+    @BeforeEach
+    void setUpRequirements() {
+        context = camelContextExtension.getContext();
+        template = camelContextExtension.getProducerTemplate();
+        consumer = camelContextExtension.getConsumerTemplate();
     }
 }

@@ -51,20 +51,20 @@ public class OnCompletionGlobalTest extends ContextTestSupport {
         mock.expectedMessageCount(0);
 
         try {
-            template.sendBody("direct:start", "Kabom");
+            template.sendBody("direct:start", "Kaboom");
             fail("Should throw exception");
         } catch (CamelExecutionException e) {
-            assertEquals("Kabom", e.getCause().getMessage());
+            assertEquals("Kaboom", e.getCause().getMessage());
         }
 
         assertMockEndpointsSatisfied();
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 // START SNIPPET: e1
                 // define a global on completion that is invoked when the
                 // exchange is complete
@@ -82,9 +82,9 @@ public class OnCompletionGlobalTest extends ContextTestSupport {
         }
 
         @Override
-        public void process(Exchange exchange) throws Exception {
-            if ("Kabom".equals(exchange.getIn().getBody())) {
-                throw new IllegalArgumentException("Kabom");
+        public void process(Exchange exchange) {
+            if ("Kaboom".equals(exchange.getIn().getBody())) {
+                throw new IllegalArgumentException("Kaboom");
             }
             exchange.getIn().setBody("Bye World");
         }

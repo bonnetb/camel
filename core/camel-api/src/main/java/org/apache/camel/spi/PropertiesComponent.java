@@ -23,6 +23,7 @@ import java.util.Properties;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import org.apache.camel.PropertiesLookupListener;
 import org.apache.camel.StaticService;
 
 /**
@@ -163,6 +164,11 @@ public interface PropertiesComponent extends StaticService {
     void addLocation(String location);
 
     /**
+     * Gets the {@link PropertiesSourceFactory}.
+     */
+    PropertiesSourceFactory getPropertiesSourceFactory();
+
+    /**
      * Adds a custom {@link PropertiesSource} to use as source for loading and/or looking up property values.
      */
     void addPropertiesSource(PropertiesSource propertiesSource);
@@ -176,14 +182,44 @@ public interface PropertiesComponent extends StaticService {
     PropertiesSource getPropertiesSource(String name);
 
     /**
+     * Gets the properties sources
+     */
+    List<PropertiesSource> getPropertiesSources();
+
+    /**
      * Registers the {@link PropertiesFunction} as a function to this component.
      */
     void addPropertiesFunction(PropertiesFunction function);
 
     /**
+     * Gets the {@link PropertiesFunction} by the given name
+     *
+     * @param  name the function name
+     * @return      the function or null if no function exists
+     */
+    PropertiesFunction getPropertiesFunction(String name);
+
+    /**
+     * Is there a {@link PropertiesFunction} with the given name?
+     */
+    boolean hasPropertiesFunction(String name);
+
+    /**
      * Whether to silently ignore if a location cannot be located, such as a properties file not found.
      */
     void setIgnoreMissingLocation(boolean ignoreMissingLocation);
+
+    /**
+     * Whether to silently ignore if a property cannot be resolved (i.e. all properties is marked as optional), and
+     * return the value as-is.
+     */
+    void setIgnoreMissingProperty(boolean ignoreMissingProperty);
+
+    /**
+     * Whether to support nested property placeholders. A nested placeholder, means that a placeholder, has also a
+     * placeholder, that should be resolved (recursively).
+     */
+    void setNestedPlaceholder(boolean nestedPlaceholder);
 
     /**
      * Sets initial properties which will be added before any property locations are loaded.
@@ -251,5 +287,19 @@ public interface PropertiesComponent extends StaticService {
      * @return         true if some properties was reloaded
      */
     boolean reloadProperties(String pattern);
+
+    /**
+     * Filters the given list of properties, by removing properties that are already loaded and have same key and value.
+     *
+     * If all properties are not changed then the properties will become empty.
+     *
+     * @param properties the given properties to filter.
+     */
+    void keepOnlyChangeProperties(Properties properties);
+
+    /**
+     * Adds the {@link PropertiesLookupListener}.
+     */
+    void addPropertiesLookupListener(PropertiesLookupListener propertiesLookupListener);
 
 }

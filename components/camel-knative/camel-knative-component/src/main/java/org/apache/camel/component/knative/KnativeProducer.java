@@ -19,19 +19,31 @@ package org.apache.camel.component.knative;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.camel.AsyncCallback;
 import org.apache.camel.AsyncProcessor;
+import org.apache.camel.CamelContext;
 import org.apache.camel.Endpoint;
 import org.apache.camel.Exchange;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.Processor;
+import org.apache.camel.health.HealthCheck;
+import org.apache.camel.health.HealthCheckHelper;
+import org.apache.camel.health.HealthCheckResultBuilder;
+import org.apache.camel.health.WritableHealthCheckRepository;
+import org.apache.camel.impl.health.AbstractHealthCheck;
+import org.apache.camel.impl.health.ProducersHealthCheckRepository;
 import org.apache.camel.support.AsyncProcessorConverterHelper;
 import org.apache.camel.support.DefaultAsyncProducer;
+import org.apache.camel.support.PluginHelper;
 import org.apache.camel.support.service.ServiceHelper;
+import org.apache.camel.util.ObjectHelper;
 
 public class KnativeProducer extends DefaultAsyncProducer {
     final AsyncProcessor processor;
+
+    private WritableHealthCheckRepository healthCheckRepository;
+    private HealthCheck producerHealthCheck;
 
     public KnativeProducer(Endpoint endpoint, Processor processor, Processor... processors) throws Exception {
         super(endpoint);
@@ -40,10 +52,19 @@ public class KnativeProducer extends DefaultAsyncProducer {
         elements.add(processor);
         Collections.addAll(elements, processors);
 
-        ExtendedCamelContext ecc = getEndpoint().getCamelContext().adapt(ExtendedCamelContext.class);
-        Processor pipeline = ecc.getProcessorFactory().createProcessor(ecc, "Pipeline", new Object[] { elements });
+        CamelContext camelContext = getEndpoint().getCamelContext();
+
+        Processor pipeline = PluginHelper.getProcessorFactory(camelContext).createProcessor(
+                camelContext,
+                "Pipeline",
+                new Object[] { elements });
 
         this.processor = AsyncProcessorConverterHelper.convert(pipeline);
+    }
+
+    @Override
+    public KnativeEndpoint getEndpoint() {
+        return (KnativeEndpoint) super.getEndpoint();
     }
 
     @Override
@@ -53,11 +74,31 @@ public class KnativeProducer extends DefaultAsyncProducer {
 
     @Override
     protected void doStart() throws Exception {
+        if (getEndpoint().getConfiguration().getSinkBinding() != null) {
+            // health-check is optional so discover and resolve
+            healthCheckRepository = HealthCheckHelper.getHealthCheckRepository(
+                    getEndpoint().getCamelContext(),
+                    ProducersHealthCheckRepository.REPOSITORY_ID,
+                    WritableHealthCheckRepository.class);
+
+            if (healthCheckRepository != null) {
+                producerHealthCheck = new SinkBindingHealthCheck(getEndpoint());
+                producerHealthCheck.setEnabled(getEndpoint().getComponent().isHealthCheckProducerEnabled());
+
+                healthCheckRepository.addHealthCheck(producerHealthCheck);
+            }
+        }
+
         ServiceHelper.startService(processor);
     }
 
     @Override
     protected void doStop() throws Exception {
+        if (healthCheckRepository != null && producerHealthCheck != null) {
+            healthCheckRepository.removeHealthCheck(producerHealthCheck);
+            producerHealthCheck = null;
+        }
+
         ServiceHelper.stopService(processor);
     }
 
@@ -74,5 +115,28 @@ public class KnativeProducer extends DefaultAsyncProducer {
     @Override
     protected void doShutdown() throws Exception {
         ServiceHelper.stopAndShutdownService(processor);
+    }
+
+    public static class SinkBindingHealthCheck extends AbstractHealthCheck {
+        private final KnativeEndpoint endpoint;
+
+        public SinkBindingHealthCheck(KnativeEndpoint endpoint) {
+            super(endpoint.getId());
+
+            this.endpoint = endpoint;
+        }
+
+        @Override
+        protected void doCall(HealthCheckResultBuilder builder, Map<String, Object> options) {
+            final String kSinkUrl = endpoint.getCamelContext().resolvePropertyPlaceholders("{{k.sink:}}");
+
+            if (ObjectHelper.isNotEmpty(kSinkUrl)) {
+                builder.detail("K_SINK", kSinkUrl);
+                builder.up();
+            } else {
+                builder.message("K_SINK not defined");
+                builder.down();
+            }
+        }
     }
 }

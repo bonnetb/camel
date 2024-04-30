@@ -24,16 +24,12 @@ import org.apache.camel.spi.Metadata;
 import org.apache.camel.spi.annotations.Component;
 import org.apache.camel.support.DefaultComponent;
 import org.apache.camel.util.ObjectHelper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Azure CosmosDB component
  */
 @Component("azure-cosmosdb")
 public class CosmosDbComponent extends DefaultComponent {
-
-    private static final Logger LOG = LoggerFactory.getLogger(CosmosDbComponent.class);
 
     @Metadata
     private CosmosDbConfiguration configuration = new CosmosDbConfiguration();
@@ -51,7 +47,7 @@ public class CosmosDbComponent extends DefaultComponent {
         final CosmosDbConfiguration configuration
                 = this.configuration != null ? this.configuration.copy() : new CosmosDbConfiguration();
 
-        if (ObjectHelper.isNotEmpty(remaining) && remaining.trim().length() > 0) {
+        if (ObjectHelper.isNotEmpty(remaining) && !remaining.isBlank()) {
             final String[] parts = remaining.split("/");
 
             // only database name is being set
@@ -85,9 +81,6 @@ public class CosmosDbComponent extends DefaultComponent {
         if (configuration.getCosmosAsyncClient() == null) {
             if (ObjectHelper.isEmpty(configuration.getDatabaseEndpoint())) {
                 throw new IllegalArgumentException("Azure CosmosDB database endpoint must be specified.");
-            }
-            if (ObjectHelper.isEmpty(configuration.getAccountKey())) {
-                throw new IllegalArgumentException("Azure CosmosDB account key must be specified.");
             }
         }
     }

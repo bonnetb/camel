@@ -28,19 +28,19 @@ import static org.junit.jupiter.api.Assertions.fail;
 public class RefTest extends LanguageTestSupport {
 
     @Override
-    protected Registry createRegistry() throws Exception {
-        Registry jndi = super.createRegistry();
+    protected Registry createCamelRegistry() throws Exception {
+        Registry jndi = super.createCamelRegistry();
         jndi.bind("myExp", new MyExpression());
         return jndi;
     }
 
     @Test
-    public void testRefExpressions() throws Exception {
+    public void testRefExpressions() {
         assertExpression("myExp", "Hello World");
     }
 
     @Test
-    public void testRefExpressionsNotFound() throws Exception {
+    public void testRefExpressionsNotFound() {
         try {
             assertExpression("foo", "Hello World");
             fail("Should have thrown exception");
@@ -50,7 +50,24 @@ public class RefTest extends LanguageTestSupport {
     }
 
     @Test
-    public void testPredicates() throws Exception {
+    public void testRefDynamicExpressions() {
+        exchange.getMessage().setHeader("foo", "myExp");
+        assertExpression("${header.foo}", "Hello World");
+    }
+
+    @Test
+    public void testRefDynamicExpressionsNotFound() {
+        exchange.getMessage().setHeader("foo", "myExp2");
+        try {
+            assertExpression("${header.foo}", "Hello World");
+            fail("Should have thrown exception");
+        } catch (IllegalArgumentException e) {
+            assertEquals("Cannot find expression or predicate in registry with ref: myExp2", e.getMessage());
+        }
+    }
+
+    @Test
+    public void testPredicates() {
         assertPredicate("myExp");
     }
 

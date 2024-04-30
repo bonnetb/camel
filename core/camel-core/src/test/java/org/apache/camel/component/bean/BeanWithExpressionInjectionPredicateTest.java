@@ -23,29 +23,31 @@ import org.apache.camel.spi.Registry;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class BeanWithExpressionInjectionPredicateTest extends ContextTestSupport {
-    protected MyBean myBean = new MyBean();
+    protected final MyBean myBean = new MyBean();
 
     @Test
-    public void testSendMessage() throws Exception {
+    public void testSendMessage() {
         template.sendBody("direct:in", "Hello");
 
         assertEquals("Hello", myBean.body);
-        assertEquals(false, myBean.foo);
+        assertFalse(myBean.foo);
     }
 
     @Test
-    public void testSendMessageWithFoo() throws Exception {
+    public void testSendMessageWithFoo() {
         template.sendBodyAndHeader("direct:in", "Hello", "foo", 123);
 
         assertEquals("Hello", myBean.body);
-        assertEquals(true, myBean.foo);
+        assertTrue(myBean.foo);
     }
 
     @Override
-    protected Registry createRegistry() throws Exception {
-        Registry answer = super.createRegistry();
+    protected Registry createCamelRegistry() throws Exception {
+        Registry answer = super.createCamelRegistry();
         answer.bind("myBean", myBean);
         return answer;
     }

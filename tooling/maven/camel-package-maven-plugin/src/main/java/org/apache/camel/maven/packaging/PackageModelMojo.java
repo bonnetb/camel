@@ -19,7 +19,6 @@ package org.apache.camel.maven.packaging;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.camel.tooling.util.PackageHelper;
@@ -67,13 +66,15 @@ public class PackageModelMojo extends AbstractGeneratorMojo {
         // find all json files in camel-core
         List<String> models;
         try (Stream<Path> jsonFiles
-                = PackageHelper.findJsonFiles(buildDir.toPath().resolve("classes/org/apache/camel/model"))) {
+                = PackageHelper.findJsonFiles(buildDir.toPath().resolve("classes/META-INF/org/apache/camel/model"))) {
             models = jsonFiles
+                    // special for app should not be in the summary
+                    .filter(p -> !p.getParent().getFileName().toString().endsWith("app"))
                     .map(p -> p.getFileName().toString())
                     // strip out .json from the name
                     .map(s -> s.substring(0, s.length() - PackageHelper.JSON_SUFIX.length()))
                     // sort
-                    .sorted().collect(Collectors.toList());
+                    .sorted().toList();
         }
 
         if (!models.isEmpty()) {

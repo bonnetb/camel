@@ -32,7 +32,7 @@ public class SplitAggregateInOutTest extends ContextTestSupport {
 
     private static final Logger LOG = LoggerFactory.getLogger(SplitAggregateInOutTest.class);
 
-    private String expectedBody = "Response[(id=1,item=A);(id=2,item=B);(id=3,item=C)]";
+    private final String expectedBody = "Response[(id=1,item=A);(id=2,item=B);(id=3,item=C)]";
 
     @Test
     public void testSplitAndAggregateInOut() throws Exception {
@@ -42,23 +42,23 @@ public class SplitAggregateInOutTest extends ContextTestSupport {
         // use requestBody as its InOut
         Object out = template.requestBody("direct:start", "A@B@C");
         assertEquals(expectedBody, out);
-        LOG.debug("Response to caller: " + out);
+        LOG.debug("Response to caller: {}", out);
 
         assertMockEndpointsSatisfied();
     }
 
     @Override
-    protected Registry createRegistry() throws Exception {
-        Registry jndi = super.createRegistry();
+    protected Registry createCamelRegistry() throws Exception {
+        Registry jndi = super.createCamelRegistry();
         jndi.bind("MyOrderService", new MyOrderService());
         return jndi;
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 // START SNIPPET: e1
                 // this routes starts from the direct:start endpoint
                 // the body is then split based on @ separator
@@ -97,7 +97,7 @@ public class SplitAggregateInOutTest extends ContextTestSupport {
          * We just handle the order by returning a id line for the order
          */
         public String handleOrder(String line) {
-            LOG.debug("HandleOrder: " + line);
+            LOG.debug("HandleOrder: {}", line);
             return "(id=" + ++counter + ",item=" + line + ")";
         }
 
@@ -105,7 +105,7 @@ public class SplitAggregateInOutTest extends ContextTestSupport {
          * We use the same bean for building the combined response to send back to the original caller
          */
         public String buildCombinedResponse(String line) {
-            LOG.debug("BuildCombinedResponse: " + line);
+            LOG.debug("BuildCombinedResponse: {}", line);
             return "Response[" + line + "]";
         }
     }
@@ -133,8 +133,8 @@ public class SplitAggregateInOutTest extends ContextTestSupport {
             String orders = oldExchange.getIn().getBody(String.class);
             String newLine = newExchange.getIn().getBody(String.class);
 
-            LOG.debug("Aggregate old orders: " + orders);
-            LOG.debug("Aggregate new order: " + newLine);
+            LOG.debug("Aggregate old orders: {}", orders);
+            LOG.debug("Aggregate new order: {}", newLine);
 
             // put orders together separating by semi colon
             orders = orders + ";" + newLine;

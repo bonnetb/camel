@@ -23,6 +23,7 @@ import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.sheets.v4.Sheets;
 import org.apache.camel.CamelContext;
@@ -33,7 +34,7 @@ import org.apache.camel.util.ObjectHelper;
 public class BatchGoogleSheetsClientFactory implements GoogleSheetsClientFactory {
 
     private final HttpTransport transport;
-    private final JacksonFactory jsonFactory;
+    private final JsonFactory jsonFactory;
 
     public BatchGoogleSheetsClientFactory() {
         this(new NetHttpTransport(), new JacksonFactory());
@@ -43,9 +44,9 @@ public class BatchGoogleSheetsClientFactory implements GoogleSheetsClientFactory
         this(httpTransport, new JacksonFactory());
     }
 
-    public BatchGoogleSheetsClientFactory(HttpTransport httpTransport, JacksonFactory jacksonFactory) {
+    public BatchGoogleSheetsClientFactory(HttpTransport httpTransport, JsonFactory jsonFactory) {
         this.transport = httpTransport;
-        this.jsonFactory = jacksonFactory;
+        this.jsonFactory = jsonFactory;
     }
 
     @Override
@@ -74,7 +75,7 @@ public class BatchGoogleSheetsClientFactory implements GoogleSheetsClientFactory
 
     /**
      * Subclasses may add customized configuration to client builder.
-     * 
+     *
      * @param clientBuilder
      */
     protected void configure(Sheets.Builder clientBuilder) {
@@ -105,12 +106,13 @@ public class BatchGoogleSheetsClientFactory implements GoogleSheetsClientFactory
 
     @Override
     public Sheets makeClient(
-            CamelContext camelContext, String keyResource, Collection<String> scopes, String applicationName, String delegate) {
-        if (keyResource == null) {
-            throw new IllegalArgumentException("keyResource is required to create Google Sheets client.");
+            CamelContext camelContext, String serviceAccountKey, Collection<String> scopes, String applicationName,
+            String delegate) {
+        if (serviceAccountKey == null) {
+            throw new IllegalArgumentException("serviceAccountKey is required to create Google Sheets client.");
         }
         try {
-            Credential credential = authorizeServiceAccount(camelContext, keyResource, delegate, scopes);
+            Credential credential = authorizeServiceAccount(camelContext, serviceAccountKey, delegate, scopes);
             return new Sheets.Builder(transport, jsonFactory, credential).setApplicationName(applicationName).build();
         } catch (Exception e) {
             throw new RuntimeCamelException("Could not create Google Sheets client.", e);
@@ -118,13 +120,14 @@ public class BatchGoogleSheetsClientFactory implements GoogleSheetsClientFactory
     }
 
     private Credential authorizeServiceAccount(
-            CamelContext camelContext, String keyResource, String delegate, Collection<String> scopes) {
+            CamelContext camelContext, String serviceAccountKey, String delegate, Collection<String> scopes) {
         // authorize
         try {
             GoogleCredential cred = GoogleCredential
-                    .fromStream(ResourceHelper.resolveMandatoryResourceAsInputStream(camelContext, keyResource), transport,
+                    .fromStream(ResourceHelper.resolveMandatoryResourceAsInputStream(camelContext, serviceAccountKey),
+                            transport,
                             jsonFactory)
-                    .createScoped(scopes != null && scopes.size() != 0 ? scopes : null)
+                    .createScoped(scopes != null && !scopes.isEmpty() ? scopes : null)
                     .createDelegated(delegate);
             cred.refreshToken();
             return cred;

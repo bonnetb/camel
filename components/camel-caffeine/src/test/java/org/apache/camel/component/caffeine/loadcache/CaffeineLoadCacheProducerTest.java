@@ -32,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class CaffeineLoadCacheProducerTest extends CaffeineLoadCacheTestSupport {
@@ -50,7 +51,7 @@ public class CaffeineLoadCacheProducerTest extends CaffeineLoadCacheTestSupport 
 
         fluentTemplate().withHeader(CaffeineConstants.ACTION, CaffeineConstants.ACTION_CLEANUP).to("direct://start").send();
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     // ****************************
@@ -59,7 +60,7 @@ public class CaffeineLoadCacheProducerTest extends CaffeineLoadCacheTestSupport 
 
     @Test
     void testCachePut() {
-        final int key = 1;
+        final String key = "1";
         final int val = 3;
 
         MockEndpoint mock = getMockEndpoint("mock:result");
@@ -94,10 +95,10 @@ public class CaffeineLoadCacheProducerTest extends CaffeineLoadCacheTestSupport 
         final Map<String, String> elements = getTestCache().getAllPresent(keys);
         keys.forEach(k -> {
             assertTrue(elements.containsKey(k));
-            assertEquals(map.get(k), elements.get(k));
+            assertSame(map.get(k), elements.get(k));
         });
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     // ****************************
@@ -106,7 +107,7 @@ public class CaffeineLoadCacheProducerTest extends CaffeineLoadCacheTestSupport 
 
     @Test
     void testCacheGet() throws Exception {
-        final Integer key = 1;
+        final String key = "1";
         final Integer val = 2;
 
         MockEndpoint mock = getMockEndpoint("mock:result");
@@ -118,7 +119,7 @@ public class CaffeineLoadCacheProducerTest extends CaffeineLoadCacheTestSupport 
         fluentTemplate().withHeader(CaffeineConstants.ACTION, CaffeineConstants.ACTION_GET)
                 .withHeader(CaffeineConstants.KEY, key).withBody(val).to("direct://start").send();
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Test
@@ -140,12 +141,12 @@ public class CaffeineLoadCacheProducerTest extends CaffeineLoadCacheTestSupport 
         fluentTemplate().withHeader(CaffeineConstants.ACTION, CaffeineConstants.ACTION_GET_ALL)
                 .withHeader(CaffeineConstants.KEYS, keys).to("direct://start").send();
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
 
         final Map<String, String> elements = mock.getExchanges().get(0).getIn().getBody(Map.class);
         keys.forEach(k -> {
             assertTrue(elements.containsKey(k));
-            assertEquals(map.get(k), elements.get(k));
+            assertSame(map.get(k), elements.get(k));
         });
     }
 
@@ -156,7 +157,7 @@ public class CaffeineLoadCacheProducerTest extends CaffeineLoadCacheTestSupport 
     @Test
     void testCacheInvalidate() throws Exception {
         final Cache<Object, Object> cache = getTestCache();
-        final Integer key = 1;
+        final String key = "1";
         final Integer val = 1;
 
         cache.put(key, val);
@@ -169,7 +170,7 @@ public class CaffeineLoadCacheProducerTest extends CaffeineLoadCacheTestSupport 
         fluentTemplate().withHeader(CaffeineConstants.ACTION, CaffeineConstants.ACTION_INVALIDATE)
                 .withHeader(CaffeineConstants.KEY, key).to("direct://start").send();
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
 
         assertNull(cache.getIfPresent(key));
     }
@@ -193,7 +194,7 @@ public class CaffeineLoadCacheProducerTest extends CaffeineLoadCacheTestSupport 
         fluentTemplate().withHeader(CaffeineConstants.ACTION, CaffeineConstants.ACTION_INVALIDATE_ALL)
                 .withHeader(CaffeineConstants.KEYS, keys).to("direct://start").send();
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
 
         final Map<String, String> elements = getTestCache().getAllPresent(keys);
         keys.forEach(k -> {
@@ -219,7 +220,7 @@ public class CaffeineLoadCacheProducerTest extends CaffeineLoadCacheTestSupport 
         fluentTemplate().withHeader(CaffeineConstants.ACTION, CaffeineConstants.ACTION_INVALIDATE_ALL)
                 .to("direct://start").send();
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
 
         assertTrue(getTestCache().asMap().keySet().isEmpty());
     }
@@ -232,8 +233,6 @@ public class CaffeineLoadCacheProducerTest extends CaffeineLoadCacheTestSupport 
         map.put("B", "BB");
         map.put("C", "CC");
 
-        final Set<String> keys = map.keySet();
-
         cache.putAll(map);
 
         final MockEndpoint mock = getMockEndpoint("mock:result");
@@ -244,12 +243,12 @@ public class CaffeineLoadCacheProducerTest extends CaffeineLoadCacheTestSupport 
         final Exchange exchange = fluentTemplate().withHeader(CaffeineConstants.ACTION, CaffeineConstants.ACTION_AS_MAP)
                 .to("direct://start").send();
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
 
         final Map<String, String> elements = exchange.getMessage().getBody(Map.class);
-        keys.forEach(k -> {
+        map.forEach((k, s) -> {
             assertTrue(elements.containsKey(k));
-            assertEquals(map.get(k), elements.get(k));
+            assertEquals(s, elements.get(k));
         });
     }
 

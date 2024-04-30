@@ -19,10 +19,10 @@ package org.apache.camel.impl.health;
 import java.util.Collection;
 
 import org.apache.camel.ContextTestSupport;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.health.HealthCheck;
 import org.apache.camel.health.HealthCheckHelper;
 import org.apache.camel.health.HealthCheckRegistry;
+import org.apache.camel.support.PluginHelper;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -34,11 +34,10 @@ public class MyFooHealthCheckTest extends ContextTestSupport {
     }
 
     @Test
-    public void testMyFoo() throws Exception {
+    public void testMyFoo() {
         context.start();
 
-        HealthCheck hc
-                = context.adapt(ExtendedCamelContext.class).getHealthCheckResolver().resolveHealthCheck("myfoo");
+        HealthCheck hc = PluginHelper.getHealthCheckResolver(context).resolveHealthCheck("myfoo");
         Assertions.assertNotNull(hc);
 
         Assertions.assertEquals("acme", hc.getGroup());
@@ -51,14 +50,13 @@ public class MyFooHealthCheckTest extends ContextTestSupport {
     }
 
     @Test
-    public void testAddToRegistry() throws Exception {
+    public void testAddToRegistry() {
         context.start();
 
-        HealthCheck hc
-                = context.adapt(ExtendedCamelContext.class).getHealthCheckResolver().resolveHealthCheck("myfoo");
+        HealthCheck hc = PluginHelper.getHealthCheckResolver(context).resolveHealthCheck("myfoo");
         Assertions.assertNotNull(hc);
 
-        HealthCheckRegistry hcr = context.getExtension(HealthCheckRegistry.class);
+        HealthCheckRegistry hcr = context.getCamelContextExtension().getContextPlugin(HealthCheckRegistry.class);
         hcr.register(hc);
 
         Collection<HealthCheck.Result> col = HealthCheckHelper.invoke(context);

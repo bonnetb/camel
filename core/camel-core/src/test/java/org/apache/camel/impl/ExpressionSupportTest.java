@@ -38,7 +38,7 @@ public class ExpressionSupportTest extends ContextTestSupport {
         @SuppressWarnings("unchecked")
         public <T> T evaluate(Exchange exchange, Class<T> type) {
             String in = exchange.getIn().getBody(String.class);
-            if ("Kabom".equals(in)) {
+            if ("Kaboom".equals(in)) {
                 return null;
             }
             return (T) in;
@@ -46,7 +46,7 @@ public class ExpressionSupportTest extends ContextTestSupport {
     }
 
     @Test
-    public void testExpressionSupport() throws Exception {
+    public void testExpressionSupport() {
         MyExpression my = new MyExpression();
 
         Exchange e = new DefaultExchange(context);
@@ -56,11 +56,11 @@ public class ExpressionSupportTest extends ContextTestSupport {
     }
 
     @Test
-    public void testExpressionSupportFail() throws Exception {
+    public void testExpressionSupportFail() {
         MyExpression my = new MyExpression();
 
         Exchange e = new DefaultExchange(context);
-        e.getIn().setBody("Kabom");
+        e.getIn().setBody("Kaboom");
         try {
             my.assertMatches("damn", e);
             fail("Should have thrown exception");

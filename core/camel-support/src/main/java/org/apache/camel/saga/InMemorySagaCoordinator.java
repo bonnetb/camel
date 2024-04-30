@@ -52,12 +52,12 @@ public class InMemorySagaCoordinator implements CamelSagaCoordinator {
 
     private static final Logger LOG = LoggerFactory.getLogger(InMemorySagaCoordinator.class);
 
-    private CamelContext camelContext;
-    private InMemorySagaService sagaService;
-    private String sagaId;
-    private List<CamelSagaStep> steps;
-    private Map<CamelSagaStep, Map<String, Object>> optionValues;
-    private AtomicReference<Status> currentStatus;
+    private final CamelContext camelContext;
+    private final InMemorySagaService sagaService;
+    private final String sagaId;
+    private final List<CamelSagaStep> steps;
+    private final Map<CamelSagaStep, Map<String, Object>> optionValues;
+    private final AtomicReference<Status> currentStatus;
 
     public InMemorySagaCoordinator(CamelContext camelContext, InMemorySagaService sagaService, String sagaId) {
         this.camelContext = ObjectHelper.notNull(camelContext, "camelContext");
@@ -75,6 +75,13 @@ public class InMemorySagaCoordinator implements CamelSagaCoordinator {
 
     @Override
     public CompletableFuture<Void> beginStep(Exchange exchange, CamelSagaStep step) {
+        Status status = currentStatus.get();
+        if (status != Status.RUNNING) {
+            CompletableFuture<Void> res = new CompletableFuture<>();
+            res.completeExceptionally(new IllegalStateException("Cannot begin: status is " + status));
+            return res;
+        }
+
         this.steps.add(step);
 
         if (!step.getOptions().isEmpty()) {
@@ -105,7 +112,7 @@ public class InMemorySagaCoordinator implements CamelSagaCoordinator {
     }
 
     @Override
-    public CompletableFuture<Void> compensate() {
+    public CompletableFuture<Void> compensate(Exchange exchange) {
         boolean doAction = currentStatus.compareAndSet(Status.RUNNING, Status.COMPENSATING);
 
         if (doAction) {
@@ -123,7 +130,7 @@ public class InMemorySagaCoordinator implements CamelSagaCoordinator {
     }
 
     @Override
-    public CompletableFuture<Void> complete() {
+    public CompletableFuture<Void> complete(Exchange exchange) {
         boolean doAction = currentStatus.compareAndSet(Status.RUNNING, Status.COMPLETING);
 
         if (doAction) {

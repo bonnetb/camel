@@ -22,6 +22,7 @@ import org.apache.camel.model.FromDefinition
 import org.apache.camel.model.LogDefinition
 import org.apache.camel.model.RouteDefinition
 import org.apache.camel.model.ToDefinition
+import org.apache.camel.support.PluginHelper
 
 class LineNumberTest extends YamlTestSupport {
 
@@ -30,12 +31,12 @@ class LineNumberTest extends YamlTestSupport {
             loadRoutes '''
                 - from:
                     uri: "direct:start"
-                    steps:    
+                    steps:
                       - log:
-                         logging-level: "ERROR"
+                         loggingLevel: "ERROR"
                          message: "test"
-                         log-name: "yaml"
-                      - to: "direct:result"   
+                         logName: "yaml"
+                      - to: "direct:result"
             '''
         then:
             context.routeDefinitions.size() == 1
@@ -82,7 +83,7 @@ class LineNumberTest extends YamlTestSupport {
     def "line number file"() {
         setup:
         def rloc = 'classpath:/stuff/my-route.yaml'
-        def rdsl = context.resourceLoader.resolveResource(rloc)
+        def rdsl = PluginHelper.getResourceLoader(context).resolveResource(rloc)
         when:
         loadRoutes rdsl
         then:
@@ -90,37 +91,37 @@ class LineNumberTest extends YamlTestSupport {
 
         with(context.routeDefinitions[0].input, FromDefinition) {
             uri == "quartz:foo?cron={{myCron}}"
-            lineNumber == 20
+            lineNumber == 21
         }
         with(context.routeDefinitions[0].outputs[0], LogDefinition) {
             message == 'Start'
-            lineNumber == 22
+            lineNumber == 23
         }
         with(context.routeDefinitions[0].outputs[1], ToDefinition) {
             uri == "bean:myBean?method=hello"
-            lineNumber == 23
+            lineNumber == 24
         }
         with(context.routeDefinitions[0].outputs[3], ToDefinition) {
             uri == "bean:myBean?method=bye"
-            lineNumber == 25
+            lineNumber == 26
         }
         with(context.routeDefinitions[0].outputs[4], LogDefinition) {
             message == '${body}'
-            lineNumber == 26
+            lineNumber == 27
         }
         with(context.routeDefinitions[0].outputs[5], ChoiceDefinition) {
-            lineNumber == 27
+            lineNumber == 28
         }
         with(context.routeDefinitions[0].outputs[6], LogDefinition) {
             message == '${header.textProp}'
-            lineNumber == 39
+            lineNumber == 40
         }
     }
 
     def "line number file with comments"() {
         setup:
         def rloc = 'classpath:/stuff/my-route-comment.yaml'
-        def rdsl = context.resourceLoader.resolveResource(rloc)
+        def rdsl = PluginHelper.getResourceLoader(context).resolveResource(rloc)
         when:
         loadRoutes rdsl
         then:
@@ -128,30 +129,30 @@ class LineNumberTest extends YamlTestSupport {
 
         with(context.routeDefinitions[0].input, FromDefinition) {
             uri == "quartz:foo?cron={{myCron}}"
-            lineNumber == 22
+            lineNumber == 23
         }
         with(context.routeDefinitions[0].outputs[0], LogDefinition) {
             message == 'Start'
-            lineNumber == 25
+            lineNumber == 26
         }
         with(context.routeDefinitions[0].outputs[1], ToDefinition) {
             uri == "bean:myBean?method=hello"
-            lineNumber == 26
+            lineNumber == 27
         }
         with(context.routeDefinitions[0].outputs[3], ToDefinition) {
             uri == "bean:myBean?method=bye"
-            lineNumber == 30
+            lineNumber == 31
         }
         with(context.routeDefinitions[0].outputs[4], LogDefinition) {
             message == '${body}'
-            lineNumber == 31
+            lineNumber == 32
         }
         with(context.routeDefinitions[0].outputs[5], ChoiceDefinition) {
-            lineNumber == 33 // TODO: should be 32
+            lineNumber == 34 // TODO: should be 32
         }
         with(context.routeDefinitions[0].outputs[6], LogDefinition) {
             message == '${header.textProp}'
-            lineNumber == 49
+            lineNumber == 50
         }
     }
 

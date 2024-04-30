@@ -22,7 +22,7 @@ package org.apache.camel.management.mbean;
 public final class LoadTriplet {
 
     // Exponents for EWMA: exp(-INTERVAL / WINDOW) (in seconds)
-    private static final double EXP_1 = Math.exp(-1 / (60.0 * 1.0));
+    private static final double EXP_1 = Math.exp(-1 / (60.0));
     private static final double EXP_5 = Math.exp(-1 / (60.0 * 5.0));
     private static final double EXP_15 = Math.exp(-1 / (60.0 * 15.0));
 
@@ -55,6 +55,12 @@ public final class LoadTriplet {
 
     public double getLoad15() {
         return load15;
+    }
+
+    public void reset() {
+        load01 = Double.NaN;
+        load05 = Double.NaN;
+        load15 = Double.NaN;
     }
 
     @Override

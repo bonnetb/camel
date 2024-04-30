@@ -25,9 +25,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.activation.DataHandler;
-import javax.activation.DataSource;
-import javax.mail.util.ByteArrayDataSource;
+import jakarta.activation.DataHandler;
+import jakarta.activation.DataSource;
+import jakarta.mail.util.ByteArrayDataSource;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.attachment.Attachment;
@@ -41,7 +41,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.CoreMatchers.startsWith;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -516,8 +515,8 @@ public class MimeMultipartDataFormatTest extends CamelTestSupport {
     private void addAttachment(DataSource ds, String attFileName, Map<String, String> headers) {
         DefaultAttachment attachment = new DefaultAttachment(ds);
         if (headers != null) {
-            for (String headerName : headers.keySet()) {
-                attachment.addHeader(headerName, headers.get(headerName));
+            for (Map.Entry<String, String> entry : headers.entrySet()) {
+                attachment.addHeader(entry.getKey(), entry.getValue());
             }
         }
         in.addAttachmentObject(attFileName, attachment);
@@ -532,8 +531,8 @@ public class MimeMultipartDataFormatTest extends CamelTestSupport {
         DataSource ds = new ByteArrayDataSource(attText, attContentType);
         DefaultAttachment attachment = new DefaultAttachment(ds);
         if (headers != null) {
-            for (String headerName : headers.keySet()) {
-                attachment.addHeader(headerName, headers.get(headerName));
+            for (Map.Entry<String, String> entry : headers.entrySet()) {
+                attachment.addHeader(entry.getKey(), entry.getValue());
             }
         }
         in.addAttachmentObject(attFileName, attachment);

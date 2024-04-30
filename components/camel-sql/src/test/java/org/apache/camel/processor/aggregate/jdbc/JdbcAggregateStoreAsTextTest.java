@@ -18,6 +18,7 @@ package org.apache.camel.processor.aggregate.jdbc;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.sql.DataSource;
@@ -29,6 +30,7 @@ import org.springframework.context.support.AbstractXmlApplicationContext;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
  * Tests to ensure that arbitrary headers can be stored as raw text within a dataSource Tests to ensure the body can be
@@ -93,7 +95,7 @@ public class JdbcAggregateStoreAsTextTest extends CamelSpringTestSupport {
 
         template.sendBodyAndHeaders("direct:start", "E", headers);
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Test
@@ -102,7 +104,7 @@ public class JdbcAggregateStoreAsTextTest extends CamelSpringTestSupport {
         mock.expectedBodiesReceived("ABCDE");
 
         repo.setStoreBodyAsText(true);
-        repo.setHeadersToStoreAsText(null);
+        repo.setHeadersToStoreAsText((List) null);
 
         Map<String, Object> headers = new HashMap<>();
         headers.put("id", 123);
@@ -111,27 +113,27 @@ public class JdbcAggregateStoreAsTextTest extends CamelSpringTestSupport {
 
         template.sendBodyAndHeaders("direct:start", "A", headers);
         assertEquals("A", getAggregationRepositoryBody(123));
-        assertEquals(null, getAggregationRepositoryCompanyName(123));
-        assertEquals(null, getAggregationRepositoryAccountName(123));
+        assertNull(getAggregationRepositoryCompanyName(123));
+        assertNull(getAggregationRepositoryAccountName(123));
 
         template.sendBodyAndHeaders("direct:start", "B", headers);
         assertEquals("AB", getAggregationRepositoryBody(123));
-        assertEquals(null, getAggregationRepositoryCompanyName(123));
-        assertEquals(null, getAggregationRepositoryAccountName(123));
+        assertNull(getAggregationRepositoryCompanyName(123));
+        assertNull(getAggregationRepositoryAccountName(123));
 
         template.sendBodyAndHeaders("direct:start", "C", headers);
         assertEquals("ABC", getAggregationRepositoryBody(123));
-        assertEquals(null, getAggregationRepositoryCompanyName(123));
-        assertEquals(null, getAggregationRepositoryAccountName(123));
+        assertNull(getAggregationRepositoryCompanyName(123));
+        assertNull(getAggregationRepositoryAccountName(123));
 
         template.sendBodyAndHeaders("direct:start", "D", headers);
         assertEquals("ABCD", getAggregationRepositoryBody(123));
-        assertEquals(null, getAggregationRepositoryCompanyName(123));
-        assertEquals(null, getAggregationRepositoryAccountName(123));
+        assertNull(getAggregationRepositoryCompanyName(123));
+        assertNull(getAggregationRepositoryAccountName(123));
 
         template.sendBodyAndHeaders("direct:start", "E", headers);
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     public String getAggregationRepositoryBody(int id) {

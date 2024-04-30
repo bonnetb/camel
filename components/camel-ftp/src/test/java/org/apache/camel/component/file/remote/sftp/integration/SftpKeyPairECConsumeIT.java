@@ -20,20 +20,20 @@ import java.io.ByteArrayOutputStream;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 
+import com.jcraft.jsch.JSch;
 import org.apache.camel.Exchange;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
-import org.apache.sshd.server.auth.pubkey.PublickeyAuthenticator;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 
-@EnabledIf(value = "org.apache.camel.component.file.remote.services.SftpEmbeddedService#hasRequiredAlgorithms")
+@EnabledIf(value = "org.apache.camel.test.infra.ftp.services.embedded.SftpUtil#hasRequiredAlgorithms('src/test/resources/hostkey.pem')")
 public class SftpKeyPairECConsumeIT extends SftpServerTestSupport {
 
+    private static final ByteArrayOutputStream PRIVATE_KEY = new ByteArrayOutputStream();
     private static KeyPair keyPair;
-    private static ByteArrayOutputStream privateKey = new ByteArrayOutputStream();
 
     @BeforeAll
     public static void createKeys() throws Exception {
@@ -85,8 +85,8 @@ public class SftpKeyPairECConsumeIT extends SftpServerTestSupport {
         //   83:d=1  hl=3 l= 137 cons:  cont [ 1 ]
         //   86:d=2  hl=3 l= 134 prim:   BIT STRING
         // and a key with "-----BEGIN EC PRIVATE KEY-----"
-        com.jcraft.jsch.KeyPair kp = com.jcraft.jsch.KeyPair.genKeyPair(null, com.jcraft.jsch.KeyPair.ECDSA, 521);
-        kp.writePrivateKey(privateKey);
+        com.jcraft.jsch.KeyPair kp = com.jcraft.jsch.KeyPair.genKeyPair(new JSch(), com.jcraft.jsch.KeyPair.ECDSA, 521);
+        kp.writePrivateKey(PRIVATE_KEY);
     }
 
     @Test
@@ -103,21 +103,12 @@ public class SftpKeyPairECConsumeIT extends SftpServerTestSupport {
 
         context.getRouteController().startRoute("foo");
 
-        assertMockEndpointsSatisfied();
-    }
-
-    protected PublickeyAuthenticator getPublickeyAuthenticator() {
-        return (username, key, session) -> key.equals(keyPair.getPublic());
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Override
     protected RouteBuilder createRouteBuilder() {
-        //        StringBuilder sb = new StringBuilder(256);
-        //        sb.append("-----BEGIN EC PRIVATE KEY-----").append("\n");
-        //        sb.append(Base64.getEncoder().encodeToString(keyPair.getPrivate().getEncoded())).append("\n");
-        //        sb.append("-----END EC PRIVATE KEY-----").append("\n");
-
-        context.getRegistry().bind("privateKey", privateKey.toByteArray());
+        context.getRegistry().bind("privateKey", PRIVATE_KEY.toByteArray());
         context.getRegistry().bind("knownHosts", service.buildKnownHosts());
 
         return new RouteBuilder() {
@@ -125,8 +116,8 @@ public class SftpKeyPairECConsumeIT extends SftpServerTestSupport {
             public void configure() {
                 from("sftp://localhost:{{ftp.server.port}}/{{ftp.root.dir}}"
                      + "?username=admin&knownHosts=#knownHosts&privateKey=#privateKey&delay=10000&strictHostKeyChecking=yes&useUserKnownHostsFile=false&disconnect=true")
-                             .routeId("foo").noAutoStartup()
-                             .to("mock:result");
+                        .routeId("foo").noAutoStartup()
+                        .to("mock:result");
             }
         };
     }

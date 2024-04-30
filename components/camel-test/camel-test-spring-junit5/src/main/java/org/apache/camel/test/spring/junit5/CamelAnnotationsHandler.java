@@ -26,7 +26,6 @@ import java.util.StringJoiner;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.api.management.ManagedCamelContext;
 import org.apache.camel.api.management.mbean.ManagedCamelContextMBean;
 import org.apache.camel.component.mock.InterceptSendToMockEndpointStrategy;
@@ -44,6 +43,8 @@ import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.annotation.AnnotationUtils;
 
+import static org.apache.camel.test.junit5.TestSupport.isCamelDebugPresent;
+
 public final class CamelAnnotationsHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CamelAnnotationsHandler.class);
@@ -54,19 +55,17 @@ public final class CamelAnnotationsHandler {
     /**
      * Cleanup/restore global state to defaults / pre-test values after the test setup is complete.
      *
-     * @param testClass the test class being executed
      */
-    public static void cleanup(Class<?> testClass) {
+    public static void cleanup() {
         DefaultCamelContext.clearOptions();
     }
 
     /**
      * Handles @ExcludeRoutes to make it easier to exclude other routes when testing with Spring.
      *
-     * @param context   the initialized Spring context
      * @param testClass the test class being executed
      */
-    public static void handleExcludeRoutes(ConfigurableApplicationContext context, Class<?> testClass) {
+    public static void handleExcludeRoutes(Class<?> testClass) {
         String key = SpringCamelContext.EXCLUDE_ROUTES;
         String exists = System.getProperty(key);
         if (exists != null) {
@@ -89,11 +88,13 @@ public final class CamelAnnotationsHandler {
     /**
      * Handles disabling of JMX on Camel contexts based on {@link DisableJmx}.
      *
-     * @param context   the initialized Spring context
      * @param testClass the test class being executed
      */
-    public static void handleDisableJmx(ConfigurableApplicationContext context, Class<?> testClass) {
-        if (testClass.isAnnotationPresent(DisableJmx.class)) {
+    public static void handleDisableJmx(Class<?> testClass) {
+        if (isCamelDebugPresent()) {
+            LOGGER.info("Enabling Camel JMX as camel-debug has been found in the classpath.");
+            DefaultCamelContext.setDisableJmx(false);
+        } else if (testClass.isAnnotationPresent(DisableJmx.class)) {
             if (testClass.getAnnotation(DisableJmx.class).value()) {
                 LOGGER.info("Disabling Camel JMX globally as DisableJmx annotation was found and disableJmx is set to true.");
                 DefaultCamelContext.setDisableJmx(true);
@@ -104,7 +105,7 @@ public final class CamelAnnotationsHandler {
         } else if (!testClass.isAnnotationPresent(EnableRouteCoverage.class)) {
             // route coverage need JMX so do not disable it by default
             LOGGER.info(
-                    "Disabling Camel JMX globally for tests by default.  Use the DisableJMX annotation to override the default setting.");
+                    "Disabling Camel JMX globally for tests by default. Use the DisableJMX annotation to override the default setting.");
             DefaultCamelContext.setDisableJmx(true);
         } else {
             LOGGER.info("Enabling Camel JMX as EnableRouteCoverage is used.");
@@ -136,7 +137,9 @@ public final class CamelAnnotationsHandler {
         }
     }
 
-    public static void handleRouteCoverageDump(ConfigurableApplicationContext context, Class<?> testClass, Function testMethod)
+    public static void handleRouteCoverageDump(
+            ConfigurableApplicationContext context, Class<?> testClass,
+            Function<CamelSpringTestHelper.DoToSpringCamelContextsStrategy, String> testMethod)
             throws Exception {
         if (testClass.isAnnotationPresent(EnableRouteCoverage.class)) {
             CamelSpringTestHelper.doToSpringCamelContexts(context, new CamelSpringTestHelper.DoToSpringCamelContextsStrategy() {
@@ -145,12 +148,12 @@ public final class CamelAnnotationsHandler {
                 public void execute(String contextName, SpringCamelContext camelContext) throws Exception {
                     LOGGER.debug("Dumping RouteCoverage");
 
-                    String testMethodName = (String) testMethod.apply(this);
+                    String testMethodName = testMethod.apply(this);
                     RouteCoverageDumper.dumpRouteCoverage(camelContext, testClass.getName(), testMethodName);
 
                     // reset JMX statistics
                     ManagedCamelContext managedCamelContext
-                            = camelContext.getExtension(ManagedCamelContext.class);
+                            = camelContext.getCamelContextExtension().getContextPlugin(ManagedCamelContext.class);
                     if (managedCamelContext != null) {
                         ManagedCamelContextMBean mBean = managedCamelContext.getManagedCamelContext();
                         LOGGER.debug("Resetting JMX statistics for RouteCoverage");
@@ -273,7 +276,7 @@ public final class CamelAnnotationsHandler {
                         throws Exception {
                     LOGGER.info("Enabling auto mocking of endpoints matching pattern [{}] on CamelContext with name [{}].",
                             mockEndpoints, contextName);
-                    camelContext.adapt(ExtendedCamelContext.class)
+                    camelContext.getCamelContextExtension()
                             .registerEndpointCallback(new InterceptSendToMockEndpointStrategy(mockEndpoints));
                 }
             });
@@ -299,7 +302,7 @@ public final class CamelAnnotationsHandler {
                     LOGGER.info(
                             "Enabling auto mocking and skipping of endpoints matching pattern [{}] on CamelContext with name [{}].",
                             mockEndpointsValue, contextName);
-                    camelContext.adapt(ExtendedCamelContext.class)
+                    camelContext.getCamelContextExtension()
                             .registerEndpointCallback(new InterceptSendToMockEndpointStrategy(mockEndpointsValue, true));
                 }
             });
@@ -360,8 +363,7 @@ public final class CamelAnnotationsHandler {
             context.addBeanFactoryPostProcessor(beanFactory -> beanFactory.addBeanPostProcessor(new BeanPostProcessor() {
                 @Override
                 public Object postProcessBeforeInitialization(Object bean, String beanName) {
-                    if (bean instanceof PropertiesComponent) {
-                        PropertiesComponent pc = (PropertiesComponent) bean;
+                    if (bean instanceof PropertiesComponent pc) {
                         LOGGER.info("Using {} properties to override any existing properties on the PropertiesComponent",
                                 extra.size());
                         pc.setOverrideProperties(extra);
@@ -395,17 +397,12 @@ public final class CamelAnnotationsHandler {
         }
 
         if (!skip) {
-            CamelSpringTestHelper.doToSpringCamelContexts(context, new CamelSpringTestHelper.DoToSpringCamelContextsStrategy() {
-                public void execute(
-                        String contextName,
-                        SpringCamelContext camelContext)
-                        throws Exception {
-                    if (!camelContext.isStarted()) {
-                        LOGGER.info("Starting CamelContext with name [{}].", contextName);
-                        camelContext.start();
-                    } else {
-                        LOGGER.debug("CamelContext with name [{}] already started.", contextName);
-                    }
+            CamelSpringTestHelper.doToSpringCamelContexts(context, (contextName, camelContext) -> {
+                if (!camelContext.isStarted()) {
+                    LOGGER.info("Starting CamelContext with name [{}].", contextName);
+                    camelContext.start();
+                } else {
+                    LOGGER.debug("CamelContext with name [{}] already started.", contextName);
                 }
             });
         }

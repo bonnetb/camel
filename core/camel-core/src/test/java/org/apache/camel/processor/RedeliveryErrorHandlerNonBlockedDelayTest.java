@@ -16,6 +16,8 @@
  */
 package org.apache.camel.processor;
 
+import java.util.concurrent.atomic.LongAdder;
+
 import org.apache.camel.ContextTestSupport;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
@@ -29,17 +31,17 @@ public class RedeliveryErrorHandlerNonBlockedDelayTest extends ContextTestSuppor
 
     private static final Logger LOG = LoggerFactory.getLogger(RedeliveryErrorHandlerNonBlockedDelayTest.class);
 
-    private static volatile int attempt;
+    private static final LongAdder attempt = new LongAdder();
 
     @Test
     public void testRedelivery() throws Exception {
         MockEndpoint before = getMockEndpoint("mock:result");
-        before.expectedBodiesReceived("Hello World", "Hello Camel");
+        before.expectedBodiesReceivedInAnyOrder("Hello World", "Hello Camel");
 
         // we use NON blocked redelivery delay so the messages arrive which
         // completes first
         MockEndpoint result = getMockEndpoint("mock:result");
-        result.expectedBodiesReceived("Hello Camel", "Hello World");
+        result.expectedBodiesReceivedInAnyOrder("Hello Camel", "Hello World");
 
         template.sendBody("seda:start", "World");
         template.sendBody("seda:start", "Camel");
@@ -48,20 +50,21 @@ public class RedeliveryErrorHandlerNonBlockedDelayTest extends ContextTestSuppor
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 // use async delayed which means non blocking
                 errorHandler(defaultErrorHandler().maximumRedeliveries(5).redeliveryDelay(10).asyncDelayedRedelivery());
 
                 from("seda:start").to("log:before").to("mock:before").process(new Processor() {
-                    public void process(Exchange exchange) throws Exception {
+                    public void process(Exchange exchange) {
                         LOG.info("Processing at attempt {} {}", attempt, exchange);
 
                         String body = exchange.getIn().getBody(String.class);
                         if (body.contains("World")) {
-                            if (++attempt <= 2) {
+                            attempt.increment();
+                            if (attempt.intValue() <= 2) {
                                 LOG.info("Processing failed will thrown an exception");
                                 throw new IllegalArgumentException("Damn");
                             }

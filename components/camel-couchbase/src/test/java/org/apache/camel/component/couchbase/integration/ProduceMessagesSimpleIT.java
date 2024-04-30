@@ -16,23 +16,32 @@
  */
 package org.apache.camel.component.couchbase.integration;
 
-import java.time.Duration;
-
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.couchbase.CouchbaseConstants;
 import org.apache.camel.component.mock.MockEndpoint;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Tags;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIfSystemProperties;
+import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 
+@DisabledIfSystemProperties({
+        @DisabledIfSystemProperty(named = "ci.env.name", matches = "apache.org",
+                                  disabledReason = "Apache CI nodes are too resource constrained for this test"),
+        @DisabledIfSystemProperty(named = "ci.env.name", matches = "github.com", disabledReason = "Flaky on GitHub Actions"),
+        @DisabledIfSystemProperty(named = "couchbase.enable.it", matches = "false",
+                                  disabledReason = "Too resource intensive for most systems to run reliably"),
+})
+@Tags({ @Tag("couchbase-7") })
 public class ProduceMessagesSimpleIT extends CouchbaseIntegrationTestBase {
 
     @Test
     public void testInsert() throws Exception {
-        cluster.bucket(bucketName).waitUntilReady(Duration.ofSeconds(30));
         MockEndpoint mock = getMockEndpoint("mock:result");
         mock.expectedMessageCount(1);
 
         template.sendBody("direct:start", "couchbase persist");
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
         mock.message(0).body().equals("couchbase persist");
 
     }

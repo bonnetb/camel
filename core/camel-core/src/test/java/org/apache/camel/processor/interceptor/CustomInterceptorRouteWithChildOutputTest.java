@@ -21,7 +21,6 @@ import java.util.List;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.ContextTestSupport;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.NamedNode;
 import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
@@ -39,7 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  */
 public class CustomInterceptorRouteWithChildOutputTest extends ContextTestSupport {
 
-    private MyInterceptor myInterceptor = new MyInterceptor();
+    private final MyInterceptor myInterceptor = new MyInterceptor();
 
     @Test
     public void testCustomInterceptor() throws Exception {
@@ -60,12 +59,12 @@ public class CustomInterceptorRouteWithChildOutputTest extends ContextTestSuppor
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 // add our custom interceptor
-                context.adapt(ExtendedCamelContext.class).addInterceptStrategy(myInterceptor);
+                context.getCamelContextExtension().addInterceptStrategy(myInterceptor);
 
                 from("direct:start").split(body().tokenize(",")).log("Spltted ${body}").to("mock:child").end()
                         .to("mock:result");
@@ -80,8 +79,7 @@ public class CustomInterceptorRouteWithChildOutputTest extends ContextTestSuppor
 
         @Override
         public Processor wrapProcessorInInterceptors(
-                CamelContext context, NamedNode definition, Processor target, Processor nextTarget)
-                throws Exception {
+                CamelContext context, NamedNode definition, Processor target, Processor nextTarget) {
             defs.add((ProcessorDefinition<?>) definition);
             return target;
         }

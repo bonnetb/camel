@@ -20,12 +20,10 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.function.LongSupplier;
 
 import org.apache.camel.Exchange;
-import org.apache.camel.Offset;
 import org.apache.camel.WrappedFile;
-import org.apache.camel.component.file.consumer.GenericFileResumable;
-import org.apache.camel.resume.Offsets;
 import org.apache.camel.util.FileUtil;
 import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.util.StringHelper;
@@ -35,7 +33,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Generic File. Specific implementations of a file based endpoint need to provide a File for transfer.
  */
-public class GenericFile<T> implements WrappedFile<T>, GenericFileResumable<T> {
+public class GenericFile<T> implements WrappedFile<T> {
     private static final Logger LOG = LoggerFactory.getLogger(GenericFile.class);
 
     private final boolean probeContentType;
@@ -47,8 +45,12 @@ public class GenericFile<T> implements WrappedFile<T>, GenericFileResumable<T> {
     private String relativeFilePath;
     private String absoluteFilePath;
     private long fileLength;
+    // file length in case of lazy-loading
+    private LongSupplier fileLengthSupplier;
     private long lastModified;
-    private long lastOffset;
+    // last modified in case of lazy-loading
+    private LongSupplier lastModifiedSupplier;
+    private long lastOffsetValue;
     private T file;
     private GenericFileBinding<T> binding;
     private boolean absolute;
@@ -74,9 +76,7 @@ public class GenericFile<T> implements WrappedFile<T>, GenericFileResumable<T> {
      * @param source the source
      * @param result the result
      */
-    @SuppressWarnings("unchecked")
-    @Deprecated
-    public void copyFrom(GenericFile source, GenericFile result) {
+    public void copyFrom(GenericFile<T> source, GenericFile<T> result) {
         result.setCopyFromAbsoluteFilePath(source.getAbsoluteFilePath());
         result.setEndpointPath(source.getEndpointPath());
         result.setAbsolute(source.isAbsolute());
@@ -130,7 +130,11 @@ public class GenericFile<T> implements WrappedFile<T>, GenericFileResumable<T> {
         GenericFileMessage<T> msg = new GenericFileMessage<>(exchange, this);
 
         headers = exchange.getMessage().hasHeaders() ? exchange.getMessage().getHeaders() : null;
-        exchange.setMessage(msg);
+        // force storing on IN as that is what Camel expects
+        exchange.setIn(msg);
+        if (exchange.hasOut()) {
+            exchange.setOut(null);
+        }
 
         // preserve any existing (non file) headers, before we re-populate
         // headers
@@ -211,7 +215,7 @@ public class GenericFile<T> implements WrappedFile<T>, GenericFileResumable<T> {
         // Make sure the names is normalized.
         String newFileName = FileUtil.normalizePath(newName);
         String newEndpointPath = FileUtil.normalizePath(
-                endpointPath.endsWith("" + File.separatorChar) ? endpointPath : endpointPath + File.separatorChar);
+                endpointPath.endsWith(String.valueOf(File.separatorChar)) ? endpointPath : endpointPath + File.separatorChar);
 
         LOG.trace("Normalized endpointPath: {}", newEndpointPath);
         LOG.trace("Normalized newFileName: {}", newFileName);
@@ -225,7 +229,7 @@ public class GenericFile<T> implements WrappedFile<T>, GenericFileResumable<T> {
                 // use File.separatorChar as the normalizePath uses this as path
                 // separator so we should use the same
                 // in this logic here
-                if (newEndpointPath.endsWith("" + File.separatorChar)) {
+                if (newEndpointPath.endsWith(String.valueOf(File.separatorChar))) {
                     newFileName = StringHelper.after(newFileName, newEndpointPath);
                 } else {
                     newFileName = StringHelper.after(newFileName, newEndpointPath + File.separatorChar);
@@ -286,6 +290,10 @@ public class GenericFile<T> implements WrappedFile<T>, GenericFileResumable<T> {
     }
 
     public long getFileLength() {
+        if (fileLength == 0 && fileLengthSupplier != null) {
+            // file length not set, try lazy-loading
+            fileLength = fileLengthSupplier.getAsLong();
+        }
         return fileLength;
     }
 
@@ -293,12 +301,24 @@ public class GenericFile<T> implements WrappedFile<T>, GenericFileResumable<T> {
         this.fileLength = fileLength;
     }
 
+    void setFileLengthSupplier(LongSupplier supplier) {
+        fileLengthSupplier = supplier;
+    }
+
     public long getLastModified() {
+        if (lastModified == 0 && lastModifiedSupplier != null) {
+            // last modified not set, try lazy-loading
+            lastModified = lastModifiedSupplier.getAsLong();
+        }
         return lastModified;
     }
 
     public void setLastModified(long lastModified) {
         this.lastModified = lastModified;
+    }
+
+    void setLastModifiedSupplier(LongSupplier supplier) {
+        lastModifiedSupplier = supplier;
     }
 
     public String getCharset() {
@@ -413,19 +433,12 @@ public class GenericFile<T> implements WrappedFile<T>, GenericFileResumable<T> {
         this.copyFromAbsoluteFilePath = copyFromAbsoluteFilePath;
     }
 
-    @Override
-    public void updateLastOffset(Long offset) {
-        this.lastOffset = offset;
+    public void updateLastOffsetValue(Long offset) {
+        this.lastOffsetValue = offset;
     }
 
-    @Override
-    public Offset<Long> getLastOffset() {
-        return Offsets.of(lastOffset);
-    }
-
-    @Override
-    public T getAddressable() {
-        return file;
+    public Long getLastOffsetValue() {
+        return lastOffsetValue;
     }
 
     /**

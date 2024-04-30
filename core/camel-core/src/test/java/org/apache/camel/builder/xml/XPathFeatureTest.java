@@ -26,7 +26,6 @@ import org.apache.camel.NoTypeConversionAvailableException;
 import org.apache.camel.RuntimeCamelException;
 import org.apache.camel.TypeConversionException;
 import org.apache.camel.converter.jaxp.XmlConverter;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.ResourceLock;
 import org.junit.jupiter.api.parallel.Resources;
@@ -45,40 +44,25 @@ public class XPathFeatureTest extends ContextTestSupport {
               + " <!ELEMENT foo ANY > <!ENTITY xxe SYSTEM \"file:///bin/test.sh\" >]> <test> &xxe; </test><notwellformed>";
 
     @Override
-    @BeforeEach
-    public void setUp() throws Exception {
-        resetCoreConverters();
-        super.setUp();
-    }
-
-    private void resetCoreConverters() throws Exception {
-        /*
-         * Field field =
-         * CoreStaticTypeConverterLoader.class.getDeclaredField("INSTANCE");
-         * field.setAccessible(true); Field modifiersField =
-         * Field.class.getDeclaredField("modifiers");
-         * modifiersField.setAccessible(true); modifiersField.setInt(field,
-         * field.getModifiers() & ~Modifier.FINAL); Constructor<?> cns =
-         * CoreStaticTypeConverterLoader.class.getDeclaredConstructor();
-         * cns.setAccessible(true); field.set(null, cns.newInstance());
-         */
-    }
-
-    @Override
     public boolean isUseRouteBuilder() {
         return false;
     }
 
     @Test
-    public void testXPathResult() throws Exception {
-        String result = (String) xpath("/").stringResult().evaluate(createExchange(XML_DATA));
-        assertEquals("  ", result, "Get a wrong result");
+    public void testXPathDocTypeDisallowed() {
+        try {
+            xpath("/").stringResult().evaluate(createExchange(XML_DATA));
+            fail();
+        } catch (Exception e) {
+            assertIsInstanceOf(SAXParseException.class, e.getCause());
+        }
     }
 
     @Test
-    public void testXPath() throws Exception {
-        // Set this feature will enable the external general entities
+    public void testXPath() {
+        // Set these features will enable the external general entities
         System.setProperty(DOM_BUILDER_FACTORY_FEATURE + ":" + "http://xml.org/sax/features/external-general-entities", "true");
+        System.setProperty(DOM_BUILDER_FACTORY_FEATURE + ":" + "http://apache.org/xml/features/disallow-doctype-decl", "false");
         try {
             xpath("/").stringResult().evaluate(createExchange(XML_DATA));
             fail("Expect an Exception here");
@@ -88,11 +72,12 @@ public class XPathFeatureTest extends ContextTestSupport {
                     "Get a wrong exception cause: " + ex.getCause().getClass() + " instead of " + FileNotFoundException.class);
         } finally {
             System.clearProperty(DOM_BUILDER_FACTORY_FEATURE + ":" + "http://xml.org/sax/features/external-general-entities");
+            System.clearProperty(DOM_BUILDER_FACTORY_FEATURE + ":" + "http://apache.org/xml/features/disallow-doctype-decl");
         }
     }
 
     @Test
-    public void testXPathNoTypeConverter() throws Exception {
+    public void testXPathNoTypeConverter() {
         try {
             // define a class without type converter as document type
             xpath("/").documentType(Exchange.class).stringResult().evaluate(createExchange(XML_DATA));
@@ -105,7 +90,7 @@ public class XPathFeatureTest extends ContextTestSupport {
     }
 
     @Test
-    public void testXPathResultOnInvalidData() throws Exception {
+    public void testXPathResultOnInvalidData() {
         try {
             xpath("/").stringResult().evaluate(createExchange(XML_DATA_INVALID));
             fail("Expect an Exception here");

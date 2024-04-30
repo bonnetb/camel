@@ -23,7 +23,6 @@ import org.apache.camel.Category;
 import org.apache.camel.Component;
 import org.apache.camel.Consumer;
 import org.apache.camel.ExchangePattern;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.NoFactoryAvailableException;
 import org.apache.camel.NoSuchBeanException;
 import org.apache.camel.Processor;
@@ -51,6 +50,9 @@ import static org.apache.camel.support.RestProducerFactoryHelper.setupComponent;
  */
 @UriEndpoint(firstVersion = "2.14.0", scheme = "rest", title = "REST", syntax = "rest:method:path:uriTemplate",
              category = { Category.CORE, Category.REST }, lenientProperties = true, headersClass = RestConstants.class)
+@Metadata(annotations = {
+        "protocol=http",
+})
 public class RestEndpoint extends DefaultEndpoint {
 
     public static final String[] DEFAULT_REST_CONSUMER_COMPONENTS
@@ -132,7 +134,7 @@ public class RestEndpoint extends DefaultEndpoint {
     }
 
     /**
-     * The base path
+     * The base path, can use &#42; as path suffix to support wildcard HTTP route matching.
      */
     public void setPath(String path) {
         this.path = path;
@@ -177,10 +179,10 @@ public class RestEndpoint extends DefaultEndpoint {
     }
 
     /**
-     * The Camel Rest component to use for (producer) the REST transport, such as http, undertow. If no component has
-     * been explicit configured, then Camel will lookup if there is a Camel component that integrates with the Rest DSL,
-     * or if a org.apache.camel.spi.RestProducerFactory is registered in the registry. If either one is found, then that
-     * is being used.
+     * The Camel Rest component to use for the producer REST transport, such as http, undertow. If no component has been
+     * explicitly configured, then Camel will lookup if there is a Camel component that integrates with the Rest DSL, or
+     * if a org.apache.camel.spi.RestProducerFactory is registered in the registry. If either one is found, then that is
+     * being used.
      */
     public void setProducerComponentName(String producerComponentName) {
         this.producerComponentName = producerComponentName;
@@ -191,10 +193,10 @@ public class RestEndpoint extends DefaultEndpoint {
     }
 
     /**
-     * The Camel Rest component to use for (consumer) the REST transport, such as jetty, servlet, undertow. If no
-     * component has been explicit configured, then Camel will lookup if there is a Camel component that integrates with
-     * the Rest DSL, or if a org.apache.camel.spi.RestConsumerFactory is registered in the registry. If either one is
-     * found, then that is being used.
+     * The Camel Rest component to use for the consumer REST transport, such as jetty, servlet, undertow. If no
+     * component has been explicitly configured, then Camel will lookup if there is a Camel component that integrates
+     * with the Rest DSL, or if a org.apache.camel.spi.RestConsumerFactory is registered in the registry. If either one
+     * is found, then that is being used.
      */
     public void setConsumerComponentName(String consumerComponentName) {
         this.consumerComponentName = consumerComponentName;
@@ -324,30 +326,17 @@ public class RestEndpoint extends DefaultEndpoint {
         if (apiDoc != null) {
             LOG.debug("Discovering camel-openapi-java on classpath for using api-doc: {}", apiDoc);
             // lookup on classpath using factory finder to automatic find it (just add camel-openapi-java to classpath etc)
-            FactoryFinder finder = null;
             try {
-                finder = getCamelContext().adapt(ExtendedCamelContext.class).getFactoryFinder(RESOURCE_PATH);
+                FactoryFinder finder = getCamelContext().getCamelContextExtension().getFactoryFinder(RESOURCE_PATH);
                 apiDocFactory = finder.newInstance(DEFAULT_API_COMPONENT_NAME, RestProducerFactory.class).orElse(null);
                 if (apiDocFactory == null) {
                     throw new NoFactoryAvailableException("Cannot find camel-openapi-java on classpath");
                 }
                 parameters.put("apiDoc", apiDoc);
             } catch (NoFactoryAvailableException e) {
-                try {
-                    LOG.debug("Discovering camel-swagger-java on classpath as fallback for using api-doc: {}", apiDoc);
-                    Object instance = finder.newInstance("swagger").get();
-                    if (instance instanceof RestProducerFactory) {
-                        // this factory from camel-swagger-java will facade the http component in use
-                        apiDocFactory = (RestProducerFactory) instance;
-                    }
-                    parameters.put("apiDoc", apiDoc);
-                } catch (Exception ex) {
-
-                    throw new IllegalStateException(
-                            "Cannot find camel-openapi-java neither camel-swagger-java on classpath to use with api-doc: "
-                                                    + apiDoc);
-                }
-
+                throw new IllegalStateException(
+                        "Cannot find camel-openapi-java on classpath to use with api-doc: "
+                                                + apiDoc);
             }
         }
 
@@ -499,6 +488,15 @@ public class RestEndpoint extends DefaultEndpoint {
             }
         }
 
+        // favour using platform-http if available on classpath
+        if (factory == null) {
+            Object comp = getCamelContext().getComponent("platform-http", true);
+            if (comp instanceof RestConsumerFactory) {
+                factory = (RestConsumerFactory) comp;
+                LOG.debug("Auto discovered platform-http as RestConsumerFactory");
+            }
+        }
+
         // lookup in registry
         if (factory == null) {
             Set<RestConsumerFactory> factories = getCamelContext().getRegistry().findByType(RestConsumerFactory.class);
@@ -593,8 +591,8 @@ public class RestEndpoint extends DefaultEndpoint {
                     getUriTemplate(), getConsumes(), getProduces(), config, getParameters());
             configureConsumer(consumer);
 
-            // add to rest registry so we can keep track of them, we will remove from the registry when the consumer is removed
-            // the rest registry will automatic keep track when the consumer is removed,
+            // add to rest registry, so we can keep track of them, we will remove from the registry when the consumer is removed
+            // the rest registry will automatically keep track when the consumer is removed,
             // and un-register the REST service from the registry
             getCamelContext().getRestRegistry().addRestService(consumer, url, baseUrl, getPath(), getUriTemplate(), getMethod(),
                     getConsumes(), getProduces(), getInType(), getOutType(), getRouteId(), getDescription());

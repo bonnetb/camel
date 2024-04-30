@@ -85,10 +85,13 @@ public class Jt400PgmProducer extends DefaultProducer {
             }
 
             if (result) {
-                handlePGMOutput(exchange, pgmCall, parameterList, iSeries);
+                handlePGMOutput(exchange, pgmCall, iSeries);
             } else {
                 throw new Jt400PgmCallException(getOutputMessages(pgmCall));
             }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new Jt400PgmCallException(e);
         } catch (Exception e) {
             throw new Jt400PgmCallException(e);
         } finally {
@@ -172,7 +175,7 @@ public class Jt400PgmProducer extends DefaultProducer {
         return parameterList;
     }
 
-    private void handlePGMOutput(Exchange exchange, ProgramCall pgmCall, ProgramParameter[] inputs, AS400 iSeries)
+    private void handlePGMOutput(Exchange exchange, ProgramCall pgmCall, AS400 iSeries)
             throws InvalidPayloadException {
 
         Object body = exchange.getIn().getMandatoryBody();
@@ -213,11 +216,11 @@ public class Jt400PgmProducer extends DefaultProducer {
         for (int i = 0; i < messageList.length; ++i) {
             // Load additional message information.
             messageList[i].load();
-            outputMsg.append(i + ") ");
+            outputMsg.append(i).append(") ");
             outputMsg.append(messageList[i].getText());
             outputMsg.append(" - ");
             outputMsg.append(messageList[i].getHelp());
-            outputMsg.append("\n");
+            outputMsg.append('\n');
         }
         return outputMsg.toString();
     }

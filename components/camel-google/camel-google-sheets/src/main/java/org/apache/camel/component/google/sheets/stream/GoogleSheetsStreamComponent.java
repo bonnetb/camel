@@ -26,11 +26,11 @@ import org.apache.camel.component.google.sheets.GoogleSheetsClientFactory;
 import org.apache.camel.component.google.sheets.GoogleSheetsVerifierExtension;
 import org.apache.camel.spi.Metadata;
 import org.apache.camel.spi.annotations.Component;
-import org.apache.camel.support.DefaultComponent;
+import org.apache.camel.support.HealthCheckComponent;
 
 @Metadata(label = "verifiers", enums = "parameters,connectivity")
 @Component("google-sheets-stream")
-public class GoogleSheetsStreamComponent extends DefaultComponent {
+public class GoogleSheetsStreamComponent extends HealthCheckComponent {
 
     @Metadata
     private GoogleSheetsStreamConfiguration configuration;
@@ -55,12 +55,12 @@ public class GoogleSheetsStreamComponent extends DefaultComponent {
                 client = getClientFactory().makeClient(config.getClientId(),
                         config.getClientSecret(), config.getScopes(),
                         config.getApplicationName(), config.getRefreshToken(), config.getAccessToken());
-            } else if (config.getKeyResource() != null) {
-                client = getClientFactory().makeClient(getCamelContext(), config.getKeyResource(),
+            } else if (config.getServiceAccountKey() != null) {
+                client = getClientFactory().makeClient(getCamelContext(), config.getServiceAccountKey(),
                         config.getScopes(), config.getApplicationName(), config.getDelegate());
             } else {
                 throw new IllegalArgumentException(
-                        "(clientId and clientSecret) or keyResource are required to create Gmail client");
+                        "(clientId and clientSecret) or serviceAccountKey are required to create Gmail client");
             }
         }
         return client;

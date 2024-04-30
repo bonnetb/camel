@@ -18,6 +18,7 @@ package org.apache.camel.util;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -29,10 +30,12 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 
 public class URISupportTest {
 
@@ -251,15 +254,15 @@ public class URISupportTest {
     }
 
     @Test
-    public void testSanitizeAccessToken() throws Exception {
+    public void testSanitizeAccessToken() {
         String out1 = URISupport
                 .sanitizeUri("google-sheets-stream://spreadsheets?accessToken=MY_TOKEN&clientId=foo&clientSecret=MY_SECRET");
-        assertEquals("google-sheets-stream://spreadsheets?accessToken=xxxxxx&clientId=foo&clientSecret=xxxxxx", out1);
+        assertEquals("google-sheets-stream://spreadsheets?accessToken=xxxxxx&clientId=xxxxxx&clientSecret=xxxxxx", out1);
     }
 
     @Test
-    public void testSanitizeAuthorizationToken() throws Exception {
-        String out1 = URISupport.sanitizeUri("telegram:bots?authorizationToken=1234567890:AABBCOhEaqprrk6qqQtsSPFYS3Njgv2ljW2");
+    public void testSanitizeAuthorizationToken() {
+        String out1 = URISupport.sanitizeUri("telegram:bots?authorizationToken=1234567890:XXAuthTokenHereXX");
         assertEquals("telegram:bots?authorizationToken=xxxxxx", out1);
     }
 
@@ -301,7 +304,7 @@ public class URISupportTest {
     public void testSanitizeUriWithRawPassword() {
         String uri1 = "http://foo?username=me&password=RAW(me#@123)&foo=bar";
         String uri2 = "http://foo?username=me&password=RAW{me#@123}&foo=bar";
-        String expected = "http://foo?username=me&password=xxxxxx&foo=bar";
+        String expected = "http://foo?username=xxxxxx&password=xxxxxx&foo=bar";
         assertEquals(expected, URISupport.sanitizeUri(uri1));
         assertEquals(expected, URISupport.sanitizeUri(uri2));
     }
@@ -310,7 +313,7 @@ public class URISupportTest {
     public void testSanitizeUriRawUnsafePassword() {
         String uri1 = "sftp://localhost/target?password=RAW(beforeAmp&afterAmp)&username=jrandom";
         String uri2 = "sftp://localhost/target?password=RAW{beforeAmp&afterAmp}&username=jrandom";
-        String expected = "sftp://localhost/target?password=xxxxxx&username=jrandom";
+        String expected = "sftp://localhost/target?password=xxxxxx&username=xxxxxx";
         assertEquals(expected, URISupport.sanitizeUri(uri1));
         assertEquals(expected, URISupport.sanitizeUri(uri2));
     }
@@ -322,13 +325,13 @@ public class URISupportTest {
         String uriCurly
                 = "http://foo?username=me&password=RAW{me#@123}&foo=bar&port=21&tempFileName=${file:name.noext}.tmp&anotherOption=true";
         String expected
-                = "http://foo?username=me&password=xxxxxx&foo=bar&port=21&tempFileName=${file:name.noext}.tmp&anotherOption=true";
+                = "http://foo?username=xxxxxx&password=xxxxxx&foo=bar&port=21&tempFileName=${file:name.noext}.tmp&anotherOption=true";
         assertEquals(expected, URISupport.sanitizeUri(uriPlain));
         assertEquals(expected, URISupport.sanitizeUri(uriCurly));
     }
 
     @Test
-    public void testSanitizeSaslJaasConfig() throws Exception {
+    public void testSanitizeSaslJaasConfig() {
         String out1 = URISupport.sanitizeUri(
                 "kafka://MY-TOPIC-NAME?saslJaasConfig=org.apache.kafka.common.security.plain.PlainLoginModule required username=scott password=tiger");
         assertEquals("kafka://MY-TOPIC-NAME?saslJaasConfig=xxxxxx", out1);
@@ -425,12 +428,9 @@ public class URISupportTest {
 
     @Test
     public void testParseQueryLenient() throws Exception {
-        try {
-            URISupport.parseQuery("password=secret&serviceName=somechat&", false, false);
-            fail("Should have thrown exception");
-        } catch (URISyntaxException e) {
-            // expected
-        }
+        assertThrows(URISyntaxException.class,
+                () -> URISupport.parseQuery("password=secret&serviceName=somechat&", false, false),
+                "Should have thrown a URISyntaxException");
 
         Map<String, Object> map = URISupport.parseQuery("password=secret&serviceName=somechat&", false, true);
         assertEquals(2, map.size());
@@ -581,16 +581,16 @@ public class URISupportTest {
     }
 
     @Test
-    public void testExtractQuery() throws Exception {
-        assertEquals(null, URISupport.extractQuery(null));
-        assertEquals(null, URISupport.extractQuery(""));
-        assertEquals(null, URISupport.extractQuery("file:foo"));
+    public void testExtractQuery() {
+        assertNull(URISupport.extractQuery(null));
+        assertNull(URISupport.extractQuery(""));
+        assertNull(URISupport.extractQuery("file:foo"));
         assertEquals("recursive=true", URISupport.extractQuery("file:foo?recursive=true"));
         assertEquals("recursive=true&delete=true", URISupport.extractQuery("file:foo?recursive=true&delete=true"));
     }
 
     @Test
-    public void testPlusInQuery() throws Exception {
+    public void testPlusInQuery() {
         Map<String, Object> map = new HashMap<>();
         map.put("param1", "+447777111222");
         String q = URISupport.createQueryString(map);
@@ -602,4 +602,41 @@ public class URISupportTest {
         assertEquals("param1=%252B447777111222", q);
     }
 
+    @Test
+    public void testBuildMultiValueQuery() {
+        List<Object> list = new ArrayList<>();
+        assertEquals("", URISupport.buildMultiValueQuery("id", list));
+        list = List.of("hello");
+        assertEquals("id=hello", URISupport.buildMultiValueQuery("id", list));
+        list = List.of(1, 2, 3);
+        assertEquals("id=1&id=2&id=3", URISupport.buildMultiValueQuery("id", list));
+        list = List.of("foo", "bar", 3, true, "baz");
+        assertEquals("hey=foo&hey=bar&hey=3&hey=true&hey=baz", URISupport.buildMultiValueQuery("hey", list));
+    }
+
+    @Test
+    public void testGetDecodeQuery() throws Exception {
+        String out = URISupport.normalizeUri("smtp://localhost?username=davsclaus&password=secret");
+        String enc = UnsafeUriCharactersEncoder.encode(out);
+        String dec = URISupport.getDecodeQuery(enc);
+        assertEquals(out, dec);
+
+        out = URISupport.normalizeUri("smtp://localhost?password=secret&username=davsclaus");
+        assertEquals(out, dec);
+
+        out = URISupport.normalizeUri("http://localhost?username=davsclaus&password=RAW(#@a)");
+        enc = UnsafeUriCharactersEncoder.encode(out);
+        assertNotEquals(out, enc);
+
+        dec = URISupport.getDecodeQuery(enc);
+        assertEquals(out, dec);
+
+        out = URISupport.normalizeUri("bean://MyBean?method=RAW(addString(%22#@a%23, test))");
+        enc = UnsafeUriCharactersEncoder.encode(out);
+        assertNotEquals(out, enc);
+
+        dec = URISupport.getDecodeQuery(enc);
+        assertEquals(out, dec);
+
+    }
 }

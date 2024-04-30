@@ -40,7 +40,7 @@ public class ComposedMessageProcessorTest extends ContextTestSupport {
         resultEndpoint.expectedMessageCount(1);
         resultEndpoint.expectedHeaderReceived("orderId", "myorderid");
 
-        List<OrderItem> order = Arrays.asList(new OrderItem[] { new OrderItem("widget", 5), new OrderItem("gadget", 10) });
+        List<OrderItem> order = Arrays.asList(new OrderItem("widget", 5), new OrderItem("gadget", 10));
 
         template.sendBodyAndHeader("direct:start", order, "orderId", "myorderid");
 
@@ -59,7 +59,7 @@ public class ComposedMessageProcessorTest extends ContextTestSupport {
         resultEndpoint.expectedHeaderReceived("orderId", "myorderid");
 
         // START SNIPPET: e1
-        List<OrderItem> order = Arrays.asList(new OrderItem[] { new OrderItem("widget", 500), new OrderItem("gadget", 200) });
+        List<OrderItem> order = Arrays.asList(new OrderItem("widget", 500), new OrderItem("gadget", 200));
 
         template.sendBodyAndHeader("direct:start", order, "orderId", "myorderid");
         // END SNIPPET: e1
@@ -72,8 +72,8 @@ public class ComposedMessageProcessorTest extends ContextTestSupport {
     }
 
     @Override
-    protected Registry createRegistry() throws Exception {
-        Registry jndi = super.createRegistry();
+    protected Registry createCamelRegistry() throws Exception {
+        Registry jndi = super.createCamelRegistry();
         jndi.bind("orderItemHelper", new OrderItemHelper());
         jndi.bind("widgetInventory", new WidgetInventory());
         jndi.bind("gadgetInventory", new GadgetInventory());
@@ -102,8 +102,8 @@ public class ComposedMessageProcessorTest extends ContextTestSupport {
 
     // START SNIPPET: e3
     public static final class OrderItem {
-        String type; // type of the item
-        int quantity; // how many we want
+        final String type; // type of the item
+        final int quantity; // how many we want
         boolean valid; // whether that many items can be ordered
 
         public OrderItem(String type, int quantity) {

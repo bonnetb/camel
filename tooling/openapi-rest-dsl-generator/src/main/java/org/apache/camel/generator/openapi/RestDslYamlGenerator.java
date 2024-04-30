@@ -19,8 +19,10 @@ package org.apache.camel.generator.openapi;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
@@ -40,14 +42,17 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.BooleanNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
-import io.apicurio.datamodels.openapi.models.OasDocument;
+import io.apicurio.datamodels.models.openapi.OpenApiDocument;
+import io.apicurio.datamodels.models.openapi.OpenApiPathItem;
 import org.apache.camel.CamelContext;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.model.rest.RestsDefinition;
+import org.apache.camel.support.PluginHelper;
 import org.apache.camel.util.ObjectHelper;
 
 public class RestDslYamlGenerator extends RestDslGenerator<RestDslYamlGenerator> {
@@ -56,22 +61,31 @@ public class RestDslYamlGenerator extends RestDslGenerator<RestDslYamlGenerator>
     private static final String[] FIELD_ORDER
             = new String[] { "id", "path", "description", "consumes", "produces", "type", "outType", "param" };
 
-    RestDslYamlGenerator(final OasDocument document) {
+    RestDslYamlGenerator(final OpenApiDocument document) {
         super(document);
     }
 
     public String generate(final CamelContext context) throws Exception {
-        final RestDefinitionEmitter emitter = new RestDefinitionEmitter(context);
+        return generate(context, false);
+    }
+
+    public String generate(final CamelContext context, boolean generateRoutes) throws Exception {
+        final RestDefinitionEmitter emitter = new RestDefinitionEmitter();
         final String basePath = RestDslGenerator.determineBasePathFrom(this.basePath, document);
         final PathVisitor<RestsDefinition> restDslStatement = new PathVisitor<>(
                 basePath, emitter, filter,
-                destinationGenerator());
+                destinationGenerator(),
+                dtoPackageName);
 
-        document.paths.getPathItems().forEach(restDslStatement::visit);
+        if (document.getPaths() != null) {
+            for (String name : document.getPaths().getItemNames()) {
+                OpenApiPathItem item = document.getPaths().getItem(name);
+                restDslStatement.visit(name, item);
+            }
+        }
 
         final RestsDefinition rests = emitter.result();
-        final ExtendedCamelContext ecc = context.adapt(ExtendedCamelContext.class);
-        final String xml = ecc.getModelToXMLDumper().dumpModelAsXml(context, rests);
+        final String xml = PluginHelper.getModelToXMLDumper(context).dumpModelAsXml(context, rests);
 
         final DocumentBuilderFactory builderFactory = DocumentBuilderFactory.newInstance();
         builderFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
@@ -91,28 +105,37 @@ public class RestDslYamlGenerator extends RestDslGenerator<RestDslYamlGenerator>
             element.removeAttribute("customId");
         }
 
-        if (restComponent != null) {
+        boolean restConfig = restComponent != null || restContextPath != null || clientRequestValidation;
+        if (restConfig) {
             final Element configuration = document.createElement("restConfiguration");
-            configuration.setAttribute("component", restComponent);
-
-            if (restContextPath != null) {
+            if (ObjectHelper.isNotEmpty(restComponent)) {
+                configuration.setAttribute("component", restComponent);
+            }
+            if (ObjectHelper.isNotEmpty(restContextPath)) {
                 configuration.setAttribute("contextPath", restContextPath);
             }
-
             if (ObjectHelper.isNotEmpty(apiContextPath)) {
                 configuration.setAttribute("apiContextPath", apiContextPath);
             }
-
             if (clientRequestValidation) {
                 configuration.setAttribute("clientRequestValidation", "true");
             }
-
             root.insertBefore(configuration, root.getFirstChild());
         }
 
         // convert from xml to yaml via jackson
         final TransformerFactory transformerFactory = TransformerFactory.newInstance();
         transformerFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, Boolean.TRUE);
+        try {
+            transformerFactory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+        } catch (IllegalArgumentException e) {
+            // ignore
+        }
+        try {
+            transformerFactory.setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "");
+        } catch (IllegalArgumentException e) {
+            // ignore
+        }
         final Transformer transformer = transformerFactory.newTransformer();
 
         final StringWriter writer = new StringWriter();
@@ -123,16 +146,35 @@ public class RestDslYamlGenerator extends RestDslGenerator<RestDslYamlGenerator>
         XmlMapper xmlMapper = new XmlMapper();
         JsonNode node = xmlMapper.readTree(newXml.getBytes());
 
+        Map<String, String> toTagData = new HashMap<>();
+
         for (String v : VERBS) {
+            fixVerbNodes(xmlMapper, node, v);
             fixParamNodes(xmlMapper, node, v);
-            fixVerb(node, v);
+            sortVerb(node, v);
+            toTagData.putAll(fixToTags(xmlMapper, node, v));
         }
+
         // the root tag should be an array
         node = fixRootNode(xmlMapper, node);
 
+        // add Routes
+        if (generateRoutes) {
+            for (Map.Entry<String, String> entry : toTagData.entrySet()) {
+                ObjectNode from = JsonNodeFactory.instance.objectNode();
+                from.set("uri", new TextNode(entry.getKey()));
+                String description = entry.getValue();
+                if (description != null && !description.isBlank()) {
+                    from.set("description", new TextNode(description));
+                }
+                ObjectNode route = JsonNodeFactory.instance.objectNode();
+                route.set("from", from);
+                ((ArrayNode) node).add(xmlMapper.createObjectNode().set("route", route));
+            }
+        }
+
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory().disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER));
-        String yaml = mapper.writeValueAsString(node);
-        return yaml;
+        return mapper.writeValueAsString(node);
     }
 
     private static JsonNode fixRootNode(XmlMapper xmlMapper, JsonNode node) {
@@ -142,7 +184,7 @@ public class RestDslYamlGenerator extends RestDslGenerator<RestDslYamlGenerator>
             // if rest configuration is present then put it in the top
             JsonNode rc = node.get("restConfiguration");
             if (rc != null) {
-                arr.add(xmlMapper.createObjectNode().set("rest-configuration", rc));
+                arr.add(xmlMapper.createObjectNode().set("restConfiguration", rc));
             }
             arr.add(xmlMapper.createObjectNode().set("rest", r));
             node = arr;
@@ -154,7 +196,7 @@ public class RestDslYamlGenerator extends RestDslGenerator<RestDslYamlGenerator>
      * we want verbs to have its children sorted in a specific order so the generated rest-dsl is always the same
      * structure and that we have id, uri, ... in the top
      */
-    private static void fixVerb(JsonNode node, String verb) {
+    private static void sortVerb(JsonNode node, String verb) {
         JsonNode verbs = node.path("rest").path(verb);
         if (verbs == null || verbs.isMissingNode()) {
             return;
@@ -163,7 +205,7 @@ public class RestDslYamlGenerator extends RestDslGenerator<RestDslYamlGenerator>
             List<String> names = new ArrayList<>();
             if (n.isObject()) {
                 ObjectNode on = (ObjectNode) n;
-                // sort the elements: id, uri, description, consumes, produces, type, outType, param
+                // sort the elements: id, path, description, consumes, produces, type, outType, param
                 Iterator<String> it = on.fieldNames();
                 while (it.hasNext()) {
                     names.add(it.next());
@@ -229,9 +271,69 @@ public class RestDslYamlGenerator extends RestDslGenerator<RestDslYamlGenerator>
                         BooleanNode bn = xmlMapper.createObjectNode().booleanNode(b);
                         on.set("required", bn);
                     }
+                    String k = "allowableValues";
+                    r = pc.get(k);
+                    if (r == null) {
+                        k = "allowable-values";
+                        r = pc.get(k);
+                    }
+                    if (r != null) {
+                        // remove value node
+                        JsonNode v = r.get("value");
+                        if (v.isArray()) {
+                            ObjectNode on = (ObjectNode) pc;
+                            on.set(k, v);
+                            on.remove("value");
+                        }
+                    }
                 }
             }
         }
+    }
+
+    /**
+     * verb nodes should be an array list, but if there is only 1 verb then there is only 1 <verb> in XML and jackson
+     * parses that into a single node, so we need to change that into an array node
+     */
+    private static void fixVerbNodes(XmlMapper xmlMapper, JsonNode node, String verb) {
+        JsonNode verbs = node.path("rest").path(verb);
+        if (verbs == null || verbs.isMissingNode()) {
+            return;
+        }
+        if (verbs.isObject()) {
+            ArrayNode arr = xmlMapper.createArrayNode();
+            ObjectNode on = (ObjectNode) verbs;
+            arr.add(on);
+            ObjectNode n = (ObjectNode) node.path("rest");
+            n.set(verb, arr);
+        }
+    }
+
+    /**
+     * to tag should be in implicit mode, ex: to: "direct:directX"
+     */
+    private static Map<String, String> fixToTags(XmlMapper xmlMapper, JsonNode node, String verb) {
+        Map<String, String> toTags = new HashMap<>();
+        JsonNode verbs = node.path("rest").path(verb);
+        if (verbs == null || verbs.isMissingNode()) {
+            return toTags;
+        }
+        if (!verbs.isArray()) {
+            // the rest has only 1 verb so fool the code below and wrap in an new array
+            ArrayNode arr = xmlMapper.createArrayNode();
+            arr.add(verbs);
+            verbs = arr;
+        }
+        for (JsonNode n : verbs) {
+            if (n.has("to")) {
+                ObjectNode on = (ObjectNode) n;
+                JsonNode uri = n.get("to").get("uri");
+                on.set("to", uri);
+                String description = n.has("description") ? n.get("description").asText() : "";
+                toTags.put(uri.textValue(), description);
+            }
+        }
+        return toTags;
     }
 
     private static int fieldOrderIndex(String field) {

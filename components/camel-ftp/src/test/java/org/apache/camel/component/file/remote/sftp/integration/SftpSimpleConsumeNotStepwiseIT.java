@@ -19,7 +19,7 @@ package org.apache.camel.component.file.remote.sftp.integration;
 import org.apache.camel.builder.RouteBuilder;
 import org.junit.jupiter.api.condition.EnabledIf;
 
-@EnabledIf(value = "org.apache.camel.component.file.remote.services.SftpEmbeddedService#hasRequiredAlgorithms")
+@EnabledIf(value = "org.apache.camel.test.infra.ftp.services.embedded.SftpUtil#hasRequiredAlgorithms('src/test/resources/hostkey.pem')")
 public class SftpSimpleConsumeNotStepwiseIT extends SftpSimpleConsumeIT {
 
     @Override
@@ -28,8 +28,9 @@ public class SftpSimpleConsumeNotStepwiseIT extends SftpSimpleConsumeIT {
             @Override
             public void configure() {
                 from("sftp://localhost:{{ftp.server.port}}/{{ftp.root.dir}}"
-                     + "?username=admin&password=admin&delay=10000&disconnect=true&stepwise=false").routeId("foo")
-                             .noAutoStartup().to("mock:result");
+                     + "?username=admin&password=admin&delay=10000&disconnect=true&stepwise=false&knownHostsFile="
+                     + service.getKnownHostsFile()).routeId("foo")
+                        .noAutoStartup().to("mock:result");
             }
         };
     }

@@ -25,7 +25,7 @@ Then you can easily call this processor from a Java such as:
 
 [source,java]
 ----
-from("activemq:myQueue").process(MyProcessor.class);
+from("activemq:myQueue").process(new MyProcessor());
 ----
 
 Notice that the processor is referred to by the class type `MyProcessor.class` in the route.
@@ -81,11 +81,11 @@ from("activemq:myQueue").process("#class:com.acme.MyProcessor");
 
 NOTE: For more details about the `#class:` prefix (and others) then see xref:property-binding.adoc[Property Binding].
 
-However in Java DSL you would often use the type safe way and provide the class type directly as previously shown:
+However in Java DSL you would often use the type safe way and instantiate the Processor directly as previously shown:
 
 [source,java]
 ----
-from("activemq:myQueue").process(MyProcessor.class);
+from("activemq:myQueue").process(new MyProcessor());
 ----
 
 
@@ -109,3 +109,7 @@ inner class gets a bit more complicated it is of course advised to
 refactor it into a separate class. This approach is better if you do not want to use this processor again.
 From reusability perspective, it is not recommended to use this approach with anonymous inner classes.
 
+== See Also
+
+** xref:manual::consumertemplate.adoc[Consumer Template]: to learn how to consume data (including within processors)
+** xref:manual::producertemplate.adoc[Producer Template]: to learn how to produce data (including within processors)

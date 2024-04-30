@@ -5,7 +5,8 @@
 :description: Perform operations on Kubernetes ConfigMaps and get notified on ConfigMaps changes.
 :since: 2.17
 :supportlevel: Stable
-:component-header: Only producer is supported
+:tabs-sync-option:
+:component-header: Both producer and consumer are supported
 //Manually maintained attributes
 :group: Kubernetes
 :camel-spring-boot-name: kubernetes
@@ -41,11 +42,12 @@ include::partial$component-endpoint-headers.adoc[]
 - listConfigMapsByLabels
 - getConfigMap
 - createConfigMap
+- updateConfigMap
 - deleteConfigMap
 
 == Kubernetes ConfigMaps Producer Examples
 
-- listConfigMaps: this operation list the configmaps
+- listConfigMaps: this operation lists the configmaps
 
 [source,java]
 --------------------------------------------------------------------------------
@@ -54,9 +56,9 @@ from("direct:list").
     to("mock:result");
 --------------------------------------------------------------------------------
 
-This operation return a List of ConfigMaps from your cluster
+This operation returns a List of ConfigMaps from your cluster
 
-- listConfigMapsByLabels: this operation list the configmaps selected by label
+- listConfigMapsByLabels: this operation lists the configmaps selected by label
 
 [source,java]
 --------------------------------------------------------------------------------
@@ -74,7 +76,7 @@ from("direct:listByLabels").process(new Processor() {
     to("mock:result");
 --------------------------------------------------------------------------------
 
-This operation return a List of ConfigMaps from your cluster, using a label selector (with key1 and key2, with value value1 and value2)
+This operation returns a List of ConfigMaps from your cluster, using a label selector (with key1 and key2, with value value1 and value2)
 
 == Kubernetes ConfigMaps Consumer Example
 

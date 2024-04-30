@@ -21,19 +21,36 @@ import java.util.concurrent.TimeUnit;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Tags;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIfSystemProperties;
+import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 
+@DisabledIfSystemProperties({
+        @DisabledIfSystemProperty(named = "ci.env.name", matches = "apache.org",
+                                  disabledReason = "Apache CI nodes are too resource constrained for this test"),
+        @DisabledIfSystemProperty(named = "ci.env.name", matches = "github.com", disabledReason = "Flaky on GitHub Actions"),
+        @DisabledIfSystemProperty(named = "couchbase.enable.it", matches = "false",
+                                  disabledReason = "Too resource intensive for most systems to run reliably"),
+})
+@Tags({ @Tag("couchbase-71") })
 public class ConsumeMessagesWithLimitIT extends CouchbaseIntegrationTestBase {
 
-    @Test
-    public void testQueryForBeers() throws Exception {
+    @BeforeEach
+    public void addToBucket() {
         for (int i = 0; i < 15; i++) {
             cluster.bucket(bucketName).defaultCollection().upsert("DocumentID_" + i, "message" + i);
         }
+    }
+
+    @Test
+    public void testQueryForBeers() throws Exception {
         MockEndpoint mock = getMockEndpoint("mock:result");
         mock.expectedMessageCount(10);
 
-        assertMockEndpointsSatisfied(30, TimeUnit.SECONDS);
+        MockEndpoint.assertIsSatisfied(context, 30, TimeUnit.SECONDS);
 
     }
 

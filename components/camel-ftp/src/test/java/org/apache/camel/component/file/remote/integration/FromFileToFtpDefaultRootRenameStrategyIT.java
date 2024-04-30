@@ -24,7 +24,6 @@ import org.apache.camel.Exchange;
 import org.apache.camel.Producer;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
-import org.apache.camel.converter.IOConverter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -59,7 +58,7 @@ public class FromFileToFtpDefaultRootRenameStrategyIT extends FtpServerTestSuppo
 
     @Test
     public void testFromFileToFtp() throws Exception {
-        File expectedOnFtpServer = ftpFile("logo.jpeg").toFile();
+        File expectedOnFtpServer = service.ftpFile("logo.jpeg").toFile();
         // the poller won't start for 1.5 seconds, so we check to make sure the
         // file
         // is there first check 1 - is the file there (default root location)
@@ -68,7 +67,7 @@ public class FromFileToFtpDefaultRootRenameStrategyIT extends FtpServerTestSuppo
         MockEndpoint mock = getMockEndpoint("mock:result");
         mock.expectedMessageCount(1);
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
 
         await().atMost(250, TimeUnit.MILLISECONDS).untilAsserted(() -> assertFalse(expectedOnFtpServer.exists()));
     }
@@ -77,7 +76,7 @@ public class FromFileToFtpDefaultRootRenameStrategyIT extends FtpServerTestSuppo
         // create a binary file .. uploaded to the default root location
         Endpoint endpoint = context.getEndpoint(getFtpUrl());
         Exchange exchange = endpoint.createExchange();
-        exchange.getIn().setBody(IOConverter.toFile("src/test/data/ftpbinarytest/logo.jpeg"));
+        exchange.getIn().setBody(new File("src/test/data/ftpbinarytest/logo.jpeg"));
         exchange.getIn().setHeader(Exchange.FILE_NAME, "logo.jpeg");
         Producer producer = endpoint.createProducer();
         producer.start();

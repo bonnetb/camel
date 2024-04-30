@@ -23,8 +23,8 @@ import java.util.Set;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.builder.RouteBuilder;
+import org.apache.camel.support.PluginHelper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.OS;
@@ -67,7 +67,7 @@ public class ManagedBeanIntrospectionTest extends ManagementTestSupport {
         Long counter = (Long) mbeanServer.getAttribute(on, "InvokedCounter");
         assertEquals(0, counter.intValue(), "Should not have been invoked");
 
-        Object dummy = context.adapt(ExtendedCamelContext.class).getBeanIntrospection().getOrElseProperty(this, "dummy", null,
+        Object dummy = PluginHelper.getBeanIntrospection(context).getOrElseProperty(this, "dummy", null,
                 false);
         assertEquals("MyDummy", dummy);
 
@@ -76,10 +76,10 @@ public class ManagedBeanIntrospectionTest extends ManagementTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:start").to("mock:result");
             }
         };

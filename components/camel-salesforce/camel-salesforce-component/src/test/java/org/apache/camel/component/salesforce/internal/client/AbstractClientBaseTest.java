@@ -31,11 +31,12 @@ import org.apache.camel.component.salesforce.internal.SalesforceSession;
 import org.apache.camel.impl.DefaultCamelContext;
 import org.apache.camel.support.DefaultExchange;
 import org.apache.camel.support.DefaultMessage;
-import org.eclipse.jetty.client.HttpConversation;
-import org.eclipse.jetty.client.api.Request;
-import org.eclipse.jetty.client.api.Response;
-import org.eclipse.jetty.client.api.Response.CompleteListener;
-import org.eclipse.jetty.client.api.Result;
+import org.apache.camel.util.StopWatch;
+import org.eclipse.jetty.client.Request;
+import org.eclipse.jetty.client.Response;
+import org.eclipse.jetty.client.Result;
+import org.eclipse.jetty.client.transport.HttpConversation;
+import org.eclipse.jetty.client.transport.HttpRequest;
 import org.eclipse.jetty.http.HttpFields;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -113,7 +114,7 @@ public class AbstractClientBaseTest {
     @Test
     public void shouldDetermineHeadersFromResponse() {
         final Response response = mock(Response.class);
-        final HttpFields httpHeaders = new HttpFields();
+        final HttpFields.Mutable httpHeaders = HttpFields.build();
         httpHeaders.add("Date", "Mon, 20 May 2013 22:21:46 GMT");
         httpHeaders.add("Sforce-Limit-Info", "api-usage=18/5000");
         httpHeaders.add("Last-Modified", "Mon, 20 May 2013 20:49:32 GMT");
@@ -129,7 +130,7 @@ public class AbstractClientBaseTest {
     @Test
     public void shouldNotHangIfRequestsHaveFinished() throws Exception {
         final Request request = mock(Request.class);
-        final ArgumentCaptor<CompleteListener> listener = ArgumentCaptor.forClass(CompleteListener.class);
+        final ArgumentCaptor<Response.CompleteListener> listener = ArgumentCaptor.forClass(Response.CompleteListener.class);
 
         doNothing().when(request).send(listener.capture());
 
@@ -139,9 +140,9 @@ public class AbstractClientBaseTest {
         final Result result = mock(Result.class);
         final Response response = mock(Response.class);
         when(result.getResponse()).thenReturn(response);
-        when(response.getHeaders()).thenReturn(new HttpFields());
+        when(response.getHeaders()).thenReturn(HttpFields.build());
 
-        final SalesforceHttpRequest salesforceRequest = mock(SalesforceHttpRequest.class);
+        final HttpRequest salesforceRequest = mock(HttpRequest.class);
         when(result.getRequest()).thenReturn(salesforceRequest);
 
         final HttpConversation conversation = mock(HttpConversation.class);
@@ -156,11 +157,11 @@ public class AbstractClientBaseTest {
         // completes the request
         listener.getValue().onComplete(result);
 
-        final long stopStartTime = System.currentTimeMillis();
+        StopWatch watch = new StopWatch();
         // should not wait
         client.stop();
 
-        final long elapsed = System.currentTimeMillis() - stopStartTime;
+        final long elapsed = watch.taken();
         assertTrue(elapsed < 10);
     }
 
@@ -171,11 +172,11 @@ public class AbstractClientBaseTest {
 
         // the request never completes
 
-        final long stopStartTime = System.currentTimeMillis();
+        StopWatch watch = new StopWatch();
         // will wait for 1 second
         client.stop();
 
-        final long elapsed = System.currentTimeMillis() - stopStartTime;
+        final long elapsed = watch.taken();
         assertTrue(elapsed > 900 && elapsed < 1100);
     }
 

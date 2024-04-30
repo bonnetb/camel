@@ -18,7 +18,9 @@ package org.apache.camel.component.salesforce.internal.client;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -39,26 +41,31 @@ import org.apache.camel.Exchange;
 import org.apache.camel.Message;
 import org.apache.camel.component.salesforce.SalesforceHttpClient;
 import org.apache.camel.component.salesforce.SalesforceLoginConfig;
+import org.apache.camel.component.salesforce.api.NoSuchSObjectException;
 import org.apache.camel.component.salesforce.api.SalesforceException;
+import org.apache.camel.component.salesforce.api.SalesforceMultipleChoicesException;
 import org.apache.camel.component.salesforce.api.TypeReferences;
 import org.apache.camel.component.salesforce.api.dto.RestError;
-import org.apache.camel.component.salesforce.internal.PayloadFormat;
+import org.apache.camel.component.salesforce.api.utils.JsonUtils;
 import org.apache.camel.component.salesforce.internal.SalesforceSession;
 import org.apache.camel.support.service.ServiceSupport;
+import org.apache.commons.io.IOUtils;
+import org.eclipse.jetty.client.BufferingResponseListener;
+import org.eclipse.jetty.client.ByteBufferRequestContent;
+import org.eclipse.jetty.client.ContentResponse;
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.client.HttpContentResponse;
-import org.eclipse.jetty.client.api.ContentProvider;
-import org.eclipse.jetty.client.api.ContentResponse;
-import org.eclipse.jetty.client.api.Request;
-import org.eclipse.jetty.client.api.Response;
-import org.eclipse.jetty.client.api.Result;
-import org.eclipse.jetty.client.util.BufferingResponseListener;
-import org.eclipse.jetty.client.util.ByteBufferContentProvider;
-import org.eclipse.jetty.client.util.InputStreamContentProvider;
+import org.eclipse.jetty.client.InputStreamRequestContent;
+import org.eclipse.jetty.client.Request;
+import org.eclipse.jetty.client.Response;
+import org.eclipse.jetty.client.Result;
+import org.eclipse.jetty.client.internal.HttpContentResponse;
+import org.eclipse.jetty.client.transport.HttpConversation;
+import org.eclipse.jetty.client.transport.HttpRequest;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpFields;
 import org.eclipse.jetty.http.HttpMethod;
 import org.eclipse.jetty.http.HttpStatus;
+import org.eclipse.jetty.io.Content;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,7 +89,8 @@ public abstract class AbstractClientBase extends ServiceSupport
 
     private Phaser inflightRequests;
 
-    private long terminationTimeout;
+    private final long terminationTimeout;
+    private final ObjectMapper objectMapper;
 
     public AbstractClientBase(String version, SalesforceSession session, SalesforceHttpClient httpClient,
                               SalesforceLoginConfig loginConfig) {
@@ -96,6 +104,7 @@ public abstract class AbstractClientBase extends ServiceSupport
         this.httpClient = httpClient;
         this.loginConfig = loginConfig;
         this.terminationTimeout = terminationTimeout;
+        this.objectMapper = JsonUtils.createObjectMapper();
     }
 
     @Override
@@ -127,7 +136,9 @@ public abstract class AbstractClientBase extends ServiceSupport
             if (!inflightRequests.isTerminated()) {
                 try {
                     inflightRequests.awaitAdvanceInterruptibly(0, terminationTimeout, TimeUnit.SECONDS);
-                } catch (InterruptedException | TimeoutException ignored) {
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } catch (TimeoutException ignored) {
                     // exception is ignored
                 }
             }
@@ -156,8 +167,9 @@ public abstract class AbstractClientBase extends ServiceSupport
     }
 
     protected Request getRequest(String method, String url, Map<String, List<String>> headers) {
-        SalesforceHttpRequest request = (SalesforceHttpRequest) httpClient.newRequest(url).method(method)
-                .timeout(session.getTimeout(), TimeUnit.MILLISECONDS);
+        HttpRequest request
+                = (HttpRequest) httpClient.newHttpRequest(new HttpConversation(), URI.create(url)).method(method)
+                        .timeout(session.getTimeout(), TimeUnit.MILLISECONDS);
         request.getConversation().setAttribute(SalesforceSecurityHandler.CLIENT_ATTRIBUTE, this);
         addHeadersTo(request, headers);
 
@@ -172,13 +184,19 @@ public abstract class AbstractClientBase extends ServiceSupport
         // Highly memory inefficient,
         // but buffer the request content to allow it to be replayed for
         // authentication retries
-        final ContentProvider content = request.getContent();
-        if (content instanceof InputStreamContentProvider) {
+        final Request.Content content = request.getBody();
+        if (content instanceof InputStreamRequestContent) {
+            InputStreamRequestContent inputStreamRequestContent = (InputStreamRequestContent) content;
             final List<ByteBuffer> buffers = new ArrayList<>();
-            for (ByteBuffer buffer : content) {
-                buffers.add(buffer);
+            while (true) {
+                Content.Chunk chunk = inputStreamRequestContent.read();
+                if (chunk.isLast()) {
+                    break;
+                } else {
+                    buffers.add(chunk.getByteBuffer());
+                }
             }
-            request.content(new ByteBufferContentProvider(buffers.toArray(new ByteBuffer[buffers.size()])));
+            request.body(new ByteBufferRequestContent(buffers.toArray(new ByteBuffer[0])));
             buffers.clear();
         }
 
@@ -211,8 +229,8 @@ public abstract class AbstractClientBase extends ServiceSupport
 
                         // HTTP error status
                         final int status = response.getStatus();
-                        SalesforceHttpRequest request
-                                = (SalesforceHttpRequest) ((SalesforceHttpRequest) result.getRequest()).getConversation()
+                        HttpRequest request
+                                = (HttpRequest) ((HttpRequest) result.getRequest()).getConversation()
                                         .getAttribute(SalesforceSecurityHandler.AUTHENTICATION_REQUEST_ATTRIBUTE);
 
                         if (status == HttpStatus.BAD_REQUEST_400 && request != null) {
@@ -277,12 +295,6 @@ public abstract class AbstractClientBase extends ServiceSupport
     }
 
     final List<RestError> readErrorsFrom(
-            final InputStream responseContent, final PayloadFormat format, final ObjectMapper objectMapper)
-            throws IOException {
-        return readErrorsFrom(responseContent, objectMapper);
-    }
-
-    final List<RestError> readErrorsFrom(
             final InputStream responseContent, final ObjectMapper objectMapper)
             throws IOException {
         final List<RestError> restErrors;
@@ -292,7 +304,55 @@ public abstract class AbstractClientBase extends ServiceSupport
 
     protected abstract void setAccessToken(Request request);
 
-    protected abstract SalesforceException createRestException(Response response, InputStream responseContent);
+    protected SalesforceException createRestException(Response response, InputStream responseContent) {
+        // get status code and reason phrase
+        final int statusCode = response.getStatus();
+        String reason = response.getReason();
+        if (reason == null || reason.isEmpty()) {
+            reason = HttpStatus.getMessage(statusCode);
+        }
+        try {
+            if (responseContent != null && responseContent.available() > 0) {
+                final List<String> choices;
+                // return list of choices as error message for 300
+                if (statusCode == HttpStatus.MULTIPLE_CHOICES_300) {
+                    choices = objectMapper.readValue(responseContent, TypeReferences.STRING_LIST_TYPE);
+                    return new SalesforceMultipleChoicesException(reason, statusCode, choices);
+                } else {
+                    List<RestError> restErrors = null;
+                    String body = null;
+                    try {
+                        restErrors = readErrorsFrom(responseContent, objectMapper);
+                    } catch (IOException ignored) {
+                        // ok. could be a custom response
+                    }
+                    try {
+                        responseContent.reset();
+                        body = IOUtils.toString(responseContent, StandardCharsets.UTF_8);
+                        responseContent.reset();
+                    } catch (Exception t) {
+                        log.warn("Unable to reset HTTP response content input stream.");
+                    }
+                    if (statusCode == HttpStatus.NOT_FOUND_404) {
+                        return new NoSuchSObjectException(restErrors);
+                    }
+
+                    return new SalesforceException(
+                            restErrors, statusCode,
+                            "Unexpected error: " + reason + ". See exception `errors` property for detail. " + body,
+                            responseContent);
+                }
+            }
+        } catch (IOException | RuntimeException e) {
+            // log and ignore
+            String msg = "Unexpected Error parsing error response body + [" + responseContent + "] : "
+                         + e.getMessage();
+            log.warn(msg, e);
+        }
+
+        // just report HTTP status info
+        return new SalesforceException("Unexpected error: " + reason + ", with content: " + responseContent, statusCode);
+    }
 
     static Map<String, String> determineHeadersFrom(final Response response) {
         final HttpFields headers = response.getHeaders();
@@ -305,8 +365,12 @@ public abstract class AbstractClientBase extends ServiceSupport
                 answer.put(headerName, header.getValue());
             }
         }
-        answer.put(Exchange.HTTP_RESPONSE_CODE, String.valueOf(response.getStatus()));
-        answer.put(Exchange.HTTP_RESPONSE_TEXT, response.getReason());
+
+        // don't set the response code to "0" and the response text to null if there's a response timeout
+        if (response.getStatus() != 0) {
+            answer.put(Exchange.HTTP_RESPONSE_CODE, String.valueOf(response.getStatus()));
+            answer.put(Exchange.HTTP_RESPONSE_TEXT, response.getReason());
+        }
 
         return answer;
     }
@@ -316,10 +380,11 @@ public abstract class AbstractClientBase extends ServiceSupport
             return;
         }
 
-        final HttpFields requestHeaders = request.getHeaders();
-        for (Entry<String, List<String>> header : headers.entrySet()) {
-            requestHeaders.put(header.getKey(), header.getValue());
-        }
+        request.headers(requestHeaders -> {
+            for (Entry<String, List<String>> header : headers.entrySet()) {
+                requestHeaders.put(header.getKey(), header.getValue());
+            }
+        });
     }
 
     static Map<String, List<String>> determineHeaders(final Exchange exchange) {

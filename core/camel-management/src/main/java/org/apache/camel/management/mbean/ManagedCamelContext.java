@@ -32,7 +32,7 @@ import org.w3c.dom.Document;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.Endpoint;
-import org.apache.camel.ExtendedCamelContext;
+import org.apache.camel.Exchange;
 import org.apache.camel.ManagementStatisticsLevel;
 import org.apache.camel.Producer;
 import org.apache.camel.ProducerTemplate;
@@ -44,7 +44,6 @@ import org.apache.camel.api.management.mbean.ManagedProcessorMBean;
 import org.apache.camel.api.management.mbean.ManagedRouteMBean;
 import org.apache.camel.api.management.mbean.ManagedStepMBean;
 import org.apache.camel.model.Model;
-import org.apache.camel.model.ModelCamelContext;
 import org.apache.camel.model.RouteDefinition;
 import org.apache.camel.model.RouteTemplateDefinition;
 import org.apache.camel.model.RouteTemplatesDefinition;
@@ -52,17 +51,25 @@ import org.apache.camel.model.RoutesDefinition;
 import org.apache.camel.model.rest.RestDefinition;
 import org.apache.camel.model.rest.RestsDefinition;
 import org.apache.camel.spi.ManagementStrategy;
+import org.apache.camel.spi.UnitOfWork;
+import org.apache.camel.support.CamelContextHelper;
+import org.apache.camel.support.PluginHelper;
 
 @ManagedResource(description = "Managed CamelContext")
 public class ManagedCamelContext extends ManagedPerformanceCounter implements TimerListener, ManagedCamelContextMBean {
 
     private final CamelContext context;
     private final LoadTriplet load = new LoadTriplet();
+    private final LoadThroughput thp = new LoadThroughput();
     private final String jmxDomain;
+    private final boolean includeRouteTemplates;
+    private final boolean includeKamelets;
 
     public ManagedCamelContext(CamelContext context) {
         this.context = context;
         this.jmxDomain = context.getManagementStrategy().getManagementAgent().getMBeanObjectDomainName();
+        this.includeRouteTemplates = context.getManagementStrategy().getManagementAgent().getRegisterRoutesCreateByTemplate();
+        this.includeKamelets = context.getManagementStrategy().getManagementAgent().getRegisterRoutesCreateByKamelet();
     }
 
     @Override
@@ -73,6 +80,57 @@ public class ManagedCamelContext extends ManagedPerformanceCounter implements Ti
         setStatisticsEnabled(enabled);
     }
 
+    @Override
+    public void completedExchange(Exchange exchange, long time) {
+        // the camel-context mbean is triggered for every route mbean
+        // so we must only trigger on the root level, otherwise the context mbean
+        // total counter will be incorrect. For example if an exchange is routed via 3 routes
+        // we should only count this as 1 instead of 3.
+        UnitOfWork uow = exchange.getUnitOfWork();
+        if (uow != null) {
+            int level = uow.routeStackLevel(includeRouteTemplates, includeKamelets);
+            if (level <= 1) {
+                super.completedExchange(exchange, time);
+            }
+        } else {
+            super.completedExchange(exchange, time);
+        }
+    }
+
+    @Override
+    public void failedExchange(Exchange exchange) {
+        // the camel-context mbean is triggered for every route mbean
+        // so we must only trigger on the root level, otherwise the context mbean
+        // total counter will be incorrect. For example if an exchange is routed via 3 routes
+        // we should only count this as 1 instead of 3.
+        UnitOfWork uow = exchange.getUnitOfWork();
+        if (uow != null) {
+            int level = uow.routeStackLevel(includeRouteTemplates, includeKamelets);
+            if (level <= 1) {
+                super.failedExchange(exchange);
+            }
+        } else {
+            super.failedExchange(exchange);
+        }
+    }
+
+    @Override
+    public void processExchange(Exchange exchange, String type) {
+        // the camel-context mbean is triggered for every route mbean
+        // so we must only trigger on the root level, otherwise the context mbean
+        // total counter will be incorrect. For example if an exchange is routed via 3 routes
+        // we should only count this as 1 instead of 3.
+        UnitOfWork uow = exchange.getUnitOfWork();
+        if (uow != null) {
+            int level = uow.routeStackLevel(includeRouteTemplates, includeKamelets);
+            if (level <= 1) {
+                super.processExchange(exchange, type);
+            }
+        } else {
+            super.processExchange(exchange, type);
+        }
+    }
+
     public CamelContext getContext() {
         return context;
     }
@@ -80,6 +138,11 @@ public class ManagedCamelContext extends ManagedPerformanceCounter implements Ti
     @Override
     public String getCamelId() {
         return context.getName();
+    }
+
+    @Override
+    public String getCamelDescription() {
+        return context.getDescription();
     }
 
     @Override
@@ -93,18 +156,23 @@ public class ManagedCamelContext extends ManagedPerformanceCounter implements Ti
     }
 
     @Override
+    public String getProfile() {
+        return context.getCamelContextExtension().getProfile();
+    }
+
+    @Override
     public String getState() {
         return context.getStatus().name();
     }
 
     @Override
     public String getUptime() {
-        return context.getUptime();
+        return CamelContextHelper.getUptime(context);
     }
 
     @Override
     public long getUptimeMillis() {
-        return context.getUptimeMillis();
+        return context.getUptime().toMillis();
     }
 
     @Override
@@ -123,7 +191,7 @@ public class ManagedCamelContext extends ManagedPerformanceCounter implements Ti
 
     @Override
     public String getPackageScanClassResolver() {
-        return context.adapt(ExtendedCamelContext.class).getPackageScanClassResolver().getClass().getName();
+        return PluginHelper.getPackageScanClassResolver(context).getClass().getName();
     }
 
     @Override
@@ -137,7 +205,7 @@ public class ManagedCamelContext extends ManagedPerformanceCounter implements Ti
 
     @Override
     public String getHeadersMapFactoryClassName() {
-        return context.adapt(ExtendedCamelContext.class).getHeadersMapFactory().getClass().getName();
+        return context.getCamelContextExtension().getHeadersMapFactory().getClass().getName();
     }
 
     @Override
@@ -252,6 +320,17 @@ public class ManagedCamelContext extends ManagedPerformanceCounter implements Ti
     }
 
     @Override
+    public String getThroughput() {
+        double d = thp.getThroughput();
+        if (Double.isNaN(d)) {
+            // empty string if load statistics is disabled
+            return "";
+        } else {
+            return String.format("%.2f", d);
+        }
+    }
+
+    @Override
     public boolean isUseBreadcrumb() {
         return context.isUseBreadcrumb();
     }
@@ -284,6 +363,7 @@ public class ManagedCamelContext extends ManagedPerformanceCounter implements Ti
     @Override
     public void onTimer() {
         load.update(getInflightExchanges());
+        thp.update(getExchangesTotal());
     }
 
     @Override
@@ -330,8 +410,9 @@ public class ManagedCamelContext extends ManagedPerformanceCounter implements Ti
         try {
             Endpoint endpoint = context.getEndpoint(endpointUri);
             if (endpoint != null) {
-                Producer producer = endpoint.createProducer();
-                return producer != null;
+                try (Producer producer = endpoint.createProducer()) {
+                    return producer != null;
+                }
             }
         } catch (Exception e) {
             // ignore
@@ -342,11 +423,8 @@ public class ManagedCamelContext extends ManagedPerformanceCounter implements Ti
 
     @Override
     public void sendBody(String endpointUri, Object body) throws Exception {
-        ProducerTemplate template = context.createProducerTemplate();
-        try {
+        try (ProducerTemplate template = context.createProducerTemplate()) {
             template.sendBody(endpointUri, body);
-        } finally {
-            template.stop();
         }
     }
 
@@ -357,24 +435,16 @@ public class ManagedCamelContext extends ManagedPerformanceCounter implements Ti
 
     @Override
     public void sendBodyAndHeaders(String endpointUri, Object body, Map<String, Object> headers) throws Exception {
-        ProducerTemplate template = context.createProducerTemplate();
-        try {
+        try (ProducerTemplate template = context.createProducerTemplate()) {
             template.sendBodyAndHeaders(endpointUri, body, headers);
-        } finally {
-            template.stop();
         }
     }
 
     @Override
     public Object requestBody(String endpointUri, Object body) throws Exception {
-        ProducerTemplate template = context.createProducerTemplate();
-        Object answer = null;
-        try {
-            answer = template.requestBody(endpointUri, body);
-        } finally {
-            template.stop();
+        try (ProducerTemplate template = context.createProducerTemplate()) {
+            return template.requestBody(endpointUri, body);
         }
-        return answer;
     }
 
     @Override
@@ -384,14 +454,9 @@ public class ManagedCamelContext extends ManagedPerformanceCounter implements Ti
 
     @Override
     public Object requestBodyAndHeaders(String endpointUri, Object body, Map<String, Object> headers) throws Exception {
-        ProducerTemplate template = context.createProducerTemplate();
-        Object answer = null;
-        try {
-            answer = template.requestBodyAndHeaders(endpointUri, body, headers);
-        } finally {
-            template.stop();
+        try (ProducerTemplate template = context.createProducerTemplate()) {
+            return template.requestBodyAndHeaders(endpointUri, body, headers);
         }
-        return answer;
     }
 
     @Override
@@ -401,7 +466,7 @@ public class ManagedCamelContext extends ManagedPerformanceCounter implements Ti
 
     @Override
     public String dumpRestsAsXml(boolean resolvePlaceholders) throws Exception {
-        List<RestDefinition> rests = context.getExtension(Model.class).getRestDefinitions();
+        List<RestDefinition> rests = context.getCamelContextExtension().getContextPlugin(Model.class).getRestDefinitions();
         if (rests.isEmpty()) {
             return null;
         }
@@ -409,23 +474,22 @@ public class ManagedCamelContext extends ManagedPerformanceCounter implements Ti
         RestsDefinition def = new RestsDefinition();
         def.setRests(rests);
 
-        ExtendedCamelContext ecc = context.adapt(ExtendedCamelContext.class);
-        return ecc.getModelToXMLDumper().dumpModelAsXml(context, def, resolvePlaceholders, false);
+        return PluginHelper.getModelToXMLDumper(context).dumpModelAsXml(context, def, resolvePlaceholders, true);
     }
 
     @Override
     public String dumpRoutesAsXml() throws Exception {
-        return dumpRoutesAsXml(false, false);
+        return dumpRoutesAsXml(false, true);
     }
 
     @Override
     public String dumpRoutesAsXml(boolean resolvePlaceholders) throws Exception {
-        return dumpRoutesAsXml(resolvePlaceholders, false);
+        return dumpRoutesAsXml(resolvePlaceholders, true);
     }
 
     @Override
-    public String dumpRoutesAsXml(boolean resolvePlaceholders, boolean resolveDelegateEndpoints) throws Exception {
-        List<RouteDefinition> routes = context.getExtension(Model.class).getRouteDefinitions();
+    public String dumpRoutesAsXml(boolean resolvePlaceholders, boolean generatedIds) throws Exception {
+        List<RouteDefinition> routes = context.getCamelContextExtension().getContextPlugin(Model.class).getRouteDefinitions();
         if (routes.isEmpty()) {
             return null;
         }
@@ -434,13 +498,53 @@ public class ManagedCamelContext extends ManagedPerformanceCounter implements Ti
         RoutesDefinition def = new RoutesDefinition();
         def.setRoutes(routes);
 
-        ExtendedCamelContext ecc = context.adapt(ExtendedCamelContext.class);
-        return ecc.getModelToXMLDumper().dumpModelAsXml(context, def, resolvePlaceholders, resolveDelegateEndpoints);
+        // if we are debugging then ids is needed for the debugger
+        if (context.isDebugging()) {
+            generatedIds = true;
+        }
+        return PluginHelper.getModelToXMLDumper(context).dumpModelAsXml(context, def, resolvePlaceholders, generatedIds);
+    }
+
+    @Override
+    public String dumpRoutesAsYaml() throws Exception {
+        return dumpRoutesAsYaml(false, false);
+    }
+
+    @Override
+    public String dumpRoutesAsYaml(boolean resolvePlaceholders) throws Exception {
+        return dumpRoutesAsYaml(resolvePlaceholders, false, true);
+    }
+
+    @Override
+    public String dumpRoutesAsYaml(boolean resolvePlaceholders, boolean uriAsParameters) throws Exception {
+        return dumpRoutesAsYaml(resolvePlaceholders, uriAsParameters, true);
+    }
+
+    @Override
+    public String dumpRoutesAsYaml(boolean resolvePlaceholders, boolean uriAsParameters, boolean generatedIds)
+            throws Exception {
+        List<RouteDefinition> routes = context.getCamelContextExtension().getContextPlugin(Model.class).getRouteDefinitions();
+        if (routes.isEmpty()) {
+            return null;
+        }
+
+        // use routes definition to dump the routes
+        RoutesDefinition def = new RoutesDefinition();
+        def.setRoutes(routes);
+
+        // if we are debugging then ids is needed for the debugger
+        if (context.isDebugging()) {
+            generatedIds = true;
+        }
+
+        return PluginHelper.getModelToYAMLDumper(context).dumpModelAsYaml(context, def, resolvePlaceholders, uriAsParameters,
+                generatedIds);
     }
 
     @Override
     public String dumpRouteTemplatesAsXml() throws Exception {
-        List<RouteTemplateDefinition> templates = context.getExtension(Model.class).getRouteTemplateDefinitions();
+        List<RouteTemplateDefinition> templates
+                = context.getCamelContextExtension().getContextPlugin(Model.class).getRouteTemplateDefinitions();
         if (templates.isEmpty()) {
             return null;
         }
@@ -449,8 +553,7 @@ public class ManagedCamelContext extends ManagedPerformanceCounter implements Ti
         RouteTemplatesDefinition def = new RouteTemplatesDefinition();
         def.setRouteTemplates(templates);
 
-        ExtendedCamelContext ecc = context.adapt(ExtendedCamelContext.class);
-        return ecc.getModelToXMLDumper().dumpModelAsXml(context, def);
+        return PluginHelper.getModelToXMLDumper(context).dumpModelAsXml(context, def);
     }
 
     @Override
@@ -605,7 +708,7 @@ public class ManagedCamelContext extends ManagedPerformanceCounter implements Ti
                         getExchangesTotal(), getTotalProcessingTime()))
                 .append(">\n");
 
-        String xml = dumpRoutesAsXml();
+        String xml = dumpRoutesAsXml(false, false);
         if (xml != null) {
             // use the coverage xml parser to dump the routes and enrich with coverage stats
             Document dom = RouteCoverageXmlParser.parseXml(context, new ByteArrayInputStream(xml.getBytes()));
@@ -615,76 +718,6 @@ public class ManagedCamelContext extends ManagedPerformanceCounter implements Ti
         }
 
         sb.append("\n</camelContextRouteCoverage>");
-        return sb.toString();
-    }
-
-    @Override
-    @Deprecated
-    public String dumpRoutesSourceLocationsAsXml() throws Exception {
-        StringBuilder sb = new StringBuilder();
-        sb.append("<routeLocations>");
-
-        MBeanServer server = getContext().getManagementStrategy().getManagementAgent().getMBeanServer();
-        if (server != null) {
-            // gather all the routes for this CamelContext, which requires JMX
-            List<ManagedRouteMBean> routes = new ArrayList<>();
-            String prefix = getContext().getManagementStrategy().getManagementAgent().getIncludeHostName() ? "*/" : "";
-            ObjectName query = ObjectName
-                    .getInstance(jmxDomain + ":context=" + prefix + getContext().getManagementName() + ",type=routes,*");
-            Set<ObjectName> names = server.queryNames(query, null);
-            for (ObjectName on : names) {
-                ManagedRouteMBean route
-                        = context.getManagementStrategy().getManagementAgent().newProxyClient(on, ManagedRouteMBean.class);
-                routes.add(route);
-            }
-            routes.sort(new RouteMBeans());
-
-            List<ManagedProcessorMBean> processors = new ArrayList<>();
-            // gather all the processors for this CamelContext, which requires JMX
-            query = ObjectName
-                    .getInstance(jmxDomain + ":context=" + prefix + getContext().getManagementName() + ",type=processors,*");
-            names = server.queryNames(query, null);
-            for (ObjectName on : names) {
-                ManagedProcessorMBean processor
-                        = context.getManagementStrategy().getManagementAgent().newProxyClient(on, ManagedProcessorMBean.class);
-                processors.add(processor);
-            }
-            processors.sort(new OrderProcessorMBeans());
-
-            // loop the routes, and append the node ids (via processor)
-            for (ManagedRouteMBean route : routes) {
-                // grab route consumer
-                RouteDefinition rd = context.adapt(ModelCamelContext.class).getRouteDefinition(route.getRouteId());
-                if (rd != null) {
-                    String id = rd.getRouteId();
-                    int line = rd.getInput().getLineNumber();
-                    String location
-                            = rd.getInput().getLocation() != null ? rd.getInput().getLocation() : route.getSourceLocation();
-                    if (location == null) {
-                        location = "";
-                    }
-                    sb.append("\n    <routeLocation")
-                            .append(String.format(
-                                    " routeId=\"%s\" id=\"%s\" index=\"%s\" sourceLocation=\"%s\" sourceLineNumber=\"%s\"/>",
-                                    route.getRouteId(), id, 0, location, line));
-                }
-                for (ManagedProcessorMBean processor : processors) {
-                    // the step must belong to this route
-                    if (route.getRouteId().equals(processor.getRouteId())) {
-                        int line = processor.getSourceLineNumber() != null ? processor.getSourceLineNumber() : -1;
-                        String location = processor.getSourceLocation();
-                        if (location == null) {
-                            location = "";
-                        }
-                        sb.append("\n    <routeLocation")
-                                .append(String.format(
-                                        " routeId=\"%s\" id=\"%s\" index=\"%s\" sourceLocation=\"%s\" sourceLineNumber=\"%s\"/>",
-                                        route.getRouteId(), processor.getProcessorId(), processor.getIndex(), location, line));
-                    }
-                }
-            }
-        }
-        sb.append("\n</routeLocations>");
         return sb.toString();
     }
 
@@ -723,6 +756,8 @@ public class ManagedCamelContext extends ManagedPerformanceCounter implements Ti
     @Override
     public void reset(boolean includeRoutes) throws Exception {
         reset();
+        load.reset();
+        thp.reset();
 
         // and now reset all routes for this route
         if (includeRoutes) {
@@ -762,17 +797,6 @@ public class ManagedCamelContext extends ManagedPerformanceCounter implements Ti
         @Override
         public int compare(ManagedProcessorMBean o1, ManagedProcessorMBean o2) {
             return o1.getIndex().compareTo(o2.getIndex());
-        }
-    }
-
-    /**
-     * Used for sorting the routes mbeans accordingly to their ids.
-     */
-    private static final class RouteMBeans implements Comparator<ManagedRouteMBean> {
-
-        @Override
-        public int compare(ManagedRouteMBean o1, ManagedRouteMBean o2) {
-            return o1.getRouteId().compareToIgnoreCase(o2.getRouteId());
         }
     }
 

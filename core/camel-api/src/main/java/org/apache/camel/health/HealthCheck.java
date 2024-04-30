@@ -35,17 +35,15 @@ public interface HealthCheck extends HasGroup, HasId, Ordered {
     String CHECK_ENABLED = "check.enabled";
     String INVOCATION_COUNT = "invocation.count";
     String INVOCATION_TIME = "invocation.time";
-    String INVOCATION_ATTEMPT_TIME = "invocation.attempt.time";
     String FAILURE_COUNT = "failure.count";
-    String ENDPOINT_URI = "endpoint.uri";
+    String FAILURE_START_TIME = "failure.start.time";
+    String FAILURE_TIME = "failure.time";
     String FAILURE_ERROR_COUNT = "failure.error.count";
+    String ENDPOINT_URI = "endpoint.uri";
     String SUCCESS_COUNT = "success.count";
+    String SUCCESS_START_TIME = "success.start.time";
+    String SUCCESS_TIME = "success.time";
     String HTTP_RESPONSE_CODE = "http.response.code";
-    /**
-     * Use ENDPOINT_URI
-     */
-    @Deprecated
-    String FAILURE_ENDPOINT_URI = "failure.endpoint.uri";
 
     enum State {
         UP,
@@ -82,7 +80,9 @@ public interface HealthCheck extends HasGroup, HasId, Ordered {
     }
 
     /**
-     * Whether this health check can be used for readiness checks
+     * Whether this health check can be used for readiness checks.
+     *
+     * Readiness check is default.
      */
     default boolean isReadiness() {
         return true;
@@ -90,9 +90,11 @@ public interface HealthCheck extends HasGroup, HasId, Ordered {
 
     /**
      * Whether this health check can be used for liveness checks
+     *
+     * Liveness check is not default, and must be explicit enabled.
      */
     default boolean isLiveness() {
-        return true;
+        return false;
     }
 
     /**

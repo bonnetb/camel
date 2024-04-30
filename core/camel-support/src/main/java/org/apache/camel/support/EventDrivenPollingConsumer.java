@@ -26,8 +26,6 @@ import org.apache.camel.Consumer;
 import org.apache.camel.Endpoint;
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangeTimedOutException;
-import org.apache.camel.ExtendedCamelContext;
-import org.apache.camel.ExtendedExchange;
 import org.apache.camel.IsSingleton;
 import org.apache.camel.PollingConsumerPollingStrategy;
 import org.apache.camel.PooledExchange;
@@ -195,7 +193,7 @@ public class EventDrivenPollingConsumer extends PollingConsumerSupport implement
                     }
                 }
             } catch (InterruptedException e) {
-                // ignore
+                Thread.currentThread().interrupt();
                 LOG.debug("Put interrupted, are we stopping? {}", isStopping() || isStopped());
             }
         } else {
@@ -208,13 +206,11 @@ public class EventDrivenPollingConsumer extends PollingConsumerSupport implement
 
         // if handover we need to do special handover to avoid handing over
         // RestBindingMarshalOnCompletion as it should not be handed over
-        Exchange copy = ExchangeHelper.createCorrelatedCopy(exchange, handover, true,
-                synchronization -> !synchronization.getClass().getName().contains("RestBindingMarshalOnCompletion"));
+        Exchange copy = ExchangeHelper.createCorrelatedCopy(exchange, handover, true);
 
         // we want the copy to have an uow
-        UnitOfWork uow = getEndpoint().getCamelContext().adapt(ExtendedCamelContext.class).getUnitOfWorkFactory()
-                .createUnitOfWork(copy);
-        copy.adapt(ExtendedExchange.class).setUnitOfWork(uow);
+        UnitOfWork uow = PluginHelper.getUnitOfWorkFactory(getEndpoint().getCamelContext()).createUnitOfWork(copy);
+        copy.getExchangeExtension().setUnitOfWork(uow);
 
         return copy;
     }
@@ -232,6 +228,7 @@ public class EventDrivenPollingConsumer extends PollingConsumerSupport implement
     }
 
     protected void handleInterruptedException(InterruptedException e) {
+        Thread.currentThread().interrupt();
         getInterruptedExceptionHandler().handleException(e);
     }
 

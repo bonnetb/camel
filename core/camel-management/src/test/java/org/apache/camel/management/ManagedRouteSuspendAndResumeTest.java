@@ -83,7 +83,8 @@ public class ManagedRouteSuspendAndResumeTest extends ManagementTestSupport {
         mock.assertIsSatisfied();
 
         ManagedSuspendableRouteMBean route
-                = context.getExtension(ManagedCamelContext.class).getManagedRoute("foo", ManagedSuspendableRouteMBean.class);
+                = context.getCamelContextExtension().getContextPlugin(ManagedCamelContext.class).getManagedRoute("foo",
+                        ManagedSuspendableRouteMBean.class);
         assertNotNull(route);
 
         assertEquals(2, route.getExchangesCompleted());
@@ -97,10 +98,10 @@ public class ManagedRouteSuspendAndResumeTest extends ManagementTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from(fileUri("?initialDelay=0&delay=10")).routeId("foo").to("mock:result");
             }
         };

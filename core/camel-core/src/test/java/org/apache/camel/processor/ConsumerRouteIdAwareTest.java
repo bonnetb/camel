@@ -35,10 +35,10 @@ import org.junit.jupiter.api.Test;
 public class ConsumerRouteIdAwareTest extends ContextTestSupport {
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 context.addComponent("my", new MyComponent(context));
 
                 from("my:foo").routeId("foo").to("mock:result");
@@ -53,54 +53,57 @@ public class ConsumerRouteIdAwareTest extends ContextTestSupport {
         assertMockEndpointsSatisfied();
     }
 
-    private class MyComponent extends DefaultComponent {
+    private static class MyComponent extends DefaultComponent {
 
         public MyComponent(CamelContext context) {
             super(context);
         }
 
         @Override
-        protected Endpoint createEndpoint(String uri, String remaining, Map<String, Object> parameters) throws Exception {
+        protected Endpoint createEndpoint(String uri, String remaining, Map<String, Object> parameters) {
             return new MyEndpoint(uri, this);
         }
     }
 
-    private class MyEndpoint extends DefaultEndpoint {
+    private static class MyEndpoint extends DefaultEndpoint {
 
         public MyEndpoint(String endpointUri, Component component) {
             super(endpointUri, component);
         }
 
         @Override
-        public Producer createProducer() throws Exception {
+        public Producer createProducer() {
             throw new UnsupportedOperationException("Not supported");
         }
 
         @Override
-        public Consumer createConsumer(Processor processor) throws Exception {
+        public Consumer createConsumer(Processor processor) {
             return new MyConsumer(this, processor);
         }
     }
 
-    private class MyConsumer extends DefaultConsumer {
+    private static class MyConsumer extends DefaultConsumer {
 
         public MyConsumer(Endpoint endpoint, Processor processor) {
             super(endpoint, processor);
+        }
+
+        @Override
+        protected void doStart() throws Exception {
+            super.doStart();
 
             Runnable run = () -> {
-                Exchange exchange = endpoint.createExchange();
+                Exchange exchange = getEndpoint().createExchange();
                 exchange.getMessage().setBody("Hello from consumer route " + getRouteId());
                 try {
-                    Thread.sleep(100);
-                    processor.process(exchange);
+                    getProcessor().process(exchange);
                 } catch (Exception e) {
-                    // ignore
+                    exchange.setException(e);
                 }
             };
             Thread t = new Thread(run);
             t.start();
         }
-
     }
 
 }

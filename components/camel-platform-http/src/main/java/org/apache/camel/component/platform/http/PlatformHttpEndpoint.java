@@ -19,28 +19,33 @@ package org.apache.camel.component.platform.http;
 import org.apache.camel.AsyncEndpoint;
 import org.apache.camel.Category;
 import org.apache.camel.Component;
-import org.apache.camel.Consumer;
 import org.apache.camel.Processor;
 import org.apache.camel.Producer;
+import org.apache.camel.component.platform.http.cookie.CookieConfiguration;
+import org.apache.camel.component.platform.http.spi.PlatformHttpConsumer;
 import org.apache.camel.component.platform.http.spi.PlatformHttpEngine;
+import org.apache.camel.http.base.HttpHeaderFilterStrategy;
 import org.apache.camel.spi.HeaderFilterStrategy;
 import org.apache.camel.spi.HeaderFilterStrategyAware;
 import org.apache.camel.spi.Metadata;
 import org.apache.camel.spi.UriEndpoint;
 import org.apache.camel.spi.UriParam;
 import org.apache.camel.spi.UriPath;
-import org.apache.camel.support.DefaultConsumer;
 import org.apache.camel.support.DefaultEndpoint;
-import org.apache.camel.support.service.ServiceHelper;
 
 /**
  * Expose HTTP endpoints using the HTTP server available in the current platform.
  */
 @UriEndpoint(firstVersion = "3.0.0", scheme = "platform-http", title = "Platform HTTP", syntax = "platform-http:path",
              category = { Category.HTTP }, consumerOnly = true)
+@Metadata(annotations = {
+        "protocol=http",
+})
 public class PlatformHttpEndpoint extends DefaultEndpoint implements AsyncEndpoint, HeaderFilterStrategyAware {
 
-    @UriPath(description = "The path under which this endpoint serves the HTTP requests")
+    private static final String PROXY_PATH = "proxy";
+
+    @UriPath(description = "The path under which this endpoint serves the HTTP requests, for proxy use 'proxy'")
     @Metadata(required = true)
     private final String path;
     @UriParam(label = "consumer", defaultValue = "false",
@@ -68,7 +73,17 @@ public class PlatformHttpEndpoint extends DefaultEndpoint implements AsyncEndpoi
     private PlatformHttpEngine platformHttpEngine;
     @UriParam(label = "advanced",
               description = "To use a custom HeaderFilterStrategy to filter headers to and from Camel message.")
-    private HeaderFilterStrategy headerFilterStrategy = new PlatformHttpHeaderFilterStrategy();
+    private HeaderFilterStrategy headerFilterStrategy = new HttpHeaderFilterStrategy();
+    @UriParam(label = "advanced,consumer",
+              description = "Whether to use streaming for large requests and responses (currently only supported by camel-platform-http-vertx)")
+    private boolean useStreaming;
+    @UriParam(label = "advanced,consumer", description = "The properties set on a Cookies when a Cookie is added via the"
+                                                         + " Cookie Handler (currently only supported by camel-platform-http-vertx)")
+    private CookieConfiguration cookieConfiguration = new CookieConfiguration();
+    @UriParam(label = "advanced,consumer",
+              description = "Whether to enable the Cookie Handler that allows Cookie addition, expiry, and retrieval"
+                            + " (currently only supported by camel-platform-http-vertx)")
+    private boolean useCookieHandler;
 
     public PlatformHttpEndpoint(String uri, String remaining, Component component) {
         super(uri, component);
@@ -86,48 +101,14 @@ public class PlatformHttpEndpoint extends DefaultEndpoint implements AsyncEndpoi
     }
 
     @Override
-    public Consumer createConsumer(Processor processor) throws Exception {
-        Consumer consumer = new DefaultConsumer(this, processor) {
-            private Consumer delegatedConsumer;
+    public DefaultPlatformHttpConsumer createConsumer(Processor processor) throws Exception {
+        DefaultPlatformHttpConsumer consumer = new DefaultPlatformHttpConsumer(this, processor);
+        configureConsumer(consumer);
+        return consumer;
+    }
 
-            @Override
-            public PlatformHttpEndpoint getEndpoint() {
-                return (PlatformHttpEndpoint) super.getEndpoint();
-            }
-
-            @Override
-            protected void doInit() throws Exception {
-                super.doInit();
-                delegatedConsumer = getEndpoint().getOrCreateEngine().createConsumer(getEndpoint(), getProcessor());
-                configureConsumer(delegatedConsumer);
-            }
-
-            @Override
-            protected void doStart() throws Exception {
-                super.doStart();
-                ServiceHelper.startService(delegatedConsumer);
-                getComponent().addHttpEndpoint(getPath());
-            }
-
-            @Override
-            protected void doStop() throws Exception {
-                super.doStop();
-                getComponent().removeHttpEndpoint(getPath());
-                ServiceHelper.stopAndShutdownServices(delegatedConsumer);
-            }
-
-            @Override
-            protected void doResume() throws Exception {
-                ServiceHelper.resumeService(delegatedConsumer);
-                super.doResume();
-            }
-
-            @Override
-            protected void doSuspend() throws Exception {
-                ServiceHelper.suspendService(delegatedConsumer);
-                super.doSuspend();
-            }
-        };
+    protected PlatformHttpConsumer createPlatformHttpConsumer(Processor processor) throws Exception {
+        PlatformHttpConsumer consumer = getOrCreateEngine().createConsumer(this, processor);
         configureConsumer(consumer);
         return consumer;
     }
@@ -143,7 +124,7 @@ public class PlatformHttpEndpoint extends DefaultEndpoint implements AsyncEndpoi
     }
 
     public String getPath() {
-        return path;
+        return isHttpProxy() ? "/" : path;
     }
 
     public PlatformHttpEngine getPlatformHttpEngine() {
@@ -202,9 +183,37 @@ public class PlatformHttpEndpoint extends DefaultEndpoint implements AsyncEndpoi
         this.muteException = muteException;
     }
 
+    public boolean isUseStreaming() {
+        return useStreaming;
+    }
+
+    public void setUseStreaming(boolean useStreaming) {
+        this.useStreaming = useStreaming;
+    }
+
+    public CookieConfiguration getCookieConfiguration() {
+        return cookieConfiguration;
+    }
+
+    public void setCookieConfiguration(CookieConfiguration cookieConfiguration) {
+        this.cookieConfiguration = cookieConfiguration;
+    }
+
+    public boolean isUseCookieHandler() {
+        return useCookieHandler;
+    }
+
+    public void setUseCookieHandler(boolean useCookieHandler) {
+        this.useCookieHandler = useCookieHandler;
+    }
+
     PlatformHttpEngine getOrCreateEngine() {
         return platformHttpEngine != null
                 ? platformHttpEngine
-                : ((PlatformHttpComponent) getComponent()).getOrCreateEngine();
+                : getComponent().getOrCreateEngine();
+    }
+
+    public boolean isHttpProxy() {
+        return this.path.startsWith(PROXY_PATH);
     }
 }

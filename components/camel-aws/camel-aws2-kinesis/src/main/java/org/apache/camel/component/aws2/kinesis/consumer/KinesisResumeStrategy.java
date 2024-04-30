@@ -14,23 +14,76 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.camel.component.aws2.kinesis.consumer;
 
-import org.apache.camel.ResumeStrategy;
-import software.amazon.awssdk.services.kinesis.model.GetShardIteratorRequest;
+import org.apache.camel.resume.Offset;
+import org.apache.camel.resume.OffsetKey;
+import org.apache.camel.resume.Resumable;
+import org.apache.camel.resume.ResumeAdapter;
+import org.apache.camel.resume.ResumeStrategy;
+import org.apache.camel.resume.ResumeStrategyConfiguration;
+import org.apache.camel.resume.cache.ResumeCache;
+import org.apache.camel.spi.annotations.JdkService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public interface KinesisResumeStrategy extends ResumeStrategy {
+@JdkService("kinesis-resume-strategy")
+public class KinesisResumeStrategy implements ResumeStrategy {
+    private static final Logger LOG = LoggerFactory.getLogger(KinesisResumeStrategy.class);
 
-    void setRequestBuilder(GetShardIteratorRequest.Builder builder);
+    private ResumeStrategyConfiguration configuration = KinesisResumeStrategyConfiguration.builder().build();
+    private ResumeCache resumeCache;
+    private ResumeAdapter adapter;
 
     @Override
-    default void start() {
-
+    public void start() {
+        LOG.info("start");
+        this.resumeCache = configuration.getResumeCache();
     }
 
     @Override
-    default void stop() {
+    public void stop() {
+        LOG.info("stop");
+    }
 
+    @Override
+    public void setAdapter(ResumeAdapter adapter) {
+        this.adapter = adapter;
+    }
+
+    @Override
+    public ResumeAdapter getAdapter() {
+        return adapter;
+    }
+
+    @Override
+    public <T extends Resumable> void updateLastOffset(T offset) {
+        resumeCache.add(offset.getOffsetKey().getValue().toString(),
+                new KinesisOffset(offset.getLastOffset().getValue(String.class)));
+    }
+
+    @Override
+    public <T extends Resumable> void updateLastOffset(T offset, UpdateCallBack updateCallBack) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void updateLastOffset(OffsetKey<?> offsetKey, Offset<?> offsetValue) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void updateLastOffset(OffsetKey<?> offsetKey, Offset<?> offset, UpdateCallBack updateCallBack) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void setResumeStrategyConfiguration(ResumeStrategyConfiguration resumeStrategyConfiguration) {
+        this.configuration = resumeStrategyConfiguration;
+    }
+
+    @Override
+    public ResumeStrategyConfiguration getResumeStrategyConfiguration() {
+        return configuration;
     }
 }

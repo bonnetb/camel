@@ -26,7 +26,7 @@ public class FilterBeanNonRegistryTest extends ContextTestSupport {
     public void testBeanLanguageExp() throws Exception {
         context.addRoutes(new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 MyBean myBean = new MyBean();
 
                 from("direct:start").filter().method(myBean, "isGoldCustomer").to("mock:result");
@@ -47,7 +47,7 @@ public class FilterBeanNonRegistryTest extends ContextTestSupport {
     public void testMethodCallExp() throws Exception {
         context.addRoutes(new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 MyBean myBean = new MyBean();
 
                 from("direct:start").filter().method(myBean).to("mock:result");
@@ -69,7 +69,7 @@ public class FilterBeanNonRegistryTest extends ContextTestSupport {
         return false;
     }
 
-    public class MyBean {
+    public static class MyBean {
 
         public boolean isGoldCustomer(String name) {
             return "Camel".equals(name);

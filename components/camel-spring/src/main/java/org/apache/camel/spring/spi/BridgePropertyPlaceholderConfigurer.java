@@ -85,10 +85,12 @@ public class BridgePropertyPlaceholderConfigurer extends PropertyPlaceholderConf
     }
 
     @Override
-    public String parseUri(String text, PropertiesLookup properties, boolean fallback, boolean keepUnresolvedOptional)
+    public String parseUri(
+            String text, PropertiesLookup properties, boolean fallback, boolean keepUnresolvedOptional,
+            boolean nestedPlaceholder)
             throws IllegalArgumentException {
         // first let Camel parse the text as it may contain Camel placeholders
-        String answer = parser.parseUri(text, properties, fallback, keepUnresolvedOptional);
+        String answer = parser.parseUri(text, properties, fallback, keepUnresolvedOptional, nestedPlaceholder);
 
         // then let Spring parse it to resolve any Spring placeholders
         if (answer != null) {
@@ -178,7 +180,7 @@ public class BridgePropertyPlaceholderConfigurer extends PropertyPlaceholderConf
                 propVal = resolveSystemProperty(placeholderName);
             }
             if (propVal == null) {
-                propVal = properties.lookup(placeholderName);
+                propVal = properties.lookup(placeholderName, null);
             }
             if (propVal == null && systemPropertiesMode == SYSTEM_PROPERTIES_MODE_FALLBACK) {
                 propVal = resolveSystemProperty(placeholderName);
@@ -198,16 +200,18 @@ public class BridgePropertyPlaceholderConfigurer extends PropertyPlaceholderConf
         }
 
         @Override
-        public String parseUri(String text, PropertiesLookup properties, boolean fallback, boolean keepUnresolvedOptional)
+        public String parseUri(
+                String text, PropertiesLookup properties, boolean fallback, boolean keepUnresolvedOptional,
+                boolean nestedPlaceholder)
                 throws IllegalArgumentException {
             String answer = null;
             if (delegate != null) {
-                answer = delegate.parseUri(text, properties, fallback, keepUnresolvedOptional);
+                answer = delegate.parseUri(text, properties, fallback, keepUnresolvedOptional, nestedPlaceholder);
             }
             if (answer != null) {
                 text = answer;
             }
-            return parser.parseUri(text, properties, fallback, keepUnresolvedOptional);
+            return parser.parseUri(text, properties, fallback, keepUnresolvedOptional, nestedPlaceholder);
         }
 
         @Override

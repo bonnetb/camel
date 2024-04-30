@@ -21,6 +21,7 @@ import java.net.SocketTimeoutException;
 import org.apache.camel.component.mllp.MllpProtocolConstants;
 import org.apache.camel.test.stub.tcp.SocketStub;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Isolated;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -29,14 +30,18 @@ import static org.junit.jupiter.api.Assertions.fail;
 /**
  * Tests for the overridden methods in the MllpSocketBuffer class.
  */
+@Isolated
 public class MllpSocketBufferWriteTest extends SocketBufferTestSupport {
+
+    static final int MIN_BUFFER_SIZE = 2048;
+    static final int MAX_BUFFER_SIZE = 0x40000000;  // Approximately 1-GB
+
     /**
      * Description of test.
      *
-     * @throws Exception in the event of a test error.
      */
     @Test
-    public void testWriteIntWithStartOfBlock() throws Exception {
+    public void testWriteIntWithStartOfBlock() {
         instance.write(MllpProtocolConstants.START_OF_BLOCK);
 
         assertEquals(1, instance.size());
@@ -47,10 +52,9 @@ public class MllpSocketBufferWriteTest extends SocketBufferTestSupport {
     /**
      * Description of test.
      *
-     * @throws Exception in the event of a test error.
      */
     @Test
-    public void testWriteIntWithEndOfBlock() throws Exception {
+    public void testWriteIntWithEndOfBlock() {
         instance.write(MllpProtocolConstants.END_OF_BLOCK);
 
         assertEquals(1, instance.size());
@@ -61,10 +65,9 @@ public class MllpSocketBufferWriteTest extends SocketBufferTestSupport {
     /**
      * Description of test.
      *
-     * @throws Exception in the event of a test error.
      */
     @Test
-    public void testWriteIntWithEndOfData() throws Exception {
+    public void testWriteIntWithEndOfData() {
         instance.write(MllpProtocolConstants.END_OF_DATA);
 
         assertEquals(1, instance.size());
@@ -75,10 +78,9 @@ public class MllpSocketBufferWriteTest extends SocketBufferTestSupport {
     /**
      * Description of test.
      *
-     * @throws Exception in the event of a test error.
      */
     @Test
-    public void testWriteBytesWithNullArray() throws Exception {
+    public void testWriteBytesWithNullArray() {
         instance.write((byte[]) null);
 
         assertEquals(0, instance.size());
@@ -89,10 +91,9 @@ public class MllpSocketBufferWriteTest extends SocketBufferTestSupport {
     /**
      * Description of test.
      *
-     * @throws Exception in the event of a test error.
      */
     @Test
-    public void testWriteBytesWithEmptyArray() throws Exception {
+    public void testWriteBytesWithEmptyArray() {
         instance.write(new byte[0]);
 
         assertEquals(0, instance.size());
@@ -117,10 +118,9 @@ public class MllpSocketBufferWriteTest extends SocketBufferTestSupport {
     /**
      * Description of test.
      *
-     * @throws Exception in the event of a test error.
      */
     @Test
-    public void testWriteBytesWithoutEnvelope() throws Exception {
+    public void testWriteBytesWithoutEnvelope() {
         instance.write("BLAH".getBytes());
 
         assertEquals(4, instance.size());
@@ -187,10 +187,9 @@ public class MllpSocketBufferWriteTest extends SocketBufferTestSupport {
     /**
      * Description of test.
      *
-     * @throws Exception in the event of a test error.
      */
     @Test
-    public void testWriteByteArraySliceWithNullArray() throws Exception {
+    public void testWriteByteArraySliceWithNullArray() {
         instance.write(null, 0, 5);
 
         assertEquals(0, instance.size());
@@ -201,10 +200,9 @@ public class MllpSocketBufferWriteTest extends SocketBufferTestSupport {
     /**
      * Description of test.
      *
-     * @throws Exception in the event of a test error.
      */
     @Test
-    public void testWriteByteArraySliceWithEmptyArray() throws Exception {
+    public void testWriteByteArraySliceWithEmptyArray() {
         instance.write(new byte[0], 0, 5);
 
         assertEquals(0, instance.size());
@@ -215,10 +213,9 @@ public class MllpSocketBufferWriteTest extends SocketBufferTestSupport {
     /**
      * Description of test.
      *
-     * @throws Exception in the event of a test error.
      */
     @Test
-    public void testWriteByteArraySliceWithNegativeOffset() throws Exception {
+    public void testWriteByteArraySliceWithNegativeOffset() {
         byte[] payload = "BLAH".getBytes();
 
         try {
@@ -232,10 +229,9 @@ public class MllpSocketBufferWriteTest extends SocketBufferTestSupport {
     /**
      * Description of test.
      *
-     * @throws Exception in the event of a test error.
      */
     @Test
-    public void testWriteByteArraySliceWithOffsetGreaterThanLength() throws Exception {
+    public void testWriteByteArraySliceWithOffsetGreaterThanLength() {
         byte[] payload = "BLAH".getBytes();
 
         try {
@@ -295,25 +291,23 @@ public class MllpSocketBufferWriteTest extends SocketBufferTestSupport {
     /**
      * Description of test.
      *
-     * @throws Exception in the event of a test error.
      */
     @Test
-    public void testEnsureCapacityWithNegativeRequiredAvailability() throws Exception {
-        assertEquals(MllpSocketBuffer.MIN_BUFFER_SIZE, instance.capacity());
+    public void testEnsureCapacityWithNegativeRequiredAvailability() {
+        assertEquals(MIN_BUFFER_SIZE, instance.capacity());
 
         instance.ensureCapacity(-1);
 
-        assertEquals(MllpSocketBuffer.MIN_BUFFER_SIZE, instance.capacity());
+        assertEquals(MIN_BUFFER_SIZE, instance.capacity());
     }
 
     /**
      * Description of test.
      *
-     * @throws Exception in the event of a test error.
      */
     @Test
-    public void testEnsureCapacityWithOutOfRangeRequiredAvailability() throws Exception {
-        assertEquals(MllpSocketBuffer.MIN_BUFFER_SIZE, instance.capacity());
+    public void testEnsureCapacityWithOutOfRangeRequiredAvailability() {
+        assertEquals(MIN_BUFFER_SIZE, instance.capacity());
 
         try {
             instance.ensureCapacity(Integer.MAX_VALUE);
@@ -326,7 +320,7 @@ public class MllpSocketBufferWriteTest extends SocketBufferTestSupport {
         }
 
         try {
-            instance.ensureCapacity(MllpSocketBuffer.MAX_BUFFER_SIZE + 1);
+            instance.ensureCapacity(MAX_BUFFER_SIZE + 1);
             fail("Should have thrown an exception");
         } catch (IllegalStateException expectedEx) {
             String expectedMessage
@@ -337,7 +331,7 @@ public class MllpSocketBufferWriteTest extends SocketBufferTestSupport {
 
         instance.write("BLAH".getBytes());
         IllegalStateException expectedEx = assertThrows(IllegalStateException.class,
-                () -> instance.ensureCapacity(MllpSocketBuffer.MAX_BUFFER_SIZE));
+                () -> instance.ensureCapacity(MAX_BUFFER_SIZE));
         String expectedMessage
                 = "Cannot increase the buffer size <2048> in order to increase the available capacity from <2044> to <1073741824>"
                   + " because the required buffer size <1073741828> exceeds the maximum buffer size <1073741824>";
@@ -347,16 +341,15 @@ public class MllpSocketBufferWriteTest extends SocketBufferTestSupport {
     /**
      * Description of test.
      *
-     * @throws Exception in the event of a test error.
      */
     @Test
-    public void testEnsureCapacityWithAlreadyAllocateMaxBufferSize() throws Exception {
-        assertEquals(MllpSocketBuffer.MIN_BUFFER_SIZE, instance.capacity());
+    public void testEnsureCapacityWithAlreadyAllocateMaxBufferSize() {
+        assertEquals(MIN_BUFFER_SIZE, instance.capacity());
 
-        instance.ensureCapacity(MllpSocketBuffer.MAX_BUFFER_SIZE);
+        instance.ensureCapacity(MAX_BUFFER_SIZE);
 
         IllegalStateException expectedEx = assertThrows(IllegalStateException.class,
-                () -> instance.ensureCapacity(MllpSocketBuffer.MAX_BUFFER_SIZE + 1));
+                () -> instance.ensureCapacity(MAX_BUFFER_SIZE + 1));
         String expectedMessage
                 = "Cannot increase the buffer size from <1073741824> to <1073741825> in order to increase the available capacity"
                   + " from <1073741824> to <1073741825> because the buffer is already the maximum size <1073741824>";

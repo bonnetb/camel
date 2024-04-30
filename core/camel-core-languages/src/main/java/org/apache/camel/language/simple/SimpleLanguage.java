@@ -84,17 +84,15 @@ public class SimpleLanguage extends LanguageSupport implements StaticService {
 
     @Override
     public void stop() {
-        if (cachePredicate instanceof LRUCache) {
+        if (cachePredicate instanceof LRUCache<String, Predicate> cache) {
             if (LOG.isDebugEnabled()) {
-                LRUCache cache = (LRUCache) cachePredicate;
                 LOG.debug("Clearing simple language predicate cache[size={}, hits={}, misses={}, evicted={}]",
                         cache.size(), cache.getHits(), cache.getMisses(), cache.getEvicted());
             }
             cachePredicate.clear();
         }
-        if (cacheExpression instanceof LRUCache) {
+        if (cacheExpression instanceof LRUCache<String, Expression> cache) {
             if (LOG.isDebugEnabled()) {
-                LRUCache cache = (LRUCache) cacheExpression;
                 LOG.debug("Clearing simple language expression cache[size={}, hits={}, misses={}, evicted={}]",
                         cache.size(), cache.getHits(), cache.getMisses(), cache.getEvicted());
             }
@@ -221,26 +219,6 @@ public class SimpleLanguage extends LanguageSupport implements StaticService {
         return answer;
     }
 
-    /**
-     * Creates a new {@link Expression}.
-     * <p/>
-     * <b>Important:</b> If you need to use a predicate (function to return true|false) then use
-     * {@link #predicate(String)} instead.
-     */
-    @Deprecated
-    public static Expression simple(String expression) {
-        return expression(expression);
-    }
-
-    /**
-     * Creates a new {@link Expression} (or {@link Predicate} if the resultType is a <tt>Boolean</tt>, or
-     * <tt>boolean</tt> type).
-     */
-    @Deprecated
-    public static Expression simple(String expression, Class<?> resultType) {
-        return new SimpleLanguage().createExpression(expression, resultType);
-    }
-
     public Expression createExpression(String expression, Class<?> resultType) {
         if (resultType == Boolean.class || resultType == boolean.class) {
             // if its a boolean as result then its a predicate
@@ -253,25 +231,6 @@ public class SimpleLanguage extends LanguageSupport implements StaticService {
             }
             return exp;
         }
-    }
-
-    /**
-     * Creates a new {@link Expression}.
-     * <p/>
-     * <b>Important:</b> If you need to use a predicate (function to return true|false) then use
-     * {@link #predicate(String)} instead.
-     */
-    @Deprecated
-    public static Expression expression(String expression) {
-        return SIMPLE.createExpression(expression);
-    }
-
-    /**
-     * Creates a new {@link Predicate}.
-     */
-    @Deprecated
-    public static Predicate predicate(String predicate) {
-        return SIMPLE.createPredicate(predicate);
     }
 
 }

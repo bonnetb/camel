@@ -18,6 +18,8 @@ package org.apache.camel.component.aws2.sns.client;
 
 import org.apache.camel.component.aws2.sns.Sns2Configuration;
 import org.apache.camel.component.aws2.sns.client.impl.Sns2ClientIAMOptimized;
+import org.apache.camel.component.aws2.sns.client.impl.Sns2ClientIAMProfileOptimized;
+import org.apache.camel.component.aws2.sns.client.impl.Sns2ClientSessionTokenImpl;
 import org.apache.camel.component.aws2.sns.client.impl.Sns2ClientStandardImpl;
 
 /**
@@ -30,12 +32,19 @@ public final class Sns2ClientFactory {
 
     /**
      * Return the correct aws SNS client (based on remote vs local).
-     * 
+     *
      * @param  configuration configuration
      * @return               SNSClient
      */
     public static Sns2InternalClient getSnsClient(Sns2Configuration configuration) {
-        return configuration.isUseDefaultCredentialsProvider()
-                ? new Sns2ClientIAMOptimized(configuration) : new Sns2ClientStandardImpl(configuration);
+        if (Boolean.TRUE.equals(configuration.isUseDefaultCredentialsProvider())) {
+            return new Sns2ClientIAMOptimized(configuration);
+        } else if (Boolean.TRUE.equals(configuration.isUseProfileCredentialsProvider())) {
+            return new Sns2ClientIAMProfileOptimized(configuration);
+        } else if (Boolean.TRUE.equals(configuration.isUseSessionCredentials())) {
+            return new Sns2ClientSessionTokenImpl(configuration);
+        } else {
+            return new Sns2ClientStandardImpl(configuration);
+        }
     }
 }

@@ -22,7 +22,6 @@ import org.apache.camel.AsyncCallback;
 import org.apache.camel.AsyncProcessor;
 import org.apache.camel.ContextTestSupport;
 import org.apache.camel.Exchange;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.NamedNode;
 import org.apache.camel.Processor;
 import org.apache.camel.Route;
@@ -32,6 +31,7 @@ import org.apache.camel.spi.Policy;
 import org.apache.camel.spi.Registry;
 import org.apache.camel.support.AsyncCallbackToCompletableFutureAdapter;
 import org.apache.camel.support.AsyncProcessorConverterHelper;
+import org.apache.camel.support.PluginHelper;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -43,8 +43,8 @@ public class AsyncEndpointPolicyTest extends ContextTestSupport {
     private static String afterThreadName;
 
     @Override
-    protected Registry createRegistry() throws Exception {
-        Registry jndi = super.createRegistry();
+    protected Registry createCamelRegistry() throws Exception {
+        Registry jndi = super.createCamelRegistry();
         jndi.bind("foo", new MyPolicy("foo"));
         return jndi;
     }
@@ -72,10 +72,10 @@ public class AsyncEndpointPolicyTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 context.addComponent("async", new MyAsyncComponent());
 
                 from("direct:start")
@@ -83,11 +83,11 @@ public class AsyncEndpointPolicyTest extends ContextTestSupport {
                         .policy("foo").to("mock:foo").to("async:bye:camel").to("mock:bar").to("mock:result");
 
                 from("direct:send").to("mock:before").to("log:before").process(new Processor() {
-                    public void process(Exchange exchange) throws Exception {
+                    public void process(Exchange exchange) {
                         beforeThreadName = Thread.currentThread().getName();
                     }
                 }).to("direct:start").process(new Processor() {
-                    public void process(Exchange exchange) throws Exception {
+                    public void process(Exchange exchange) {
                         afterThreadName = Thread.currentThread().getName();
                     }
                 }).to("log:after").to("mock:after").to("mock:response");
@@ -124,9 +124,9 @@ public class AsyncEndpointPolicyTest extends ContextTestSupport {
                     return false;
                 }
 
-                public void process(Exchange exchange) throws Exception {
+                public void process(Exchange exchange) {
                     final AsyncProcessorAwaitManager awaitManager
-                            = exchange.getContext().adapt(ExtendedCamelContext.class).getAsyncProcessorAwaitManager();
+                            = PluginHelper.getAsyncProcessorAwaitManager(exchange.getContext());
                     awaitManager.process(this, exchange);
                 }
 

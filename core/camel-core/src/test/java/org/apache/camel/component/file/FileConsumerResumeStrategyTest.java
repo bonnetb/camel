@@ -16,50 +16,44 @@
  */
 package org.apache.camel.component.file;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 import org.apache.camel.ContextTestSupport;
 import org.apache.camel.Exchange;
 import org.apache.camel.builder.RouteBuilder;
-import org.apache.camel.component.file.consumer.FileResumeSet;
-import org.apache.camel.component.file.consumer.FileSetResumeStrategy;
+import org.apache.camel.component.file.consumer.DirectoryEntriesResumeAdapter;
+import org.apache.camel.component.file.consumer.FileResumeAdapter;
 import org.apache.camel.component.mock.MockEndpoint;
-import org.apache.camel.resume.Resumables;
+import org.apache.camel.processor.resume.TransientResumeStrategy;
+import org.apache.camel.support.resume.Resumables;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+@DisplayName("Tests whether file consumer works with the resume strategy")
 public class FileConsumerResumeStrategyTest extends ContextTestSupport {
 
-    private static class TestResumeStrategy implements FileSetResumeStrategy {
-        private List<String> processedFiles = Arrays.asList("0.txt", "1.txt", "2.txt");
-        private FileResumeSet resumeSet;
-
-        @Override
-        public void resume(FileResumeSet resumeSet) {
-            this.resumeSet = Objects.requireNonNull(resumeSet);
-
-            resume();
-        }
+    private static class TestFileSetResumeAdapter implements FileResumeAdapter, DirectoryEntriesResumeAdapter {
+        private final List<String> processedFiles = Arrays.asList("0.txt", "1.txt", "2.txt");
+        private boolean resumedCalled;
 
         @Override
         public void resume() {
-            if (resumeSet != null) {
-                resumeSet.resumeEach(f -> !processedFiles.contains(f.getName()));
-            }
-        }
-
-        @Override
-        public void start() {
 
         }
 
         @Override
-        public void stop() {
-
+        public boolean resume(File file) {
+            resumedCalled = true;
+            return processedFiles.contains(file.getName());
         }
     }
+
+    private final TestFileSetResumeAdapter adapter = new TestFileSetResumeAdapter();
 
     private static Map<String, Object> headerFor(int num) {
         String name = num + ".txt";
@@ -67,6 +61,7 @@ public class FileConsumerResumeStrategyTest extends ContextTestSupport {
         return Map.of(Exchange.FILE_NAME, name);
     }
 
+    @DisplayName("Tests whether it can resume processing of directory entries")
     @Test
     public void testResume() throws Exception {
         MockEndpoint mock = getMockEndpoint("mock:result");
@@ -82,6 +77,8 @@ public class FileConsumerResumeStrategyTest extends ContextTestSupport {
 
         // only expect 4 of the 6 sent
         assertMockEndpointsSatisfied();
+
+        assertTrue(adapter.resumedCalled, "The resume set should have resumables in this scenario");
     }
 
     private void setOffset(Exchange exchange) {
@@ -94,12 +91,12 @@ public class FileConsumerResumeStrategyTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
 
-                bindToRegistry("testResumeStrategy", new TestResumeStrategy());
+                bindToRegistry("testResumeStrategy", new TransientResumeStrategy(adapter));
 
                 from(fileUri("resume?noop=true&recursive=true"))
                         .resumable("testResumeStrategy")

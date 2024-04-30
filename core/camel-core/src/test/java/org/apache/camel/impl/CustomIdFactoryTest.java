@@ -19,7 +19,6 @@ package org.apache.camel.impl;
 import org.apache.camel.CamelContext;
 import org.apache.camel.ContextTestSupport;
 import org.apache.camel.Exchange;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.NamedNode;
 import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
@@ -53,21 +52,17 @@ public class CustomIdFactoryTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 // use our own id factory so we can generate the keys we like to
                 // use
-                context.adapt(ExtendedCamelContext.class).setNodeIdFactory(new NodeIdFactory() {
-                    public String createId(NamedNode definition) {
-                        return "#" + definition.getShortName() + ++counter + "#";
-                    }
-                });
+                context.getCamelContextExtension().addContextPlugin(NodeIdFactory.class, buildNodeIdFactory());
 
                 // add our debugger so we can debug camel routes when we send in
                 // messages
-                context.adapt(ExtendedCamelContext.class).addInterceptStrategy(new MyDebuggerCheckingId());
+                context.getCamelContextExtension().addInterceptStrategy(new MyDebuggerCheckingId());
 
                 // a little content based router so we got 2 paths to route at
                 // runtime
@@ -75,6 +70,10 @@ public class CustomIdFactoryTest extends ContextTestSupport {
                         .to("mock:other").end();
             }
         };
+    }
+
+    private static NodeIdFactory buildNodeIdFactory() {
+        return definition -> "#" + definition.getShortName() + ++counter + "#";
     }
 
     /**
@@ -89,7 +88,7 @@ public class CustomIdFactoryTest extends ContextTestSupport {
         assertMockEndpointsSatisfied();
 
         // this should take the when path (first to)
-        assertEquals("#choice2##to4#", ids);
+        assertEquals("#choice3##to5#", ids);
     }
 
     /**
@@ -104,15 +103,14 @@ public class CustomIdFactoryTest extends ContextTestSupport {
         assertMockEndpointsSatisfied();
 
         // this should take the otherwise path
-        assertEquals("#choice2##log6##to7#", ids);
+        assertEquals("#choice3##log7##to8#", ids);
     }
 
     private static class MyDebuggerCheckingId implements InterceptStrategy {
 
         @Override
         public Processor wrapProcessorInInterceptors(
-                final CamelContext context, final NamedNode definition, Processor target, Processor nextTarget)
-                throws Exception {
+                final CamelContext context, final NamedNode definition, Processor target, Processor nextTarget) {
 
             return new DelegateProcessor(target) {
                 @Override

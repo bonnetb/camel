@@ -47,10 +47,10 @@ import software.amazon.awssdk.services.dynamodb.model.TableDescription;
 import software.amazon.awssdk.services.dynamodb.model.TableStatus;
 
 /**
- * Store and retrieve data from AWS DynamoDB service using AWS SDK version 2.x.
+ * Store and retrieve data from AWS DynamoDB.
  */
 @UriEndpoint(firstVersion = "3.1.0", scheme = "aws2-ddb", title = "AWS DynamoDB", syntax = "aws2-ddb:tableName",
-             producerOnly = true, category = { Category.CLOUD, Category.DATABASE, Category.NOSQL },
+             producerOnly = true, category = { Category.CLOUD, Category.DATABASE },
              headersClass = Ddb2Constants.class)
 public class Ddb2Endpoint extends ScheduledPollEndpoint {
 
@@ -74,6 +74,11 @@ public class Ddb2Endpoint extends ScheduledPollEndpoint {
     @Override
     public Producer createProducer() throws Exception {
         return new Ddb2Producer(this);
+    }
+
+    @Override
+    public Ddb2Component getComponent() {
+        return (Ddb2Component) super.getComponent();
     }
 
     @Override

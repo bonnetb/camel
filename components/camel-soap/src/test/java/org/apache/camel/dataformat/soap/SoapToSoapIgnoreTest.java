@@ -21,8 +21,8 @@ import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.xml.soap.MessageFactory;
-import javax.xml.soap.SOAPMessage;
+import jakarta.xml.soap.MessageFactory;
+import jakarta.xml.soap.SOAPMessage;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.builder.RouteBuilder;
@@ -75,10 +75,10 @@ public class SoapToSoapIgnoreTest extends CamelTestSupport {
 
         template.sendBody("direct:start", createRequest());
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
         Exchange result = endpoint.assertExchangeReceived(0);
 
-        byte[] body = (byte[]) result.getIn().getBody();
+        byte[] body = result.getIn().getBody(byte[].class);
         InputStream stream = new ByteArrayInputStream(body);
         SOAPMessage request = MessageFactory.newInstance().createMessage(null, stream);
         assertTrue(null == request.getSOAPHeader()

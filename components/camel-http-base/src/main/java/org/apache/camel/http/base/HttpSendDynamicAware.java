@@ -28,6 +28,7 @@ import org.apache.camel.support.component.SendDynamicAwareSupport;
 import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.util.StringHelper;
 import org.apache.camel.util.URISupport;
+import org.apache.camel.util.UnsafeUriCharactersEncoder;
 
 /**
  * HTTP based {@link org.apache.camel.spi.SendDynamicAware} which allows to optimise HTTP components with the toD
@@ -60,22 +61,11 @@ public class HttpSendDynamicAware extends SendDynamicAwareSupport {
         if (path != null || !entry.getLenientProperties().isEmpty()) {
             // the context path can be dynamic or any lenient properties
             // and therefore build a new static uri without path or lenient options
-            Map<String, Object> params = entry.getProperties();
-            for (String k : entry.getLenientProperties().keySet()) {
-                params.remove(k);
-            }
-            if (path != null) {
-                params.remove("httpUri");
-                params.remove("httpURI");
-                if ("netty-http".equals(getScheme())) {
-                    // the netty-http stores host,port etc in other fields than httpURI so we can just remove the path parameter
-                    params.remove("path");
-                }
-            }
+            final Map<String, Object> params = getParams(entry, path);
 
             // build static url with the known parameters
             String url;
-            if (auth != null && auth.indexOf('@') != -1) {
+            if (auth != null && auth.contains("@")) {
                 // only use auth if there is a username:password@host
                 url = getScheme() + ":" + auth;
             } else {
@@ -91,6 +81,22 @@ public class HttpSendDynamicAware extends SendDynamicAwareSupport {
         }
     }
 
+    private Map<String, Object> getParams(DynamicAwareEntry entry, String path) {
+        Map<String, Object> params = entry.getProperties();
+        for (String k : entry.getLenientProperties().keySet()) {
+            params.remove(k);
+        }
+        if (path != null) {
+            params.remove("httpUri");
+            params.remove("httpURI");
+            if ("netty-http".equals(getScheme())) {
+                // the netty-http stores host,port etc in other fields than httpURI so we can just remove the path parameter
+                params.remove("path");
+            }
+        }
+        return params;
+    }
+
     @Override
     public Processor createPreProcessor(Exchange exchange, DynamicAwareEntry entry) throws Exception {
         String[] hostAndPath = parseUri(entry);
@@ -101,6 +107,9 @@ public class HttpSendDynamicAware extends SendDynamicAwareSupport {
             query = URISupport.createQueryString(new LinkedHashMap<>(entry.getLenientProperties()));
         }
 
+        if ((path == null || path.isEmpty()) && ObjectHelper.isNotEmpty(exchange.getIn().getHeader(Exchange.HTTP_PATH))) {
+            path = (String) exchange.getIn().getHeader(Exchange.HTTP_PATH);
+        }
         if (query == null && ObjectHelper.isNotEmpty(exchange.getIn().getHeader(Exchange.HTTP_QUERY))) {
             query = (String) exchange.getIn().getHeader(Exchange.HTTP_QUERY);
         }
@@ -140,7 +149,7 @@ public class HttpSendDynamicAware extends SendDynamicAwareSupport {
         }
 
         // remove query parameters
-        if (u.indexOf('?') > 0) {
+        if (u.contains("?")) {
             u = StringHelper.before(u, "?");
         }
 
@@ -153,8 +162,19 @@ public class HttpSendDynamicAware extends SendDynamicAwareSupport {
             }
         }
 
-        // favour using java.net.URI for parsing into host, context-path and authority
+        // must include :// in scheme to be parsable via java.net.URI
+        int colon = u.indexOf(':');
+        if (colon != -1) {
+            String before = StringHelper.before(u, ":");
+            String after = StringHelper.after(u, ":");
+            if (!after.startsWith("//")) {
+                u = before + "://" + after;
+            }
+        }
+
         try {
+            // favour using java.net.URI for parsing into host, context-path and authority
+            u = UnsafeUriCharactersEncoder.encode(u);
             URI parse = new URI(u);
             String host = parse.getHost();
             String path = parse.getPath();

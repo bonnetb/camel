@@ -17,7 +17,7 @@
 package org.apache.camel.dsl.groovy.common.model
 
 import org.apache.camel.CamelContext
-import org.apache.camel.ExtendedCamelContext
+import org.apache.camel.support.PluginHelper
 import org.apache.camel.support.PropertyBindingSupport
 
 class BeanConfiguration {
@@ -76,8 +76,7 @@ class BeanConfiguration {
     def propertyMissing(String name) {
         def props = new HashMap<String, Object>()
 
-        context.adapt(ExtendedCamelContext.class)
-            .getBeanIntrospection()
+        PluginHelper.getBeanIntrospection(context)
             .getProperties(target, props, null, false)
 
         return props[name]

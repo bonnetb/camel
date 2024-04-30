@@ -36,12 +36,14 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import org.apache.camel.CamelContext;
-import org.apache.camel.ExtendedCamelContext;
+import org.apache.camel.Component;
 import org.apache.camel.PropertyBindingException;
+import org.apache.camel.RuntimeCamelException;
 import org.apache.camel.spi.BeanIntrospection;
 import org.apache.camel.spi.PropertiesComponent;
 import org.apache.camel.spi.PropertyConfigurer;
 import org.apache.camel.spi.PropertyConfigurerGetter;
+import org.apache.camel.support.service.ServiceHelper;
 import org.apache.camel.util.StringHelper;
 import org.apache.camel.util.StringQuoteHelper;
 
@@ -69,8 +71,12 @@ import static org.apache.camel.util.StringHelper.startsWithIgnoreCase;
  * the instance via a factory method then you specify the method as shown: #class:com.foo.MyClassType#myFactoryMethod.
  * And if the factory method requires parameters they can be specified as follows:
  * #class:com.foo.MyClassType#myFactoryMethod('Hello World', 5, true). Or if you need to create the instance via
- * constructor parameters then you can specify the parameters as shown: #class:com.foo.MyClass('Hello World', 5,
- * true)</li>.
+ * constructor parameters then you can specify the parameters as shown: #class:com.foo.MyClass('Hello World', 5, true).
+ * If the factory method is on another bean or class, then you must specify this as shown:
+ * #class:com.foo.MyClassType#com.foo.MyFactory:myFactoryMethod. Where com.foo.MyFactory either refers to an class name,
+ * or can refer to an existing bean by id, such as: #class:com.foo.MyClassType#myFactoryBean:myFactoryMethod.</li>.
+ * <li>valueAs(type):value</li> - To declare that the value should be converted to the given type, such as
+ * #valueAs(int):123 which indicates that the value 123 should be converted to an integer.
  * <li>ignore case - Whether to ignore case for property keys</li>
  * </ul>
  *
@@ -150,6 +156,67 @@ public final class PropertyBindingSupport {
         org.apache.camel.util.ObjectHelper.notNull(properties, "properties");
 
         return PropertyBindingSupport.build().withFlattenProperties(true).bind(camelContext, target, properties);
+    }
+
+    /**
+     * Sets the properties to the given target.
+     *
+     * @param context    the context into which the properties must be set.
+     * @param target     the object to which the properties must be set.
+     * @param properties the properties to set.
+     */
+    public static void setPropertiesOnTarget(CamelContext context, Object target, Map<String, Object> properties) {
+        org.apache.camel.util.ObjectHelper.notNull(context, "context");
+        org.apache.camel.util.ObjectHelper.notNull(target, "target");
+        org.apache.camel.util.ObjectHelper.notNull(properties, "properties");
+
+        if (target instanceof CamelContext) {
+            throw new UnsupportedOperationException("Configuring the Camel Context is not supported");
+        }
+
+        PropertyConfigurer configurer = null;
+        if (target instanceof Component) {
+            // the component needs to be initialized to have the configurer ready
+            ServiceHelper.initService(target);
+            configurer = ((Component) target).getComponentPropertyConfigurer();
+        }
+
+        if (configurer == null) {
+            // see if there is a configurer for it
+            configurer = PluginHelper.getConfigurerResolver(context)
+                    .resolvePropertyConfigurer(target.getClass().getSimpleName(), context);
+        }
+
+        try {
+            PropertyBindingSupport.build()
+                    .withMandatory(true)
+                    .withRemoveParameters(false)
+                    .withConfigurer(configurer)
+                    .withIgnoreCase(true)
+                    .withFlattenProperties(true)
+                    .bind(context, target, properties);
+        } catch (PropertyBindingException e) {
+            String key = e.getOptionKey();
+            if (key == null) {
+                String prefix = e.getOptionPrefix();
+                if (prefix != null && !prefix.endsWith(".")) {
+                    prefix = "." + prefix;
+                }
+
+                key = prefix != null
+                        ? prefix + "." + e.getPropertyName()
+                        : e.getPropertyName();
+            }
+
+            // enrich the error with more precise details with option prefix and key
+            throw new PropertyBindingException(
+                    e.getTarget(),
+                    e.getPropertyName(),
+                    e.getValue(),
+                    null,
+                    key,
+                    e.getCause());
+        }
     }
 
     /**
@@ -264,7 +331,13 @@ public final class PropertyBindingSupport {
 
         // we should only walk and create OGNL path for the middle graph
         String[] parts;
-        if (isDotKey(name)) {
+        boolean quoted = StringHelper.isQuoted(name);
+        if (quoted) {
+            // remove quotes around the key
+            name = StringHelper.removeLeadingAndEndingQuotes(name);
+            newName = name;
+            parts = new String[] { name };
+        } else if (isDotKey(name)) {
             parts = splitKey(name);
         } else {
             parts = new String[] { name };
@@ -312,11 +385,8 @@ public final class PropertyBindingSupport {
                 // now lets update the target/name/class before next iterator (next part)
                 if (configurer instanceof PropertyConfigurerGetter) {
                     // lets see if we have a specialized configurer
-                    String key = part;
-                    int pos = part.indexOf('[');
-                    if (pos != -1) {
-                        key = part.substring(0, pos);
-                    }
+                    String key = StringHelper.before(part, "[", part);
+
                     // if its a map/list/array type then find out what type the collection uses
                     // so we can use that to lookup as configurer
                     Class<?> collectionType = (Class<?>) ((PropertyConfigurerGetter) configurer)
@@ -356,30 +426,14 @@ public final class PropertyBindingSupport {
             boolean allowPrivateSetter, boolean ignoreCase) {
 
         // if the name has collection lookup then ignore that as we want to create the instance
-        String key = name;
-        int pos = name.indexOf('[');
-        if (pos != -1) {
-            key = name.substring(0, pos);
-        }
+        String key = StringHelper.before(name, "[", name);
 
         Object answer = null;
         Method method = findBestSetterMethod(camelContext, newClass, key, fluentBuilder, allowPrivateSetter, ignoreCase);
         if (method != null) {
             Class<?> parameterType = method.getParameterTypes()[0];
-            Object obj = null;
-            // special for properties/map/list/array
-            if (Properties.class.isAssignableFrom(parameterType)) {
-                obj = new Properties();
-            } else if (Map.class.isAssignableFrom(parameterType)) {
-                obj = new LinkedHashMap<>();
-            } else if (Collection.class.isAssignableFrom(parameterType)) {
-                obj = new ArrayList<>();
-            } else if (parameterType.isArray()) {
-                obj = Array.newInstance(parameterType.getComponentType(), 0);
-            }
-            if (obj == null && org.apache.camel.util.ObjectHelper.hasDefaultPublicNoArgConstructor(parameterType)) {
-                obj = camelContext.getInjector().newInstance(parameterType);
-            }
+            Object obj = getObjectForType(camelContext, parameterType);
+
             if (obj != null) {
                 org.apache.camel.support.ObjectHelper.invokeMethod(method, newTarget, obj);
                 answer = obj;
@@ -393,11 +447,7 @@ public final class PropertyBindingSupport {
             boolean ignoreCase, PropertyConfigurer configurer) {
 
         // if the name has collection lookup then ignore that as we want to create the instance
-        String key = name;
-        int pos = name.indexOf('[');
-        if (pos != -1) {
-            key = name.substring(0, pos);
-        }
+        String key = StringHelper.before(name, "[", name);
 
         Object answer = null;
         Class<?> parameterType = null;
@@ -405,20 +455,7 @@ public final class PropertyBindingSupport {
             parameterType = ((PropertyConfigurerGetter) configurer).getOptionType(key, true);
         }
         if (parameterType != null) {
-            Object obj = null;
-            // special for properties/map/list/array
-            if (Properties.class.isAssignableFrom(parameterType)) {
-                obj = new Properties();
-            } else if (Map.class.isAssignableFrom(parameterType)) {
-                obj = new LinkedHashMap<>();
-            } else if (Collection.class.isAssignableFrom(parameterType)) {
-                obj = new ArrayList<>();
-            } else if (parameterType.isArray()) {
-                obj = Array.newInstance(parameterType.getComponentType(), 0);
-            }
-            if (obj == null && org.apache.camel.util.ObjectHelper.hasDefaultPublicNoArgConstructor(parameterType)) {
-                obj = camelContext.getInjector().newInstance(parameterType);
-            }
+            Object obj = getObjectForType(camelContext, parameterType);
             if (obj != null) {
                 boolean hit = configurer.configure(camelContext, newTarget, undashKey(key), obj, ignoreCase);
                 if (hit) {
@@ -427,6 +464,41 @@ public final class PropertyBindingSupport {
             }
         }
         return answer;
+    }
+
+    private static Object getObjectForCollectionType(Class<?> type) {
+        if (Properties.class.isAssignableFrom(type)) {
+            return new Properties();
+        } else if (Map.class.isAssignableFrom(type)) {
+            return new LinkedHashMap<>();
+        } else if (Collection.class.isAssignableFrom(type)) {
+            return new ArrayList<>();
+        } else if (type.isArray()) {
+            return Array.newInstance(type.getComponentType(), 0);
+        }
+
+        return null;
+    }
+
+    private static Object getObjectForCollectionType(Class<?> type, String errorMessage) {
+        Object ret = getObjectForCollectionType(type);
+
+        // not a map or list
+        if (ret == null) {
+            throw new IllegalArgumentException(errorMessage);
+        }
+
+        return ret;
+    }
+
+    private static Object getObjectForType(CamelContext camelContext, Class<?> parameterType) {
+        // special for properties/map/list/array
+        Object obj = getObjectForCollectionType(parameterType);
+
+        if (obj == null && org.apache.camel.util.ObjectHelper.hasDefaultPublicNoArgConstructor(parameterType)) {
+            obj = camelContext.getInjector().newInstance(parameterType);
+        }
+        return obj;
     }
 
     private static boolean doSetPropertyValue(
@@ -462,6 +534,10 @@ public final class PropertyBindingSupport {
                 // resolve property placeholders
                 str = camelContext.resolvePropertyPlaceholders(str.toString());
             }
+            if (str == null && reference && mandatory && !optional) {
+                // we could not resolve the reference and this is mandatory
+                throw new PropertyBindingException(target, key, value);
+            }
             value = str;
         } catch (Exception e) {
             // report the exception using the long key and parent target
@@ -487,18 +563,29 @@ public final class PropertyBindingSupport {
                 if (configurer != null) {
                     bound = setSimplePropertyViaConfigurer(camelContext, target, key, value, ignoreCase, configurer);
                 }
+                if (!bound && reflection) {
+                    // fallback to reflection based
+                    bound = setSimplePropertyViaReflection(camelContext, target, key, value, fluentBuilder, allowPrivateSetter,
+                            reflection, ignoreCase);
+                }
                 // if the target value is a map type, then we can skip reflection
                 // and set the entry
                 if (!bound && Map.class.isAssignableFrom(target.getClass())) {
                     ((Map) target).put(key, value);
                     bound = true;
                 }
-                if (!bound && reflection) {
-                    // fallback to reflection based
-                    bound = setSimplePropertyViaReflection(camelContext, target, key, value, fluentBuilder, allowPrivateSetter,
-                            reflection, ignoreCase);
+                // if the target value is a list type (and key is digit),
+                // then we can skip reflection and set the entry
+                if (!bound && List.class.isAssignableFrom(target.getClass()) && StringHelper.isDigit(key)) {
+                    try {
+                        // key must be digit
+                        int idx = Integer.parseInt(key);
+                        org.apache.camel.util.ObjectHelper.addListByIndex((List) target, idx, value);
+                        bound = true;
+                    } catch (NumberFormatException e) {
+                        // ignore
+                    }
                 }
-
             }
         } catch (PropertyBindingException e) {
             throw e;
@@ -522,28 +609,30 @@ public final class PropertyBindingSupport {
             boolean ignoreCase, boolean reference, boolean optional)
             throws Exception {
 
-        BeanIntrospection bi = context.adapt(ExtendedCamelContext.class).getBeanIntrospection();
+        final BeanIntrospection bi = PluginHelper.getBeanIntrospection(context);
 
         int pos = name.indexOf('[');
         String lookupKey = name.substring(pos + 1, name.length() - 1);
+        lookupKey = StringHelper.removeLeadingAndEndingQuotes(lookupKey);
         String key = name.substring(0, pos);
 
-        Object obj = bi.getOrElseProperty(target, key, null, ignoreCase);
+        Object obj = null;
+        if (pos == 0) {
+            // there are no prefix key to invoke as getter first, so check if target is an object
+            // we can use for collection
+            if (target instanceof Map || target instanceof List || target.getClass().isArray()) {
+                obj = target;
+            }
+        } else {
+            obj = bi.getOrElseProperty(target, key, null, ignoreCase);
+        }
         if (obj == null) {
             // it was supposed to be a list or map, but its null, so lets create a new list or map and set it automatically
             Method getter = bi.getPropertyGetter(target.getClass(), key, ignoreCase);
             if (getter != null) {
                 // what type does it have
                 Class<?> returnType = getter.getReturnType();
-                if (Properties.class.isAssignableFrom(returnType)) {
-                    obj = new Properties();
-                } else if (Map.class.isAssignableFrom(returnType)) {
-                    obj = new LinkedHashMap<>();
-                } else if (Collection.class.isAssignableFrom(returnType)) {
-                    obj = new ArrayList<>();
-                } else if (returnType.isArray()) {
-                    obj = Array.newInstance(returnType.getComponentType(), 0);
-                }
+                obj = getObjectForCollectionType(returnType);
             } else {
                 // fallback as map type
                 obj = new LinkedHashMap<>();
@@ -579,25 +668,7 @@ public final class PropertyBindingSupport {
             List list = (List) obj;
             if (isNotEmpty(lookupKey)) {
                 int idx = Integer.parseInt(lookupKey);
-                if (idx < list.size()) {
-                    list.set(idx, value);
-                } else if (idx == list.size()) {
-                    list.add(value);
-                } else {
-                    // If the list implementation is based on an array, we
-                    // can increase tha capacity to the required value to
-                    // avoid potential re-allocation weh invoking List::add.
-                    //
-                    // Note that ArrayList is the default List impl that
-                    // is automatically created if the property is null.
-                    if (list instanceof ArrayList) {
-                        ((ArrayList) list).ensureCapacity(idx + 1);
-                    }
-                    while (list.size() < idx) {
-                        list.add(null);
-                    }
-                    list.add(idx, value);
-                }
+                org.apache.camel.util.ObjectHelper.addListByIndex(list, idx, value);
             } else {
                 list.add(value);
             }
@@ -628,13 +699,13 @@ public final class PropertyBindingSupport {
 
     private static boolean setPropertyCollectionViaConfigurer(
             CamelContext camelContext, Object target, String name, Object value,
-            boolean ignoreCase, PropertyConfigurer configurer)
-            throws Exception {
+            boolean ignoreCase, PropertyConfigurer configurer) {
 
         final Object originalTarget = target;
 
         int pos = name.indexOf('[');
         String lookupKey = name.substring(pos + 1, name.length() - 1);
+        lookupKey = StringHelper.removeLeadingAndEndingQuotes(lookupKey);
         String key = name.substring(0, pos);
         String undashKey = undashKey(key);
 
@@ -651,15 +722,8 @@ public final class PropertyBindingSupport {
             if (returnType == null) {
                 return false;
             }
-            if (Properties.class.isAssignableFrom(returnType)) {
-                obj = new Properties();
-            } else if (Map.class.isAssignableFrom(returnType)) {
-                obj = new LinkedHashMap<>();
-            } else if (Collection.class.isAssignableFrom(returnType)) {
-                obj = new ArrayList<>();
-            } else if (returnType.isArray()) {
-                obj = Array.newInstance(returnType.getComponentType(), 0);
-            }
+            obj = getObjectForCollectionType(returnType);
+
             if (obj != null) {
                 // set
                 boolean hit = configurer.configure(camelContext, target, undashKey, obj, ignoreCase);
@@ -750,7 +814,7 @@ public final class PropertyBindingSupport {
             boolean ignoreCase) {
 
         try {
-            if (target != null && name != null) {
+            if (name != null) {
                 return doSetSimplePropertyViaReflection(camelContext, target, name, value, false, ignoreCase, fluentBuilder,
                         allowPrivateSetter, reference);
             }
@@ -764,8 +828,7 @@ public final class PropertyBindingSupport {
     private static Object resolveAutowired(
             CamelContext context, Object target, String name, Object value,
             boolean ignoreCase, boolean fluentBuilder, boolean allowPrivateSetter,
-            boolean reflection, PropertyConfigurer configurer)
-            throws Exception {
+            boolean reflection, PropertyConfigurer configurer) {
 
         String undashKey = undashKey(name);
 
@@ -793,18 +856,7 @@ public final class PropertyBindingSupport {
                     }
                 }
                 if (parameterType != null) {
-                    Set<?> types = context.getRegistry().findByType(parameterType);
-                    if (types.size() == 1) {
-                        value = types.iterator().next();
-                    } else if (types.size() > 1) {
-                        throw new IllegalStateException(
-                                "Cannot select single type: " + parameterType + " as there are " + types.size()
-                                                        + " beans in the registry with this type");
-                    } else {
-                        throw new IllegalStateException(
-                                "Cannot select single type: " + parameterType
-                                                        + " as there are no beans in the registry with this type");
-                    }
+                    value = context.getRegistry().mandatoryFindSingleByType(parameterType);
                 }
             }
         }
@@ -848,7 +900,7 @@ public final class PropertyBindingSupport {
         if (reference && value instanceof String) {
             String str = value.toString();
             if (str.startsWith("#bean:")) {
-                // okay its a reference so swap to lookup this which is already supported in IntrospectionSupport
+                // okay it's a reference so swap to look up this which is already supported in IntrospectionSupport
                 refName = "#" + ((String) value).substring(6);
                 value = null;
             } else if (str.equals("#autowired")) {
@@ -864,7 +916,7 @@ public final class PropertyBindingSupport {
             }
         }
 
-        boolean hit = context.adapt(ExtendedCamelContext.class).getBeanIntrospection().setProperty(context,
+        boolean hit = PluginHelper.getBeanIntrospection(context).setProperty(context,
                 context.getTypeConverter(), target, name, value, refName, fluentBuilder, allowPrivateSetter, ignoreCase);
         if (!hit && mandatory) {
             // there is no setter with this given name, so lets report this as a problem
@@ -907,21 +959,10 @@ public final class PropertyBindingSupport {
 
         if (answer == null) {
             if (lookupKey != null) {
-                if (Properties.class.isAssignableFrom(type)) {
-                    answer = new Properties();
-                } else if (Map.class.isAssignableFrom(type)) {
-                    answer = new LinkedHashMap<>();
-                } else if (Collection.class.isAssignableFrom(type)) {
-                    answer = new ArrayList<>();
-                } else if (type.isArray()) {
-                    answer = Array.newInstance(type.getComponentType(), 0);
-                } else {
-                    // not a map or list
-                    throw new IllegalArgumentException(
-                            "Cannot set property: " + property
-                                                       + " as either a Map/List/array because target bean is not a Map, List or array type: "
-                                                       + target);
-                }
+                answer = getObjectForCollectionType(type, "Cannot set property: " + property
+                                                          + " as either a Map/List/array because target bean is not a Map, List or array type: "
+                                                          + target);
+
                 boolean hit = configurer.configure(context, target, undashKey, answer, ignoreCase);
                 if (!hit) {
                     throw new IllegalArgumentException(
@@ -1015,7 +1056,7 @@ public final class PropertyBindingSupport {
         Object answer;
         Class<?> type = null;
 
-        final BeanIntrospection introspection = context.adapt(ExtendedCamelContext.class).getBeanIntrospection();
+        final BeanIntrospection introspection = PluginHelper.getBeanIntrospection(context);
         answer = introspection.getOrElseProperty(target, key, null, ignoreCase);
         if (answer != null) {
             type = answer.getClass();
@@ -1038,21 +1079,9 @@ public final class PropertyBindingSupport {
 
         if (answer == null) {
             if (lookupKey != null) {
-                if (Properties.class.isAssignableFrom(type)) {
-                    answer = new Properties();
-                } else if (Map.class.isAssignableFrom(type)) {
-                    answer = new LinkedHashMap<>();
-                } else if (Collection.class.isAssignableFrom(type)) {
-                    answer = new ArrayList<>();
-                } else if (type.isArray()) {
-                    answer = Array.newInstance(type.getComponentType(), 0);
-                } else {
-                    // not a map or list
-                    throw new IllegalArgumentException(
-                            "Cannot set property: " + property
-                                                       + " as either a Map/List/array because target bean is not a Map, List or array type: "
-                                                       + target);
-                }
+                answer = getObjectForCollectionType(type, "Cannot set property: " + property
+                                                          + " as either a Map/List/array because target bean is not a Map, List or array type: "
+                                                          + target);
                 boolean hit = false;
                 try {
                     hit = introspection.setProperty(context, target, key, answer);
@@ -1112,10 +1141,10 @@ public final class PropertyBindingSupport {
                 Class<?> parameterType = null;
                 try {
                     // our only hope is that the List has getter/setter that use a generic type to specify what kind of class
-                    // they contains so we can use that to know the parameter type
+                    // they contain, so we can use that to know the parameter type
                     Method method = introspection.getPropertyGetter(target.getClass(), key, ignoreCase);
                     if (method != null) {
-                        // its a list (List<com.foo.MyObject>) so we look for < >
+                        // it's a list (List<com.foo.MyObject>) so we look for < >
                         String typeName = method.getGenericReturnType().getTypeName();
                         String fqn = StringHelper.between(typeName, "<", ">");
                         if (fqn != null) {
@@ -1164,10 +1193,11 @@ public final class PropertyBindingSupport {
     }
 
     private static Method findBestSetterMethod(
-            CamelContext context, Class clazz, String name,
+            CamelContext context, Class<?> clazz, String name,
             boolean fluentBuilder, boolean allowPrivateSetter, boolean ignoreCase) {
         // is there a direct setter?
-        Set<Method> candidates = context.adapt(ExtendedCamelContext.class).getBeanIntrospection().findSetterMethods(clazz, name,
+        final BeanIntrospection beanIntrospection = PluginHelper.getBeanIntrospection(context);
+        Set<Method> candidates = beanIntrospection.findSetterMethods(clazz, name,
                 false, allowPrivateSetter, ignoreCase);
         if (candidates.size() == 1) {
             return candidates.iterator().next();
@@ -1175,7 +1205,7 @@ public final class PropertyBindingSupport {
 
         // okay now try with builder pattern
         if (fluentBuilder) {
-            candidates = context.adapt(ExtendedCamelContext.class).getBeanIntrospection().findSetterMethods(clazz, name,
+            candidates = beanIntrospection.findSetterMethods(clazz, name,
                     fluentBuilder, allowPrivateSetter, ignoreCase);
             if (candidates.size() == 1) {
                 return candidates.iterator().next();
@@ -1202,12 +1232,13 @@ public final class PropertyBindingSupport {
         }
 
         // non reference parameters are
-        // #bean: #class: #type: #property: #autowired
+        // #bean: #class: #type: #property: #convert: #autowired
         if (parameter.equals("#autowired")
                 || parameter.startsWith("#bean:")
                 || parameter.startsWith("#class:")
                 || parameter.startsWith("#type:")
-                || parameter.startsWith("#property:")) {
+                || parameter.startsWith("#property:")
+                || parameter.startsWith("#valueAs(:")) {
             return false;
         }
 
@@ -1226,8 +1257,8 @@ public final class PropertyBindingSupport {
      */
     public static Object newInstanceConstructorParameters(CamelContext camelContext, Class<?> type, String parameters)
             throws Exception {
-        String[] params = StringQuoteHelper.splitSafeQuote(parameters, ',');
-        Constructor found = findMatchingConstructor(type.getConstructors(), params);
+        String[] params = StringQuoteHelper.splitSafeQuote(parameters, ',', false);
+        Constructor<?> found = findMatchingConstructor(type.getConstructors(), params);
         if (found != null) {
             Object[] arr = new Object[found.getParameterCount()];
             for (int i = 0; i < found.getParameterCount(); i++) {
@@ -1244,12 +1275,14 @@ public final class PropertyBindingSupport {
                         }
                     }
                 }
-                if (val == null) {
-                    val = camelContext.getTypeConverter().convertTo(paramType, param);
-                }
                 // unquote text
                 if (val instanceof String) {
                     val = StringHelper.removeLeadingAndEndingQuotes((String) val);
+                }
+                if (val != null) {
+                    val = camelContext.getTypeConverter().tryConvertTo(paramType, val);
+                } else {
+                    val = camelContext.getTypeConverter().convertTo(paramType, param);
                 }
                 arr[i] = val;
             }
@@ -1267,11 +1300,11 @@ public final class PropertyBindingSupport {
      * @param  params       the parameters
      * @return              the constructor, or null if no matching constructor can be found
      */
-    private static Constructor findMatchingConstructor(Constructor<?>[] constructors, String[] params) {
-        List<Constructor> candidates = new ArrayList<>();
-        Constructor fallbackCandidate = null;
+    private static Constructor<?> findMatchingConstructor(Constructor<?>[] constructors, String[] params) {
+        List<Constructor<?>> candidates = new ArrayList<>();
+        Constructor<?> fallbackCandidate = null;
 
-        for (Constructor ctr : constructors) {
+        for (Constructor<?> ctr : constructors) {
             if (ctr.getParameterCount() != params.length) {
                 continue;
             }
@@ -1324,17 +1357,32 @@ public final class PropertyBindingSupport {
     public static Object newInstanceFactoryParameters(
             CamelContext camelContext, Class<?> type, String factoryMethod, String parameters)
             throws Exception {
-        String[] params = StringQuoteHelper.splitSafeQuote(parameters, ',');
+        String[] params = StringQuoteHelper.splitSafeQuote(parameters, ',', false);
         Method found = findMatchingFactoryMethod(type.getMethods(), factoryMethod, params);
         if (found != null) {
             Object[] arr = new Object[found.getParameterCount()];
             for (int i = 0; i < found.getParameterCount(); i++) {
                 Class<?> paramType = found.getParameterTypes()[i];
                 Object param = params[i];
-                Object val = camelContext.getTypeConverter().convertTo(paramType, param);
+                Object val = null;
+                // special as we may refer to other #bean or #type in the parameter
+                if (param instanceof String) {
+                    String str = param.toString();
+                    if (str.startsWith("#")) {
+                        Object bean = resolveBean(camelContext, param);
+                        if (bean != null) {
+                            val = bean;
+                        }
+                    }
+                }
                 // unquote text
                 if (val instanceof String) {
                     val = StringHelper.removeLeadingAndEndingQuotes((String) val);
+                }
+                if (val != null) {
+                    val = camelContext.getTypeConverter().tryConvertTo(paramType, val);
+                } else {
+                    val = camelContext.getTypeConverter().convertTo(paramType, param);
                 }
                 arr[i] = val;
             }
@@ -1492,18 +1540,17 @@ public final class PropertyBindingSupport {
      * @throws Exception    is thrown if error resolving the bean, or if the value is invalid.
      */
     public static Object resolveBean(CamelContext camelContext, Object value) throws Exception {
-        if (!(value instanceof String)) {
+        if (!(value instanceof String strval)) {
             return value;
         }
 
-        String strval = (String) value;
         Object answer = value;
 
         // resolve placeholders
         strval = camelContext.resolvePropertyPlaceholders(strval);
 
         if (strval.startsWith("#class:")) {
-            // its a new class to be created
+            // it's a new class to be created
             String className = strval.substring(7);
             String factoryMethod = null;
             String parameters = null;
@@ -1518,11 +1565,24 @@ public final class PropertyBindingSupport {
             }
             Class<?> type = camelContext.getClassResolver().resolveMandatoryClass(className);
             if (factoryMethod != null) {
-                if (parameters != null) {
+                Class<?> factoryClass = null;
+                String typeOrRef = StringHelper.before(factoryMethod, ":");
+                if (typeOrRef != null) {
+                    // use another class with factory method
+                    factoryMethod = StringHelper.after(factoryMethod, ":");
                     // special to support factory method parameters
-                    answer = newInstanceFactoryParameters(camelContext, type, factoryMethod, parameters);
+                    Object existing = camelContext.getRegistry().lookupByName(typeOrRef);
+                    if (existing != null) {
+                        factoryClass = existing.getClass();
+                    } else {
+                        factoryClass = camelContext.getClassResolver().resolveMandatoryClass(typeOrRef);
+                    }
+                }
+                if (parameters != null) {
+                    Class<?> target = factoryClass != null ? factoryClass : type;
+                    answer = newInstanceFactoryParameters(camelContext, target, factoryMethod, parameters);
                 } else {
-                    answer = camelContext.getInjector().newInstance(type, factoryMethod);
+                    answer = camelContext.getInjector().newInstance(type, factoryClass, factoryMethod);
                 }
                 if (answer == null) {
                     throw new IllegalStateException(
@@ -1541,20 +1601,19 @@ public final class PropertyBindingSupport {
             // its reference by type, so lookup the actual value and use it if there is only one instance in the registry
             String typeName = strval.substring(6);
             Class<?> type = camelContext.getClassResolver().resolveMandatoryClass(typeName);
-            Set<?> types = camelContext.getRegistry().findByType(type);
-            if (types.size() == 1) {
-                answer = types.iterator().next();
-            } else if (types.size() > 1) {
-                throw new IllegalStateException(
-                        "Cannot select single type: " + typeName + " as there are " + types.size()
-                                                + " beans in the registry with this type");
-            } else {
-                throw new IllegalStateException(
-                        "Cannot select single type: " + typeName + " as there are no beans in the registry with this type");
-            }
+            answer = camelContext.getRegistry().mandatoryFindSingleByType(type);
         } else if (strval.startsWith("#bean:")) {
             String key = strval.substring(6);
-            answer = camelContext.getRegistry().lookupByName(key);
+            answer = CamelContextHelper.mandatoryLookup(camelContext, key);
+        } else if (strval.startsWith("#valueAs(")) {
+            String text = strval.substring(8);
+            String typeName = StringHelper.between(text, "(", ")");
+            String constant = StringHelper.after(text, ":");
+            if (typeName == null || constant == null) {
+                throw new IllegalArgumentException("Illegal syntax: " + text + " when using function #valueAs(type):value");
+            }
+            Class<?> type = camelContext.getClassResolver().resolveMandatoryClass(typeName);
+            answer = camelContext.getTypeConverter().mandatoryConvertTo(type, constant);
         }
 
         return answer;
@@ -1607,11 +1666,11 @@ public final class PropertyBindingSupport {
                 sb.append(ch);
             }
         }
-        if (sb.length() > 0) {
+        if (!sb.isEmpty()) {
             parts.add(sb.toString());
         }
 
-        return parts.toArray(new String[parts.size()]);
+        return parts.toArray(new String[0]);
     }
 
     @FunctionalInterface
@@ -1673,14 +1732,12 @@ public final class PropertyBindingSupport {
          * The properties to use for binding
          */
         public Builder withProperties(Map<String, Object> properties) {
-            if (this.properties == null) {
-                this.properties = properties;
-            } else {
+            if (this.properties != null) {
                 // there may be existing options so add those if missing
                 // we need to mutate existing as we are may be removing bound properties
                 this.properties.forEach(properties::putIfAbsent);
-                this.properties = properties;
             }
+            this.properties = properties;
             return this;
         }
 
@@ -1816,6 +1873,36 @@ public final class PropertyBindingSupport {
         public Builder withListener(PropertyBindingListener listener) {
             this.listener = listener;
             return this;
+        }
+
+        /**
+         * Binds the properties to the target object, and builds the output as the given type, by invoking the build
+         * method (uses build as name)
+         *
+         * @param type the type of the output class
+         */
+        public <T> T build(Class<T> type) {
+            return build(type, "build");
+        }
+
+        /**
+         * Binds the properties to the target object, and builds the output as the given type, by invoking the build
+         * method (via reflection).
+         *
+         * @param type        the type of the output class
+         * @param buildMethod the name of the builder method to invoke
+         */
+        public <T> T build(Class<T> type, String buildMethod) {
+            // first bind
+            bind();
+
+            // then invoke the build method on target via reflection
+            try {
+                Object out = ObjectHelper.invokeMethodSafe(buildMethod, target);
+                return camelContext.getTypeConverter().convertTo(type, out);
+            } catch (Exception e) {
+                throw RuntimeCamelException.wrapRuntimeException(e);
+            }
         }
 
         /**

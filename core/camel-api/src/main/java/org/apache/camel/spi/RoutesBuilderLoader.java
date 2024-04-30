@@ -31,16 +31,18 @@ public interface RoutesBuilderLoader extends StaticService, CamelContextAware {
     String FACTORY_PATH = "META-INF/services/org/apache/camel/routes-loader/";
 
     /**
-     * Service factory group.
-     */
-    String FACTORY_GROUP = "routes-loader";
-
-    /**
      * The supported file extension.
      * <p/>
      * Implementations should support a single extension only.
      */
     String getSupportedExtension();
+
+    /**
+     * Whether the file extension is supported
+     */
+    default boolean isSupportedExtension(String extension) {
+        return getSupportedExtension().equals(extension);
+    }
 
     /**
      * Loads {@link RoutesBuilder} from {@link Resource}.
@@ -61,4 +63,5 @@ public interface RoutesBuilderLoader extends StaticService, CamelContextAware {
     default void preParseRoute(Resource resource) throws Exception {
         // noop
     }
+
 }

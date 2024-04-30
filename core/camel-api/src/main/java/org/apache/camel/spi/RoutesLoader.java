@@ -35,6 +35,25 @@ public interface RoutesLoader extends CamelContextAware {
     String FACTORY = "routes-loader";
 
     /**
+     * Whether to ignore route loading and compilation errors (use this with care!)
+     */
+    boolean isIgnoreLoadingError();
+
+    /**
+     * Whether to ignore route loading and compilation errors (use this with care!)
+     */
+    void setIgnoreLoadingError(boolean ignoreLoadingError);
+
+    /**
+     * Looks up a {@link RoutesBuilderLoader} in the registry or fallback to a factory finder mechanism if none found.
+     *
+     * @param  extension                the file extension for which a loader should be found.
+     * @return                          a {@link RoutesBuilderLoader}
+     * @throws IllegalArgumentException if no {@link RoutesBuilderLoader} can be found for the given file extension
+     */
+    RoutesBuilderLoader getRoutesLoader(String extension) throws Exception;
+
+    /**
      * Loads {@link RoutesBuilder} from the give list of {@link Resource} into the current
      * {@link org.apache.camel.CamelContext}.
      *
@@ -50,6 +69,9 @@ public interface RoutesLoader extends CamelContextAware {
         }
         for (RoutesBuilder builder : builders) {
             getCamelContext().addRoutes(builder);
+        }
+        for (RoutesBuilder builder : builders) {
+            getCamelContext().addTemplatedRoutes(builder);
         }
     }
 
@@ -69,6 +91,9 @@ public interface RoutesLoader extends CamelContextAware {
         }
         for (RoutesBuilder builder : builders) {
             getCamelContext().addRoutes(builder);
+        }
+        for (RoutesBuilder builder : builders) {
+            getCamelContext().addTemplatedRoutes(builder);
         }
     }
 
@@ -117,14 +142,33 @@ public interface RoutesLoader extends CamelContextAware {
     Collection<RoutesBuilder> findRoutesBuilders(Collection<Resource> resources) throws Exception;
 
     /**
+     * Find {@link RoutesBuilder} from the give list of {@link Resource}.
+     *
+     * @param  resources the resource to be loaded.
+     * @param  optional  whether parsing the resource is optional, such as there is no supported parser for the given
+     *                   resource extension
+     * @return           a collection {@link RoutesBuilder}
+     */
+    Collection<RoutesBuilder> findRoutesBuilders(Collection<Resource> resources, boolean optional) throws Exception;
+
+    /**
      * Pre-parses the {@link RoutesBuilder} from {@link Resource}.
      *
      * This is used during bootstrap, to eager detect configurations from route DSL resources which makes it possible to
      * specify configurations that affect the bootstrap, such as by camel-jbang and camel-yaml-dsl.
      *
      * @param resource the resource to be pre parsed.
+     * @param optional whether parsing the resource is optional, such as there is no supported parser for the given
+     *                 resource extension
      */
-    default void preParseRoute(Resource resource) throws Exception {
+    default void preParseRoute(Resource resource, boolean optional) throws Exception {
+        // noop
+    }
+
+    /**
+     * Initializes the discovered {@link RoutesBuilderLoader} before its started and used for the first time.
+     */
+    default void initRoutesBuilderLoader(RoutesBuilderLoader loader) {
         // noop
     }
 }

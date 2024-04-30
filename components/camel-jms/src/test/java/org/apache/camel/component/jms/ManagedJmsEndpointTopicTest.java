@@ -18,38 +18,40 @@ package org.apache.camel.component.jms;
 
 import java.util.Set;
 
-import javax.jms.ConnectionFactory;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 
 import org.apache.camel.CamelContext;
+import org.apache.camel.ConsumerTemplate;
+import org.apache.camel.ProducerTemplate;
 import org.apache.camel.builder.RouteBuilder;
-import org.apache.camel.impl.DefaultCamelContext;
-import org.apache.camel.test.junit5.CamelTestSupport;
+import org.apache.camel.component.mock.MockEndpoint;
+import org.apache.camel.test.infra.core.CamelContextExtension;
+import org.apache.camel.test.infra.core.DefaultCamelContextExtension;
+import org.awaitility.Awaitility;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
-import static org.apache.camel.component.jms.JmsComponent.jmsComponentAutoAcknowledge;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  *
  */
-public class ManagedJmsEndpointTopicTest extends CamelTestSupport {
+public class ManagedJmsEndpointTopicTest extends AbstractJMSTest {
+
+    @Order(2)
+    @RegisterExtension
+    public static CamelContextExtension camelContextExtension = new DefaultCamelContextExtension();
+    protected CamelContext context;
+    protected ProducerTemplate template;
+    protected ConsumerTemplate consumer;
 
     @Override
-    protected boolean useJmx() {
-        return true;
-    }
-
-    @Override
-    protected CamelContext createCamelContext() {
-        CamelContext context = new DefaultCamelContext();
-
-        ConnectionFactory connectionFactory = CamelJmsTestHelper.createConnectionFactory();
-        context.addComponent("activemq", jmsComponentAutoAcknowledge(connectionFactory));
-
-        return context;
+    protected String getComponentName() {
+        return "activemq";
     }
 
     protected MBeanServer getMBeanServer() {
@@ -76,9 +78,12 @@ public class ManagedJmsEndpointTopicTest extends CamelTestSupport {
 
         getMockEndpoint("mock:result").expectedMessageCount(2);
 
+        Awaitility.await().until(() -> context.getRoute("foo").getUptimeMillis() > 100 &&
+                context.getRoute("bar").getUptimeMillis() > 100);
+
         template.sendBody("activemq:topic:start", "Hello World");
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Override
@@ -93,4 +98,15 @@ public class ManagedJmsEndpointTopicTest extends CamelTestSupport {
         };
     }
 
+    @Override
+    public CamelContextExtension getCamelContextExtension() {
+        return camelContextExtension;
+    }
+
+    @BeforeEach
+    void setUpRequirements() {
+        context = camelContextExtension.getContext();
+        template = camelContextExtension.getProducerTemplate();
+        consumer = camelContextExtension.getConsumerTemplate();
+    }
 }

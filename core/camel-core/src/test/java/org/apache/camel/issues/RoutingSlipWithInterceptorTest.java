@@ -20,7 +20,6 @@ import org.apache.camel.AsyncCallback;
 import org.apache.camel.CamelContext;
 import org.apache.camel.ContextTestSupport;
 import org.apache.camel.Exchange;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.NamedNode;
 import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
@@ -43,8 +42,7 @@ public class RoutingSlipWithInterceptorTest extends ContextTestSupport {
 
         @Override
         public Processor wrapProcessorInInterceptors(
-                final CamelContext context, final NamedNode definition, final Processor target, final Processor nextTarget)
-                throws Exception {
+                final CamelContext context, final NamedNode definition, final Processor target, final Processor nextTarget) {
             if (definition instanceof RoutingSlipDefinition<?>) {
                 final DelegateAsyncProcessor delegateAsyncProcessor = new DelegateAsyncProcessor() {
 
@@ -106,7 +104,7 @@ public class RoutingSlipWithInterceptorTest extends ContextTestSupport {
         return new RouteBuilder() {
             @Override
             public void configure() {
-                context.adapt(ExtendedCamelContext.class).addInterceptStrategy(interceptStrategy);
+                context.getCamelContextExtension().addInterceptStrategy(interceptStrategy);
 
                 from("direct:start").routingSlip(header("slip")).to("mock:result");
 

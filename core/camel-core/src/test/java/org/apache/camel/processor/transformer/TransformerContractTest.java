@@ -49,7 +49,7 @@ public class TransformerContractTest extends ContextTestSupport {
         context.getTypeConverterRegistry().addTypeConverters(new MyTypeConverters());
         context.addRoutes(new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:a").inputType(A.class).to("mock:a");
             }
         });
@@ -69,7 +69,7 @@ public class TransformerContractTest extends ContextTestSupport {
         context.getTypeConverterRegistry().addTypeConverters(new MyTypeConverters());
         context.addRoutes(new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:a").outputType(A.class).to("mock:a");
             }
         });
@@ -88,7 +88,7 @@ public class TransformerContractTest extends ContextTestSupport {
     public void testScheme() throws Exception {
         context.addRoutes(new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 transformer().scheme("xml").withDataFormat(new MyDataFormatDefinition());
                 from("direct:a").inputType("xml").outputType("xml").to("mock:a").to("direct:b").to("mock:a2");
                 from("direct:b").inputType("java").outputType("java").to("mock:b").process(ex -> {
@@ -117,7 +117,7 @@ public class TransformerContractTest extends ContextTestSupport {
         assertEquals("<foo/>", exa.getIn().getBody());
         assertEquals(A.class, exb.getIn().getBody().getClass());
         assertEquals(B.class, exa2.getIn().getBody().getClass());
-        assertEquals("<fooResponse/>", new String((byte[]) answer.getIn().getBody()));
+        assertEquals("<fooResponse/>", answer.getIn().getBody(String.class));
     }
 
     public static class MyTypeConverters implements TypeConverters {
@@ -132,7 +132,7 @@ public class TransformerContractTest extends ContextTestSupport {
         public MyDataFormatDefinition() {
             super(new DefaultDataFormat() {
                 @Override
-                public void marshal(Exchange exchange, Object graph, OutputStream stream) throws Exception {
+                public void marshal(Exchange exchange, Object graph, OutputStream stream) {
                     assertEquals(B.class, graph.getClass());
                     PrintWriter pw = new PrintWriter(new OutputStreamWriter(stream));
                     pw.print("<fooResponse/>");

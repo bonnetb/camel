@@ -27,8 +27,8 @@ import org.apache.camel.component.aws2.s3.AWS2S3Operations;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class S3CreateDownloadLinkOperationIT extends Aws2S3Base {
 
@@ -67,7 +67,7 @@ public class S3CreateDownloadLinkOperationIT extends Aws2S3Base {
             }
         });
 
-        Exchange ex2 = template.request("direct:createDownloadLinkWithoutCredentials", new Processor() {
+        Exchange ex3 = template.request("direct:createDownloadLinkWithUriOverride", new Processor() {
             public void process(Exchange exchange) {
                 exchange.getIn().setHeader(AWS2S3Constants.KEY, "CamelUnitTest2");
                 exchange.getIn().setHeader(AWS2S3Constants.BUCKET_NAME, "mycamel2");
@@ -75,9 +75,15 @@ public class S3CreateDownloadLinkOperationIT extends Aws2S3Base {
             }
         });
 
-        assertNotNull(ex1.getMessage().getBody());
-        assertNull(ex2.getMessage().getBody());
-        assertMockEndpointsSatisfied();
+        String downloadLink = ex1.getMessage().getBody(String.class);
+        assertNotNull(downloadLink);
+        assertTrue(downloadLink.startsWith("https://mycamel2.s3.eu-west-1.amazonaws.com"));
+
+        String downloadLinkWithUriOverride = ex3.getMessage().getBody(String.class);
+        assertNotNull(downloadLinkWithUriOverride);
+        assertTrue(downloadLinkWithUriOverride.startsWith("http://mycamel2.localhost:8080"));
+
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Override
@@ -87,15 +93,16 @@ public class S3CreateDownloadLinkOperationIT extends Aws2S3Base {
             public void configure() {
                 String awsEndpoint = "aws2-s3://mycamel2?autoCreateBucket=true";
 
-                from("direct:listBucket").to(awsEndpoint);
+                from("direct:listBucket").to(awsEndpoint + "&accessKey=xxx&secretKey=yyy&region=eu-west-1");
 
-                from("direct:addObject").to(awsEndpoint);
-
-                from("direct:createDownloadLinkWithoutCredentials").to(awsEndpoint).to("mock:result");
+                from("direct:addObject").to(awsEndpoint + "&accessKey=xxx&secretKey=yyy&region=eu-west-1");
 
                 from("direct:createDownloadLink").to(awsEndpoint + "&accessKey=xxx&secretKey=yyy&region=eu-west-1")
                         .to("mock:result");
 
+                from("direct:createDownloadLinkWithUriOverride")
+                        .to(awsEndpoint
+                            + "&accessKey=xxx&secretKey=yyy&region=eu-west-1&uriEndpointOverride=http://localhost:8080");
             }
         };
     }

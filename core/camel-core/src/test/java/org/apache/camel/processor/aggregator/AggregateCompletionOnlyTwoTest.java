@@ -16,7 +16,8 @@
  */
 package org.apache.camel.processor.aggregator;
 
-import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.ContextTestSupport;
@@ -27,14 +28,15 @@ import org.apache.camel.processor.BodyInAggregatingStrategy;
 import org.apache.camel.processor.aggregate.MemoryAggregationRepository;
 import org.junit.jupiter.api.Test;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class AggregateCompletionOnlyTwoTest extends ContextTestSupport {
+class AggregateCompletionOnlyTwoTest extends ContextTestSupport {
 
-    private MyRepo repo = new MyRepo();
+    private final MyRepo repo = new MyRepo();
 
     @Test
-    public void testOnlyTwo() throws Exception {
+    void testOnlyTwo() throws Exception {
         MockEndpoint mock = getMockEndpoint("mock:aggregated");
         mock.expectedBodiesReceived("A+B", "C+END");
 
@@ -48,26 +50,27 @@ public class AggregateCompletionOnlyTwoTest extends ContextTestSupport {
         assertEquals(4, repo.getGet());
         assertEquals(2, repo.getAdd());
         assertEquals(2, repo.getRemove());
-        assertEquals(2, repo.getConfirm());
+        // A second thread is involved so let's use awaitility to add more flexibility to the test
+        await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> assertEquals(2, repo.getConfirm()));
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:start").aggregate(header("id"), new BodyInAggregatingStrategy()).aggregationRepository(repo)
                         .completionSize(2).to("mock:aggregated");
             }
         };
     }
 
-    private class MyRepo extends MemoryAggregationRepository {
+    private static class MyRepo extends MemoryAggregationRepository {
 
         private int add;
         private int get;
         private int remove;
-        private int confirm;
+        private final AtomicInteger confirm = new AtomicInteger();
 
         @Override
         public Exchange add(CamelContext camelContext, String key, Exchange exchange) {
@@ -89,13 +92,8 @@ public class AggregateCompletionOnlyTwoTest extends ContextTestSupport {
 
         @Override
         public void confirm(CamelContext camelContext, String exchangeId) {
-            confirm++;
+            confirm.incrementAndGet();
             super.confirm(camelContext, exchangeId);
-        }
-
-        @Override
-        public Set<String> getKeys() {
-            return super.getKeys();
         }
 
         public int getAdd() {
@@ -111,7 +109,7 @@ public class AggregateCompletionOnlyTwoTest extends ContextTestSupport {
         }
 
         public int getConfirm() {
-            return confirm;
+            return confirm.get();
         }
     }
 }

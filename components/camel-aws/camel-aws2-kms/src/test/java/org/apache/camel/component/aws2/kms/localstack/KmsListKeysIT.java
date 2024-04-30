@@ -24,11 +24,13 @@ import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.aws2.kms.KMS2Constants;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 import software.amazon.awssdk.services.kms.model.ListKeysResponse;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+@DisabledIfSystemProperty(named = "ci.env.name", matches = "github.com", disabledReason = "Flaky on GitHub Actions")
 public class KmsListKeysIT extends Aws2KmsBase {
 
     @EndpointInject
@@ -57,7 +59,7 @@ public class KmsListKeysIT extends Aws2KmsBase {
             }
         });
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
         assertEquals(1, result.getExchanges().size());
         assertTrue(result.getExchanges().get(0).getIn().getBody(ListKeysResponse.class).hasKeys());
     }

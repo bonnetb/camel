@@ -32,6 +32,7 @@ import org.apache.camel.spi.Registry;
 import org.hl7.fhir.r4.model.HumanName;
 import org.hl7.fhir.r4.model.Patient;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,6 +43,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Test class for {@link org.apache.camel.component.fhir.api.FhirCreate} APIs. The class source won't be generated again
  * if the generator MOJO finds it under src/test/java.
  */
+@DisabledIfSystemProperty(named = "ci.env.name", matches = "apache.org",
+                          disabledReason = "Apache CI nodes are too resource constrained for this test - see CAMEL-19659")
 public class FhirCreateIT extends AbstractFhirTestSupport {
 
     private static final Logger LOG = LoggerFactory.getLogger(FhirCreateIT.class);
@@ -74,43 +77,43 @@ public class FhirCreateIT extends AbstractFhirTestSupport {
     }
 
     @Test
-    public void testCreateResource() throws Exception {
+    public void testCreateResource() {
         Patient patient = new Patient().addName(new HumanName().addGiven("Vincent").setFamily("Freeman"));
 
         MethodOutcome result = requestBody("direct://RESOURCE", patient);
 
-        LOG.debug("resource: " + result);
+        LOG.debug("resource: {}", result);
         assertNotNull(result, "resource result");
         assertTrue(result.getCreated());
     }
 
     @Test
-    public void testCreateStringResource() throws Exception {
+    public void testCreateStringResource() {
         Patient patient = new Patient().addName(new HumanName().addGiven("Vincent").setFamily("Freeman"));
         String patientString = this.fhirContext.newXmlParser().encodeResourceToString(patient);
 
         MethodOutcome result = requestBody("direct://RESOURCE_STRING", patientString);
 
-        LOG.debug("resource: " + result);
+        LOG.debug("resource: {}", result);
         assertNotNull(result, "resource result");
         assertTrue(result.getCreated());
     }
 
     @Test
-    public void testCreateStringResourceEncodeXml() throws Exception {
+    public void testCreateStringResourceEncodeXml() {
         Patient patient = new Patient().addName(new HumanName().addGiven("Vincent").setFamily("Freeman"));
         String patientString = this.fhirContext.newXmlParser().encodeResourceToString(patient);
         Map<String, Object> headers = new HashMap<>();
         headers.put(ExtraParameters.ENCODE_XML.getHeaderName(), Boolean.TRUE);
         MethodOutcome result = requestBodyAndHeaders("direct://RESOURCE_STRING", patientString, headers);
 
-        LOG.debug("resource: " + result);
+        LOG.debug("resource: {}", result);
         assertNotNull(result, "resource result");
         assertTrue(result.getCreated());
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             public void configure() {
                 // test route for resource

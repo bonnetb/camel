@@ -25,6 +25,7 @@ import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -32,6 +33,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * This test demonstrates how to convert a HL7V2 patient to a FHIR dtsu3 Patient and then insert it into a FHIR server.
  */
+@DisabledIfSystemProperty(named = "ci.env.name", matches = "apache.org",
+                          disabledReason = "Apache CI nodes are too resource constrained for this test - see CAMEL-19659")
 public class Hl7v2PatientToFhirPatientIT extends AbstractFhirTestSupport {
 
     /*
@@ -43,7 +46,7 @@ public class Hl7v2PatientToFhirPatientIT extends AbstractFhirTestSupport {
     ORC     Common Order            Not used in this example
     OBR     Observation             Request Observation
     OBX     Observation             ObservationProvider
-    
+
     See https://fhirblog.com/2014/10/05/mapping-hl7-version-2-to-fhir-messages for more information
     */
     private static final String HL7_MESSAGE = "MSH|^~\\&|Amalga HIS|BUM|New Tester|MS|20111121103141||ORU^R01|2847970-2"
@@ -76,9 +79,9 @@ public class Hl7v2PatientToFhirPatientIT extends AbstractFhirTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
-            public void configure() throws Exception {
+            public void configure() {
                 Processor patientProcessor = new PatientProcessor();
                 from("direct:input")
                         .unmarshal().hl7()

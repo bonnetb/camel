@@ -32,6 +32,7 @@ public class PropertiesComponentConcatenatePropertiesTest extends ContextTestSup
         CamelContext context = super.createCamelContext();
         context.getPropertiesComponent()
                 .setLocation("classpath:org/apache/camel/component/properties/concatenation.properties");
+        context.getPropertiesComponent().setNestedPlaceholder(true);
         return context;
     }
 
@@ -53,7 +54,7 @@ public class PropertiesComponentConcatenatePropertiesTest extends ContextTestSup
     public void testConcatPropertiesComponentDefault() throws Exception {
         context.addRoutes(new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:start").setBody(simple("{{concat.property}}")).to("mock:result");
             }
         });
@@ -70,7 +71,7 @@ public class PropertiesComponentConcatenatePropertiesTest extends ContextTestSup
     public void testWithoutConcatPropertiesComponentDefault() throws Exception {
         context.addRoutes(new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:start").setBody(simple("{{property.complete}}")).to("mock:result");
             }
         });

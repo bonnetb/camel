@@ -109,7 +109,7 @@ public class FakeAWSDaemon {
                         for (String segment : segments) {
                             locSegment = segment;
                             LOG.trace("Processing received segment: {}", segment);
-                            if (!"".equals(segment)) {
+                            if (!segment.isEmpty()) {
                                 if (!segment.endsWith("}")
                                         || StringUtils.countMatches(segment, "{") != StringUtils.countMatches(segment, "}")
                                         || StringUtils.countMatches(segment, "[") != StringUtils.countMatches(segment, "]")) {
@@ -141,13 +141,13 @@ public class FakeAWSDaemon {
                         LOG.trace("Item {} received. JSON content: {}, Raw: {}",
                                 receivedTraces.size(), receivedTraces, raw);
                     } catch (Exception jsonEx) {
-                        LOG.warn("Could not convert segment " + locSegment + " to a Java object", jsonEx);
+                        LOG.warn("Could not convert segment {} to a Java object", locSegment, jsonEx);
                     }
                 }
             } catch (SocketException sex) {
                 LOG.info("UDP socket closed");
             } catch (Exception ex) {
-                LOG.warn("UDP socket failed due to " + ex.getLocalizedMessage(), ex);
+                LOG.warn("UDP socket failed due to {}", ex.getLocalizedMessage(), ex);
             }
         }
 
@@ -202,9 +202,9 @@ public class FakeAWSDaemon {
             if (json.has("metadata")) {
                 JsonObject rawMetadata = (JsonObject) json.get("metadata");
                 Map<String, Map<String, Object>> metadata = parseMetadata(rawMetadata);
-                for (String namespace : metadata.keySet()) {
-                    for (String key : metadata.get(namespace).keySet()) {
-                        entity.withMetadata(namespace, key, metadata.get(namespace).get(key));
+                for (Map.Entry<String, Map<String, Object>> entry : metadata.entrySet()) {
+                    for (String key : entry.getValue().keySet()) {
+                        entity.withMetadata(entry.getKey(), key, entry.getValue().get(key));
                     }
                 }
             }

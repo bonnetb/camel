@@ -5,6 +5,7 @@
 :description: Generate messages in specified intervals using java.util.Timer.
 :since: 1.0
 :supportlevel: Stable
+:tabs-sync-option:
 :component-header: Only consumer is supported
 :core:
 //Manually maintained attributes
@@ -15,7 +16,7 @@
 *{component-header}*
 
 The Timer component is used to generate message exchanges when a
-timer fires You can only consume events from this endpoint.
+timer fires. You can only consume events from this endpoint.
 
 == URI format
 
@@ -27,8 +28,8 @@ Where `name` is the name of the `Timer` object, which is created and
 shared across endpoints. So if you use the same name for all your timer
 endpoints, only one `Timer` object and thread will be used.
 
-*Note:* The IN body of the generated exchange is `null`. So
-`exchange.getIn().getBody()` returns `null`.
+NOTE: The _IN_ body of the generated exchange is `null`.
+Therefore, calling `exchange.getIn().getBody()` returns `null`.
 
 [TIP]
 ====
@@ -37,8 +38,6 @@ endpoints, only one `Timer` object and thread will be used.
 See also the xref:quartz-component.adoc[Quartz] component that supports much more
 advanced scheduling.
 ====
-
-
 
 // component-configure options: START
 
@@ -52,7 +51,9 @@ include::partial$component-endpoint-options.adoc[]
 // endpoint options: START
 
 // endpoint options: END
-
+// component headers: START
+include::partial$component-endpoint-headers.adoc[]
+// component headers: END
 
 == Exchange Properties
 
@@ -99,9 +100,7 @@ And the route in Spring DSL:
 
 == Firing as soon as possible
 
-*Since Camel 2.17*
-
-You may want to fire messages in a Camel route as soon as possible you
+You may want to fire messages in a Camel route as soon as possible, you
 can use a negative delay:
 
 [source,xml]
@@ -112,19 +111,20 @@ can use a negative delay:
 </route>
 ----
 
-In this way the timer will fire messages immediately.
+In this way, the timer will fire messages immediately.
 
-You can also specify a repeatCount parameter in conjunction with a
+You can also specify a `repeatCount` parameter in conjunction with a
 negative delay to stop firing messages after a fixed number has been
 reached.
 
-If you don't specify a repeatCount then the timer will continue firing
+If you don't specify a `repeatCount` then the timer will continue firing
 messages until the route will be stopped. 
 
 == Firing only once
 
 You may want to fire a message in a Camel route only once, such as when
-starting the route. To do that you use the repeatCount option as shown:
+starting the route.
+To do that, you use the `repeatCount` option as shown:
 
 [source,xml]
 ----

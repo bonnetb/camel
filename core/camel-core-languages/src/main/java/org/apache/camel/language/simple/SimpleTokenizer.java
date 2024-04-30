@@ -91,7 +91,7 @@ public final class SimpleTokenizer {
         KNOWN_TOKENS[44] = new SimpleTokenType(TokenType.logicalOperator, "&&");
         KNOWN_TOKENS[45] = new SimpleTokenType(TokenType.logicalOperator, "||");
 
-        //binary operator 
+        //binary operator
         // it is added as the last item because unary -- has the priority
         // if unary not found it is highly possible - operator is run into.
         KNOWN_TOKENS[46] = new SimpleTokenType(TokenType.minusValue, "-");
@@ -170,7 +170,7 @@ public final class SimpleTokenizer {
                 }
                 // is it a dot or comma as part of a floating point number
                 boolean decimalSeparator = '.' == expression.charAt(index) || ',' == expression.charAt(index);
-                if (decimalSeparator && sb.length() > 0) {
+                if (decimalSeparator && !sb.isEmpty()) {
                     char ch = expression.charAt(index);
                     sb.append(ch);
                     index++;
@@ -179,7 +179,7 @@ public final class SimpleTokenizer {
                     continue;
                 }
             }
-            if (sb.length() > 0) {
+            if (!sb.isEmpty()) {
                 return new SimpleToken(new SimpleTokenType(TokenType.numericValue, sb.toString()), index);
             }
         }
@@ -228,8 +228,7 @@ public final class SimpleTokenizer {
 
         // fallback and create a character token
         char ch = expression.charAt(index);
-        SimpleToken token = new SimpleToken(new SimpleTokenType(TokenType.character, "" + ch), index);
-        return token;
+        return new SimpleToken(new SimpleTokenType(TokenType.character, String.valueOf(ch)), index);
     }
 
     private static boolean acceptType(TokenType type, TokenType... filters) {
@@ -260,6 +259,16 @@ public final class SimpleTokenizer {
             boolean whiteSpace = ObjectHelper.isEmpty(after) || after.startsWith(" ");
             boolean functionEnd = previous.equals("}");
             return functionEnd && whiteSpace;
+        }
+        if (token.isBinary()) {
+            int len = token.getValue().length();
+            // The binary operator must be used in the format of "exp1 op exp2"
+            if (index < 2 || len >= text.length() - 1) {
+                return false;
+            }
+            String previousOne = expression.substring(index - 1, index);
+            String afterOne = text.substring(len, len + 1);
+            return " ".equals(previousOne) && " ".equals(afterOne) && text.substring(0, len).equals(token.getValue());
         }
 
         return text.startsWith(token.getValue());

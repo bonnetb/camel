@@ -21,18 +21,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
-import javax.xml.bind.annotation.XmlType;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.XmlType;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.CamelContextAware;
 import org.apache.camel.RouteTemplateContext;
 import org.apache.camel.spi.Metadata;
+import org.apache.camel.spi.Resource;
+import org.apache.camel.spi.ResourceAware;
 
 /**
  * Defines a templated route (a route built from a route template)
@@ -41,15 +43,19 @@ import org.apache.camel.spi.Metadata;
 @XmlRootElement(name = "templatedRoute")
 @XmlType(propOrder = { "parameters", "beans" })
 @XmlAccessorType(XmlAccessType.FIELD)
-public class TemplatedRouteDefinition implements CamelContextAware {
+public class TemplatedRouteDefinition implements CamelContextAware, ResourceAware {
 
     @XmlTransient
     private CamelContext camelContext;
+    @XmlTransient
+    private Resource resource;
 
     @XmlAttribute(required = true)
     private String routeTemplateRef;
     @XmlAttribute
     private String routeId;
+    @XmlAttribute
+    private String prefixId;
     @XmlElement(name = "parameter")
     @Metadata(description = "Adds an input parameter of the template to build the route")
     private List<TemplatedRouteParameterDefinition> parameters;
@@ -89,6 +95,14 @@ public class TemplatedRouteDefinition implements CamelContextAware {
         this.routeId = routeId;
     }
 
+    public String getPrefixId() {
+        return prefixId;
+    }
+
+    public void setPrefixId(String prefixId) {
+        this.prefixId = prefixId;
+    }
+
     @Override
     public CamelContext getCamelContext() {
         return camelContext;
@@ -97,6 +111,16 @@ public class TemplatedRouteDefinition implements CamelContextAware {
     @Override
     public void setCamelContext(CamelContext camelContext) {
         this.camelContext = camelContext;
+    }
+
+    @Override
+    public Resource getResource() {
+        return resource;
+    }
+
+    @Override
+    public void setResource(Resource resource) {
+        this.resource = resource;
     }
 
     // Fluent API
@@ -258,6 +282,16 @@ public class TemplatedRouteDefinition implements CamelContextAware {
         def.setName(name);
         beans.add(def);
         return def;
+    }
+
+    /**
+     * Sets a prefix to use for all node ids (not route id).
+     *
+     * @param id the prefix id
+     */
+    public TemplatedRouteDefinition prefixId(String id) {
+        setPrefixId(id);
+        return this;
     }
 
     /**

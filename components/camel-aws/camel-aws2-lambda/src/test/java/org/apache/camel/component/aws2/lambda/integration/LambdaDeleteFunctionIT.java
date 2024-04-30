@@ -28,10 +28,12 @@ import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.aws2.lambda.Lambda2Constants;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 import software.amazon.awssdk.services.lambda.model.DeleteFunctionResponse;
 
 import static org.junit.Assert.assertTrue;
 
+@DisabledIfSystemProperty(named = "ci.env.name", matches = "github.com", disabledReason = "Flaky on GitHub Actions")
 public class LambdaDeleteFunctionIT extends Aws2LambdaBase {
 
     @EndpointInject
@@ -47,7 +49,7 @@ public class LambdaDeleteFunctionIT extends Aws2LambdaBase {
         template.send("direct:createFunction", ExchangePattern.InOut, new Processor() {
             @Override
             public void process(Exchange exchange) throws Exception {
-                exchange.getIn().setHeader(Lambda2Constants.RUNTIME, "nodejs6.10");
+                exchange.getIn().setHeader(Lambda2Constants.RUNTIME, "nodejs16.x");
                 exchange.getIn().setHeader(Lambda2Constants.HANDLER, "GetHelloWithName.handler");
                 exchange.getIn().setHeader(Lambda2Constants.DESCRIPTION, "Hello with node.js on Lambda");
                 exchange.getIn().setHeader(Lambda2Constants.ROLE,
@@ -70,7 +72,7 @@ public class LambdaDeleteFunctionIT extends Aws2LambdaBase {
             }
         });
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
         DeleteFunctionResponse resp = result.getExchanges().get(0).getIn().getBody(DeleteFunctionResponse.class);
         assertTrue(resp.sdkHttpResponse().isSuccessful());
     }

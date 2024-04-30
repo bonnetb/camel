@@ -33,6 +33,8 @@ import org.apache.camel.component.seda.SedaComponent;
 import org.apache.camel.impl.DefaultCamelContext;
 import org.apache.camel.processor.Pipeline;
 import org.apache.camel.processor.errorhandler.ErrorHandlerSupport;
+import org.apache.camel.spi.Debugger;
+import org.apache.camel.spi.FactoryFinder;
 import org.apache.camel.support.DefaultExchange;
 import org.apache.camel.support.PredicateAssertHelper;
 import org.hamcrest.Matcher;
@@ -40,6 +42,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.parallel.ResourceAccessMode;
 import org.junit.jupiter.api.parallel.ResourceLock;
 import org.junit.jupiter.api.parallel.Resources;
@@ -61,9 +64,11 @@ public abstract class TestSupport {
     private static final Logger LOG = LoggerFactory.getLogger(TestSupport.class);
 
     protected TestInfo info;
-    protected boolean testDirectoryCleaned;
 
-    protected Logger log = LoggerFactory.getLogger(getClass());
+    protected final Logger log = LoggerFactory.getLogger(getClass());
+
+    @TempDir
+    private Path tempDirectory;
 
     @Override
     public String toString() {
@@ -82,35 +87,40 @@ public abstract class TestSupport {
     @BeforeEach
     public void setUp() throws Exception {
         Assumptions.assumeTrue(canRunOnThisPlatform());
-        deleteTestDirectory();
     }
 
+    @Deprecated
     public void deleteTestDirectory() {
-        if (!testDirectoryCleaned) {
-            deleteDirectory(testDirectory().toFile());
-            testDirectoryCleaned = true;
-        }
     }
 
     @AfterEach
     public void tearDown() throws Exception {
         // make sure we cleanup the platform mbean server
         TestSupportJmxCleanup.removeMBeans(null);
-        testDirectoryCleaned = false;
     }
 
-    protected Path testDirectory() {
-        return testDirectory(false);
+    public Path testDirectory() {
+        return tempDirectory;
     }
 
+    protected Path testFile(String file) {
+        return testFile(testDirectory(), file);
+    }
+
+    protected static Path testFile(Path testDirectory, String file) {
+        return testDirectory.resolve(file);
+    }
+
+    protected Path testDirectory(String path) {
+        return testDirectory(path, false);
+    }
+
+    @Deprecated
     protected Path testDirectory(boolean create) {
-        Class<?> testClass = getClass();
-        if (create) {
-            deleteTestDirectory();
-        }
-        return testDirectory(testClass, create);
+        return testDirectory();
     }
 
+    @Deprecated
     public static Path testDirectory(Class<?> testClass, boolean create) {
         Path dir = Paths.get("target", "data", testClass.getSimpleName());
         if (create) {
@@ -123,32 +133,41 @@ public abstract class TestSupport {
         return dir;
     }
 
-    protected Path testFile(String dir) {
-        return testDirectory().resolve(dir);
-    }
-
-    protected Path testDirectory(String dir) {
-        return testDirectory(dir, false);
-    }
-
-    protected Path testDirectory(String dir, boolean create) {
-        Path f = testDirectory().resolve(dir);
+    protected Path testDirectory(String path, boolean create) {
+        Path resolvedPath = testDirectory().resolve(path);
         if (create) {
             try {
-                Files.createDirectories(f);
+                Files.createDirectories(resolvedPath);
             } catch (IOException e) {
-                throw new IllegalStateException("Unable to create test directory: " + dir, e);
+                throw new IllegalStateException("Unable to create test directory: " + resolvedPath, e);
             }
         }
-        return f;
+        return resolvedPath;
+    }
+
+    /**
+     * Indicates whether the component {@code camel-debug} is present in the classpath of the test.
+     *
+     * @return {@code true} if it is present, {@code false} otherwise.
+     */
+    public static boolean isCamelDebugPresent() {
+        // Needs to be detected before initializing and starting the camel context
+        return Thread.currentThread()
+                .getContextClassLoader()
+                .getResource(String.format("%s%s", FactoryFinder.DEFAULT_PATH, Debugger.FACTORY))
+               != null;
     }
 
     protected String fileUri() {
-        return "file:" + testDirectory();
+        return "file:" + tempDirectory;
     }
 
     protected String fileUri(String query) {
-        return "file:" + testDirectory() + (query.startsWith("?") ? "" : "/") + query;
+        return fileUri(tempDirectory, query);
+    }
+
+    protected String fileUri(Path directory, String query) {
+        return "file:" + directory + (query.startsWith("?") ? "" : "/") + query;
     }
 
     protected boolean canRunOnThisPlatform() {
@@ -223,14 +242,6 @@ public abstract class TestSupport {
     }
 
     /**
-     * Asserts the Out message on the exchange contains the expected value
-     */
-    @Deprecated
-    public static Object assertOutMessageHeader(Exchange exchange, String name, Object expected) {
-        return assertMessageHeader(exchange.getMessage(), name, expected);
-    }
-
-    /**
      * Asserts that the given exchange has an OUT message of the given body value
      *
      * @param  exchange                the exchange which should have an OUT message
@@ -250,29 +261,6 @@ public abstract class TestSupport {
         assertEquals(expected, actual, "in body of: " + exchange);
 
         LOG.debug("Received response: {} with in: {}", exchange, exchange.getIn());
-    }
-
-    /**
-     * Asserts that the given exchange has an OUT message of the given body value
-     *
-     * @param  exchange                the exchange which should have an OUT message
-     * @param  expected                the expected value of the OUT message
-     * @throws InvalidPayloadException is thrown if the payload is not the expected class type
-     */
-    @Deprecated
-    public static void assertOutMessageBodyEquals(Exchange exchange, Object expected) throws InvalidPayloadException {
-        assertNotNull(exchange, "Should have a response exchange!");
-
-        Object actual;
-        if (expected == null) {
-            actual = exchange.getMessage().getMandatoryBody();
-            assertEquals(expected, actual, "output body of: " + exchange);
-        } else {
-            actual = exchange.getMessage().getMandatoryBody(expected.getClass());
-        }
-        assertEquals(expected, actual, "output body of: " + exchange);
-
-        LOG.debug("Received response: {} with out: {}", exchange, exchange.getMessage());
     }
 
     public static Object assertMessageHeader(Message message, String name, Object expected) {
@@ -321,7 +309,7 @@ public abstract class TestSupport {
         try {
             PredicateAssertHelper.assertMatches(predicate, "Predicate should match: ", exchange);
         } catch (AssertionError e) {
-            LOG.debug("Caught expected assertion error: " + e);
+            LOG.debug("Caught expected assertion error: {}", e.getMessage(), e);
         }
         assertPredicate(predicate, exchange, false);
     }
@@ -479,8 +467,11 @@ public abstract class TestSupport {
     /**
      * Recursively delete a directory, useful to zapping test data
      *
-     * @param file the directory to be deleted
+     * @param      file the directory to be deleted
+     * @deprecated      since updating the class to use junit5 @TempDir, it no longer should control temp directory
+     *                  lifecycle
      */
+    @Deprecated
     public static void deleteDirectory(String file) {
         deleteDirectory(new File(file));
     }
@@ -488,8 +479,11 @@ public abstract class TestSupport {
     /**
      * Recursively delete a directory, useful to zapping test data
      *
-     * @param file the directory to be deleted
+     * @param      file the directory to be deleted
+     * @deprecated      since updating the class to use junit5 @TempDir, it no longer should control temp directory
+     *                  lifecycle
      */
+    @Deprecated
     public static void deleteDirectory(File file) {
         if (file.isDirectory()) {
             File[] files = file.listFiles();
@@ -501,16 +495,6 @@ public abstract class TestSupport {
         }
 
         file.delete();
-    }
-
-    /**
-     * create the directory
-     *
-     * @param file the directory to be created
-     */
-    public static void createDirectory(String file) {
-        File dir = new File(file);
-        dir.mkdirs();
     }
 
     /**
@@ -624,31 +608,23 @@ public abstract class TestSupport {
      * <p/>
      * Uses <tt>java.version</tt> from the system properties to determine the version.
      *
-     * @param  version such as 1.6 or 6
+     * @param  version such as 17
      * @return         <tt>true</tt> if its that vendor.
      */
     public static boolean isJavaVersion(String version) {
-        if (version.contains(".")) { // before jdk 9
-            return Integer.parseInt(version.split("\\.")[1]) == getJavaMajorVersion();
-        } else {
-            return Integer.parseInt(version) == getJavaMajorVersion();
-        }
+        return Integer.parseInt(version) == getJavaMajorVersion();
     }
 
     /**
-     * Returns the current major Java version e.g 8.
+     * Returns the current major Java version e.g 17.
      * <p/>
      * Uses <tt>java.specification.version</tt> from the system properties to determine the major version.
-     * 
+     *
      * @return the current major Java version.
      */
     public static int getJavaMajorVersion() {
         String javaSpecVersion = System.getProperty("java.specification.version");
-        if (javaSpecVersion.contains(".")) { // before jdk 9
-            return Integer.parseInt(javaSpecVersion.split("\\.")[1]);
-        } else {
-            return Integer.parseInt(javaSpecVersion);
-        }
+        return Integer.parseInt(javaSpecVersion);
     }
 
     /**

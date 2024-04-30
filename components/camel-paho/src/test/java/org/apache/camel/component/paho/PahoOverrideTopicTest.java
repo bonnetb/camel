@@ -16,37 +16,32 @@
  */
 package org.apache.camel.component.paho;
 
+import org.apache.camel.ConsumerTemplate;
+import org.apache.camel.ProducerTemplate;
 import org.apache.camel.builder.RouteBuilder;
-import org.apache.camel.test.AvailablePortFinder;
-import org.apache.camel.test.infra.activemq.services.ActiveMQEmbeddedService;
-import org.apache.camel.test.infra.activemq.services.ActiveMQEmbeddedServiceBuilder;
-import org.apache.camel.test.junit5.CamelTestSupport;
+import org.apache.camel.component.mock.MockEndpoint;
+import org.apache.camel.test.infra.core.CamelContextExtension;
+import org.apache.camel.test.infra.core.DefaultCamelContextExtension;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-public class PahoOverrideTopicTest extends CamelTestSupport {
+public class PahoOverrideTopicTest extends PahoTestSupport {
 
-    static int mqttPort = AvailablePortFinder.getNextAvailable();
-
+    @Order(2)
     @RegisterExtension
-    public static ActiveMQEmbeddedService service = ActiveMQEmbeddedServiceBuilder
-            .bare()
-            .withPersistent(false)
-            .withMqttTransport(mqttPort)
-            .build();
-
-    @Override
-    protected boolean useJmx() {
-        return false;
-    }
+    public static CamelContextExtension camelContextExtension = new DefaultCamelContextExtension();
+    protected ProducerTemplate template;
+    protected ConsumerTemplate consumer;
 
     @Override
     protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
             public void configure() {
-                PahoComponent paho = context.getComponent("paho", PahoComponent.class);
-                paho.getConfiguration().setBrokerUrl("tcp://localhost:" + mqttPort);
+                PahoComponent paho = getContext().getComponent("paho", PahoComponent.class);
+                paho.getConfiguration().setBrokerUrl("tcp://localhost:" + service.brokerPort());
 
                 from("direct:test").to("paho:queue").log("Message sent");
 
@@ -66,7 +61,17 @@ public class PahoOverrideTopicTest extends CamelTestSupport {
         template.sendBodyAndHeader("direct:test", "Hello World", PahoConstants.CAMEL_PAHO_OVERRIDE_TOPIC, "myoverride");
 
         // Then
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(getCamelContextExtension().getContext());
     }
 
+    @Override
+    public CamelContextExtension getCamelContextExtension() {
+        return camelContextExtension;
+    }
+
+    @BeforeEach
+    void setUpRequirements() {
+        template = getCamelContextExtension().getProducerTemplate();
+        consumer = getCamelContextExtension().getConsumerTemplate();
+    }
 }

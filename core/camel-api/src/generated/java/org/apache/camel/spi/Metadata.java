@@ -149,4 +149,30 @@ public @interface Metadata {
      * </pre>
      */
     String[] applicableFor() default {};
+
+    /**
+     * Whether the option can refer to a file by using file: or classpath: as prefix and specify the location of the
+     * file.
+     */
+    boolean supportFileReference() default false;
+
+    /**
+     * Whether the option can be large input such as a SQL query, XSLT template, or scripting code.
+     *
+     * This can be used to help tooling to provide an input form instead of a single input field to give better user
+     * experience.
+     */
+    boolean largeInput() default false;
+
+    /**
+     * If the option is some specific language such as SQL, XSLT, XML, JavaScript or something else.
+     *
+     * This can be used to help tooling to provide a better user experience.
+     */
+    String inputLanguage() default "";
+
+    /**
+     * Annotations data for Camel concepts such as components, EIP, etc.
+     */
+    String[] annotations() default {};
 }

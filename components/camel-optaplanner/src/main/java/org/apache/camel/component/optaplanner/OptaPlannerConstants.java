@@ -30,12 +30,7 @@ public interface OptaPlannerConstants {
     String BEST_SOLUTION = "CamelOptaPlannerBestSolution";
     @Metadata(label = "producer", description = "Is solving.", javaType = "Boolean")
     String IS_SOLVING = "CamelOptaPlannerIsSolving";
-    @Metadata(label = "producer", description = "true if terminateEarly has been called since the Solver started.",
-              javaType = "Boolean")
-    String IS_TERMINATE_EARLY = "CamelOptaPlannerIsTerminateEarly";
-    String IS_EVERY_PROBLEM_FACT_CHANGE_PROCESSED = "CamelOptaPlannerIsEveryProblemFactChangeProcessed";
     @Metadata(label = "producer", description = "The Solver Manager.",
               javaType = "org.optaplanner.core.api.solver.SolverManager")
     String SOLVER_MANAGER = "CamelOptaPlannerSolverManager";
-    long IS_EVERY_PROBLEM_FACT_CHANGE_DELAY = 100;
 }

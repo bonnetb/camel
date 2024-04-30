@@ -16,10 +16,8 @@
  */
 package org.apache.camel.component.as2.api;
 
-import org.apache.http.HttpEntityEnclosingRequest;
-import org.apache.http.HttpResponse;
-import org.apache.http.protocol.HttpContext;
-import org.apache.http.protocol.HttpRequestHandler;
+import org.apache.hc.core5.http.io.HttpRequestHandler;
+import org.apache.hc.core5.http.protocol.HttpContext;
 
 /**
  * Receives EDI Messages over HTTP
@@ -55,12 +53,8 @@ public class AS2ServerManager {
         as2ServerConnection.listen(requestUriPattern, handler);
     }
 
-    public void stopListening(String requestUri) {
-        as2ServerConnection.stopListening(requestUri);
-    }
-
     public void handleMDNResponse(
-            HttpEntityEnclosingRequest request, HttpResponse response, HttpContext httpContext, String subject, String from) {
+            HttpContext httpContext, String subject, String from) {
         // Add Context attributes for Response
         httpContext.setAttribute(SUBJECT, subject);
         httpContext.setAttribute(FROM, from);

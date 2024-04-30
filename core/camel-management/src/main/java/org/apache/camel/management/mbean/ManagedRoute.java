@@ -16,8 +16,10 @@
  */
 package org.apache.camel.management.mbean;
 
+import java.io.InputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -55,10 +57,13 @@ import org.apache.camel.api.management.mbean.RouteError;
 import org.apache.camel.model.Model;
 import org.apache.camel.model.ModelCamelContext;
 import org.apache.camel.model.RouteDefinition;
+import org.apache.camel.model.RoutesDefinition;
 import org.apache.camel.spi.InflightRepository;
 import org.apache.camel.spi.ManagementStrategy;
 import org.apache.camel.spi.RoutePolicy;
+import org.apache.camel.support.PluginHelper;
 import org.apache.camel.util.ObjectHelper;
+import org.apache.camel.xml.jaxb.JaxbHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,8 +78,10 @@ public class ManagedRoute extends ManagedPerformanceCounter implements TimerList
     protected final String description;
     protected final String configurationId;
     protected final String sourceLocation;
+    protected final String sourceLocationShort;
     protected final CamelContext context;
     private final LoadTriplet load = new LoadTriplet();
+    private final LoadThroughput thp = new LoadThroughput();
     private final String jmxDomain;
 
     public ManagedRoute(CamelContext context, Route route) {
@@ -82,7 +89,8 @@ public class ManagedRoute extends ManagedPerformanceCounter implements TimerList
         this.context = context;
         this.description = route.getDescription();
         this.configurationId = route.getConfigurationId();
-        this.sourceLocation = route.getSourceResource() != null ? route.getSourceResource().getLocation() : null;
+        this.sourceLocation = route.getSourceLocation();
+        this.sourceLocationShort = route.getSourceLocationShort();
         this.jmxDomain = context.getManagementStrategy().getManagementAgent().getMBeanObjectDomainName();
     }
 
@@ -112,8 +120,23 @@ public class ManagedRoute extends ManagedPerformanceCounter implements TimerList
     }
 
     @Override
+    public String getNodePrefixId() {
+        return route.getNodePrefixId();
+    }
+
+    @Override
     public String getRouteGroup() {
         return route.getGroup();
+    }
+
+    @Override
+    public boolean isCreatedByRouteTemplate() {
+        return "true".equals(route.getProperties().getOrDefault(Route.TEMPLATE_PROPERTY, "false"));
+    }
+
+    @Override
+    public boolean isCreatedByKamelet() {
+        return "true".equals(route.getProperties().getOrDefault(Route.KAMELET_PROPERTY, "false"));
     }
 
     @Override
@@ -149,6 +172,11 @@ public class ManagedRoute extends ManagedPerformanceCounter implements TimerList
     @Override
     public String getSourceLocation() {
         return sourceLocation;
+    }
+
+    @Override
+    public String getSourceLocationShort() {
+        return sourceLocationShort;
     }
 
     @Override
@@ -270,8 +298,20 @@ public class ManagedRoute extends ManagedPerformanceCounter implements TimerList
     }
 
     @Override
+    public String getThroughput() {
+        double d = thp.getThroughput();
+        if (Double.isNaN(d)) {
+            // empty string if load statistics is disabled
+            return "";
+        } else {
+            return String.format("%.2f", d);
+        }
+    }
+
+    @Override
     public void onTimer() {
         load.update(getInflightExchanges());
+        thp.update(getExchangesTotal());
     }
 
     @Override
@@ -354,7 +394,8 @@ public class ManagedRoute extends ManagedPerformanceCounter implements TimerList
                 LOG.debug("Sleeping {} seconds before starting route: {}", delay, getRouteId());
                 Thread.sleep(delay * 1000);
             } catch (InterruptedException e) {
-                // ignore
+                LOG.info("Interrupted while waiting before starting the route");
+                Thread.currentThread().interrupt();
             }
         }
         start();
@@ -362,21 +403,51 @@ public class ManagedRoute extends ManagedPerformanceCounter implements TimerList
 
     @Override
     public String dumpRouteAsXml() throws Exception {
-        return dumpRouteAsXml(false, false);
+        return dumpRouteAsXml(false);
     }
 
     @Override
     public String dumpRouteAsXml(boolean resolvePlaceholders) throws Exception {
-        return dumpRouteAsXml(resolvePlaceholders, false);
+        return dumpRouteAsXml(resolvePlaceholders, true);
     }
 
     @Override
-    public String dumpRouteAsXml(boolean resolvePlaceholders, boolean resolveDelegateEndpoints) throws Exception {
+    public String dumpRouteAsXml(boolean resolvePlaceholders, boolean generatedIds) throws Exception {
         String id = route.getId();
-        RouteDefinition def = context.getExtension(Model.class).getRouteDefinition(id);
+        RouteDefinition def = context.getCamelContextExtension().getContextPlugin(Model.class).getRouteDefinition(id);
         if (def != null) {
-            ExtendedCamelContext ecc = context.adapt(ExtendedCamelContext.class);
-            return ecc.getModelToXMLDumper().dumpModelAsXml(context, def, resolvePlaceholders, resolveDelegateEndpoints);
+            // if we are debugging then ids is needed for the debugger
+            if (context.isDebugging()) {
+                generatedIds = true;
+            }
+            return PluginHelper.getModelToXMLDumper(context).dumpModelAsXml(context, def, resolvePlaceholders, generatedIds);
+        }
+
+        return null;
+    }
+
+    @Override
+    public String dumpRouteAsYaml() throws Exception {
+        return dumpRouteAsYaml(false, false);
+    }
+
+    @Override
+    public String dumpRouteAsYaml(boolean resolvePlaceholders) throws Exception {
+        return dumpRouteAsYaml(resolvePlaceholders, false, true);
+    }
+
+    @Override
+    public String dumpRouteAsYaml(boolean resolvePlaceholders, boolean uriAsParameters) throws Exception {
+        return dumpRouteAsYaml(resolvePlaceholders, uriAsParameters, true);
+    }
+
+    @Override
+    public String dumpRouteAsYaml(boolean resolvePlaceholders, boolean uriAsParameters, boolean generatedIds) throws Exception {
+        String id = route.getId();
+        RouteDefinition def = context.getCamelContextExtension().getContextPlugin(Model.class).getRouteDefinition(id);
+        if (def != null) {
+            return PluginHelper.getModelToYAMLDumper(context).dumpModelAsYaml(context, def, resolvePlaceholders,
+                    uriAsParameters, generatedIds);
         }
 
         return null;
@@ -567,7 +638,7 @@ public class ManagedRoute extends ManagedPerformanceCounter implements TimerList
             processors.sort(new OrderProcessorMBeans());
 
             // grab route consumer
-            RouteDefinition rd = context.adapt(ModelCamelContext.class).getRouteDefinition(route.getRouteId());
+            RouteDefinition rd = ((ModelCamelContext) context).getRouteDefinition(route.getRouteId());
             if (rd != null) {
                 String id = rd.getRouteId();
                 int line = rd.getInput().getLineNumber();
@@ -596,6 +667,8 @@ public class ManagedRoute extends ManagedPerformanceCounter implements TimerList
     @Override
     public void reset(boolean includeProcessors) throws Exception {
         reset();
+        load.reset();
+        thp.reset();
 
         // and now reset all processors for this route
         if (includeProcessors) {
@@ -612,6 +685,52 @@ public class ManagedRoute extends ManagedPerformanceCounter implements TimerList
                 }
             }
         }
+    }
+
+    @Override
+    public void updateRouteFromXml(String xml) throws Exception {
+        // check whether this is allowed
+        if (!isUpdateRouteEnabled()) {
+            throw new IllegalAccessException("Updating route is not enabled");
+        }
+
+        // convert to model from xml
+        ExtendedCamelContext ecc = context.getCamelContextExtension();
+        InputStream is = context.getTypeConverter().convertTo(InputStream.class, xml);
+        RoutesDefinition routes = JaxbHelper.loadRoutesDefinition(context, is);
+        if (routes == null || routes.getRoutes().isEmpty()) {
+            return;
+        }
+        RouteDefinition def = routes.getRoutes().get(0);
+
+        // if the xml does not contain the route-id then we fix this by adding the actual route id
+        // this may be needed if the route-id was auto-generated, as the intend is to update this route
+        // and not add a new route, adding a new route, use the MBean operation on ManagedCamelContext instead.
+        if (ObjectHelper.isEmpty(def.getId())) {
+            def.setId(getRouteId());
+        } else if (!def.getId().equals(getRouteId())) {
+            throw new IllegalArgumentException(
+                    "Cannot update route from XML as routeIds does not match. routeId: "
+                                               + getRouteId() + ", routeId from XML: " + def.getId());
+        }
+
+        LOG.debug("Updating route: {} from xml: {}", def.getId(), xml);
+        try {
+            // add will remove existing route first
+            ecc.getContextPlugin(Model.class).addRouteDefinition(def);
+        } catch (Exception e) {
+            // log the error as warn as the management api may be invoked remotely over JMX which does not propagate such exception
+            String msg = "Error updating route: " + def.getId() + " from xml: " + xml + " due: " + e.getMessage();
+            LOG.warn(msg, e);
+            throw e;
+        }
+    }
+
+    @Override
+    public boolean isUpdateRouteEnabled() {
+        // check whether this is allowed
+        Boolean enabled = context.getManagementStrategy().getManagementAgent().getUpdateRouteEnabled();
+        return enabled != null ? enabled : false;
     }
 
     @Override
@@ -689,6 +808,30 @@ public class ManagedRoute extends ManagedPerformanceCounter implements TimerList
                 }
             };
         }
+    }
+
+    @Override
+    public Collection<String> processorIds() throws Exception {
+        List<String> ids = new ArrayList<>();
+
+        MBeanServer server = getContext().getManagementStrategy().getManagementAgent().getMBeanServer();
+        if (server != null) {
+            String prefix = getContext().getManagementStrategy().getManagementAgent().getIncludeHostName() ? "*/" : "";
+            // gather all the processors for this CamelContext, which requires JMX
+            ObjectName query = ObjectName
+                    .getInstance(jmxDomain + ":context=" + prefix + getContext().getManagementName() + ",type=processors,*");
+            Set<ObjectName> names = server.queryNames(query, null);
+            for (ObjectName on : names) {
+                ManagedProcessorMBean processor
+                        = context.getManagementStrategy().getManagementAgent().newProxyClient(on, ManagedProcessorMBean.class);
+                // the processor must belong to this route
+                if (getRouteId().equals(processor.getRouteId())) {
+                    ids.add(processor.getProcessorId());
+                }
+            }
+        }
+
+        return ids;
     }
 
     private Integer getInflightExchanges() {

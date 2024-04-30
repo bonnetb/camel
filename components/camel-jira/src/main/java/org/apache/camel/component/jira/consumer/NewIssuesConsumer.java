@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
  */
 public class NewIssuesConsumer extends AbstractJiraConsumer {
 
-    private static final transient Logger LOG = LoggerFactory.getLogger(NewIssuesConsumer.class);
+    private static final Logger LOG = LoggerFactory.getLogger(NewIssuesConsumer.class);
 
     private final String jql;
     private long latestIssueId = -1;
@@ -58,13 +58,14 @@ public class NewIssuesConsumer extends AbstractJiraConsumer {
         // grab only the top
         try {
             List<Issue> issues = getIssues(jql, 0, 1, 1);
-            // in case there aren't any issues...
             if (!issues.isEmpty()) {
+                // Issues returned are ordered descendant so this is the newest issue
                 return issues.get(0).getId();
             }
         } catch (Exception e) {
             // ignore
         }
+        // in case there aren't any issues...
         return -1;
     }
 
@@ -72,9 +73,8 @@ public class NewIssuesConsumer extends AbstractJiraConsumer {
         // it may happen the poll() is called while the route is doing the initial load,
         // this way we need to wait for the latestIssueId being associated to the last indexed issue id
         List<Issue> newIssues = getNewIssues();
-        // In the end, we want only *new* issues oldest to newest.
-        for (int i = newIssues.size() - 1; i > -1; i--) {
-            Issue newIssue = newIssues.get(i);
+        // In the end, we want only *new* issues oldest to newest. New issues returned are ordered descendant already.
+        for (Issue newIssue : newIssues) {
             Exchange e = createExchange(true);
             e.getIn().setBody(newIssue);
             getProcessor().process(e);
@@ -100,10 +100,11 @@ public class NewIssuesConsumer extends AbstractJiraConsumer {
                 if (code == 400) {
                     String msg = e.getMessage();
                     if (msg != null && msg.contains("does not exist for the field 'id'")) {
-                        LOG.warn("Last issue id: " + latestIssueId + " no longer exists (could have been deleted)."
-                                 + " Will recover by fetching last issue id from JIRA and try again on next poll");
+                        LOG.warn("Last issue id: {} no longer exists (could have been deleted)."
+                                 + " Will recover by fetching last issue id from JIRA and try again on next poll",
+                                latestIssueId);
                         latestIssueId = findLatestIssueId();
-                        return Collections.EMPTY_LIST;
+                        return Collections.emptyList();
                     }
                 }
             }
@@ -112,8 +113,8 @@ public class NewIssuesConsumer extends AbstractJiraConsumer {
 
         if (!issues.isEmpty()) {
             // remember last id we have processed
-            int last = issues.size() - 1;
-            latestIssueId = issues.get(last).getId();
+            // issues are ordered descendant so save the first issue in the list as the newest
+            latestIssueId = issues.get(0).getId();
         }
         return issues;
     }

@@ -16,20 +16,16 @@
  */
 package org.apache.camel.processor.aggregate.cassandra;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.io.*;
 import java.nio.ByteBuffer;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.Endpoint;
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePropertyKey;
-import org.apache.camel.ExtendedExchange;
 import org.apache.camel.support.DefaultExchange;
 import org.apache.camel.support.DefaultExchangeHolder;
+import org.apache.camel.util.ClassLoadingAwareObjectInputStream;
 
 /**
  * Marshall/unmarshall Exchange to/from a ByteBuffer. Inspired from JdbcCamelCodec.
@@ -62,9 +58,10 @@ public class CassandraCamelCodec {
         return ByteBuffer.wrap(serialize(pe));
     }
 
-    public Exchange unmarshallExchange(CamelContext camelContext, ByteBuffer buffer)
+    public Exchange unmarshallExchange(CamelContext camelContext, ByteBuffer buffer, String deserializationFilter)
             throws IOException, ClassNotFoundException {
-        DefaultExchangeHolder pe = (DefaultExchangeHolder) deserialize(new ByteBufferInputStream(buffer));
+        DefaultExchangeHolder pe
+                = (DefaultExchangeHolder) deserialize(camelContext, new ByteBufferInputStream(buffer), deserializationFilter);
         Exchange answer = new DefaultExchange(camelContext);
         DefaultExchangeHolder.unmarshal(answer, pe);
         // restore the from endpoint
@@ -72,7 +69,7 @@ public class CassandraCamelCodec {
         if (fromEndpointUri != null) {
             Endpoint fromEndpoint = camelContext.hasEndpoint(fromEndpointUri);
             if (fromEndpoint != null) {
-                answer.adapt(ExtendedExchange.class).setFromEndpoint(fromEndpoint);
+                answer.getExchangeExtension().setFromEndpoint(fromEndpoint);
             }
         }
         return answer;
@@ -86,8 +83,11 @@ public class CassandraCamelCodec {
         return bytesOut.toByteArray();
     }
 
-    private Object deserialize(InputStream bytes) throws IOException, ClassNotFoundException {
-        ObjectInputStream objectIn = new ObjectInputStream(bytes);
+    private Object deserialize(CamelContext camelContext, InputStream bytes, String deserializationFilter)
+            throws IOException, ClassNotFoundException {
+        ClassLoader classLoader = camelContext.getApplicationContextClassLoader();
+        ObjectInputStream objectIn = new ClassLoadingAwareObjectInputStream(classLoader, bytes);
+        objectIn.setObjectInputFilter(ObjectInputFilter.Config.createFilter(deserializationFilter));
         Object object = objectIn.readObject();
         objectIn.close();
         return object;

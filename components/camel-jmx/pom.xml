@@ -23,7 +23,7 @@
     <parent>
         <groupId>org.apache.camel</groupId>
         <artifactId>components</artifactId>
-        <version>3.17.0-SNAPSHOT</version>
+        <version>4.6.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>camel-jmx</artifactId>
@@ -32,10 +32,6 @@
     <description>Camel JMX support</description>
 
     <properties>
-        <camel.osgi.import>
-            javax.xml.bind*;version="[2.2,3.0)",
-            *
-        </camel.osgi.import>
     </properties>
 
     <dependencies>
@@ -51,11 +47,13 @@
         <dependency>
             <groupId>jakarta.xml.bind</groupId>
             <artifactId>jakarta.xml.bind-api</artifactId>
+            <version>${jakarta-xml-bind-api-version}</version>
         </dependency>
 
         <dependency>
             <groupId>com.sun.xml.bind</groupId>
             <artifactId>jaxb-impl</artifactId>
+            <version>${jaxb-impl-version}</version>
         </dependency>
 
         <!-- test dependencies -->
@@ -65,14 +63,8 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-slf4j-impl</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>org.xmlunit</groupId>
-            <artifactId>xmlunit-core</artifactId>
-            <version>${xmlunit-version}</version>
+            <artifactId>xmlunit-assertj3</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -126,14 +118,13 @@
                         <id>generate-sources</id>
                         <phase>generate-sources</phase>
                         <configuration>
-                            <fork>${cxf.codegenplugin.forkmode}</fork>
-                            <additionalJvmArgs>${cxf.xjc.jvmArgs}</additionalJvmArgs>
                             <sourceRoot>${basedir}/target/xjc</sourceRoot>
                             <xsdOptions>
                                 <xsdOption>
                                     <xsd>${basedir}/src/main/resources/notifications.xsd</xsd>
                                     <packagename>org.apache.camel.component.jmx.jaxb</packagename>
                                     <extensionArgs>
+                                        <extensionArg>-no-header</extensionArg>
                                         <extensionArg>-Xfluent-api</extensionArg>
                                     </extensionArgs>
                                 </xsdOption>

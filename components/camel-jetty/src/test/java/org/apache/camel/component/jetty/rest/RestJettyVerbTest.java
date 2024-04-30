@@ -27,14 +27,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class RestJettyVerbTest extends BaseJettyTest {
 
     @Test
-    public void testGetAll() throws Exception {
+    public void testGetAll() {
         String out = template.requestBodyAndHeader("http://localhost:" + getPort() + "/users", null, Exchange.HTTP_METHOD,
                 "GET", String.class);
         assertEquals("[{ \"id\":\"1\", \"name\":\"Scott\" },{ \"id\":\"2\", \"name\":\"Claus\" }]", out);
     }
 
     @Test
-    public void testGetOne() throws Exception {
+    public void testGetOne() {
         String out = template.requestBodyAndHeader("http://localhost:" + getPort() + "/users/1", null, Exchange.HTTP_METHOD,
                 "GET", String.class);
         assertEquals("{ \"id\":\"1\", \"name\":\"Scott\" }", out);
@@ -49,7 +49,7 @@ public class RestJettyVerbTest extends BaseJettyTest {
         template.requestBodyAndHeader("http://localhost:" + getPort() + "/users", "{ \"id\":\"1\", \"name\":\"Scott\" }",
                 Exchange.HTTP_METHOD, "POST", String.class);
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Test
@@ -62,7 +62,7 @@ public class RestJettyVerbTest extends BaseJettyTest {
         template.requestBodyAndHeader("http://localhost:" + getPort() + "/users/1", "{ \"id\":\"1\", \"name\":\"Scott\" }",
                 Exchange.HTTP_METHOD, "PUT", String.class);
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Test
@@ -74,14 +74,14 @@ public class RestJettyVerbTest extends BaseJettyTest {
         template.requestBodyAndHeader("http://localhost:" + getPort() + "/users/1", null, Exchange.HTTP_METHOD, "DELETE",
                 String.class);
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 restConfiguration().component("jetty").host("localhost").port(getPort());
 
                 rest().get("/users").to("direct:users")

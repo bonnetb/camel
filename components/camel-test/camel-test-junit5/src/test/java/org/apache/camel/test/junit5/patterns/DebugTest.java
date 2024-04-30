@@ -19,6 +19,7 @@ package org.apache.camel.test.junit5.patterns;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
+import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.model.ProcessorDefinition;
 import org.apache.camel.test.junit5.CamelTestSupport;
 import org.junit.jupiter.api.Test;
@@ -43,7 +44,7 @@ public class DebugTest extends CamelTestSupport {
         // processor
         // from your Java editor you can just add a breakpoint in the code line
         // below
-        LOG.info("Before " + definition + " with body " + exchange.getIn().getBody());
+        LOG.info("Before {} with body {}", definition, exchange.getIn().getBody());
     }
     // END SNIPPET: e1
 
@@ -57,7 +58,7 @@ public class DebugTest extends CamelTestSupport {
         template.sendBody("direct:start", "World");
 
         // assert mocks
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Test
@@ -71,7 +72,7 @@ public class DebugTest extends CamelTestSupport {
         template.sendBody("direct:start", "Camel");
 
         // assert mocks
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     // START SNIPPET: e2

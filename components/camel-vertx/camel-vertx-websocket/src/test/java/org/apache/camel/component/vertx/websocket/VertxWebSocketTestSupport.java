@@ -24,8 +24,12 @@ import java.util.function.Consumer;
 
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
+import io.vertx.core.VertxException;
+import io.vertx.core.VertxOptions;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.WebSocket;
+import io.vertx.core.impl.VertxInternal;
+import io.vertx.core.impl.btc.BlockedThreadEvent;
 import io.vertx.ext.web.Route;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
@@ -35,6 +39,7 @@ import org.apache.camel.test.junit5.CamelTestSupport;
 public class VertxWebSocketTestSupport extends CamelTestSupport {
 
     protected final int port = AvailablePortFinder.getNextAvailable();
+    protected final int port2 = AvailablePortFinder.getNextAvailable();
 
     /**
      * Returns the randomized port used for the Vert.x server if no port was provided to the consumer.
@@ -45,6 +50,7 @@ public class VertxWebSocketTestSupport extends CamelTestSupport {
         return registry.values()
                 .stream()
                 .filter(wsHost -> wsHost.getPort() != port)
+                .filter(wsHost -> wsHost.getPort() != port2)
                 .findFirst()
                 .get()
                 .getPort();
@@ -78,5 +84,36 @@ public class VertxWebSocketTestSupport extends CamelTestSupport {
 
         route.handler(handler);
         return router;
+    }
+
+    public Vertx createVertxWithThreadBlockedHandler(Handler<BlockedThreadEvent> handler) {
+        VertxOptions vertxOptions = new VertxOptions();
+        vertxOptions.setMaxEventLoopExecuteTime(500);
+        vertxOptions.setMaxEventLoopExecuteTimeUnit(TimeUnit.MILLISECONDS);
+        vertxOptions.setBlockedThreadCheckInterval(10);
+        vertxOptions.setBlockedThreadCheckIntervalUnit(TimeUnit.MILLISECONDS);
+        Vertx vertx = Vertx.vertx(vertxOptions);
+        ((VertxInternal) vertx).blockedThreadChecker().setThreadBlockedHandler(handler);
+        return vertx;
+    }
+
+    static class BlockedThreadReporter implements Handler<BlockedThreadEvent> {
+        private boolean eventLoopBlocked;
+
+        @Override
+        public void handle(BlockedThreadEvent event) {
+            VertxException stackTrace = new VertxException("Thread blocked");
+            stackTrace.setStackTrace(event.thread().getStackTrace());
+            stackTrace.printStackTrace();
+            eventLoopBlocked = true;
+        }
+
+        public boolean isEventLoopBlocked() {
+            return eventLoopBlocked;
+        }
+
+        public void reset() {
+            eventLoopBlocked = false;
+        }
     }
 }

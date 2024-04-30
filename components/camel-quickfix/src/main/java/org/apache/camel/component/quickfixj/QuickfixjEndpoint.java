@@ -59,7 +59,7 @@ public class QuickfixjEndpoint extends DefaultEndpoint implements QuickfixjEvent
     private final List<QuickfixjConsumer> consumers = new CopyOnWriteArrayList<>();
 
     @UriPath
-    @Metadata(required = true)
+    @Metadata(required = true, supportFileReference = true)
     private String configurationName;
     @UriParam
     private String sessionID;
@@ -157,12 +157,12 @@ public class QuickfixjEndpoint extends DefaultEndpoint implements QuickfixjEvent
         }
     }
 
-    protected void addProducer(QuickfixjProducer producer) {
+    protected void addProducer() {
         engine.incRefCount();
         getComponent().ensureEngineStarted(engine);
     }
 
-    protected void removeProducer(QuickfixjProducer producer) {
+    protected void removeProducer() {
         int count = engine.decRefCount();
         if (count <= 0 && getComponent().isEagerStopEngines()) {
             LOG.info("Stopping QuickFIX/J Engine: {} no longer active in use", engine.getUri());
@@ -203,7 +203,7 @@ public class QuickfixjEndpoint extends DefaultEndpoint implements QuickfixjEvent
     }
 
     private boolean isMatching(String s1, String s2) {
-        return s1.equals("") || s1.equals("*") || s1.equals(s2);
+        return s1.isEmpty() || s1.equals("*") || s1.equals(s2);
     }
 
     private boolean isWildcarded() {

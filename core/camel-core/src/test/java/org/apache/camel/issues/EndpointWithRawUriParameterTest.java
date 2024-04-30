@@ -36,7 +36,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class EndpointWithRawUriParameterTest extends ContextTestSupport {
 
-    public final class MyComponent extends DefaultComponent {
+    public static final class MyComponent extends DefaultComponent {
 
         @Override
         protected Endpoint createEndpoint(String uri, String remaining, Map<String, Object> parameters) throws Exception {
@@ -46,7 +46,7 @@ public class EndpointWithRawUriParameterTest extends ContextTestSupport {
         }
     }
 
-    public final class MyEndpoint extends DefaultEndpoint {
+    public static final class MyEndpoint extends DefaultEndpoint {
 
         private String username;
         private String password;
@@ -57,10 +57,10 @@ public class EndpointWithRawUriParameterTest extends ContextTestSupport {
         }
 
         @Override
-        public Producer createProducer() throws Exception {
+        public Producer createProducer() {
             return new DefaultProducer(this) {
                 @Override
-                public void process(Exchange exchange) throws Exception {
+                public void process(Exchange exchange) {
                     exchange.getIn().setHeader("username", getUsername());
                     exchange.getIn().setHeader("password", getPassword());
                     exchange.getIn().setHeader("lines", getLines());
@@ -69,7 +69,7 @@ public class EndpointWithRawUriParameterTest extends ContextTestSupport {
         }
 
         @Override
-        public Consumer createConsumer(Processor processor) throws Exception {
+        public Consumer createConsumer(Processor processor) {
             return null;
         }
 
@@ -179,10 +179,10 @@ public class EndpointWithRawUriParameterTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 context.addComponent("mycomponent", new MyComponent());
 
                 from("direct:start").to("mycomponent:foo?username=scott&password=RAW(++%%w?rd))").to("mock:result");

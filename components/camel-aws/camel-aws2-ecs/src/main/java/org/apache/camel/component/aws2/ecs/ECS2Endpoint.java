@@ -29,7 +29,7 @@ import org.apache.camel.util.ObjectHelper;
 import software.amazon.awssdk.services.ecs.EcsClient;
 
 /**
- * Manage AWS ECS cluster instances using AWS SDK version 2.x.
+ * Manage AWS ECS cluster instances.
  */
 @UriEndpoint(firstVersion = "3.1.0", scheme = "aws2-ecs", title = "AWS Elastic Container Service (ECS)",
              syntax = "aws2-ecs:label", producerOnly = true, category = { Category.CLOUD, Category.MANAGEMENT },
@@ -44,6 +44,11 @@ public class ECS2Endpoint extends ScheduledPollEndpoint {
     public ECS2Endpoint(String uri, Component component, ECS2Configuration configuration) {
         super(uri, component);
         this.configuration = configuration;
+    }
+
+    @Override
+    public ECS2Component getComponent() {
+        return (ECS2Component) super.getComponent();
     }
 
     @Override

@@ -75,7 +75,7 @@ public @interface CamelMainTest {
      * In the next example, the annotation {@code CamelMainTest} on the test class {@code SomeTest} indicates the
      * existing value of the property {@code host} is replaced with {@code localhost} and the existing value of the
      * property {@code port} is replaced with {@code 8080}.
-     * 
+     *
      * <pre>
      * <code>
      *
@@ -100,7 +100,7 @@ public @interface CamelMainTest {
      * In the next example, the annotation {@code CamelMainTest} on the test class {@code SomeTest} indicates the value
      * of the route whose identifier {@code main-route} is advised to replace its current from endpoint with a
      * {@code direct:main} endpoint.
-     * 
+     *
      * <pre>
      * <code>
      *
@@ -217,6 +217,13 @@ public @interface CamelMainTest {
      *         directory after the test has finished.
      */
     boolean dumpRouteCoverage() default false;
+
+    /**
+     * Whether JMX should be used during testing.
+     *
+     * @return <tt>false</tt> by default.
+     */
+    boolean useJmx() default false;
 
     /**
      * Returns the timeout to use when shutting down (unit in seconds).

@@ -18,22 +18,11 @@ package org.apache.camel.test.infra.arangodb.services;
 
 import org.apache.camel.test.infra.common.services.SimpleTestServiceBuilder;
 import org.apache.camel.test.infra.common.services.SingletonService;
-import org.junit.jupiter.api.extension.ExtensionContext;
 
 public final class ArangoDBServiceFactory {
     private static class SingletonArangoDBService extends SingletonService<ArangoDBService> implements ArangoDBService {
         public SingletonArangoDBService(ArangoDBService service, String name) {
             super(service, name);
-        }
-
-        @Override
-        public void beforeAll(ExtensionContext extensionContext) {
-            addToStore(extensionContext);
-        }
-
-        @Override
-        public void afterAll(ExtensionContext extensionContext) {
-            // NO-OP
         }
 
         @Override
@@ -63,9 +52,18 @@ public final class ArangoDBServiceFactory {
     }
 
     public static ArangoDBService createSingletonService() {
-        return builder()
-                .addLocalMapping(() -> new SingletonArangoDBService(new ArangoDBLocalContainerService(), "arangoDB"))
-                .addRemoteMapping(ArangoDBRemoteService::new)
-                .build();
+        return SingletonServiceHolder.INSTANCE;
+    }
+
+    private static class SingletonServiceHolder {
+        static final ArangoDBService INSTANCE;
+        static {
+            SimpleTestServiceBuilder<ArangoDBService> instance = builder();
+            instance.addLocalMapping(() -> new SingletonArangoDBService(new ArangoDBLocalContainerService(), "arangoDB"))
+                    .addRemoteMapping(ArangoDBRemoteService::new)
+                    .build();
+
+            INSTANCE = instance.build();
+        }
     }
 }

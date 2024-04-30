@@ -24,9 +24,9 @@ import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
+import org.apache.camel.CamelContext;
 import org.apache.camel.Category;
 import org.apache.camel.Consumer;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.Processor;
 import org.apache.camel.Producer;
 import org.apache.camel.component.cloudevents.CloudEvent;
@@ -36,12 +36,16 @@ import org.apache.camel.component.knative.ce.CloudEventProcessors;
 import org.apache.camel.component.knative.spi.Knative;
 import org.apache.camel.component.knative.spi.KnativeResource;
 import org.apache.camel.component.knative.spi.KnativeTransportConfiguration;
+import org.apache.camel.spi.Metadata;
 import org.apache.camel.spi.UriEndpoint;
 import org.apache.camel.spi.UriParam;
 import org.apache.camel.spi.UriPath;
 import org.apache.camel.support.DefaultEndpoint;
+import org.apache.camel.support.PluginHelper;
 import org.apache.camel.support.PropertyBindingSupport;
 import org.apache.camel.util.ObjectHelper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Send and receive events from Knative.
@@ -51,15 +55,22 @@ import org.apache.camel.util.ObjectHelper;
              syntax = "knative:type/typeId",
              title = "Knative",
              category = Category.CLOUD)
+@Metadata(annotations = {
+        "protocol=http",
+})
 public class KnativeEndpoint extends DefaultEndpoint {
+
+    private static final Logger LOG = LoggerFactory.getLogger(KnativeEndpoint.class);
 
     private final CloudEvent cloudEvent;
     private final CloudEventProcessor cloudEventProcessor;
 
     @UriPath(description = "The Knative resource type")
     private final Knative.Type type;
+
     @UriPath(description = "The identifier of the Knative resource")
     private final String typeId;
+
     @UriParam
     private KnativeConfiguration configuration;
 
@@ -80,10 +91,12 @@ public class KnativeEndpoint extends DefaultEndpoint {
 
     @Override
     public Producer createProducer() throws Exception {
-        final KnativeResource service = lookupServiceDefinition(Knative.EndpointKind.sink);
+        KnativeResource service = lookupServiceDefinition(Knative.EndpointKind.sink);
+
         final Processor ceProcessor = cloudEventProcessor.producer(this, service);
         final Producer producer
-                = getComponent().getProducerFactory().createProducer(this, createTransportConfiguration(service), service);
+                = getComponent().getOrCreateProducerFactory().createProducer(this, createTransportConfiguration(service),
+                        service);
 
         PropertyBindingSupport.build()
                 .withCamelContext(getCamelContext())
@@ -99,6 +112,7 @@ public class KnativeEndpoint extends DefaultEndpoint {
     @Override
     public Consumer createConsumer(Processor processor) throws Exception {
         KnativeResource service = lookupServiceDefinition(Knative.EndpointKind.source);
+
         Processor ceProcessor = cloudEventProcessor.consumer(this, service);
         Processor replyProcessor
                 = configuration.isReplyWithCloudEvent() ? cloudEventProcessor.producer(this, service) : null;
@@ -109,14 +123,19 @@ public class KnativeEndpoint extends DefaultEndpoint {
         if (replyProcessor != null) {
             list.add(replyProcessor);
         }
-        ExtendedCamelContext ecc = getCamelContext().adapt(ExtendedCamelContext.class);
-        Processor pipeline = ecc.getProcessorFactory().createProcessor(ecc, "Pipeline", new Object[] { list });
+        CamelContext camelContext = getCamelContext();
+        Processor pipeline
+                = PluginHelper.getProcessorFactory(camelContext).createProcessor(camelContext, "Pipeline",
+                        new Object[] { list });
 
-        Consumer consumer = getComponent().getConsumerFactory().createConsumer(this,
+        Consumer consumer = getComponent().getOrCreateConsumerFactory().createConsumer(this,
                 createTransportConfiguration(service), service, pipeline);
 
+        // signal that this path is exposed for knative
+        String path = service.getPath();
+
         PropertyBindingSupport.build()
-                .withCamelContext(getCamelContext())
+                .withCamelContext(camelContext)
                 .withProperties(configuration.getTransportOptions())
                 .withRemoveParameters(false)
                 .withMandatory(false)
@@ -124,13 +143,7 @@ public class KnativeEndpoint extends DefaultEndpoint {
                 .bind();
 
         configureConsumer(consumer);
-
         return consumer;
-    }
-
-    @Override
-    public boolean isSingleton() {
-        return true;
     }
 
     public Knative.Type getType() {
@@ -162,14 +175,21 @@ public class KnativeEndpoint extends DefaultEndpoint {
 
     KnativeResource lookupServiceDefinition(Knative.EndpointKind endpointKind) {
         final String resourceName;
-        if (type == Knative.Type.event && configuration.getName() != null) {
+        if (type == Knative.Type.event && configuration.getName() != null && endpointKind.equals(Knative.EndpointKind.sink)) {
             resourceName = configuration.getName();
-        } else {
+        } else if (configuration.getTypeId() != null) {
             resourceName = configuration.getTypeId();
+        } else {
+            // in case there is no name in the configuration or type
+            resourceName = "default";
         }
 
         KnativeResource resource = lookupServiceDefinition(resourceName, endpointKind)
-                .or(() -> lookupServiceDefinition("default", endpointKind))
+                .or(() -> {
+                    LOG.debug("Knative resource \"{}\" of type \"{}\" not found, trying the default named: \"default\"",
+                            resourceName, type);
+                    return lookupServiceDefinition("default", endpointKind);
+                })
                 .orElseThrow(() -> new IllegalArgumentException(
                         String.format("Unable to find a resource definition for %s/%s/%s", type, endpointKind, resourceName)));
 

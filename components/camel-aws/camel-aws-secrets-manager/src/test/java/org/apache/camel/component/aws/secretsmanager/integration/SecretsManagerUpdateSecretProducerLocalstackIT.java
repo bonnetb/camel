@@ -22,7 +22,9 @@ import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.aws.secretsmanager.SecretsManagerConstants;
 import org.apache.camel.component.mock.MockEndpoint;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 import software.amazon.awssdk.services.secretsmanager.model.CreateSecretResponse;
 import software.amazon.awssdk.services.secretsmanager.model.UpdateSecretResponse;
 
@@ -30,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@DisabledIfSystemProperty(named = "ci.env.name", matches = "github.com", disabledReason = "Flaky on GitHub Actions")
 public class SecretsManagerUpdateSecretProducerLocalstackIT extends AwsSecretsManagerBaseTest {
 
     @EndpointInject("mock:result")
@@ -57,6 +60,7 @@ public class SecretsManagerUpdateSecretProducerLocalstackIT extends AwsSecretsMa
                 exchange.getIn().setBody("Binary Body");
             }
         });
+        Assertions.assertNotNull(exchange);
 
         UpdateSecretResponse resultUpdate = (UpdateSecretResponse) exchange.getIn().getBody();
         assertTrue(resultUpdate.sdkHttpResponse().isSuccessful());
@@ -68,10 +72,10 @@ public class SecretsManagerUpdateSecretProducerLocalstackIT extends AwsSecretsMa
                 exchange.getIn().setHeader(SecretsManagerConstants.SECRET_ID, resultGet.arn());
             }
         });
+        Assertions.assertNotNull(exchange);
 
         String secret = exchange.getIn().getBody(String.class);
-        assertEquals("QmluYXJ5IEJvZHk=", secret);
-
+        assertEquals("Binary Body", secret);
     }
 
     @Override

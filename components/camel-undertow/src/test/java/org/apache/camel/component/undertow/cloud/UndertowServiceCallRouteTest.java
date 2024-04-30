@@ -17,13 +17,13 @@
 package org.apache.camel.component.undertow.cloud;
 
 import org.apache.camel.CamelContext;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.LoggingLevel;
 import org.apache.camel.ResolveEndpointFailedException;
 import org.apache.camel.RoutesBuilder;
 import org.apache.camel.RuntimeCamelException;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.spi.BeanIntrospection;
+import org.apache.camel.support.PluginHelper;
 import org.apache.camel.test.AvailablePortFinder;
 import org.apache.camel.test.junit5.CamelTestSupport;
 import org.junit.jupiter.api.Test;
@@ -32,20 +32,21 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class UndertowServiceCallRouteTest extends CamelTestSupport {
-    private int port1 = AvailablePortFinder.getNextAvailable();
-    private int port2 = AvailablePortFinder.getNextAvailable();
+    private final int port1 = AvailablePortFinder.getNextAvailable();
+    private final int port2 = AvailablePortFinder.getNextAvailable();
 
     @Override
     protected CamelContext createCamelContext() throws Exception {
         CamelContext context = super.createCamelContext();
-        context.adapt(ExtendedCamelContext.class).getBeanIntrospection().setExtendedStatistics(true);
-        context.adapt(ExtendedCamelContext.class).getBeanIntrospection().setLoggingLevel(LoggingLevel.INFO);
+        final BeanIntrospection beanIntrospection = PluginHelper.getBeanIntrospection(context);
+        beanIntrospection.setExtendedStatistics(true);
+        beanIntrospection.setLoggingLevel(LoggingLevel.INFO);
         return context;
     }
 
     @Test
     public void testCustomCall() {
-        BeanIntrospection bi = context.adapt(ExtendedCamelContext.class).getBeanIntrospection();
+        BeanIntrospection bi = PluginHelper.getBeanIntrospection(context);
 
         assertEquals("8081", template.requestBody("direct:custom", "hello", String.class));
         assertEquals("8082", template.requestBody("direct:custom", "hello", String.class));
@@ -56,7 +57,7 @@ public class UndertowServiceCallRouteTest extends CamelTestSupport {
 
     @Test
     public void testDefaultSchema() {
-        BeanIntrospection bi = context.adapt(ExtendedCamelContext.class).getBeanIntrospection();
+        BeanIntrospection bi = PluginHelper.getBeanIntrospection(context);
 
         try {
             assertEquals("8081", template.requestBody("direct:default", "hello", String.class));

@@ -40,7 +40,7 @@ public class RouteStartupOrderWithDefaultTest extends ContextTestSupport {
 
         // assert correct order
         DefaultCamelContext dcc = (DefaultCamelContext) context;
-        List<RouteStartupOrder> order = dcc.getRouteStartupOrder();
+        List<RouteStartupOrder> order = dcc.getCamelContextExtension().getRouteStartupOrder();
 
         assertEquals(5, order.size());
         assertEquals("seda://foo", order.get(0).getRoute().getEndpoint().getEndpointUri());
@@ -52,10 +52,10 @@ public class RouteStartupOrderWithDefaultTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:start").startupOrder(2).to("seda:foo");
 
                 from("seda:foo").startupOrder(1).to("mock:result");

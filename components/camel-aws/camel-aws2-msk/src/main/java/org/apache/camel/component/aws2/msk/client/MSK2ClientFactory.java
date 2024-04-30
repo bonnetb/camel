@@ -18,6 +18,8 @@ package org.apache.camel.component.aws2.msk.client;
 
 import org.apache.camel.component.aws2.msk.MSK2Configuration;
 import org.apache.camel.component.aws2.msk.client.impl.MSK2ClientOptimizedImpl;
+import org.apache.camel.component.aws2.msk.client.impl.MSK2ClientProfileOptimizedImpl;
+import org.apache.camel.component.aws2.msk.client.impl.MSK2ClientSessionTokenImpl;
 import org.apache.camel.component.aws2.msk.client.impl.MSK2ClientStandardImpl;
 
 /**
@@ -30,12 +32,19 @@ public final class MSK2ClientFactory {
 
     /**
      * Return the correct AWS Kafka client (based on remote vs local).
-     * 
+     *
      * @param  configuration configuration
      * @return               MqClient
      */
     public static MSK2InternalClient getKafkaClient(MSK2Configuration configuration) {
-        return configuration.isUseDefaultCredentialsProvider()
-                ? new MSK2ClientOptimizedImpl(configuration) : new MSK2ClientStandardImpl(configuration);
+        if (Boolean.TRUE.equals(configuration.isUseDefaultCredentialsProvider())) {
+            return new MSK2ClientOptimizedImpl(configuration);
+        } else if (Boolean.TRUE.equals(configuration.isUseProfileCredentialsProvider())) {
+            return new MSK2ClientProfileOptimizedImpl(configuration);
+        } else if (Boolean.TRUE.equals(configuration.isUseSessionCredentials())) {
+            return new MSK2ClientSessionTokenImpl(configuration);
+        } else {
+            return new MSK2ClientStandardImpl(configuration);
+        }
     }
 }

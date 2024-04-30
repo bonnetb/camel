@@ -17,7 +17,7 @@
 package org.apache.camel.component.google.pubsub;
 
 import java.io.IOException;
-import java.util.HashSet;
+import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -55,6 +55,7 @@ import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.util.StringHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.threeten.bp.Duration;
 
 /**
  * Represents the component that manages {@link GooglePubsubEndpoint}.
@@ -106,6 +107,9 @@ public class GooglePubsubComponent extends DefaultComponent {
         publisher.shutdown();
         try {
             publisher.awaitTermination(publisherTerminationTimeout, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeCamelException(e);
         } catch (Exception e) {
             throw new RuntimeCamelException(e);
         }
@@ -130,7 +134,7 @@ public class GooglePubsubComponent extends DefaultComponent {
                     "Google PubSub Endpoint format \"projectId:destinationName[:subscriptionName]\"");
         }
 
-        GooglePubsubEndpoint pubsubEndpoint = new GooglePubsubEndpoint(uri, this, remaining);
+        GooglePubsubEndpoint pubsubEndpoint = new GooglePubsubEndpoint(uri, this);
         pubsubEndpoint.setProjectId(parts[0]);
         pubsubEndpoint.setDestinationName(parts[1]);
         pubsubEndpoint.setServiceAccountKey(serviceAccountKey);
@@ -187,6 +191,7 @@ public class GooglePubsubComponent extends DefaultComponent {
             builder.setChannelProvider(channelProvider);
         }
         builder.setCredentialsProvider(getCredentialsProvider(googlePubsubEndpoint));
+        builder.setMaxAckExtensionPeriod(Duration.ofSeconds(googlePubsubEndpoint.getMaxAckExtensionPeriod()));
         return builder.build();
     }
 
@@ -196,7 +201,7 @@ public class GooglePubsubComponent extends DefaultComponent {
 
         if (synchronousPullRetryableCodes != null) {
             // retrieve the default retryable codes and add the ones specified as a component option
-            Set<StatusCode.Code> retryableCodes = new HashSet<>(builder.pullSettings().getRetryableCodes());
+            Set<StatusCode.Code> retryableCodes = EnumSet.copyOf(builder.pullSettings().getRetryableCodes());
             Set<StatusCode.Code> customRetryableCodes = Stream.of(synchronousPullRetryableCodes.split(","))
                     .map(String::trim)
                     .map(StatusCode.Code::valueOf)

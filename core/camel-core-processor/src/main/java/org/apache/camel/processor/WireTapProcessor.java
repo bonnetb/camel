@@ -27,7 +27,6 @@ import org.apache.camel.CamelContextAware;
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePattern;
 import org.apache.camel.ExchangePropertyKey;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.Message;
 import org.apache.camel.Processor;
 import org.apache.camel.RuntimeCamelException;
@@ -65,7 +64,7 @@ public class WireTapProcessor extends AsyncProcessorSupport
     private final ExchangePattern exchangePattern;
     private final boolean copy;
     private final ExecutorService executorService;
-    private volatile boolean shutdownExecutorService;
+    private final boolean shutdownExecutorService;
     private final LongAdder taskCount = new LongAdder();
     private ProcessorExchangeFactory processorExchangeFactory;
     private PooledExchangeTaskFactory taskFactory;
@@ -204,7 +203,7 @@ public class WireTapProcessor extends AsyncProcessorSupport
             // create task which has state used during routing
             PooledExchangeTask task = taskFactory.acquire(target, null);
             executorService.submit(task);
-        } catch (Throwable e) {
+        } catch (Exception e) {
             // in case the thread pool rejects or cannot submit the task then we need to catch
             // so camel error handler can react
             exchange.setException(e);
@@ -251,6 +250,8 @@ public class WireTapProcessor extends AsyncProcessorSupport
     private Exchange configureCopyExchange(Exchange exchange) {
         // must use a copy as we dont want it to cause side effects of the original exchange
         Exchange copy = processorExchangeFactory.createCorrelatedCopy(exchange, false);
+        // should not be correlated, but we needed to copy without handover
+        copy.removeProperty(ExchangePropertyKey.CORRELATION_ID);
         // set MEP to InOnly as this wire tap is a fire and forget
         copy.setPattern(ExchangePattern.InOnly);
         // move OUT to IN if needed
@@ -307,12 +308,12 @@ public class WireTapProcessor extends AsyncProcessorSupport
     @Override
     protected void doBuild() throws Exception {
         // create a per processor exchange factory
-        this.processorExchangeFactory = getCamelContext().adapt(ExtendedCamelContext.class)
+        this.processorExchangeFactory = getCamelContext().getCamelContextExtension()
                 .getProcessorExchangeFactory().newProcessorExchangeFactory(this);
         this.processorExchangeFactory.setRouteId(getRouteId());
         this.processorExchangeFactory.setId(getId());
 
-        boolean pooled = camelContext.adapt(ExtendedCamelContext.class).getExchangeFactory().isPooled();
+        boolean pooled = camelContext.getCamelContextExtension().getExchangeFactory().isPooled();
         if (pooled) {
             taskFactory = new PooledTaskFactory(getId()) {
                 @Override
@@ -320,7 +321,7 @@ public class WireTapProcessor extends AsyncProcessorSupport
                     return new WireTapTask();
                 }
             };
-            int capacity = camelContext.adapt(ExtendedCamelContext.class).getExchangeFactory().getCapacity();
+            int capacity = camelContext.getCamelContextExtension().getExchangeFactory().getCapacity();
             taskFactory.setCapacity(capacity);
         } else {
             taskFactory = new PrototypeTaskFactory() {

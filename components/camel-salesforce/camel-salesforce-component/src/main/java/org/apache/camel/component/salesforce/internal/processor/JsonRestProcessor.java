@@ -23,6 +23,9 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.camel.AsyncCallback;
@@ -43,6 +46,8 @@ import org.apache.camel.component.salesforce.api.dto.UpsertSObjectResult;
 import org.apache.camel.component.salesforce.api.dto.approval.ApprovalResult;
 import org.apache.camel.component.salesforce.api.dto.approval.Approvals;
 import org.apache.camel.component.salesforce.api.utils.JsonUtils;
+
+import static org.apache.camel.component.salesforce.SalesforceConstants.HEADER_SALESFORCE_QUERY_RESULT_TOTAL_SIZE;
 
 public class JsonRestProcessor extends AbstractRestProcessor {
 
@@ -194,6 +199,9 @@ public class JsonRestProcessor extends AbstractRestProcessor {
                 // do we need to un-marshal a response
                 final Object response;
                 Class<?> responseClass = exchange.getProperty(RESPONSE_CLASS, Class.class);
+                if (responseClass == null && exchange.getProperty(RESPONSE_CLASS_DEFERRED, false, Boolean.class)) {
+                    responseClass = detectResponseClass(exchange, responseEntity);
+                }
                 if (!rawPayload && responseClass != null) {
                     response = objectMapper.readValue(responseEntity, responseClass);
                 } else {
@@ -201,7 +209,7 @@ public class JsonRestProcessor extends AbstractRestProcessor {
                     if (!rawPayload && responseType != null) {
                         response = objectMapper.readValue(responseEntity, responseType);
                     } else {
-                        // return the response as a stream, for getBlobField
+                        // return the response as a stream, for getBlobField and rawPayload
                         response = responseEntity;
                     }
                 }
@@ -229,6 +237,29 @@ public class JsonRestProcessor extends AbstractRestProcessor {
 
     }
 
+    private Class<?> detectResponseClass(Exchange exchange, InputStream responseEntity) throws IOException {
+        Class<?> responseClass;
+        try {
+            final JsonParser parser = new JsonFactory().createParser(responseEntity);
+            String type = null;
+            while (parser.nextToken() != JsonToken.END_OBJECT) {
+                String propName = parser.getCurrentName();
+                if ("type".equals(propName)) {
+                    parser.nextToken();
+                    type = parser.getText();
+                    break;
+                }
+            }
+            String prefix = exchange.getProperty(RESPONSE_CLASS_PREFIX, "", String.class);
+            responseClass = getSObjectClass(prefix + type, null);
+        } catch (IOException | SalesforceException exc) {
+            throw new RuntimeException(exc);
+        } finally {
+            responseEntity.reset();
+        }
+        return responseClass;
+    }
+
     @Override
     protected void processStreamResultResponse(
             Exchange exchange, InputStream responseEntity, Map<String, String> headers, SalesforceException ex,
@@ -252,16 +283,19 @@ public class JsonRestProcessor extends AbstractRestProcessor {
                 final AbstractQueryRecordsBase<?> response;
                 Class<?> responseClass = exchange.getProperty(RESPONSE_CLASS, Class.class);
                 response = (AbstractQueryRecordsBase<?>) objectMapper.readValue(responseEntity, responseClass);
-                QueryResultIterator iterator
+                out.setHeader(HEADER_SALESFORCE_QUERY_RESULT_TOTAL_SIZE, response.getTotalSize());
+                QueryResultIterator<?> iterator
                         = new QueryResultIterator(
                                 objectMapper, responseClass, restClient, determineHeaders(exchange), response);
                 out.setBody(iterator);
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             String msg = "Error parsing JSON response: " + e.getMessage();
             exchange.setException(new SalesforceException(msg, e));
         } finally {
             exchange.removeProperty(RESPONSE_CLASS);
+            exchange.removeProperty(RESPONSE_CLASS_DEFERRED);
+            exchange.removeProperty(RESPONSE_CLASS_PREFIX);
             exchange.removeProperty(RESPONSE_TYPE);
 
             try {

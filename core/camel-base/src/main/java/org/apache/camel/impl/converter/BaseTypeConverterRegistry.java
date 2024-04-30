@@ -31,7 +31,6 @@ import java.util.Set;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.CamelContextAware;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.NoFactoryAvailableException;
 import org.apache.camel.RuntimeCamelException;
 import org.apache.camel.TypeConverter;
@@ -39,6 +38,7 @@ import org.apache.camel.TypeConverterLoaderException;
 import org.apache.camel.spi.Injector;
 import org.apache.camel.spi.PackageScanClassResolver;
 import org.apache.camel.spi.TypeConverterLoader;
+import org.apache.camel.support.PluginHelper;
 import org.apache.camel.util.IOHelper;
 import org.apache.camel.util.ObjectHelper;
 import org.slf4j.Logger;
@@ -147,7 +147,7 @@ public abstract class BaseTypeConverterRegistry extends CoreTypeConverterRegistr
             for (ClassLoader loader : getResolver().getClassLoaders()) {
                 try {
                     clazz = loader.loadClass(name);
-                } catch (Throwable e) {
+                } catch (Exception e) {
                     // ignore
                 }
                 if (clazz != null) {
@@ -199,13 +199,7 @@ public abstract class BaseTypeConverterRegistry extends CoreTypeConverterRegistr
 
     protected Collection<URL> getLoaderUrls(String basePath) throws IOException {
         List<URL> loaderResources = new ArrayList<>();
-        for (ClassLoader classLoader : resolver.getClassLoaders()) {
-            Enumeration<URL> resources = classLoader.getResources(basePath);
-            while (resources.hasMoreElements()) {
-                URL url = resources.nextElement();
-                loaderResources.add(url);
-            }
-        }
+        addResources(basePath, loaderResources);
         return loaderResources;
     }
 
@@ -252,14 +246,18 @@ public abstract class BaseTypeConverterRegistry extends CoreTypeConverterRegistr
 
     protected Collection<URL> getFallbackUrls() throws IOException {
         List<URL> loaderResources = new ArrayList<>();
+        addResources(META_INF_SERVICES_FALLBACK_TYPE_CONVERTER, loaderResources);
+        return loaderResources;
+    }
+
+    private void addResources(String metaInfServicesFallbackTypeConverter, List<URL> loaderResources) throws IOException {
         for (ClassLoader classLoader : resolver.getClassLoaders()) {
-            Enumeration<URL> resources = classLoader.getResources(META_INF_SERVICES_FALLBACK_TYPE_CONVERTER);
+            Enumeration<URL> resources = classLoader.getResources(metaInfServicesFallbackTypeConverter);
             while (resources.hasMoreElements()) {
                 URL url = resources.nextElement();
                 loaderResources.add(url);
             }
         }
-        return loaderResources;
     }
 
     protected void loadFallbackTypeConverters() throws IOException, ClassNotFoundException {
@@ -287,7 +285,7 @@ public abstract class BaseTypeConverterRegistry extends CoreTypeConverterRegistr
             injector = camelContext.getInjector();
         }
         if (resolver == null && camelContext != null) {
-            resolver = camelContext.adapt(ExtendedCamelContext.class).getPackageScanClassResolver();
+            resolver = PluginHelper.getPackageScanClassResolver(camelContext);
         }
 
         List<FallbackTypeConverter> fallbacks = new ArrayList<>();

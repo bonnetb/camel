@@ -16,21 +16,19 @@
  */
 package org.apache.camel.component.salesforce.internal.streaming;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.io.IOException;
+import java.net.CookieManager;
+import java.net.CookiePolicy;
+import java.net.CookieStore;
+import java.net.URI;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
 import org.apache.camel.CamelException;
-import org.apache.camel.component.salesforce.SalesforceComponent;
-import org.apache.camel.component.salesforce.SalesforceConsumer;
-import org.apache.camel.component.salesforce.SalesforceEndpoint;
-import org.apache.camel.component.salesforce.SalesforceEndpointConfig;
-import org.apache.camel.component.salesforce.SalesforceHttpClient;
+import org.apache.camel.component.salesforce.*;
 import org.apache.camel.component.salesforce.api.SalesforceException;
 import org.apache.camel.component.salesforce.internal.SalesforceSession;
 import org.apache.camel.support.service.ServiceSupport;
@@ -39,18 +37,18 @@ import org.cometd.bayeux.client.ClientSessionChannel;
 import org.cometd.bayeux.client.ClientSessionChannel.MessageListener;
 import org.cometd.client.BayeuxClient;
 import org.cometd.client.BayeuxClient.State;
+import org.cometd.client.http.jetty.JettyHttpClientTransport;
 import org.cometd.client.transport.ClientTransport;
-import org.cometd.client.transport.LongPollingTransport;
-import org.eclipse.jetty.client.api.Request;
+import org.eclipse.jetty.client.Request;
+import org.eclipse.jetty.http.HttpCookie;
+import org.eclipse.jetty.http.HttpCookieStore;
 import org.eclipse.jetty.http.HttpHeader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.cometd.bayeux.Channel.META_CONNECT;
-import static org.cometd.bayeux.Channel.META_HANDSHAKE;
-import static org.cometd.bayeux.Channel.META_SUBSCRIBE;
+import static org.cometd.bayeux.Channel.*;
 import static org.cometd.bayeux.Message.ERROR_FIELD;
 import static org.cometd.bayeux.Message.SUBSCRIPTION_FIELD;
 
@@ -77,7 +75,7 @@ public class SubscriptionHelper extends ServiceSupport {
     private SalesforceSession session;
     private final long timeout = 60 * 1000L;
 
-    private final Map<SalesforceConsumer, ClientSessionChannel.MessageListener> listenerMap;
+    private final Map<StreamingApiConsumer, ClientSessionChannel.MessageListener> listenerMap;
     private final long maxBackoff;
     private final long backoffIncrement;
 
@@ -92,7 +90,6 @@ public class SubscriptionHelper extends ServiceSupport {
     private volatile boolean reconnecting;
     private final AtomicLong handshakeBackoff;
     private final AtomicBoolean handshaking = new AtomicBoolean();
-    private final AtomicBoolean loggingIn = new AtomicBoolean();
 
     public SubscriptionHelper(final SalesforceComponent component) {
         this.component = component;
@@ -105,6 +102,10 @@ public class SubscriptionHelper extends ServiceSupport {
     @Override
     protected void doStart() throws Exception {
         session = component.getSession();
+
+        if (component.getLoginConfig().isLazyLogin()) {
+            throw new CamelException("Lazy login is not supported by salesforce consumers.");
+        }
 
         // create CometD client
         client = createClient(component, session);
@@ -132,7 +133,7 @@ public class SubscriptionHelper extends ServiceSupport {
                                     if (failureReason.equals(AUTHENTICATION_INVALID)) {
                                         LOG.debug(
                                                 "attempting login due to handshake error: 403 -> 401::Authentication invalid");
-                                        attemptLoginUntilSuccessful();
+                                        session.attemptLoginUntilSuccessful(backoffIncrement, maxBackoff);
                                     }
                                 }
                             }
@@ -162,11 +163,12 @@ public class SubscriptionHelper extends ServiceSupport {
                             LOG.warn("Connect failure: {}", message);
                             connectError = (String) message.get(ERROR_FIELD);
                             connectException = getFailure(message);
+                            client.disconnect();
 
                             if (connectError != null && connectError.equals(AUTHENTICATION_INVALID)) {
-                                LOG.debug("connectError: " + connectError);
+                                LOG.debug("connectError: {}", connectError);
                                 LOG.debug("Attempting login...");
-                                attemptLoginUntilSuccessful();
+                                session.attemptLoginUntilSuccessful(backoffIncrement, maxBackoff);
                             }
                             // Server says don't retry to connect, so we'll handshake instead
                             // Otherwise, Bayeux client automatically re-attempts connection
@@ -179,10 +181,10 @@ public class SubscriptionHelper extends ServiceSupport {
                             LOG.debug("Refreshing subscriptions to {} channels on reconnect", listenerMap.size());
                             // reconnected to Salesforce, subscribe to existing
                             // channels
-                            final Map<SalesforceConsumer, MessageListener> map = new HashMap<>(listenerMap);
+                            final Map<StreamingApiConsumer, MessageListener> map = new HashMap<>(listenerMap);
                             listenerMap.clear();
-                            for (Map.Entry<SalesforceConsumer, ClientSessionChannel.MessageListener> entry : map.entrySet()) {
-                                final SalesforceConsumer consumer = entry.getKey();
+                            for (Map.Entry<StreamingApiConsumer, ClientSessionChannel.MessageListener> entry : map.entrySet()) {
+                                final StreamingApiConsumer consumer = entry.getKey();
                                 final String topicName = consumer.getTopicName();
                                 subscribe(topicName, consumer);
                             }
@@ -247,6 +249,7 @@ public class SubscriptionHelper extends ServiceSupport {
             } catch (InterruptedException e) {
                 LOG.error("Aborting handshake on interrupt!");
                 abort = true;
+                Thread.currentThread().interrupt();
             }
 
             abort = abort || isStoppingOrStopped();
@@ -268,6 +271,7 @@ public class SubscriptionHelper extends ServiceSupport {
                 } catch (InterruptedException e) {
                     LOG.error("Aborting handshake on interrupt!");
                     abort = true;
+                    Thread.currentThread().interrupt();
                 }
             }
 
@@ -290,21 +294,21 @@ public class SubscriptionHelper extends ServiceSupport {
                         client.waitFor(waitMs, BayeuxClient.State.CONNECTED);
                     }
                 } catch (Exception e) {
-                    LOG.error("Error handshaking: " + e.getMessage(), e);
+                    LOG.error("Error handshaking: {}", e.getMessage(), e);
                     lastError = e;
                 }
 
                 if (client != null && client.isHandshook()) {
                     LOG.debug("Successful handshake!");
                     // reset backoff interval
-                    handshakeBackoff.set(client.getBackoffIncrement());
+                    handshakeBackoff.set(backoffIncrement);
                 } else {
                     LOG.error("Failed to handshake after pausing for {} msecs", backoff);
                     if ((backoff + backoffIncrement) > maxBackoff) {
                         // notify all consumers
                         String abortMsg = "Aborting handshake attempt due to: " + lastError.getMessage();
                         SalesforceException ex = new SalesforceException(abortMsg, lastError);
-                        for (SalesforceConsumer consumer : listenerMap.keySet()) {
+                        for (StreamingApiConsumer consumer : listenerMap.keySet()) {
                             consumer.handleException(abortMsg, ex);
                         }
                     }
@@ -344,8 +348,8 @@ public class SubscriptionHelper extends ServiceSupport {
         closeChannel(META_CONNECT, connectListener);
         closeChannel(META_HANDSHAKE, handshakeListener);
 
-        for (Map.Entry<SalesforceConsumer, MessageListener> entry : listenerMap.entrySet()) {
-            final SalesforceConsumer consumer = entry.getKey();
+        for (Map.Entry<StreamingApiConsumer, MessageListener> entry : listenerMap.entrySet()) {
+            final StreamingApiConsumer consumer = entry.getKey();
             final String topic = consumer.getTopicName();
 
             final MessageListener listener = entry.getValue();
@@ -387,7 +391,10 @@ public class SubscriptionHelper extends ServiceSupport {
             session.login(null);
         }
 
-        LongPollingTransport transport = new LongPollingTransport(options, httpClient) {
+        CookieStore cookieStore = new CookieManager().getCookieStore();
+        HttpCookieStore httpCookieStore = new HttpCookieStore.Default();
+
+        ClientTransport transport = new JettyHttpClientTransport(options, httpClient) {
             @Override
             protected void customize(Request request) {
                 super.customize(request);
@@ -401,7 +408,29 @@ public class SubscriptionHelper extends ServiceSupport {
                         throw new RuntimeException(e);
                     }
                 }
-                request.getHeaders().put(HttpHeader.AUTHORIZATION, "OAuth " + accessToken);
+                String finalAccessToken = new String(accessToken);
+                request.headers(h -> h.add(HttpHeader.AUTHORIZATION, "OAuth " + finalAccessToken));
+            }
+
+            @Override
+            protected void storeCookies(URI uri, Map<String, List<String>> cookies) {
+                try {
+                    CookieManager cookieManager = new CookieManager(cookieStore, CookiePolicy.ACCEPT_ALL);
+                    cookieManager.put(uri, cookies);
+
+                    for (java.net.HttpCookie httpCookie : cookieManager.getCookieStore().getCookies()) {
+                        httpCookieStore.add(uri, HttpCookie.from(httpCookie));
+                    }
+                } catch (IOException x) {
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("Could not parse cookies", x);
+                    }
+                }
+            }
+
+            @Override
+            protected HttpCookieStore getHttpCookieStore() {
+                return httpCookieStore;
             }
         };
 
@@ -413,12 +442,12 @@ public class SubscriptionHelper extends ServiceSupport {
         return client;
     }
 
-    public void subscribe(final String topicName, final SalesforceConsumer consumer) {
+    public void subscribe(final String topicName, final StreamingApiConsumer consumer) {
         subscribe(topicName, consumer, false);
     }
 
     public void subscribe(
-            final String topicName, final SalesforceConsumer consumer,
+            final String topicName, final StreamingApiConsumer consumer,
             final boolean skipReplayId) {
         // create subscription for consumer
         final String channelName = getChannelName(topicName);
@@ -474,6 +503,7 @@ public class SubscriptionHelper extends ServiceSupport {
                                     component.getHttpClient().getWorkerPool().execute(() -> subscribe(topicName, consumer));
                                 } catch (InterruptedException e) {
                                     LOG.warn("Aborting subscribe on interrupt!", e);
+                                    Thread.currentThread().interrupt();
                                 }
                             }
                         } else if (error.matches(INVALID_REPLAY_ID_PATTERN)) {
@@ -546,40 +576,6 @@ public class SubscriptionHelper extends ServiceSupport {
         }
     }
 
-    private void attemptLoginUntilSuccessful() {
-        if (!loggingIn.compareAndSet(false, true)) {
-            LOG.debug("already logging in");
-            return;
-        }
-
-        long backoff = 0;
-
-        try {
-            for (;;) {
-                try {
-                    if (isStoppingOrStopped()) {
-                        return;
-                    }
-                    session.login(session.getAccessToken());
-                    break;
-                } catch (SalesforceException e) {
-                    backoff = backoff + backoffIncrement;
-                    if (backoff > maxBackoff) {
-                        backoff = maxBackoff;
-                    }
-                    LOG.warn(String.format("Salesforce login failed. Pausing for %d seconds", backoff), e);
-                    try {
-                        Thread.sleep(backoff);
-                    } catch (InterruptedException ex) {
-                        throw new RuntimeException("Failed to login.", ex);
-                    }
-                }
-            }
-        } finally {
-            loggingIn.set(false);
-        }
-    }
-
     static Optional<Long> determineReplayIdFor(final SalesforceEndpoint endpoint, final String topicName) {
         final String channelName = getChannelName(topicName);
 
@@ -622,7 +618,7 @@ public class SubscriptionHelper extends ServiceSupport {
         return channelName.toString();
     }
 
-    public void unsubscribe(String topicName, SalesforceConsumer consumer) {
+    public void unsubscribe(String topicName, StreamingApiConsumer consumer) {
 
         // channel name
         final String channelName = getChannelName(topicName);

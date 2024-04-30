@@ -34,7 +34,7 @@ import org.lightcouch.CouchDbClient;
  * documents from a CouchDB database.
  */
 @UriEndpoint(firstVersion = "2.11.0", scheme = "couchdb", title = "CouchDB", syntax = "couchdb:protocol:hostname:port/database",
-             category = { Category.DATABASE, Category.NOSQL }, headersClass = CouchDbConstants.class)
+             category = { Category.DATABASE }, headersClass = CouchDbConstants.class)
 public class CouchDbEndpoint extends DefaultEndpoint {
 
     public static final String DEFAULT_STYLE = "main_only";
@@ -85,7 +85,7 @@ public class CouchDbEndpoint extends DefaultEndpoint {
 
         port = uri.getPort() == -1 ? DEFAULT_PORT : uri.getPort();
 
-        if (uri.getPath() == null || uri.getPath().trim().length() == 0) {
+        if (uri.getPath() == null || uri.getPath().isBlank()) {
             throw new IllegalArgumentException(URI_ERROR);
         }
         database = uri.getPath().substring(1);

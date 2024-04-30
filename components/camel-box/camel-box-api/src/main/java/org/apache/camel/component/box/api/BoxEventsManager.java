@@ -24,6 +24,8 @@ import org.apache.camel.RuntimeCamelException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.apache.camel.component.box.api.BoxHelper.buildBoxApiErrorMessage;
+
 /**
  * Provides operations to manage Box events.
  */
@@ -40,7 +42,7 @@ public class BoxEventsManager {
 
     /**
      * Create events manager to manage the events of Box connection's authenticated user.
-     * 
+     *
      * @param boxConnection - Box connection to authenticated user account.
      */
     public BoxEventsManager(BoxAPIConnection boxConnection) {
@@ -50,14 +52,14 @@ public class BoxEventsManager {
     /**
      * Create an event stream with optional starting initial position and add listener that will be notified when an
      * event is received.
-     * 
+     *
      * @param startingPosition - the starting position of the event stream.
      * @param listener         - the listener to add to event stream.
      */
     public void listen(EventListener listener, Long startingPosition) {
         try {
             if (listener == null) {
-                LOG.debug("Parameter 'listener' is null: will not listen for events");
+                LOG.debug(BoxHelper.MISSING_LISTENER);
                 return;
             }
             LOG.debug("Listening for events with listener={} at startingPosition={}", listener, startingPosition);
@@ -73,7 +75,7 @@ public class BoxEventsManager {
             eventStream.start();
         } catch (BoxAPIException e) {
             throw new RuntimeCamelException(
-                    String.format("Box API returned the error code %d%n%n%s", e.getResponseCode(), e.getResponse()), e);
+                    buildBoxApiErrorMessage(e), e);
         }
     }
 

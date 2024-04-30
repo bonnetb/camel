@@ -33,7 +33,6 @@ import org.apache.camel.Endpoint;
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePattern;
 import org.apache.camel.ExchangePropertyKey;
-import org.apache.camel.ExtendedExchange;
 import org.apache.camel.Processor;
 import org.apache.camel.spi.Synchronization;
 import org.apache.camel.support.EmptyAsyncCallback;
@@ -87,6 +86,10 @@ public class GoogleMailStreamConsumer extends ScheduledBatchPollingConsumer {
         Queue<Exchange> answer = new LinkedList<>();
 
         ListMessagesResponse c = request.execute();
+
+        // okay we have some response from Google so lets mark the consumer as ready
+        forceConsumerAsReady();
+
         if (c.getMessages() != null) {
             for (Message message : c.getMessages()) {
                 Message mess = getClient().users().messages().get("me", message.getId()).setFormat("FULL").execute();
@@ -114,7 +117,7 @@ public class GoogleMailStreamConsumer extends ScheduledBatchPollingConsumer {
             pendingExchanges = total - index - 1;
 
             // add on completion to handle after work when the exchange is done
-            exchange.adapt(ExtendedExchange.class).addOnCompletion(new Synchronization() {
+            exchange.getExchangeExtension().addOnCompletion(new Synchronization() {
                 public void onComplete(Exchange exchange) {
                     processCommit(exchange, unreadLabelId);
                 }
@@ -182,11 +185,15 @@ public class GoogleMailStreamConsumer extends ScheduledBatchPollingConsumer {
         exchange.setPattern(pattern);
         org.apache.camel.Message message = exchange.getIn();
         exchange.getIn().setHeader(GoogleMailStreamConstants.MAIL_ID, mail.getId());
-        List<MessagePart> parts = mail.getPayload().getParts();
-        if (parts != null && parts.get(0).getBody().getData() != null) {
-            byte[] bodyBytes = Base64.decodeBase64(parts.get(0).getBody().getData().trim());
-            String body = new String(bodyBytes, StandardCharsets.UTF_8);
-            message.setBody(body);
+        if (getConfiguration().isRaw()) {
+            message.setBody(mail.getRaw());
+        } else {
+            List<MessagePart> parts = mail.getPayload().getParts();
+            if (parts != null && parts.get(0).getBody().getData() != null) {
+                byte[] bodyBytes = Base64.decodeBase64(parts.get(0).getBody().getData().trim());
+                String body = new String(bodyBytes, StandardCharsets.UTF_8);
+                message.setBody(body);
+            }
         }
         configureHeaders(message, mail.getPayload().getHeaders());
         return exchange;

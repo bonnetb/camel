@@ -16,28 +16,33 @@
  */
 package org.apache.camel.component.sjms;
 
-import javax.jms.Message;
-import javax.jms.MessageConsumer;
-import javax.jms.TextMessage;
+import jakarta.jms.Message;
+import jakarta.jms.MessageConsumer;
+import jakarta.jms.TextMessage;
 
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
-import org.apache.camel.component.sjms.support.JmsTestSupport;
+import org.apache.camel.component.sjms.support.JmsExclusiveTestSupport;
+import org.apache.camel.test.infra.artemis.services.ArtemisService;
+import org.apache.camel.test.infra.artemis.services.ArtemisServiceFactory;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @DisabledIfSystemProperty(named = "activemq.instance.type", matches = "remote",
                           disabledReason = "Requires control of ActiveMQ, so it can only run locally (embedded or container)")
-public class ReconnectProducerTest extends JmsTestSupport {
+public class ReconnectProducerTest extends JmsExclusiveTestSupport {
+    private static final String TEST_DESTINATION_NAME = "sync.queue.producer.test.ReconnectProducerTest";
 
-    private static final String TEST_DESTINATION_NAME = "sync.queue.producer.test";
+    @RegisterExtension
+    public static ArtemisService service = ArtemisServiceFactory.createVMService();
 
     @Override
-    protected boolean useJmx() {
-        return false;
+    public ArtemisService getService() {
+        return service;
     }
 
     @Test

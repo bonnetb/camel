@@ -67,7 +67,7 @@ public class FileChangedReadLockTest extends ContextTestSupport {
         try (OutputStream fos = Files.newOutputStream(testFile("in/slowfile.dat"))) {
             for (int i = 0; i < 20; i++) {
                 fos.write(("Line " + i + LS).getBytes());
-                LOG.debug("Writing line " + i);
+                LOG.debug("Writing line {}", i);
                 Thread.sleep(50);
             }
             fos.flush();
@@ -84,10 +84,10 @@ public class FileChangedReadLockTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from(fileUri("in?initialDelay=0&delay=10&readLock=changed&readLockCheckInterval=100"))
                         .to(fileUri("out"), "mock:result");
             }

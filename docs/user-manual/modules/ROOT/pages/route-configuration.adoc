@@ -12,6 +12,7 @@ The route configuration is supported by all DSL's, so useable by: Java, XML, Gro
 
 In the route configuration you can setup common strategies for:
 
+- xref:error-handler.adoc[Error Handler]
 - xref:exception-clause.adoc[OnException]
 - xref:oncompletion.adoc[OnCompletion]
 - xref:components:eips:intercept.adoc[Intercept]
@@ -176,6 +177,32 @@ then fail and rollback.
 If you add more routes, then those routes can also be assigned the _retryError_ configuration
 if they should also retry in case of error.
 
+=== Route Configuration with Error Handler
+
+Each route configuration can also have a specific error handler configured, as shown below:
+
+[source,java]
+----
+public class MyJavaErrorHandler extends RouteConfigurationBuilder {
+
+    @Override
+    public void configuration() throws Exception {
+        routeConfiguration()
+            .errorHandler(deadLetterChannel("mock:dead"));
+
+        routeConfiguration("retryError")
+            .onException(Exception.class).maximumRedeliveries(5);
+    }
+}
+----
+
+In the example above, the _nameless_ configuration has an error handler with a dead letter queue.
+And the route configuration with id _retryError_ does not, and instead it will attempt
+to retry the failing message up till 5 times before giving up (exhausted). Because this
+route configuration does not have any error handler assigned, then Camel will use the default error handler.
+
+IMPORTANT: Routes that have a local error handler defined, will always use this error handler,
+instead of the error handler from route configurations. A route can only have 1 error handler.
 
 == Route Configuration in XML
 
@@ -213,7 +240,8 @@ When using YAML DSL then you can code your route configurations in YAML files as
 [source,yaml]
 ----
 - route-configuration:
-    - id: "yamlError"
+    id: "yamlError"
+    on-exception:
     - on-exception:
         handled:
           constant: "true"
@@ -231,18 +259,19 @@ And in the YAML routes you can assign which configurations to use:
 - route:
     # refer to the route configuration by the id to use for this route
     route-configuration-id: "yamlError"
-    from: "timer:yaml?period=3s"
-    steps:
-      - set-body:
-          simple: "Timer fired ${header.CamelTimerCounter} times"
-      - to:
-          uri: "log:yaml"
-          parameters:
-            show-body-type: false
-            show-exchange-pattern: false
-      - throw-exception:
-          exception-type: "java.lang.IllegalArgumentException"
-          message: "Error from yaml"
+    from:
+      uri: "timer:yaml?period=3s"
+      steps:
+        - set-body:
+            simple: "Timer fired ${header.CamelTimerCounter} times"
+        - to:
+            uri: "log:yaml"
+            parameters:
+              show-body-type: false
+              show-exchange-pattern: false
+        - throw-exception:
+            exception-type: "java.lang.IllegalArgumentException"
+            message: "Error from yaml"
 ----
 
 In this example the route is assigned the _yamlError_ route configuration by the exact ID.
@@ -357,7 +386,8 @@ And in YAML DSL:
 [source,yaml]
 ----
 - route-configuration:
-    - precondition: "{{activate}}"
+    precondition: "{{activate}}"
+    on-exception:
     - on-exception:
         exception:
           - "java.lang.IllegalArgumentException"
@@ -372,6 +402,6 @@ And in YAML DSL:
 
 See these examples:
 
-- https://github.com/apache/camel-examples/tree/main/examples/routes-configuration[camel-examples/examples/routes-configuration]
+- https://github.com/apache/camel-examples/tree/main/routes-configuration[camel-examples/examples/routes-configuration]
 - https://github.com/apache/camel-spring-boot-examples/tree/main/routes-configuration[camel-spring-boot-examples/routes-configuration/]
 

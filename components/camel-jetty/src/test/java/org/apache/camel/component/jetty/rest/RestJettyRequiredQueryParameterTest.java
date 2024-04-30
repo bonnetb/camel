@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 public class RestJettyRequiredQueryParameterTest extends BaseJettyTest {
 
     @Test
-    public void testJettyValid() throws Exception {
+    public void testJettyValid() {
         String out = fluentTemplate.withHeader(Exchange.CONTENT_TYPE, "application/json")
                 .withHeader("Accept", "application/json").withHeader(Exchange.HTTP_METHOD, "post")
                 .withBody("{ \"name\": \"Donald Duck\" }").to("http://localhost:" + getPort() + "/users/123/update?country=uk")
@@ -41,7 +41,7 @@ public class RestJettyRequiredQueryParameterTest extends BaseJettyTest {
     }
 
     @Test
-    public void testJettyInvalid() {
+    public void testJettyMissing() {
         fluentTemplate = fluentTemplate.withHeader(Exchange.CONTENT_TYPE, "application/json")
                 .withHeader("Accept", "application/json")
                 .withHeader(Exchange.HTTP_METHOD, "post")
@@ -55,11 +55,26 @@ public class RestJettyRequiredQueryParameterTest extends BaseJettyTest {
         assertEquals("Some of the required query parameters are missing.", cause.getResponseBody());
     }
 
+    @Test
+    public void testJettyNotAllowed() {
+        fluentTemplate = fluentTemplate.withHeader(Exchange.CONTENT_TYPE, "application/json")
+                .withHeader("Accept", "application/json")
+                .withHeader(Exchange.HTTP_METHOD, "post")
+                .withBody("{ \"name\": \"Donald Duck\" }")
+                .to("http://localhost:" + getPort() + "/users/123/update?country=se");
+
+        Exception ex = assertThrows(CamelExecutionException.class, () -> fluentTemplate.request(String.class));
+
+        HttpOperationFailedException cause = assertIsInstanceOf(HttpOperationFailedException.class, ex.getCause());
+        assertEquals(400, cause.getStatusCode());
+        assertEquals("Some of the query parameters or HTTP headers has a not-allowed value.", cause.getResponseBody());
+    }
+
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 // configure to use jetty on localhost with the given port
                 restConfiguration().component("jetty").host("localhost").port(getPort())
                         // turn on client request validation
@@ -67,7 +82,7 @@ public class RestJettyRequiredQueryParameterTest extends BaseJettyTest {
 
                 // use the rest DSL to define the rest services
                 rest("/users/").post("{id}/update").consumes("application/json").produces("application/json").param()
-                        .name("country").required(true).type(RestParamType.query)
+                        .name("country").required(true).allowableValues("uk,dk").type(RestParamType.query)
                         .endParam().to("direct:update");
 
                 from("direct:update").setBody(constant("{ \"status\": \"ok\" }"));

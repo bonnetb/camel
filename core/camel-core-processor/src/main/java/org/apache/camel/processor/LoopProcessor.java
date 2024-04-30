@@ -23,7 +23,6 @@ import org.apache.camel.CamelContext;
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePropertyKey;
 import org.apache.camel.Expression;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.NoTypeConversionAvailableException;
 import org.apache.camel.Predicate;
 import org.apache.camel.Processor;
@@ -50,7 +49,6 @@ public class LoopProcessor extends DelegateAsyncProcessor implements Traceable, 
     private String id;
     private String routeId;
     private boolean shutdownPending;
-    private final CamelContext camelContext;
     private final ReactiveExecutor reactiveExecutor;
     private final Expression expression;
     private final Predicate predicate;
@@ -61,8 +59,7 @@ public class LoopProcessor extends DelegateAsyncProcessor implements Traceable, 
     public LoopProcessor(CamelContext camelContext, Processor processor, Expression expression, Predicate predicate,
                          boolean copy, boolean breakOnShutdown) {
         super(processor);
-        this.camelContext = camelContext;
-        this.reactiveExecutor = camelContext.adapt(ExtendedCamelContext.class).getReactiveExecutor();
+        this.reactiveExecutor = camelContext.getCamelContextExtension().getReactiveExecutor();
         this.expression = expression;
         this.predicate = predicate;
         this.copy = copy;
@@ -124,6 +121,7 @@ public class LoopProcessor extends DelegateAsyncProcessor implements Traceable, 
                 // but evaluation result is a textual representation of a numeric value.
                 String text = expression.evaluate(exchange, String.class);
                 count = ExchangeHelper.convertToMandatoryType(exchange, Integer.class, text);
+                // keep track of pending task if loop with fixed value
                 taskCount.add(count);
                 exchange.setProperty(ExchangePropertyKey.LOOP_SIZE, count);
             }
@@ -150,7 +148,10 @@ public class LoopProcessor extends DelegateAsyncProcessor implements Traceable, 
                     processor.process(current, doneSync -> {
                         // increment counter after done
                         index++;
-                        taskCount.decrement();
+                        if (expression != null) {
+                            // keep track of pending task if loop with fixed value
+                            taskCount.decrement();
+                        }
                         reactiveExecutor.schedule(this);
                     });
                 } else {
@@ -159,11 +160,25 @@ public class LoopProcessor extends DelegateAsyncProcessor implements Traceable, 
                     if (LOG.isTraceEnabled()) {
                         LOG.trace("Processing complete for exchangeId: {} >>> {}", exchange.getExchangeId(), exchange);
                     }
+                    if (!cont && expression != null) {
+                        // if we should stop due to an exception etc, then make sure to dec task count
+                        int gap = count - index;
+                        while (gap-- > 0) {
+                            taskCount.decrement();
+                        }
+                    }
                     callback.done(false);
                 }
             } catch (Exception e) {
                 if (LOG.isTraceEnabled()) {
                     LOG.trace("Processing failed for exchangeId: {} >>> {}", exchange.getExchangeId(), e.getMessage());
+                }
+                if (expression != null) {
+                    // if we should stop due to an exception etc, then make sure to dec task count
+                    int gap = count - index;
+                    while (gap-- > 0) {
+                        taskCount.decrement();
+                    }
                 }
                 exchange.setException(e);
                 callback.done(false);

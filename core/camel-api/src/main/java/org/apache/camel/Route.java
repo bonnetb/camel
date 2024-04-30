@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.camel.resume.ConsumerListener;
+import org.apache.camel.resume.ResumeStrategy;
 import org.apache.camel.spi.InterceptStrategy;
 import org.apache.camel.spi.ManagementInterceptStrategy;
 import org.apache.camel.spi.Resource;
@@ -42,10 +44,13 @@ public interface Route extends RuntimeConfiguration {
     String CUSTOM_ID_PROPERTY = "customId";
     String PARENT_PROPERTY = "parent";
     String GROUP_PROPERTY = "group";
+    String NODE_PREFIX_ID_PROPERTY = "nodePrefixId";
     String REST_PROPERTY = "rest";
     String TEMPLATE_PROPERTY = "template";
+    String KAMELET_PROPERTY = "kamelet";
     String DESCRIPTION_PROPERTY = "description";
     String CONFIGURATION_ID_PROPERTY = "configurationId";
+    String SUPERVISED = "supervised";
 
     /**
      * Gets the route id
@@ -55,11 +60,31 @@ public interface Route extends RuntimeConfiguration {
     String getId();
 
     /**
+     * Gets the node prefix id
+     */
+    String getNodePrefixId();
+
+    /**
      * Whether the route id is custom assigned or auto assigned
      *
      * @return true if custom id, false if auto assigned id
      */
     boolean isCustomId();
+
+    /**
+     * Whether this route is a Rest DSL route.
+     */
+    boolean isCreatedByRestDsl();
+
+    /**
+     * Whether this route was created from a route template (or a Kamelet).
+     */
+    boolean isCreatedByRouteTemplate();
+
+    /**
+     * Whether this route was created from a Kamelet.
+     */
+    boolean isCreatedByKamelet();
 
     /**
      * Gets the route group
@@ -147,6 +172,11 @@ public interface Route extends RuntimeConfiguration {
     String getSourceLocation();
 
     /**
+     * The source:line-number in short format that can be used for logging or summary purposes.
+     */
+    String getSourceLocationShort();
+
+    /**
      * Gets the camel context
      *
      * @return the camel context
@@ -205,10 +235,10 @@ public interface Route extends RuntimeConfiguration {
      * Gets the last error that happened during changing the route lifecycle, i.e. such as when an exception was thrown
      * during starting the route.
      * <p/>
-     * This is only errors for route lifecycle changes, it is not exceptions thrown during routing messsages with the
+     * This is only errors for route lifecycle changes, it is not exceptions thrown during routing exchanges by the
      * Camel routing engine.
      *
-     * @return the error
+     * @return the error or <tt>null</tt> if no error
      */
     RouteError getLastError();
 
@@ -216,7 +246,7 @@ public interface Route extends RuntimeConfiguration {
      * Sets the last error that happened during changing the route lifecycle, i.e. such as when an exception was thrown
      * during starting the route.
      * <p/>
-     * This is only errors for route lifecycle changes, it is not exceptions thrown during routing messsages with the
+     * This is only errors for route lifecycle changes, it is not exceptions thrown during routing exchanges by the
      * Camel routing engine.
      *
      * @param error the error
@@ -377,5 +407,10 @@ public interface Route extends RuntimeConfiguration {
      * Sets the resume strategy for the route
      */
     void setResumeStrategy(ResumeStrategy resumeStrategy);
+
+    /**
+     * Sets the consumer listener for the route
+     */
+    void setConsumerListener(ConsumerListener<?, ?> consumerListener);
 
 }

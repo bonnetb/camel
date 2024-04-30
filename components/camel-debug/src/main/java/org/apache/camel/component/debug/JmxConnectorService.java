@@ -89,8 +89,7 @@ public class JmxConnectorService extends ServiceSupport implements CamelContextA
                 cs.stop();
                 LOG.debug("Stopped JMX Connector");
             } catch (IOException e) {
-                LOG.debug("Error occurred during stopping JMXConnectorService: "
-                          + cs + ". This exception will be ignored.");
+                LOG.debug("Error occurred during stopping JMXConnectorService: {}. This exception will be ignored.", cs);
             }
             cs = null;
         }
@@ -140,7 +139,7 @@ public class JmxConnectorService extends ServiceSupport implements CamelContextA
                 cs.start();
                 LOG.info("JMX Connector thread started and listening at: {}", url);
             } catch (IOException ioe) {
-                LOG.warn("Could not start JMXConnector thread at: " + url + ". JMX Connector not in use.", ioe);
+                LOG.warn("Could not start JMXConnector thread at: {}. JMX Connector not in use.", url, ioe);
             }
         });
         thread.start();

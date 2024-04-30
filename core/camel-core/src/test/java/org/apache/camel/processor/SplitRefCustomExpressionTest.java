@@ -16,7 +16,6 @@
  */
 package org.apache.camel.processor;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.camel.ContextTestSupport;
@@ -32,8 +31,8 @@ import org.junit.jupiter.api.Test;
 public class SplitRefCustomExpressionTest extends ContextTestSupport {
 
     @Override
-    protected Registry createRegistry() throws Exception {
-        Registry jndi = super.createRegistry();
+    protected Registry createCamelRegistry() throws Exception {
+        Registry jndi = super.createCamelRegistry();
         jndi.bind("myCustomExpression", new MyCustomExpression());
         return jndi;
     }
@@ -48,10 +47,10 @@ public class SplitRefCustomExpressionTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:start").split().ref("myCustomExpression").to("mock:split");
             }
         };
@@ -66,10 +65,7 @@ public class SplitRefCustomExpressionTest extends ContextTestSupport {
 
             // just split the body by comma
             String[] parts = body.split(",");
-            List<String> list = new ArrayList<>();
-            for (String part : parts) {
-                list.add(part);
-            }
+            List<String> list = List.of(parts);
 
             return (T) list.iterator();
         }

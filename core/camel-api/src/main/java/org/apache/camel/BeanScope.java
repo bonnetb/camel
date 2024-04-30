@@ -16,13 +16,13 @@
  */
 package org.apache.camel;
 
-import javax.xml.bind.annotation.XmlEnum;
+import jakarta.xml.bind.annotation.XmlEnum;
 
 @XmlEnum
 public enum BeanScope {
 
     Singleton,
     Request,
-    Prototype;
+    Prototype
 
 }

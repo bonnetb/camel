@@ -20,13 +20,13 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
 import org.apache.camel.ContextTestSupport;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.PropertyInject;
 import org.apache.camel.impl.engine.CamelPostProcessorHelper;
 import org.apache.camel.spi.CamelBeanPostProcessor;
 import org.apache.camel.spi.CamelBeanPostProcessorInjector;
 import org.apache.camel.spi.CamelLogger;
 import org.apache.camel.support.ObjectHelper;
+import org.apache.camel.support.PluginHelper;
 import org.apache.camel.util.ReflectionHelper;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,15 +35,14 @@ import org.junit.jupiter.api.Test;
 public class CamelBeanPostProcessorInjectorTest extends ContextTestSupport {
 
     private CamelBeanPostProcessor postProcessor;
-    private CamelPostProcessorHelper helper;
 
     @Override
     @BeforeEach
     public void setUp() throws Exception {
         super.setUp();
-        postProcessor = context.adapt(ExtendedCamelContext.class).getBeanPostProcessor();
+        postProcessor = PluginHelper.getBeanPostProcessor(context);
         postProcessor.addCamelBeanPostProjectInjector(new MyInjector());
-        helper = new CamelPostProcessorHelper(context);
+        CamelPostProcessorHelper helper = new CamelPostProcessorHelper(context);
     }
 
     private class MyInjector implements CamelBeanPostProcessorInjector {
@@ -64,7 +63,7 @@ public class CamelBeanPostProcessorInjectorTest extends ContextTestSupport {
         }
     }
 
-    public class MyService {
+    public static class MyService {
 
         @PropertyInject(value = "myName", defaultValue = "Donald Duck")
         private String name;

@@ -18,7 +18,11 @@ package org.apache.camel.impl.engine;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
@@ -33,11 +37,11 @@ import org.apache.camel.Consumer;
 import org.apache.camel.ConsumerTemplate;
 import org.apache.camel.DelegateEndpoint;
 import org.apache.camel.Endpoint;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.FluentProducerTemplate;
 import org.apache.camel.IsSingleton;
 import org.apache.camel.MultipleConsumersSupport;
-import org.apache.camel.NoSuchBeanException;
+import org.apache.camel.NoSuchBeanTypeException;
+import org.apache.camel.NoTypeConversionAvailableException;
 import org.apache.camel.PollingConsumer;
 import org.apache.camel.Producer;
 import org.apache.camel.ProducerTemplate;
@@ -51,9 +55,11 @@ import org.apache.camel.spi.PropertiesComponent;
 import org.apache.camel.spi.PropertyConfigurer;
 import org.apache.camel.spi.Registry;
 import org.apache.camel.support.CamelContextHelper;
+import org.apache.camel.support.PluginHelper;
 import org.apache.camel.support.PropertyBindingSupport;
 import org.apache.camel.support.service.ServiceHelper;
 import org.apache.camel.util.ObjectHelper;
+import org.apache.camel.util.StringHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -89,8 +95,7 @@ public class CamelPostProcessorHelper implements CamelContextAware {
         Consume consume = method.getAnnotation(Consume.class);
         if (consume != null) {
             LOG.debug("Creating a consumer for: {}", consume);
-            String uri = consume.value().isEmpty() ? consume.uri() : consume.value();
-            subscribeMethod(method, bean, beanName, uri, consume.property(), consume.predicate());
+            subscribeMethod(method, bean, beanName, consume.value(), consume.property(), consume.predicate());
         }
     }
 
@@ -192,11 +197,11 @@ public class CamelPostProcessorHelper implements CamelContextAware {
         // 2. then the getter with Endpoint as postfix
         // 3. then if start with on then try step 1 and 2 again, but omit the on prefix
         try {
-            Object value = getCamelContext().adapt(ExtendedCamelContext.class).getBeanIntrospection().getOrElseProperty(bean,
+            Object value = PluginHelper.getBeanIntrospection(getCamelContext()).getOrElseProperty(bean,
                     propertyName, null, false);
             if (value == null) {
                 // try endpoint as postfix
-                value = getCamelContext().adapt(ExtendedCamelContext.class).getBeanIntrospection().getOrElseProperty(bean,
+                value = PluginHelper.getBeanIntrospection(getCamelContext()).getOrElseProperty(bean,
                         propertyName + "Endpoint", null, false);
             }
             if (value == null && propertyName.startsWith("on")) {
@@ -255,8 +260,7 @@ public class CamelPostProcessorHelper implements CamelContextAware {
                     // lets create a proxy
                     try {
                         // use proxy service
-                        BeanProxyFactory factory
-                                = endpoint.getCamelContext().adapt(ExtendedCamelContext.class).getBeanProxyFactory();
+                        BeanProxyFactory factory = PluginHelper.getBeanProxyFactory(endpoint.getCamelContext());
                         return factory.createProxy(endpoint, binding, type);
                     } catch (Exception e) {
                         throw createProxyInstantiationRuntimeException(type, endpoint, e);
@@ -273,7 +277,7 @@ public class CamelPostProcessorHelper implements CamelContextAware {
     }
 
     public Object getInjectionPropertyValue(
-            Class<?> type, String propertyName, String propertyDefaultValue,
+            Class<?> type, Type genericType, String propertyName, String propertyDefaultValue, String separator,
             String injectionPointName, Object bean, String beanName) {
         try {
             String key;
@@ -288,6 +292,10 @@ public class CamelPostProcessorHelper implements CamelContextAware {
             }
             String value = getCamelContext().resolvePropertyPlaceholders(key);
             if (value != null) {
+                if (separator != null && !separator.isBlank()) {
+                    Object values = convertValueUsingSeparator(camelContext, type, genericType, value, separator);
+                    return getCamelContext().getTypeConverter().mandatoryConvertTo(type, values);
+                }
                 return getCamelContext().getTypeConverter().mandatoryConvertTo(type, value);
             } else {
                 return null;
@@ -295,6 +303,11 @@ public class CamelPostProcessorHelper implements CamelContextAware {
         } catch (Exception e) {
             if (ObjectHelper.isNotEmpty(propertyDefaultValue)) {
                 try {
+                    if (separator != null && !separator.isBlank()) {
+                        Object values
+                                = convertValueUsingSeparator(camelContext, type, genericType, propertyDefaultValue, separator);
+                        return getCamelContext().getTypeConverter().mandatoryConvertTo(type, values);
+                    }
                     return getCamelContext().getTypeConverter().mandatoryConvertTo(type, propertyDefaultValue);
                 } catch (Exception e2) {
                     throw RuntimeCamelException.wrapRuntimeCamelException(e2);
@@ -304,21 +317,103 @@ public class CamelPostProcessorHelper implements CamelContextAware {
         }
     }
 
+    private static Object convertValueUsingSeparator(
+            CamelContext camelContext, Class<?> type, Type genericType,
+            String value, String separator)
+            throws NoTypeConversionAvailableException {
+        String[] arr = value.split(separator);
+
+        if (type.isArray()) {
+            Object[] values = new Object[arr.length];
+            Class<?> ct = type.getComponentType();
+            for (int i = 0; i < arr.length; i++) {
+                String v = arr[i].trim(); // trim values as user may have whitespace noise
+                values[i] = camelContext.getTypeConverter().mandatoryConvertTo(ct, v);
+            }
+            return values;
+        } else if (Collection.class.isAssignableFrom(type)) {
+            Class<?> ct = Object.class;
+            if (genericType != null) {
+                String name = StringHelper.between(genericType.getTypeName(), "<", ">");
+                if (name != null) {
+                    Class<?> clazz = camelContext.getClassResolver().resolveClass(name.trim());
+                    if (clazz != null) {
+                        ct = clazz;
+                    }
+                }
+            }
+            boolean set = type.isAssignableFrom(Set.class);
+            Collection values = set ? new LinkedHashSet() : new ArrayList();
+            for (int i = 0; i < arr.length; i++) {
+                String v = arr[i].trim(); // trim values as user may have whitespace noise
+                values.add(camelContext.getTypeConverter().mandatoryConvertTo(ct, v));
+            }
+            return values;
+        } else if (Map.class.isAssignableFrom(type)) {
+            Class<?> ct = Object.class;
+            if (genericType != null) {
+                String name = StringHelper.between(genericType.getTypeName(), "<", ">");
+                name = StringHelper.afterLast(name, ",");
+                if (name != null) {
+                    Class<?> clazz = camelContext.getClassResolver().resolveClass(name.trim());
+                    if (clazz != null) {
+                        ct = clazz;
+                    }
+                }
+            }
+            Map<String, Object> values = new LinkedHashMap<>();
+            for (int i = 0; i < arr.length; i++) {
+                String v = arr[i].trim(); // trim values as user may have whitespace noise
+                if (v.contains("=")) {
+                    String k = StringHelper.before(v, "=").trim();
+                    String e = StringHelper.after(v, "=").trim();
+                    values.put(k, camelContext.getTypeConverter().mandatoryConvertTo(ct, e));
+                }
+            }
+            return values;
+        }
+
+        return null;
+    }
+
     public Object getInjectionBeanValue(Class<?> type, String name) {
         if (ObjectHelper.isEmpty(name)) {
             // is it camel context itself?
             if (getCamelContext() != null && type.isAssignableFrom(getCamelContext().getClass())) {
                 return getCamelContext();
             }
-            Set<?> found = getCamelContext() != null ? getCamelContext().getRegistry().findByType(type) : null;
-            if (found == null || found.isEmpty()) {
-                throw new NoSuchBeanException(name, type.getName());
-            } else if (found.size() > 1) {
-                throw new NoSuchBeanException(
-                        "Found " + found.size() + " beans of type: " + type + ". Only one bean expected.");
+            Object found = getCamelContext() != null ? getCamelContext().getRegistry().findSingleByType(type) : null;
+            if (found == null) {
+                // this may be a common type so lets check this first
+                if (getCamelContext() != null && type.isAssignableFrom(Registry.class)) {
+                    return getCamelContext().getRegistry();
+                }
+                if (getCamelContext() != null && type.isAssignableFrom(TypeConverter.class)) {
+                    return getCamelContext().getTypeConverter();
+                }
+                // for templates then create a new instance and let camel manage its lifecycle
+                Service answer = null;
+                if (getCamelContext() != null && type.isAssignableFrom(FluentProducerTemplate.class)) {
+                    answer = getCamelContext().createFluentProducerTemplate();
+                }
+                if (getCamelContext() != null && type.isAssignableFrom(ProducerTemplate.class)) {
+                    answer = getCamelContext().createProducerTemplate();
+                }
+                if (getCamelContext() != null && type.isAssignableFrom(ConsumerTemplate.class)) {
+                    answer = getCamelContext().createConsumerTemplate();
+                }
+                if (answer != null) {
+                    // lets make camel context manage its lifecycle
+                    try {
+                        getCamelContext().addService(answer);
+                    } catch (Exception e) {
+                        throw RuntimeCamelException.wrapRuntimeException(e);
+                    }
+                    return answer;
+                }
+                throw new NoSuchBeanTypeException(type);
             } else {
-                // we found only one
-                return found.iterator().next();
+                return found;
             }
         } else {
             return CamelContextHelper.mandatoryLookup(getCamelContext(), name, type);
@@ -326,7 +421,7 @@ public class CamelPostProcessorHelper implements CamelContextAware {
     }
 
     public Object getInjectionBeanConfigValue(Class<?> type, String name) {
-        ExtendedCamelContext ecc = (ExtendedCamelContext) getCamelContext();
+        CamelContext ecc = getCamelContext();
 
         // is it a map or properties
         boolean mapType = false;
@@ -342,16 +437,12 @@ public class CamelPostProcessorHelper implements CamelContextAware {
         // create an instance of type
         Object bean = null;
         if (map == null) {
-            Set<?> instances = ecc.getRegistry().findByType(type);
-            if (instances.size() == 1) {
-                bean = instances.iterator().next();
-            } else if (instances.size() > 1) {
-                return null;
-            } else {
+            bean = ecc.getRegistry().findSingleByType(type);
+            if (bean == null) {
                 // attempt to create a new instance
                 try {
                     bean = ecc.getInjector().newInstance(type);
-                } catch (Throwable e) {
+                } catch (Exception e) {
                     // ignore
                     return null;
                 }
@@ -393,7 +484,7 @@ public class CamelPostProcessorHelper implements CamelContextAware {
         String[] names = new String[] {
                 type.getName() + "-configurer", type.getSimpleName() + "-configurer", rootKey + "-configurer" };
         for (String n : names) {
-            configurer = ecc.getConfigurerResolver().resolvePropertyConfigurer(n, ecc);
+            configurer = PluginHelper.getConfigurerResolver(ecc).resolvePropertyConfigurer(n, ecc);
             if (configurer != null) {
                 break;
             }
@@ -439,6 +530,7 @@ public class CamelPostProcessorHelper implements CamelContextAware {
         Object[] parameters = new Object[method.getParameterCount()];
         for (int i = 0; i < method.getParameterCount(); i++) {
             Class<?> type = method.getParameterTypes()[i];
+            Type genericType = method.getGenericParameterTypes()[i];
             if (type.isAssignableFrom(CamelContext.class)) {
                 parameters[i] = context;
             } else if (type.isAssignableFrom(Registry.class)) {
@@ -453,8 +545,9 @@ public class CamelPostProcessorHelper implements CamelContextAware {
                     Annotation ann = anns[0];
                     if (ann.annotationType() == PropertyInject.class) {
                         PropertyInject pi = (PropertyInject) ann;
-                        Object result = getInjectionPropertyValue(type, pi.value(), pi.defaultValue(),
-                                null, null, null);
+                        Object result
+                                = getInjectionPropertyValue(type, genericType, pi.value(), pi.defaultValue(), pi.separator(),
+                                        null, null, null);
                         parameters[i] = result;
                     } else if (ann.annotationType() == BeanConfigInject.class) {
                         BeanConfigInject pi = (BeanConfigInject) ann;
@@ -565,8 +658,7 @@ public class CamelPostProcessorHelper implements CamelContextAware {
      */
     protected Producer createInjectionProducer(Endpoint endpoint, Object bean, String beanName) {
         try {
-            return endpoint.getCamelContext().adapt(ExtendedCamelContext.class).getDeferServiceFactory()
-                    .createProducer(endpoint);
+            return PluginHelper.getDeferServiceFactory(endpoint.getCamelContext()).createProducer(endpoint);
         } catch (Exception e) {
             throw RuntimeCamelException.wrapRuntimeCamelException(e);
         }

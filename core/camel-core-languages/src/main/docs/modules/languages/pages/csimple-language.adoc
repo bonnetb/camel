@@ -5,6 +5,7 @@
 :description: Evaluate a compiled simple expression.
 :since: 3.7
 :supportlevel: Stable
+:tabs-sync-option:
 //Manually maintained attributes
 :camel-spring-boot-name: core
 :starter-artifactid: camel-core-starter
@@ -58,6 +59,9 @@ and then converting the exchange property to the given type determined by its cl
 
 |mandatoryExchangePropertyAsIndex(_key_, _type_, _index_) |Type | To be used for collecting an exchange property from an existing `Collection`, `Map` or array (lookup by the index)
 and then converting the exchange property to the given type determined by its classname. Expects the exchange property to be not null.
+
+|messageAs(_type_) |Type |Converts the message to the given type determined by its
+classname. The converted message can be null.
 
 |=======================================================================
 

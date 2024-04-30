@@ -26,7 +26,7 @@ import org.junit.jupiter.api.condition.EnabledIf;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@EnabledIf(value = "org.apache.camel.component.file.remote.services.SftpEmbeddedService#hasRequiredAlgorithms")
+@EnabledIf(value = "org.apache.camel.test.infra.ftp.services.embedded.SftpUtil#hasRequiredAlgorithms('src/test/resources/hostkey.pem')")
 public class SftpProducerWithCharsetIT extends SftpServerTestSupport {
 
     private static final String SAMPLE_FILE_NAME
@@ -53,6 +53,6 @@ public class SftpProducerWithCharsetIT extends SftpServerTestSupport {
 
     private String getSftpUri() {
         return "sftp://localhost:{{ftp.server.port}}/{{ftp.root.dir}}?username=admin&password=admin&charset="
-               + SAMPLE_FILE_CHARSET;
+               + SAMPLE_FILE_CHARSET + "&knownHostsFile=" + service.getKnownHostsFile();
     }
 }

@@ -20,9 +20,8 @@ import java.math.BigInteger;
 import java.util.Arrays;
 
 import org.apache.camel.BindToRegistry;
-import org.apache.camel.Endpoint;
-import org.apache.camel.EndpointInject;
 import org.apache.camel.builder.RouteBuilder;
+import org.apache.camel.component.kafka.integration.common.KafkaTestUtil;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.processor.idempotent.kafka.KafkaIdempotentRepository;
 import org.junit.jupiter.api.AfterEach;
@@ -32,26 +31,13 @@ import org.junit.jupiter.api.Test;
 public class KafkaConsumerIdempotentWithProcessorIT extends KafkaConsumerIdempotentTestSupport {
     public static final String TOPIC = "testidemp3";
 
+    private final int size = 200;
     @BindToRegistry("kafkaIdempotentRepository")
-    private KafkaIdempotentRepository kafkaIdempotentRepository
+    private final KafkaIdempotentRepository kafkaIdempotentRepository
             = new KafkaIdempotentRepository("TEST_IDEMPOTENT", getBootstrapServers());
-
-    @EndpointInject("kafka:" + TOPIC
-                    + "?groupId=group2&autoOffsetReset=earliest"
-                    + "&keyDeserializer=org.apache.kafka.common.serialization.StringDeserializer"
-                    + "&valueDeserializer=org.apache.kafka.common.serialization.StringDeserializer"
-                    + "&autoCommitIntervalMs=1000&sessionTimeoutMs=30000&autoCommitEnable=true"
-                    + "&interceptorClasses=org.apache.camel.component.kafka.MockConsumerInterceptor")
-    private Endpoint from;
-
-    @EndpointInject("mock:resulti")
-    private MockEndpoint to;
-
-    private int size = 200;
 
     @BeforeEach
     public void before() {
-        kafkaIdempotentRepository.clear();
         kafkaAdminClient.deleteTopics(Arrays.asList(TOPIC, "TEST_IDEMPOTENT")).all();
         doSend(size, TOPIC);
     }
@@ -64,12 +50,17 @@ public class KafkaConsumerIdempotentWithProcessorIT extends KafkaConsumerIdempot
 
     @Override
     protected RouteBuilder createRouteBuilder() {
-
         return new RouteBuilder() {
 
             @Override
             public void configure() {
-                from(from).routeId("idemp-with-prop")
+                from("kafka:" + TOPIC
+                     + "?groupId=KafkaConsumerIdempotentWithProcessorIT&autoOffsetReset=earliest"
+                     + "&keyDeserializer=org.apache.kafka.common.serialization.StringDeserializer"
+                     + "&valueDeserializer=org.apache.kafka.common.serialization.StringDeserializer"
+                     + "&autoCommitIntervalMs=1000&pollTimeoutMs=1000&autoCommitEnable=true"
+                     + "&interceptorClasses=org.apache.camel.component.kafka.MockConsumerInterceptor")
+                        .routeId("idemp-with-prop")
                         .process(exchange -> {
                             byte[] id = exchange.getIn().getHeader("id", byte[].class);
 
@@ -79,13 +70,15 @@ public class KafkaConsumerIdempotentWithProcessorIT extends KafkaConsumerIdempot
                         })
                         .idempotentConsumer(header("id"))
                         .idempotentRepository("kafkaIdempotentRepository")
-                        .to(to);
+                        .to(KafkaTestUtil.MOCK_RESULT);
             }
         };
     }
 
     @Test
-    public void kafkaMessageIsConsumedByCamel() throws InterruptedException {
+    void kafkaMessageIsConsumedByCamel() {
+        MockEndpoint to = contextExtension.getMockEndpoint(KafkaTestUtil.MOCK_RESULT);
+
         doRun(to, size);
     }
 }

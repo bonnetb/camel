@@ -23,6 +23,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 
 public class QuartzTwoCamelContextSameNameClashTest {
@@ -33,10 +34,10 @@ public class QuartzTwoCamelContextSameNameClashTest {
     @BeforeEach
     public void setUp() throws Exception {
         camel1 = new DefaultCamelContext();
-        camel1.setName("myCamel");
+        camel1.getCamelContextExtension().setName("myCamel");
         camel1.addRoutes(new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("quartz://myGroup/myTimerName?cron=0/1+*+*+*+*+?")
                         .log("Fired one")
                         .to("mock:one");
@@ -45,10 +46,10 @@ public class QuartzTwoCamelContextSameNameClashTest {
         camel1.start();
 
         camel2 = new DefaultCamelContext();
-        camel2.setName("myCamel");
+        camel2.getCamelContextExtension().setName("myCamel");
         camel2.addRoutes(new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("quartz://myOtherGroup/myOtherTimerName?cron=0/1+*+*+*+*+?")
                         .log("Fired two")
                         .to("mock:two");
@@ -58,7 +59,7 @@ public class QuartzTwoCamelContextSameNameClashTest {
     }
 
     @AfterEach
-    public void tearDown() throws Exception {
+    public void tearDown() {
         camel1.stop();
         camel2.stop();
     }
@@ -74,11 +75,11 @@ public class QuartzTwoCamelContextSameNameClashTest {
         mock2.expectedMinimumMessageCount(6);
         mock1.assertIsSatisfied();
 
-        camel1.stop();
+        assertDoesNotThrow(() -> camel1.stop());
 
         mock2.assertIsSatisfied();
 
-        camel2.stop();
+        assertDoesNotThrow(() -> camel2.stop());
     }
 
 }

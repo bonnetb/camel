@@ -19,7 +19,6 @@ package org.apache.camel.component.aws.xray;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.apache.camel.component.aws.xray.TestDataBuilder.TestSegment;
 import org.apache.camel.component.aws.xray.TestDataBuilder.TestSubsegment;
@@ -42,16 +41,15 @@ public final class TestUtils {
         assertThat("Incorrect number of traces",
                 receivedData.size(), is(equalTo(testData.size())));
         int i = 0;
-        for (String key : receivedData.keySet()) {
-            TestTrace trace = receivedData.get(key);
+        for (TestTrace trace : receivedData.values()) {
             verifyTraces(testData.get(i++), trace);
         }
     }
 
     private static void verifyTraces(TestTrace expected, TestTrace actual) {
         assertThat("Incorrect number of segment for trace. Expected traces: "
-                   + expected.getSegments().stream().map(s -> s.name).collect(Collectors.toList())
-                   + " but found " + actual.getSegments().stream().map(s -> s.name).collect(Collectors.toList()),
+                   + expected.getSegments().stream().map(s -> s.name).toList()
+                   + " but found " + actual.getSegments().stream().map(s -> s.name).toList(),
                 actual.getSegments().size(), is(equalTo(expected.getSegments().size())));
         List<TestSegment> expectedSegments = new ArrayList<>(expected.getSegments());
         List<TestSegment> actualSegments = new ArrayList<>(actual.getSegments());
@@ -149,10 +147,11 @@ public final class TestUtils {
 
     private static void verifyAnnotations(Map<String, Object> expected, Map<String, Object> actual) {
         assertThat(actual.size(), is(equalTo(expected.size())));
-        for (String key : expected.keySet()) {
+        for (Map.Entry<String, Object> entry : expected.entrySet()) {
+            String key = entry.getKey();
             assertTrue(actual.containsKey(key), "Annotation " + key + " is missing");
             assertThat("Annotation value of " + key + " is different",
-                    actual.get(key), is(equalTo(expected.get(key))));
+                    actual.get(key), is(equalTo(entry.getValue())));
         }
     }
 
@@ -162,14 +161,15 @@ public final class TestUtils {
 
         assertThat("Insufficient number of metadata found",
                 actual.size(), is(greaterThanOrEqualTo(expected.size())));
-        for (String namespace : expected.keySet()) {
+        for (Map.Entry<String, Map<String, Object>> entry : expected.entrySet()) {
+            String namespace = entry.getKey();
             assertTrue(actual.containsKey(namespace),
                     "Namespace " + namespace + " not found in metadata");
-            for (String key : expected.get(namespace).keySet()) {
+            for (String key : entry.getValue().keySet()) {
                 assertTrue(actual.get(namespace).containsKey(key),
                         "Key " + key + " of namespace + " + namespace + " not found");
                 assertThat("Incorrect value of key " + key + " in namespace " + namespace,
-                        actual.get(namespace).get(key), is(equalTo(expected.get(namespace).get(key))));
+                        actual.get(namespace).get(key), is(equalTo(entry.getValue().get(key))));
             }
         }
     }

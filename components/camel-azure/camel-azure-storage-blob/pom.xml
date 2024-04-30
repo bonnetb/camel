@@ -23,7 +23,7 @@
     <parent>
         <groupId>org.apache.camel</groupId>
         <artifactId>camel-azure-parent</artifactId>
-        <version>3.17.0-SNAPSHOT</version>
+        <version>4.6.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>camel-azure-storage-blob</artifactId>
@@ -33,6 +33,9 @@
     <description>Camel Azure Blob Storage Service Component</description>
 
     <properties>
+        <!-- Azurite is not available on these platforms -->
+        <skipITs.ppc64le>true</skipITs.ppc64le>
+        <skipITs.s390x>true</skipITs.s390x>
     </properties>
 
     <dependencies>
@@ -45,39 +48,46 @@
         <dependency>
             <groupId>com.azure</groupId>
             <artifactId>azure-storage-blob</artifactId>
-            <version>${azure-storage-blob-version}</version>
         </dependency>
         <dependency>
             <groupId>com.azure</groupId>
             <artifactId>azure-storage-blob-changefeed</artifactId>
-            <version>${azure-storage-blob-changedfeed-version}</version>
+            <version>${azure-storage-blob-changefeed-version}</version>
         </dependency>
-
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-identity</artifactId>
+        </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>${azure-jackson2-version}</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>
-            <version>${azure-jackson2-version}</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
-            <version>${azure-jackson2-version}</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.dataformat</groupId>
             <artifactId>jackson-dataformat-xml</artifactId>
-            <version>${azure-jackson2-version}</version>
         </dependency>
 
         <!-- extras -->
         <dependency>
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
+            <version>${commons-io-version}</version>
+        </dependency>
+
+        <!-- optional CloudEvent support -->
+        <dependency>
+            <groupId>org.apache.camel</groupId>
+            <artifactId>camel-cloudevents</artifactId>
+            <scope>provided</scope>
+            <optional>true</optional>
         </dependency>
 
         <!-- for testing -->
@@ -87,24 +97,20 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-slf4j-impl</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-junit-jupiter</artifactId>
+            <version>${mockito-version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
-            <version>${commons-lang3-version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.awaitility</groupId>
             <artifactId>awaitility</artifactId>
+            <version>${awaitility-version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>

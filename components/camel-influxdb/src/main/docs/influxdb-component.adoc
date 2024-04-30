@@ -2,9 +2,10 @@
 :doctitle: InfluxDB
 :shortname: influxdb
 :artifactid: camel-influxdb
-:description: Interact with InfluxDB, a time series database.
+:description: Interact with InfluxDB v1, a time series database.
 :since: 2.18
 :supportlevel: Stable
+:tabs-sync-option:
 :component-header: Only producer is supported
 //Manually maintained attributes
 :camel-spring-boot-name: influxdb
@@ -13,13 +14,17 @@
 
 *{component-header}*
 
-This component allows you to interact with InfluxDB
-https://influxdata.com/time-series-platform/influxdb/ a time series database. The native body type for this component is
-Point (the native influxdb class), but it can also accept Map<String, Object> as message body and it will get converted
-to Point.class, please note that the map must contain an element with InfluxDbConstants.MEASUREMENT_NAME as key.
+This component allows you to interact with https://influxdata.com/time-series-platform/influxdb/[InfluxDB] v1,
+a time series database.
 
-Additionally of course you may register your own Converters to your data type to Point, or use the
-(un)marshalling tools provided by camel.
+The native body type for this component is `Point` (the native influxdb class).
+However, it can also accept `Map<String, Object>` as message body, and it will get converted to `Point.class`, please note that the map must contain an element with `InfluxDbConstants.MEASUREMENT_NAME` as key.
+
+Additionally, you may register your own Converters to your data type to `Point`, or use the
+(un)marshalling tools provided by Camel.
+
+[NOTE]
+For InfluxDB v2 check the xref:influxdb2-component.adoc[InfluxDB2 component].
 
 Maven users will need to add the following dependency to their `pom.xml`
 for this component:
@@ -40,7 +45,7 @@ for this component:
 influxdb://beanName?[options]
 -------------------------------
 
-The producer allows sending messages to a influxdb configured in the registry, using the native java driver.
+The producer allows sending messages to an InfluxDB configured in the registry, using the native java driver.
 
 // component-configure options: START
 
@@ -65,17 +70,17 @@ Below is an example route that stores a point into the db (taking the db name fr
 specific key:
 
 [source,java]
-------------------------------------------------------------------------------------
+----
 from("direct:start")
         .setHeader(InfluxDbConstants.DBNAME_HEADER, constant("myTimeSeriesDB"))
         .to("influxdb://connectionBean);
-------------------------------------------------------------------------------------
+----
 
 [source,java]
-------------------------------------------------------------------------------------
+----
 from("direct:start")
         .to("influxdb://connectionBean?databaseName=myTimeSeriesDB");
-------------------------------------------------------------------------------------
+----
 
 
 

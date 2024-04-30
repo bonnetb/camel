@@ -61,11 +61,11 @@ public class BoxSearchManagerIT extends AbstractBoxITSupport {
         final java.util.Collection result = requestBodyAndHeaders("direct://SEARCHFOLDER", null, headers);
 
         assertNotNull(result, "searchFolder result");
-        LOG.debug("searchFolder: " + result);
+        LOG.debug("searchFolder: {}", result);
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             public void configure() {
                 // test route for searchFolder

@@ -17,27 +17,27 @@
 package org.apache.camel.component.properties;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.CamelContextAware;
-import org.apache.camel.ExtendedCamelContext;
+import org.apache.camel.PropertiesLookupListener;
 import org.apache.camel.StaticService;
 import org.apache.camel.api.management.ManagedAttribute;
 import org.apache.camel.api.management.ManagedOperation;
 import org.apache.camel.api.management.ManagedResource;
+import org.apache.camel.spi.Configurer;
 import org.apache.camel.spi.FactoryFinder;
 import org.apache.camel.spi.LoadablePropertiesSource;
 import org.apache.camel.spi.PropertiesFunction;
 import org.apache.camel.spi.PropertiesSource;
+import org.apache.camel.spi.PropertiesSourceFactory;
 import org.apache.camel.spi.annotations.JdkService;
 import org.apache.camel.support.OrderedComparator;
 import org.apache.camel.support.PatternHelper;
@@ -55,6 +55,7 @@ import org.slf4j.LoggerFactory;
  */
 @ManagedResource(description = "Managed PropertiesComponent")
 @JdkService(org.apache.camel.spi.PropertiesComponent.FACTORY)
+@Configurer(bootstrap = true)
 public class PropertiesComponent extends ServiceSupport
         implements org.apache.camel.spi.PropertiesComponent, StaticService, CamelContextAware {
 
@@ -104,13 +105,17 @@ public class PropertiesComponent extends ServiceSupport
     private static final String NEGATE_PREFIX = PREFIX_TOKEN + "!";
 
     private CamelContext camelContext;
-    private final PropertiesFunctionResolver functionResolver = new PropertiesFunctionResolver();
+    private PropertiesFunctionResolver propertiesFunctionResolver = new DefaultPropertiesFunctionResolver();
     private PropertiesParser propertiesParser = new DefaultPropertiesParser(this);
     private final PropertiesLookup propertiesLookup = new DefaultPropertiesLookup(this);
+    private final List<PropertiesLookupListener> propertiesLookupListeners = new ArrayList<>();
+    private final PropertiesSourceFactory propertiesSourceFactory = new DefaultPropertiesSourceFactory(this);
     private final List<PropertiesSource> sources = new ArrayList<>();
     private List<PropertiesLocation> locations = new ArrayList<>();
     private String location;
     private boolean ignoreMissingLocation;
+    private boolean ignoreMissingProperty;
+    private boolean nestedPlaceholder = true;
     private String encoding;
     private boolean defaultFallbackEnabled = true;
     private Properties initialProperties;
@@ -169,7 +174,11 @@ public class PropertiesComponent extends ServiceSupport
     @Override
     public Optional<String> resolveProperty(String key) {
         try {
-            String value = parseUri(key, propertiesLookup, false);
+            boolean keep = isIgnoreMissingProperty();
+            String value = parseUri(key, propertiesLookup, keep);
+            if (value == null) {
+                return Optional.empty();
+            }
             return Optional.of(value);
         } catch (IllegalArgumentException e) {
             // property not found
@@ -224,48 +233,7 @@ public class PropertiesComponent extends ServiceSupport
 
     @Override
     public Properties loadProperties(Predicate<String> filter) {
-        OrderedLocationProperties prop = new OrderedLocationProperties();
-
-        // use initial properties
-        if (initialProperties != null) {
-            for (String name : initialProperties.stringPropertyNames()) {
-                if (filter.test(name)) {
-                    prop.put("initial", name, initialProperties.get(name));
-                }
-            }
-        }
-
-        if (!sources.isEmpty()) {
-            // sources are ordered according to {@link org.apache.camel.support.OrderComparator} so
-            // it is needed to iterate them in reverse order otherwise lower priority sources may
-            // override properties from higher priority ones
-            for (int i = sources.size(); i-- > 0;) {
-                PropertiesSource ps = sources.get(i);
-                if (ps instanceof LoadablePropertiesSource) {
-                    LoadablePropertiesSource lps = (LoadablePropertiesSource) ps;
-                    Properties p = lps.loadProperties(filter);
-                    if (p instanceof OrderedLocationProperties) {
-                        prop.putAll((OrderedLocationProperties) p);
-                    } else if (ps instanceof LocationPropertiesSource) {
-                        String loc = ((LocationPropertiesSource) ps).getLocation().getPath();
-                        prop.putAll(loc, p);
-                    } else {
-                        prop.putAll(lps.getName(), p);
-                    }
-                }
-            }
-        }
-
-        // use override properties
-        if (overrideProperties != null) {
-            for (String name : overrideProperties.stringPropertyNames()) {
-                if (filter.test(name)) {
-                    prop.put("override", name, overrideProperties.get(name));
-                }
-            }
-        }
-
-        return prop;
+        return loadProperties(filter, k -> k);
     }
 
     @Override
@@ -348,7 +316,8 @@ public class PropertiesComponent extends ServiceSupport
             key = PREFIX_TOKEN + key.substring(NEGATE_PREFIX.length());
         }
 
-        String answer = propertiesParser.parseUri(key, properties, defaultFallbackEnabled, keepUnresolvedOptional);
+        String answer
+                = propertiesParser.parseUri(key, properties, defaultFallbackEnabled, keepUnresolvedOptional, nestedPlaceholder);
         if (negate) {
             if ("true".equalsIgnoreCase(answer)) {
                 answer = "false";
@@ -356,17 +325,20 @@ public class PropertiesComponent extends ServiceSupport
                 answer = "true";
             }
         }
+        if (answer != null) {
+            // Remove the escape characters if any
+            answer = unescape(answer);
+        }
         LOG.trace("Parsed uri {} -> {}", uri, answer);
         return answer;
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public List<String> getLocations() {
         if (locations.isEmpty()) {
-            return Collections.EMPTY_LIST;
+            return Collections.emptyList();
         } else {
-            return locations.stream().map(PropertiesLocation::toString).collect(Collectors.toList());
+            return locations.stream().map(PropertiesLocation::toString).toList();
         }
     }
 
@@ -381,8 +353,10 @@ public class PropertiesComponent extends ServiceSupport
 
         // we need to re-create the property sources which may have already been created from locations
         this.sources.removeIf(s -> s instanceof LocationPropertiesSource);
+        // ensure the locations are in the same order as here, and therefore we provide the order number
+        int order = 100;
         for (PropertiesLocation loc : locations) {
-            addPropertiesLocationsAsPropertiesSource(loc);
+            addPropertiesLocationsAsPropertiesSource(loc, order++);
         }
     }
 
@@ -391,29 +365,19 @@ public class PropertiesComponent extends ServiceSupport
      * locations from this option.
      */
     public void setLocations(String[] locationStrings) {
-        List<PropertiesLocation> locations = new ArrayList<>();
+        List<PropertiesLocation> propertiesLocations = new ArrayList<>();
         if (locationStrings != null) {
             for (String locationString : locationStrings) {
-                locations.add(new PropertiesLocation(locationString));
+                propertiesLocations.add(new PropertiesLocation(locationString));
             }
         }
 
-        setLocations(locations);
+        setLocations(propertiesLocations);
     }
 
-    /**
-     * A list of locations to load properties. This option will override any default locations and only use the
-     * locations from this option.
-     */
-    public void setLocations(Collection<String> locationStrings) {
-        List<PropertiesLocation> locations = new ArrayList<>();
-        if (locationStrings != null) {
-            for (String locationString : locationStrings) {
-                locations.add(new PropertiesLocation(locationString));
-            }
-        }
-
-        setLocations(locations);
+    @Override
+    public PropertiesSourceFactory getPropertiesSourceFactory() {
+        return propertiesSourceFactory;
     }
 
     public void addLocation(PropertiesLocation location) {
@@ -478,6 +442,17 @@ public class PropertiesComponent extends ServiceSupport
         this.propertiesParser = propertiesParser;
     }
 
+    public PropertiesFunctionResolver getPropertiesFunctionResolver() {
+        return propertiesFunctionResolver;
+    }
+
+    /**
+     * To use a custom PropertiesFunctionResolver
+     */
+    public void setPropertiesFunctionResolver(PropertiesFunctionResolver propertiesFunctionResolver) {
+        this.propertiesFunctionResolver = propertiesFunctionResolver;
+    }
+
     @ManagedAttribute(description = "Whether to support using fallback values if a property cannot be found")
     public boolean isDefaultFallbackEnabled() {
         return defaultFallbackEnabled;
@@ -495,12 +470,28 @@ public class PropertiesComponent extends ServiceSupport
         return ignoreMissingLocation;
     }
 
-    /**
-     * Whether to silently ignore if a location cannot be located, such as a properties file not found.
-     */
     @Override
     public void setIgnoreMissingLocation(boolean ignoreMissingLocation) {
         this.ignoreMissingLocation = ignoreMissingLocation;
+    }
+
+    @ManagedAttribute(description = "Ignore missing location")
+    public boolean isIgnoreMissingProperty() {
+        return ignoreMissingProperty;
+    }
+
+    public void setIgnoreMissingProperty(boolean ignoreMissingProperty) {
+        this.ignoreMissingProperty = ignoreMissingProperty;
+    }
+
+    @ManagedAttribute(description = "Nested placeholder")
+    public boolean isNestedPlaceholder() {
+        return nestedPlaceholder;
+    }
+
+    @Override
+    public void setNestedPlaceholder(boolean nestedPlaceholder) {
+        this.nestedPlaceholder = nestedPlaceholder;
     }
 
     /**
@@ -514,9 +505,6 @@ public class PropertiesComponent extends ServiceSupport
         return initialProperties;
     }
 
-    /**
-     * Sets initial properties which will be used before any locations are resolved.
-     */
     @Override
     public void setInitialProperties(Properties initialProperties) {
         this.initialProperties = initialProperties;
@@ -541,9 +529,6 @@ public class PropertiesComponent extends ServiceSupport
         return overrideProperties;
     }
 
-    /**
-     * Sets a special list of override properties that take precedence and will use first, if a property exists.
-     */
     @Override
     public void setOverrideProperties(Properties overrideProperties) {
         this.overrideProperties = overrideProperties;
@@ -558,10 +543,6 @@ public class PropertiesComponent extends ServiceSupport
 
     }
 
-    /**
-     * Sets a special list of local properties (ie thread local) that take precedence and will use first, if a property
-     * exists.
-     */
     @Override
     public void setLocalProperties(Properties localProperties) {
         if (localProperties != null) {
@@ -581,39 +562,22 @@ public class PropertiesComponent extends ServiceSupport
         return localPropertiesEnabled ? localProperties.get() : null;
     }
 
-    /**
-     * Gets the functions registered in this properties component.
-     */
-    @Deprecated
-    public Map<String, PropertiesFunction> getFunctions() {
-        return functionResolver.getFunctions();
-    }
-
-    /**
-     * Gets the function by the given name
-     *
-     * @param  name the function name
-     * @return      the function or null if no function exists
-     */
+    @Override
     public PropertiesFunction getPropertiesFunction(String name) {
         if (name == null) {
             return null;
         }
-        return functionResolver.resolvePropertiesFunction(name);
+        return propertiesFunctionResolver.resolvePropertiesFunction(name);
     }
 
-    /**
-     * Registers the {@link PropertiesFunction} as a function to this component.
-     */
+    @Override
     public void addPropertiesFunction(PropertiesFunction function) {
-        functionResolver.addPropertiesFunction(function);
+        propertiesFunctionResolver.addPropertiesFunction(function);
     }
 
-    /**
-     * Is there a {@link PropertiesFunction} with the given name?
-     */
-    public boolean hasFunction(String name) {
-        return functionResolver.hasFunction(name);
+    @Override
+    public boolean hasPropertiesFunction(String name) {
+        return propertiesFunctionResolver.hasFunction(name);
     }
 
     @ManagedAttribute(description = "System properties mode")
@@ -694,8 +658,27 @@ public class PropertiesComponent extends ServiceSupport
         return null;
     }
 
-    public List<PropertiesSource> getSources() {
+    @Override
+    public List<PropertiesSource> getPropertiesSources() {
         return sources;
+    }
+
+    public void addPropertiesLookupListener(PropertiesLookupListener propertiesLookupListener) {
+        propertiesLookupListeners.add(propertiesLookupListener);
+    }
+
+    /**
+     * Remove {@link PropertiesLookupListener}
+     */
+    public void removePropertiesLookupListener(PropertiesLookupListener propertiesLookupListener) {
+        propertiesLookupListeners.remove(propertiesLookupListener);
+    }
+
+    /**
+     * Gets the {@link PropertiesLookupListener}
+     */
+    public List<PropertiesLookupListener> getPropertiesLookupListeners() {
+        return propertiesLookupListeners;
     }
 
     @ManagedOperation(description = "Reload properties from the given location patterns")
@@ -725,11 +708,23 @@ public class PropertiesComponent extends ServiceSupport
     }
 
     @Override
+    public void keepOnlyChangeProperties(Properties properties) {
+        Properties loaded = loadProperties();
+        for (String key : loaded.stringPropertyNames()) {
+            Object v1 = loaded.getProperty(key);
+            Object v2 = properties.getProperty(key);
+            if (Objects.equals(v1, v2)) {
+                properties.remove(key);
+            }
+        }
+    }
+
+    @Override
     protected void doInit() throws Exception {
         super.doInit();
 
         ObjectHelper.notNull(camelContext, "CamelContext", this);
-        CamelContextAware.trySetCamelContext(functionResolver, camelContext);
+        CamelContextAware.trySetCamelContext(propertiesFunctionResolver, camelContext);
 
         if (systemPropertiesMode != SYSTEM_PROPERTIES_MODE_NEVER
                 && systemPropertiesMode != SYSTEM_PROPERTIES_MODE_FALLBACK
@@ -752,10 +747,10 @@ public class PropertiesComponent extends ServiceSupport
             try {
                 for (PropertiesSource source : getCamelContext().getRegistry().findByType(PropertiesSource.class)) {
                     addPropertiesSource(source);
-                    LOG.info("PropertiesComponent added custom PropertiesSource (registry): {}", source);
+                    LOG.debug("PropertiesComponent added custom PropertiesSource (registry): {}", source);
                 }
 
-                FactoryFinder factoryFinder = getCamelContext().adapt(ExtendedCamelContext.class)
+                FactoryFinder factoryFinder = getCamelContext().getCamelContextExtension()
                         .getBootstrapFactoryFinder();
                 Class<?> type = factoryFinder.findClass("properties-source-factory").orElse(null);
                 if (type != null) {
@@ -763,7 +758,7 @@ public class PropertiesComponent extends ServiceSupport
                     if (obj instanceof PropertiesSource) {
                         PropertiesSource ps = (PropertiesSource) obj;
                         addPropertiesSource(ps);
-                        LOG.info("PropertiesComponent added custom PropertiesSource (factory): {}", ps);
+                        LOG.debug("PropertiesComponent added custom PropertiesSource (factory): {}", ps);
                     } else if (obj != null) {
                         LOG.warn(
                                 "PropertiesComponent cannot add custom PropertiesSource as the type is not a {} but: {}",
@@ -777,59 +772,59 @@ public class PropertiesComponent extends ServiceSupport
         }
 
         sources.sort(OrderedComparator.get());
-        ServiceHelper.initService(sources, functionResolver);
+        ServiceHelper.initService(sources, propertiesFunctionResolver);
     }
 
     @Override
     protected void doBuild() throws Exception {
-        ServiceHelper.buildService(sources, functionResolver);
+        ServiceHelper.buildService(sources, propertiesFunctionResolver);
     }
 
     @Override
     protected void doStart() throws Exception {
-        ServiceHelper.startService(sources, functionResolver);
+        ServiceHelper.startService(sources, propertiesFunctionResolver);
     }
 
     @Override
     protected void doStop() throws Exception {
-        ServiceHelper.stopService(sources, functionResolver);
+        ServiceHelper.stopService(sources, propertiesFunctionResolver);
     }
 
     @Override
     protected void doShutdown() throws Exception {
-        ServiceHelper.stopAndShutdownServices(sources, functionResolver);
+        ServiceHelper.stopAndShutdownServices(sources, propertiesFunctionResolver);
     }
 
-    private void addPropertiesLocationsAsPropertiesSource(PropertiesLocation location) {
+    private void addPropertiesLocationsAsPropertiesSource(PropertiesLocation location, int order) {
         if ("ref".equals(location.getResolver())) {
-            addPropertiesSource(new RefPropertiesSource(this, location));
+            addPropertiesSource(new RefPropertiesSource(this, location, order));
         } else if ("file".equals(location.getResolver())) {
-            addPropertiesSource(new FilePropertiesSource(this, location));
+            addPropertiesSource(new FilePropertiesSource(this, location, order));
         } else if ("classpath".equals(location.getResolver())) {
-            addPropertiesSource(new ClasspathPropertiesSource(this, location));
+            addPropertiesSource(new ClasspathPropertiesSource(this, location, order));
         }
     }
 
     private List<PropertiesLocation> parseLocations(List<PropertiesLocation> locations) {
         List<PropertiesLocation> answer = new ArrayList<>();
 
-        for (PropertiesLocation location : locations) {
-            LOG.trace("Parsing location: {}", location);
+        for (PropertiesLocation propertiesLocation : locations) {
+            LOG.trace("Parsing location: {}", propertiesLocation);
 
             try {
-                String path = FilePathResolver.resolvePath(location.getPath());
+                String path = FilePathResolver.resolvePath(propertiesLocation.getPath());
                 LOG.debug("Parsed location: {}", path);
                 if (ObjectHelper.isNotEmpty(path)) {
                     answer.add(new PropertiesLocation(
-                            location.getResolver(),
+                            propertiesLocation.getResolver(),
                             path,
-                            location.isOptional()));
+                            propertiesLocation.isOptional()));
                 }
             } catch (IllegalArgumentException e) {
-                if (!ignoreMissingLocation && !location.isOptional()) {
+                if (!ignoreMissingLocation && !propertiesLocation.isOptional()) {
                     throw e;
                 } else {
-                    LOG.debug("Ignored missing location: {}", location);
+                    LOG.debug("Ignored missing location: {}", propertiesLocation);
                 }
             }
         }
@@ -838,4 +833,38 @@ public class PropertiesComponent extends ServiceSupport
         return answer;
     }
 
+    /**
+     * Replaces all the double curly braces that have been escaped by double curly braces.
+     *
+     * @param  input the content to unescape
+     * @return       the provided content with all the escaped double curly braces restored.
+     */
+    private static String unescape(String input) {
+        int index = input.indexOf('\\');
+        if (index == -1) {
+            return input;
+        }
+        int length = input.length();
+        StringBuilder result = new StringBuilder(length);
+        int start = 0;
+        do {
+            result.append(input, start, index);
+            start = index + 1;
+            if (index + 2 < length) {
+                char next = input.charAt(index + 1);
+                char afterNext = input.charAt(index + 2);
+                if (next == '{' && afterNext == '{' || next == '}' && afterNext == '}') {
+                    // Escaped double curly braces detected, so let's keep the escape character
+                    continue;
+                }
+                result.append('\\');
+            } else {
+                break;
+            }
+        } while ((index = input.indexOf('\\', start)) != -1);
+        if (start < length) {
+            result.append(input, start, length);
+        }
+        return result.toString();
+    }
 }

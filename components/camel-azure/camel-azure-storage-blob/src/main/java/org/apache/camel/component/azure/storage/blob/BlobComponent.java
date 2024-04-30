@@ -25,13 +25,15 @@ import org.apache.camel.CamelContext;
 import org.apache.camel.Endpoint;
 import org.apache.camel.spi.Metadata;
 import org.apache.camel.spi.annotations.Component;
-import org.apache.camel.support.DefaultComponent;
+import org.apache.camel.support.HealthCheckComponent;
+
+import static org.apache.camel.component.azure.storage.blob.CredentialType.*;
 
 /**
  * Azure Blob Storage component using azure java sdk v12.x
  */
 @Component("azure-storage-blob")
-public class BlobComponent extends DefaultComponent {
+public class BlobComponent extends HealthCheckComponent {
     @Metadata
     private BlobConfiguration configuration = new BlobConfiguration();
 
@@ -45,13 +47,11 @@ public class BlobComponent extends DefaultComponent {
     @Override
     protected Endpoint createEndpoint(String uri, String remaining, Map<String, Object> parameters) throws Exception {
 
-        if (remaining == null || remaining.trim().length() == 0) {
+        if (remaining == null || remaining.isBlank()) {
             throw new IllegalArgumentException("At least the account name must be specified.");
         }
 
-        final BlobConfiguration config = this.configuration != null
-                ? this.configuration.copy()
-                : new BlobConfiguration();
+        final BlobConfiguration config = this.configuration != null ? this.configuration.copy() : new BlobConfiguration();
 
         final String[] parts = remaining.split("/");
 
@@ -66,7 +66,7 @@ public class BlobComponent extends DefaultComponent {
         final BlobEndpoint endpoint = new BlobEndpoint(uri, this, config);
         setProperties(endpoint, parameters);
 
-        checkCredentials(config);
+        initCredentialConfig(config);
         validateConfigurations(config);
 
         return endpoint;
@@ -83,24 +83,32 @@ public class BlobComponent extends DefaultComponent {
         this.configuration = configuration;
     }
 
-    private void checkCredentials(final BlobConfiguration configuration) {
+    private void initCredentialConfig(final BlobConfiguration configuration) {
         final BlobServiceClient client = configuration.getServiceClient();
 
-        // if no azureBlobClient is provided fallback to credentials
         if (client == null) {
-            Set<StorageSharedKeyCredential> storageSharedKeyCredentials
-                    = getCamelContext().getRegistry().findByType(StorageSharedKeyCredential.class);
-            if (storageSharedKeyCredentials.size() == 1) {
-                configuration.setCredentials(storageSharedKeyCredentials.stream().findFirst().get());
+            //default to AZURE_AD
+            if (configuration.getCredentialType() == null) {
+                configuration.setCredentialType(AZURE_IDENTITY);
+            } else if (SHARED_KEY_CREDENTIAL.equals(configuration.getCredentialType())) {
+                Set<StorageSharedKeyCredential> storageSharedKeyCredentials
+                        = getCamelContext().getRegistry().findByType(StorageSharedKeyCredential.class);
+                storageSharedKeyCredentials.stream().findFirst().ifPresent(configuration::setCredentials);
+            } else if (AZURE_SAS.equals(configuration.getCredentialType())) {
+                configuration.setCredentialType(AZURE_SAS);
             }
         }
     }
 
     private void validateConfigurations(final BlobConfiguration configuration) {
-        if (configuration.getServiceClient() == null
-                && configuration.getAccessKey() == null
-                && configuration.getCredentials() == null) {
-            throw new IllegalArgumentException("Azure Storage accessKey or BlobServiceClient must be specified.");
+        if (configuration.getServiceClient() == null) {
+            if (SHARED_KEY_CREDENTIAL.equals(configuration.getCredentialType()) && configuration.getCredentials() == null) {
+                throw new IllegalArgumentException("When using shared key credential, credentials must be provided.");
+            } else if (SHARED_ACCOUNT_KEY.equals(configuration.getCredentialType()) && configuration.getAccessKey() == null) {
+                throw new IllegalArgumentException("When using shared account key, access key must be provided.");
+            } else if (AZURE_SAS.equals(configuration.getCredentialType()) && configuration.getSasToken() == null) {
+                throw new IllegalArgumentException("When using Azure SAS, SAS Token must be provided.");
+            }
         }
     }
 }

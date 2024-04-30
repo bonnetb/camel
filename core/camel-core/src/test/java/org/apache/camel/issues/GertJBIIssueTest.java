@@ -21,13 +21,14 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.camel.ContextTestSupport;
 import org.apache.camel.Exchange;
-import org.apache.camel.ExtendedExchange;
 import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.support.SynchronizationAdapter;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class GertJBIIssueTest extends ContextTestSupport {
 
@@ -42,7 +43,7 @@ public class GertJBIIssueTest extends ContextTestSupport {
     public void testSimulateJBIEndpointFail() throws Exception {
         context.addRoutes(new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 errorHandler(deadLetterChannel("mock:dlc").maximumRedeliveries(0));
 
                 from("direct:start").threads(2).to("mock:done").throwException(new IllegalArgumentException("Forced"));
@@ -65,7 +66,7 @@ public class GertJBIIssueTest extends ContextTestSupport {
 
         context.addRoutes(new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:start").threads(2).to("mock:done").throwException(new IllegalArgumentException("Forced"));
             }
         });
@@ -76,8 +77,8 @@ public class GertJBIIssueTest extends ContextTestSupport {
         final CountDownLatch latch = new CountDownLatch(1);
 
         template.send("direct:start", new Processor() {
-            public void process(Exchange exchange) throws Exception {
-                exchange.adapt(ExtendedExchange.class).addOnCompletion(new SynchronizationAdapter() {
+            public void process(Exchange exchange) {
+                exchange.getExchangeExtension().addOnCompletion(new SynchronizationAdapter() {
                     @Override
                     public void onDone(Exchange exchange) {
                         cause = exchange.getException();

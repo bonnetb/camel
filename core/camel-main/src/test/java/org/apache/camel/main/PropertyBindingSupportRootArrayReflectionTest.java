@@ -17,9 +17,9 @@
 package org.apache.camel.main;
 
 import org.apache.camel.CamelContext;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.impl.DefaultCamelContext;
 import org.apache.camel.spi.BeanIntrospection;
+import org.apache.camel.support.PluginHelper;
 import org.apache.camel.support.PropertyBindingSupport;
 import org.junit.jupiter.api.Test;
 
@@ -32,10 +32,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class PropertyBindingSupportRootArrayReflectionTest {
 
     @Test
-    public void testRootArray() throws Exception {
+    public void testRootArray() {
         CamelContext context = new DefaultCamelContext();
 
-        BeanIntrospection bi = context.adapt(ExtendedCamelContext.class).getBeanIntrospection();
+        BeanIntrospection bi = PluginHelper.getBeanIntrospection(context);
         bi.setExtendedStatistics(true);
 
         context.start();
@@ -62,10 +62,10 @@ public class PropertyBindingSupportRootArrayReflectionTest {
     }
 
     @Test
-    public void testNestedArray() throws Exception {
+    public void testNestedArray() {
         CamelContext context = new DefaultCamelContext();
 
-        BeanIntrospection bi = context.adapt(ExtendedCamelContext.class).getBeanIntrospection();
+        BeanIntrospection bi = PluginHelper.getBeanIntrospection(context);
         bi.setExtendedStatistics(true);
 
         context.start();
@@ -94,10 +94,10 @@ public class PropertyBindingSupportRootArrayReflectionTest {
     }
 
     @Test
-    public void testNestedArrayAutodetect() throws Exception {
+    public void testNestedArrayAutodetect() {
         CamelContext context = new DefaultCamelContext();
 
-        BeanIntrospection bi = context.adapt(ExtendedCamelContext.class).getBeanIntrospection();
+        BeanIntrospection bi = PluginHelper.getBeanIntrospection(context);
         bi.setExtendedStatistics(true);
 
         context.start();

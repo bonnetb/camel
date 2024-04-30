@@ -41,10 +41,11 @@ public class ForegroundTask implements BlockingTask {
 
         /**
          * Sets the name of the task
-         * 
+         *
          * @param  name the name
          * @return      an instance of this builder
          */
+        @Override
         public ForegroundTaskBuilder withName(String name) {
             this.name = name;
 
@@ -72,42 +73,12 @@ public class ForegroundTask implements BlockingTask {
     private static final Logger LOG = LoggerFactory.getLogger(ForegroundTask.class);
 
     private final String name;
-    private IterationBudget budget;
+    private final IterationBudget budget;
     private Duration elapsed = Duration.ZERO;
 
     ForegroundTask(IterationBudget budget, String name) {
         this.budget = budget;
         this.name = name;
-    }
-
-    @Override
-    public <T> boolean run(Predicate<T> predicate, T payload) {
-        boolean completed = false;
-        try {
-            if (budget.initialDelay() > 0) {
-                Thread.sleep(budget.initialDelay());
-            }
-
-            while (budget.next()) {
-                if (predicate.test(payload)) {
-                    LOG.debug("Task {} is complete after {} iterations and it is ready to continue",
-                            name, budget.iteration());
-                    completed = true;
-                    break;
-                }
-
-                if (budget.canContinue()) {
-                    Thread.sleep(budget.interval());
-                }
-            }
-        } catch (InterruptedException e) {
-            LOG.warn("Interrupted {} while waiting for the repeatable task to finish", name);
-            Thread.currentThread().interrupt();
-        } finally {
-            elapsed = budget.elapsed();
-        }
-
-        return completed;
     }
 
     @Override
@@ -144,7 +115,7 @@ public class ForegroundTask implements BlockingTask {
 
     /**
      * Run a task until it produces a result
-     * 
+     *
      * @param  supplier  the supplier of the result
      * @param  predicate a predicate to test if the result is acceptable
      * @param  <T>       the type for the result

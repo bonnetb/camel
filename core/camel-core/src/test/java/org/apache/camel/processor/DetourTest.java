@@ -61,8 +61,8 @@ public class DetourTest extends ContextTestSupport {
     }
 
     @Override
-    protected Registry createRegistry() throws Exception {
-        Registry jndi = super.createRegistry();
+    protected Registry createCamelRegistry() throws Exception {
+        Registry jndi = super.createCamelRegistry();
         controlBean = new ControlBean();
         jndi.bind("controlBean", controlBean);
         return jndi;
@@ -80,7 +80,7 @@ public class DetourTest extends ContextTestSupport {
         };
     }
 
-    public final class ControlBean {
+    public static final class ControlBean {
         private boolean detour;
 
         public void setDetour(boolean detour) {

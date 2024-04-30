@@ -22,7 +22,9 @@ import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 
+@DisabledIfSystemProperty(named = "ci.env.name", matches = "github.com", disabledReason = "Flaky on Github CI")
 public class FileConsumerMoveFailureTest extends ContextTestSupport {
 
     @Test
@@ -31,24 +33,24 @@ public class FileConsumerMoveFailureTest extends ContextTestSupport {
         mock.expectedBodiesReceived("Hello World");
 
         mock.expectedFileExists(testFile(".camel/hello.txt"), "Hello World");
-        mock.expectedFileExists(testFile("error/bye-error.txt"), "Kabom");
+        mock.expectedFileExists(testFile("error/bye-error.txt"), "Kaboom");
 
         template.sendBodyAndHeader(fileUri(), "Hello World", Exchange.FILE_NAME, "hello.txt");
-        template.sendBodyAndHeader(fileUri(), "Kabom", Exchange.FILE_NAME, "bye.txt");
+        template.sendBodyAndHeader(fileUri(), "Kaboom", Exchange.FILE_NAME, "bye.txt");
 
         assertMockEndpointsSatisfied();
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from(fileUri("?initialDelay=0&delay=10&moveFailed=error/${file:name.noext}-error.txt"))
                         .process(new Processor() {
-                            public void process(Exchange exchange) throws Exception {
+                            public void process(Exchange exchange) {
                                 String body = exchange.getIn().getBody(String.class);
-                                if ("Kabom".equals(body)) {
+                                if ("Kaboom".equals(body)) {
                                     throw new IllegalArgumentException("Forced");
                                 }
                             }

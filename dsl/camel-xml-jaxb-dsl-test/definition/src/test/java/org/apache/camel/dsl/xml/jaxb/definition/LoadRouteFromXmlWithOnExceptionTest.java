@@ -16,14 +16,12 @@
  */
 package org.apache.camel.dsl.xml.jaxb.definition;
 
-import java.io.InputStream;
-
 import org.apache.camel.ContextTestSupport;
 import org.apache.camel.Exchange;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.Processor;
-import org.apache.camel.model.RoutesDefinition;
 import org.apache.camel.spi.Registry;
+import org.apache.camel.spi.Resource;
+import org.apache.camel.support.PluginHelper;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -32,8 +30,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 public class LoadRouteFromXmlWithOnExceptionTest extends ContextTestSupport {
 
     @Override
-    protected Registry createRegistry() throws Exception {
-        Registry jndi = super.createRegistry();
+    protected Registry createCamelRegistry() throws Exception {
+        Registry jndi = super.createCamelRegistry();
         jndi.bind("myProcessor", new MyProcessor());
         return jndi;
     }
@@ -45,10 +43,10 @@ public class LoadRouteFromXmlWithOnExceptionTest extends ContextTestSupport {
 
     @Test
     public void testLoadRouteFromXmlWitOnException() throws Exception {
-        InputStream is = getClass().getResourceAsStream("barOnExceptionRoute.xml");
-        ExtendedCamelContext ecc = context.adapt(ExtendedCamelContext.class);
-        RoutesDefinition routes = (RoutesDefinition) ecc.getXMLRoutesDefinitionLoader().loadRoutesDefinition(ecc, is);
-        context.addRouteDefinitions(routes.getRoutes());
+        Resource resource
+                = PluginHelper.getResourceLoader(context)
+                        .resolveResource("org/apache/camel/dsl/xml/jaxb/definition/barOnExceptionRoute.xml");
+        PluginHelper.getRoutesLoader(context).loadRoutes(resource);
         context.start();
 
         assertNotNull(context.getRoute("bar"), "Loaded bar route should be there");
@@ -56,10 +54,10 @@ public class LoadRouteFromXmlWithOnExceptionTest extends ContextTestSupport {
 
         // test that loaded route works
         getMockEndpoint("mock:bar").expectedBodiesReceived("Bye World");
-        getMockEndpoint("mock:error").expectedBodiesReceived("Kabom");
+        getMockEndpoint("mock:error").expectedBodiesReceived("Kaboom");
 
         template.sendBody("direct:bar", "Bye World");
-        template.sendBody("direct:bar", "Kabom");
+        template.sendBody("direct:bar", "Kaboom");
 
         assertMockEndpointsSatisfied();
     }
@@ -69,7 +67,7 @@ public class LoadRouteFromXmlWithOnExceptionTest extends ContextTestSupport {
         @Override
         public void process(Exchange exchange) throws Exception {
             String body = exchange.getIn().getBody(String.class);
-            if ("Kabom".equals(body)) {
+            if ("Kaboom".equals(body)) {
                 throw new IllegalArgumentException("Damn");
             }
         }

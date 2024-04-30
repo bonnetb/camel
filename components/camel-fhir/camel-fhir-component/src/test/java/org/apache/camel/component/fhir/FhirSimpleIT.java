@@ -29,6 +29,7 @@ import org.hl7.fhir.r4.model.HumanName;
 import org.hl7.fhir.r4.model.Patient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -36,6 +37,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Test simple scenario, without custom component configuration
  */
+@DisabledIfSystemProperty(named = "ci.env.name", matches = "apache.org",
+                          disabledReason = "Apache CI nodes are too resource constrained for this test - see CAMEL-19659")
 public class FhirSimpleIT extends AbstractFhirTestSupport {
 
     private static final String PATH_PREFIX = FhirApiCollection.getCollection().getApiName(FhirCreateApiMethod.class).getName();
@@ -49,7 +52,7 @@ public class FhirSimpleIT extends AbstractFhirTestSupport {
     }
 
     @Test
-    public void testCreateResource() throws Exception {
+    public void testCreateResource() {
         Patient patient = new Patient().addName(new HumanName().addGiven(GIVEN_NAME).setFamily(FAMILY_NAME));
 
         MethodOutcome result = requestBody("direct://RESOURCE", patient);
@@ -72,7 +75,7 @@ public class FhirSimpleIT extends AbstractFhirTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             public void configure() {
                 from("direct://RESOURCE")

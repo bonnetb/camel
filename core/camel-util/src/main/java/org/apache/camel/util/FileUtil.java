@@ -43,7 +43,7 @@ public final class FileUtil {
      */
     private static final String USER_DIR_KEY = "user.dir";
     private static final File USER_DIR = new File(System.getProperty(USER_DIR_KEY));
-    private static boolean windowsOs = initWindowsOs();
+    private static final boolean IS_WINDOWS = initWindowsOs();
 
     private FileUtil() {
         // Utils method
@@ -80,7 +80,7 @@ public final class FileUtil {
      * Returns true, if the OS is windows
      */
     public static boolean isWindows() {
-        return windowsOs;
+        return IS_WINDOWS;
     }
 
     public static File createTempFile(String prefix, String suffix, File parentDir) throws IOException {
@@ -270,15 +270,14 @@ public final class FileUtil {
      * {@link java.io.File#separator}).
      */
     public static String compactPath(String path) {
-        return compactPath(path, "" + File.separatorChar);
+        return compactPath(path, String.valueOf(File.separatorChar));
     }
 
     /**
      * Compacts a path by stacking it and reducing <tt>..</tt>, and uses the given separator.
-     *
      */
     public static String compactPath(String path, char separator) {
-        return compactPath(path, "" + separator);
+        return compactPath(path, String.valueOf(separator));
     }
 
     /**
@@ -345,9 +344,7 @@ public final class FileUtil {
             sb.append(":");
         }
 
-        for (int i = 0; i < cntSlashsAtStart; i++) {
-            sb.append(separator);
-        }
+        sb.append(String.valueOf(separator).repeat(cntSlashsAtStart));
 
         // now we build back using FIFO so need to use descending
         for (Iterator<String> it = stack.descendingIterator(); it.hasNext();) {
@@ -381,13 +378,18 @@ public final class FileUtil {
     }
 
     private static void delete(File f) {
-        if (!f.delete()) {
+        try {
+            Files.delete(f.toPath());
+        } catch (IOException e) {
             try {
                 Thread.sleep(RETRY_SLEEP_MILLIS);
             } catch (InterruptedException ex) {
-                // Ignore Exception
+                LOG.info("Interrupted while trying to delete file {}", f, e);
+                Thread.currentThread().interrupt();
             }
-            if (!f.delete()) {
+            try {
+                Files.delete(f.toPath());
+            } catch (IOException ex) {
                 f.deleteOnExit();
             }
         }
@@ -422,7 +424,8 @@ public final class FileUtil {
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
-                    // ignore
+                    LOG.info("Interrupted while trying to rename file from {} to {}", from, to, e);
+                    Thread.currentThread().interrupt();
                 }
             }
             count++;
@@ -501,12 +504,17 @@ public final class FileUtil {
         while (!deleted && count < 3) {
             LOG.debug("Retrying attempt {} to delete file: {}", count, file);
 
-            deleted = file.delete();
-            if (!deleted && count > 0) {
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    // ignore
+            try {
+                Files.delete(file.toPath());
+                deleted = true;
+            } catch (IOException e) {
+                if (count > 0) {
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException ie) {
+                        LOG.info("Interrupted while trying to delete file {}", file, e);
+                        Thread.currentThread().interrupt();
+                    }
                 }
             }
             count++;

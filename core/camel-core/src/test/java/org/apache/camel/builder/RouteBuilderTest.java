@@ -19,6 +19,7 @@ package org.apache.camel.builder;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.camel.CamelContext;
@@ -26,6 +27,7 @@ import org.apache.camel.Channel;
 import org.apache.camel.DelegateProcessor;
 import org.apache.camel.Endpoint;
 import org.apache.camel.Exchange;
+import org.apache.camel.Ordered;
 import org.apache.camel.Processor;
 import org.apache.camel.Producer;
 import org.apache.camel.Route;
@@ -47,6 +49,7 @@ import org.apache.camel.support.processor.idempotent.MemoryIdempotentRepository;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class RouteBuilderTest extends TestSupport {
     protected Processor myProcessor = new MyProcessor();
@@ -87,6 +90,7 @@ public class RouteBuilderTest extends TestSupport {
             DefaultRoute consumer = assertIsInstanceOf(DefaultRoute.class, route);
             Channel channel = unwrapChannel(consumer.getProcessor());
 
+            assertNotNull(channel, "Should have a channel");
             SendProcessor sendProcessor = assertIsInstanceOf(SendProcessor.class, channel.getNextProcessor());
             assertEquals("direct://b", sendProcessor.getDestination().getEndpointUri(), "Endpoint URI");
         }
@@ -109,7 +113,7 @@ public class RouteBuilderTest extends TestSupport {
     public void testSimpleRouteWithHeaderPredicate() throws Exception {
         List<Route> routes = buildSimpleRouteWithHeaderPredicate();
 
-        log.debug("Created routes: " + routes);
+        log.debug("Created routes: {}", routes);
 
         assertEquals(1, routes.size(), "Number routes created");
         for (Route route : routes) {
@@ -119,6 +123,7 @@ public class RouteBuilderTest extends TestSupport {
             DefaultRoute consumer = assertIsInstanceOf(DefaultRoute.class, route);
             Channel channel = unwrapChannel(consumer.getProcessor());
 
+            assertNotNull(channel, "Should have a channel");
             FilterProcessor filterProcessor = assertIsInstanceOf(FilterProcessor.class, channel.getNextProcessor());
             SendProcessor sendProcessor
                     = assertIsInstanceOf(SendProcessor.class, unwrapChannel(filterProcessor).getNextProcessor());
@@ -144,7 +149,7 @@ public class RouteBuilderTest extends TestSupport {
     public void testSimpleRouteWithChoice() throws Exception {
         List<Route> routes = buildSimpleRouteWithChoice();
 
-        log.debug("Created routes: " + routes);
+        log.debug("Created routes: {}", routes);
 
         assertEquals(1, routes.size(), "Number routes created");
         for (Route route : routes) {
@@ -154,6 +159,7 @@ public class RouteBuilderTest extends TestSupport {
             DefaultRoute consumer = assertIsInstanceOf(DefaultRoute.class, route);
             Channel channel = unwrapChannel(consumer.getProcessor());
 
+            assertNotNull(channel, "Should have a channel");
             ChoiceProcessor choiceProcessor = assertIsInstanceOf(ChoiceProcessor.class, channel.getNextProcessor());
             List<FilterProcessor> filters = choiceProcessor.getFilters();
             assertEquals(2, filters.size(), "Should be two when clauses");
@@ -172,7 +178,7 @@ public class RouteBuilderTest extends TestSupport {
         // START SNIPPET: e4
         myProcessor = new Processor() {
             public void process(Exchange exchange) {
-                log.debug("Called with exchange: " + exchange);
+                log.debug("Called with exchange: {}", exchange);
             }
         };
 
@@ -215,7 +221,7 @@ public class RouteBuilderTest extends TestSupport {
     public void testCustomProcessorWithFilter() throws Exception {
         List<Route> routes = buildCustomProcessorWithFilter();
 
-        log.debug("Created routes: " + routes);
+        log.debug("Created routes: {}", routes);
 
         assertEquals(1, routes.size(), "Number routes created");
         for (Route route : routes) {
@@ -241,7 +247,7 @@ public class RouteBuilderTest extends TestSupport {
     public void testWireTap() throws Exception {
         List<Route> routes = buildWireTap();
 
-        log.debug("Created routes: " + routes);
+        log.debug("Created routes: {}", routes);
 
         assertEquals(1, routes.size(), "Number routes created");
         for (Route route : routes) {
@@ -251,6 +257,7 @@ public class RouteBuilderTest extends TestSupport {
             DefaultRoute consumer = assertIsInstanceOf(DefaultRoute.class, route);
             Channel channel = unwrapChannel(consumer.getProcessor());
 
+            assertNotNull(channel, "Should have a channel");
             MulticastProcessor multicastProcessor = assertIsInstanceOf(MulticastProcessor.class, channel.getNextProcessor());
             List<Processor> endpoints = new ArrayList<>(multicastProcessor.getProcessors());
             assertEquals(2, endpoints.size(), "Should have 2 endpoints");
@@ -281,7 +288,7 @@ public class RouteBuilderTest extends TestSupport {
 
         List<Route> routes = buildRouteWithInterceptor();
 
-        log.debug("Created routes: " + routes);
+        log.debug("Created routes: {}", routes);
 
         assertEquals(1, routes.size(), "Number routes created");
         for (Route route : routes) {
@@ -313,7 +320,7 @@ public class RouteBuilderTest extends TestSupport {
         // END SNIPPET: e7
 
         List<Route> routes = getRouteList(builder);
-        log.debug("Created routes: " + routes);
+        log.debug("Created routes: {}", routes);
 
         assertEquals(1, routes.size(), "Number routes created");
         for (Route route : routes) {
@@ -353,7 +360,7 @@ public class RouteBuilderTest extends TestSupport {
 
         List<Route> routes = buildDynamicRecipientList();
 
-        log.debug("Created routes: " + routes);
+        log.debug("Created routes: {}", routes);
 
         assertEquals(1, routes.size(), "Number routes created");
         for (Route route : routes) {
@@ -363,6 +370,7 @@ public class RouteBuilderTest extends TestSupport {
             DefaultRoute consumer = assertIsInstanceOf(DefaultRoute.class, route);
             Channel channel = unwrapChannel(consumer.getProcessor());
 
+            assertNotNull(channel, "Should have a channel");
             Pipeline line = assertIsInstanceOf(Pipeline.class, channel.getNextProcessor());
             Iterator<?> it = line.next().iterator();
 
@@ -395,7 +403,7 @@ public class RouteBuilderTest extends TestSupport {
 
         List<Route> routes = buildSplitter();
 
-        log.debug("Created routes: " + routes);
+        log.debug("Created routes: {}", routes);
 
         assertEquals(1, routes.size(), "Number routes created");
         for (Route route : routes) {
@@ -404,6 +412,8 @@ public class RouteBuilderTest extends TestSupport {
 
             DefaultRoute consumer = assertIsInstanceOf(DefaultRoute.class, route);
             Channel channel = unwrapChannel(consumer.getProcessor());
+
+            assertNotNull(channel, "Should have a channel");
             assertIsInstanceOf(Splitter.class, channel.getNextProcessor());
         }
     }
@@ -428,7 +438,7 @@ public class RouteBuilderTest extends TestSupport {
 
         List<Route> routes = buildIdempotentConsumer();
 
-        log.debug("Created routes: " + routes);
+        log.debug("Created routes: {}", routes);
 
         assertEquals(1, routes.size(), "Number routes created");
         for (Route route : routes) {
@@ -438,6 +448,7 @@ public class RouteBuilderTest extends TestSupport {
             DefaultRoute consumer = assertIsInstanceOf(DefaultRoute.class, route);
             Channel channel = unwrapChannel(consumer.getProcessor());
 
+            assertNotNull(channel, "Should have a channel");
             IdempotentConsumer idempotentConsumer = assertIsInstanceOf(IdempotentConsumer.class, channel.getNextProcessor());
             assertEquals("header(myMessageId)", idempotentConsumer.getMessageIdExpression().toString(), "messageIdExpression");
 
@@ -466,7 +477,7 @@ public class RouteBuilderTest extends TestSupport {
 
         List<Route> routes = buildThreads();
 
-        log.debug("Created routes: " + routes);
+        log.debug("Created routes: {}", routes);
 
         assertEquals(1, routes.size(), "Number routes created");
         for (Route route : routes) {
@@ -537,7 +548,7 @@ public class RouteBuilderTest extends TestSupport {
     @Test
     public void testCorrectNumberOfRoutes() throws Exception {
         RouteBuilder builder = new RouteBuilder() {
-            public void configure() throws Exception {
+            public void configure() {
                 errorHandler(deadLetterChannel("mock:error"));
 
                 from("direct:start").to("direct:in");
@@ -557,7 +568,7 @@ public class RouteBuilderTest extends TestSupport {
         AtomicInteger after = new AtomicInteger();
 
         RouteBuilder builder = new RouteBuilder() {
-            public void configure() throws Exception {
+            public void configure() {
             }
         };
 
@@ -578,5 +589,73 @@ public class RouteBuilderTest extends TestSupport {
 
         assertEquals(1, before.get());
         assertEquals(1, after.get());
+    }
+
+    @Test
+    public void testLifecycleInterceptorFromContext() throws Exception {
+        List<String> ordered = new ArrayList<>();
+
+        RouteBuilder builder = new RouteBuilder() {
+            public void configure() {
+            }
+        };
+
+        builder.addLifecycleInterceptor(new RouteBuilderLifecycleStrategy() {
+            @Override
+            public void beforeConfigure(RouteBuilder builder) {
+                ordered.add("before-1");
+            }
+
+            @Override
+            public void afterConfigure(RouteBuilder builder) {
+                ordered.add("after-1");
+            }
+
+            @Override
+            public int getOrder() {
+                return Ordered.LOWEST - 2000;
+            }
+        });
+
+        builder.addLifecycleInterceptor(new RouteBuilderLifecycleStrategy() {
+            @Override
+            public void beforeConfigure(RouteBuilder builder) {
+                ordered.add("before-2");
+            }
+
+            @Override
+            public void afterConfigure(RouteBuilder builder) {
+                ordered.add("after-2");
+            }
+
+            @Override
+            public int getOrder() {
+                return Ordered.LOWEST;
+            }
+        });
+
+        try (DefaultCamelContext context = new DefaultCamelContext()) {
+            context.getCamelContextExtension().getRegistry().bind(UUID.randomUUID().toString(),
+                    new RouteBuilderLifecycleStrategy() {
+                        @Override
+                        public void beforeConfigure(RouteBuilder builder) {
+                            ordered.add("before-3");
+                        }
+
+                        @Override
+                        public void afterConfigure(RouteBuilder builder) {
+                            ordered.add("after-3");
+                        }
+
+                        @Override
+                        public int getOrder() {
+                            return Ordered.HIGHEST;
+                        }
+                    });
+
+            context.addRoutes(builder);
+
+            assertEquals(ordered, List.of("before-3", "before-1", "before-2", "after-3", "after-1", "after-2"));
+        }
     }
 }

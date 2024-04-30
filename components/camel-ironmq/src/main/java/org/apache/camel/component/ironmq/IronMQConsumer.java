@@ -25,7 +25,6 @@ import io.iron.ironmq.Messages;
 import org.apache.camel.Endpoint;
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePropertyKey;
-import org.apache.camel.ExtendedExchange;
 import org.apache.camel.Processor;
 import org.apache.camel.spi.ScheduledPollConsumerScheduler;
 import org.apache.camel.spi.Synchronization;
@@ -80,6 +79,9 @@ public class IronMQConsumer extends ScheduledBatchPollingConsumer {
                     getEndpoint().getConfiguration().getWait());
             LOG.trace("Received {} messages", messages.getSize());
 
+            // okay we have some response from ironmq so lets mark the consumer as ready
+            forceConsumerAsReady();
+
             Queue<Exchange> exchanges = createExchanges(messages.getMessages());
             int noProcessed = processBatch(CastUtils.cast(exchanges));
             // delete all processed messages in one batch;
@@ -122,7 +124,7 @@ public class IronMQConsumer extends ScheduledBatchPollingConsumer {
             // add on completion to handle after work when the exchange is done
             // if batchDelete is not enabled
             if (!getEndpoint().getConfiguration().isBatchDelete()) {
-                exchange.adapt(ExtendedExchange.class).addOnCompletion(new Synchronization() {
+                exchange.getExchangeExtension().addOnCompletion(new Synchronization() {
                     final String reservationId
                             = ExchangeHelper.getMandatoryHeader(exchange, IronMQConstants.MESSAGE_RESERVATION_ID, String.class);
                     final String messageid
@@ -153,7 +155,7 @@ public class IronMQConsumer extends ScheduledBatchPollingConsumer {
 
     /**
      * Strategy to delete the message after being processed.
-     * 
+     *
      * @param exchange the exchange
      */
     protected void processCommit(Exchange exchange, String messageid, String reservationId) {
@@ -169,7 +171,7 @@ public class IronMQConsumer extends ScheduledBatchPollingConsumer {
 
     /**
      * Strategy when processing the exchange failed.
-     * 
+     *
      * @param exchange the exchange
      */
     protected void processRollback(Exchange exchange) {

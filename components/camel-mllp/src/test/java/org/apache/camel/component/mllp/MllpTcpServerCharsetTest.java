@@ -63,13 +63,13 @@ public class MllpTcpServerCharsetTest extends CamelTestSupport {
         DefaultCamelContext context = (DefaultCamelContext) super.createCamelContext();
 
         context.setUseMDCLogging(true);
-        context.setName(this.getClass().getSimpleName());
+        context.getCamelContextExtension().setName(this.getClass().getSimpleName());
 
         return context;
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             String routeId = "mllp-sender";
 
@@ -89,7 +89,7 @@ public class MllpTcpServerCharsetTest extends CamelTestSupport {
 
         mllpClient.sendMessageAndWaitForAcknowledgement(TEST_MESSAGE);
 
-        assertMockEndpointsSatisfied(5, TimeUnit.SECONDS);
+        MockEndpoint.assertIsSatisfied(context, 5, TimeUnit.SECONDS);
     }
 
     @Test
@@ -100,6 +100,6 @@ public class MllpTcpServerCharsetTest extends CamelTestSupport {
 
         mllpClient.sendMessageAndWaitForAcknowledgement(TEST_MESSAGE.replace("ISO_IR 100", "ISO-IR-100"));
 
-        assertMockEndpointsSatisfied(5, TimeUnit.SECONDS);
+        MockEndpoint.assertIsSatisfied(context, 5, TimeUnit.SECONDS);
     }
 }

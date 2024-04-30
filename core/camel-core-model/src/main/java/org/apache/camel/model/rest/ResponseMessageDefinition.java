@@ -19,12 +19,12 @@ package org.apache.camel.model.rest;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
 
 import org.apache.camel.spi.Metadata;
 import org.apache.camel.util.StringHelper;
@@ -71,7 +71,7 @@ public class ResponseMessageDefinition {
     }
 
     public String getResponseModel() {
-        return responseModel != null ? responseModel : "";
+        return responseModel;
     }
 
     public void setResponseModel(String responseModel) {
@@ -109,7 +109,7 @@ public class ResponseMessageDefinition {
      * The response code such as a HTTP status code
      */
     public ResponseMessageDefinition code(int code) {
-        setCode("" + code);
+        setCode(Integer.toString(code));
         return this;
     }
 

@@ -21,13 +21,17 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import javax.jms.DeliveryMode;
-import javax.jms.Destination;
-import javax.jms.JMSException;
-import javax.jms.Message;
+import jakarta.jms.DeliveryMode;
+import jakarta.jms.Destination;
+import jakarta.jms.JMSException;
+import jakarta.jms.Message;
+import jakarta.jms.Queue;
+import jakarta.jms.Topic;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.support.ExchangeHelper;
+import org.apache.camel.trait.message.MessageTrait;
+import org.apache.camel.trait.message.RedeliveryTraitPayload;
 import org.apache.camel.util.ObjectHelper;
 
 import static org.apache.camel.component.jms.JmsConfiguration.QUEUE_PREFIX;
@@ -37,7 +41,7 @@ import static org.apache.camel.component.jms.JmsConfiguration.TOPIC_PREFIX;
 import static org.apache.camel.util.StringHelper.removeStartingCharacters;
 
 /**
- * Utility class for {@link javax.jms.Message}.
+ * Utility class for {@link jakarta.jms.Message}.
  */
 public final class JmsMessageHelper {
 
@@ -108,7 +112,7 @@ public final class JmsMessageHelper {
      *
      * @param  jmsMessage   the JMS message
      * @param  name         name of the property to get
-     * @return              the property value, or <tt>null</tt> if does not exists
+     * @return              the property value, or <tt>null</tt> if does not exist
      * @throws JMSException can be thrown
      */
     public static Object getProperty(Message jmsMessage, String name) throws JMSException {
@@ -124,7 +128,7 @@ public final class JmsMessageHelper {
      *
      * @param  jmsMessage the JMS message
      * @param  name       name of the property to get
-     * @return            the property value, or <tt>null</tt> if does not exists or failure to get the value
+     * @return            the property value, or <tt>null</tt> if does not exist or failure to get the value
      */
     public static Long getSafeLongProperty(Message jmsMessage, String name) {
         try {
@@ -350,6 +354,28 @@ public final class JmsMessageHelper {
     }
 
     /**
+     * For a given message, evaluates what is the redelivery state for it and gives the appropriate {@link MessageTrait}
+     * for that redelivery state
+     *
+     * @param  message the message to evalute
+     * @return         The appropriate MessageTrait for the redelivery state (one of MessageTrait.UNDEFINED_REDELIVERY,
+     *                 MessageTrait.IS_REDELIVERY or MessageTrait.NON_REDELIVERY).
+     */
+    public static RedeliveryTraitPayload evalRedeliveryMessageTrait(Message message) {
+        final Boolean redelivered = JmsMessageHelper.getJMSRedelivered(message);
+
+        if (redelivered == null) {
+            return RedeliveryTraitPayload.UNDEFINED_REDELIVERY;
+        }
+
+        if (Boolean.TRUE.equals(redelivered)) {
+            return RedeliveryTraitPayload.IS_REDELIVERY;
+        }
+
+        return RedeliveryTraitPayload.NON_REDELIVERY;
+    }
+
+    /**
      * Gets the JMSMessageID from the message.
      *
      * @param  message the message
@@ -384,10 +410,10 @@ public final class JmsMessageHelper {
     /**
      * Sets the JMSDeliveryMode on the message.
      *
-     * @param  exchange               the exchange
-     * @param  message                the message
-     * @param  deliveryMode           the delivery mode, either as a String or integer
-     * @throws javax.jms.JMSException is thrown if error setting the delivery mode
+     * @param  exchange                 the exchange
+     * @param  message                  the message
+     * @param  deliveryMode             the delivery mode, either as a String or integer
+     * @throws jakarta.jms.JMSException is thrown if error setting the delivery mode
      */
     public static void setJMSDeliveryMode(Exchange exchange, Message message, Object deliveryMode) throws JMSException {
         Integer mode = null;
@@ -427,7 +453,7 @@ public final class JmsMessageHelper {
      * @param  message the message
      * @return         the JMSCorrelationIDAsBytes, or <tt>null</tt> if not able to get
      */
-    public static String getJMSCorrelationIDAsBytes(Message message) {
+    public static byte[] getJMSCorrelationIDAsBytes(Message message) {
         try {
             byte[] bytes = message.getJMSCorrelationIDAsBytes();
             boolean isNull = true;
@@ -435,12 +461,47 @@ public final class JmsMessageHelper {
                 for (byte b : bytes) {
                     if (b != 0) {
                         isNull = false;
+                        break;
                     }
                 }
             }
-            return isNull ? null : new String(bytes);
+            return isNull ? null : bytes;
         } catch (Exception e) {
             // ignore if JMS broker do not support this
+        }
+        return null;
+    }
+
+    /**
+     * Gets the JMSCorrelationID from the message.
+     *
+     * @param  message the message
+     * @return         the JMSCorrelationID, or <tt>null</tt> if not able to get
+     */
+    public static String getJMSCorrelationID(Message message) {
+        try {
+            return message.getJMSCorrelationID();
+        } catch (Exception e) {
+            // ignore if JMS broker do not support this
+        }
+        return null;
+    }
+
+    /**
+     * Gets the queue or topic name.
+     *
+     * @param  destination the JMS destination
+     * @return             the name, or <tt>null</tt> if not possible to get the name
+     */
+    public static String getDestinationName(Destination destination) {
+        try {
+            if (destination instanceof Queue q) {
+                return q.getQueueName();
+            } else if (destination instanceof Topic t) {
+                return t.getTopicName();
+            }
+        } catch (JMSException e) {
+            // ignore
         }
         return null;
     }

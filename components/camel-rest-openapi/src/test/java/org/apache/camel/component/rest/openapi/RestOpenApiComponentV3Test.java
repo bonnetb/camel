@@ -25,9 +25,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.Marshaller;
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.Marshaller;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
 import org.apache.camel.CamelContext;
@@ -73,7 +74,7 @@ public class RestOpenApiComponentV3Test extends CamelTestSupport {
     }
 
     @Override
-    public void setUp() throws Exception {
+    public void setUp() {
     }
 
     @BeforeEach
@@ -92,13 +93,13 @@ public class RestOpenApiComponentV3Test extends CamelTestSupport {
         doSetUp(componentName);
 
         final Pet pet = new Pet();
-        pet.name = "Jean-Luc Picard";
+        pet.setName("Jean-Luc Picard");
 
         final Pet created = template.requestBody("direct:addPet", pet, Pet.class);
 
         assertNotNull(created);
 
-        assertEquals(Integer.valueOf(14), created.id);
+        assertEquals(14, created.getId());
 
         petstore.verify(
                 postRequestedFor(urlEqualTo("/api/v3/pet")).withHeader("Accept", equalTo("application/xml, application/json"))
@@ -114,8 +115,8 @@ public class RestOpenApiComponentV3Test extends CamelTestSupport {
 
         assertNotNull(pet);
 
-        assertEquals(Integer.valueOf(14), pet.id);
-        assertEquals("Olafur Eliason Arnalds", pet.name);
+        assertEquals(14, pet.getId());
+        assertEquals("Olafur Eliason Arnalds", pet.getName());
 
         petstore.verify(getRequestedFor(urlEqualTo("/api/v3/pet/14")).withHeader("Accept",
                 equalTo("application/xml, application/json")));
@@ -130,8 +131,8 @@ public class RestOpenApiComponentV3Test extends CamelTestSupport {
 
         assertNotNull(pet);
 
-        assertEquals(Integer.valueOf(14), pet.id);
-        assertEquals("Olafur Eliason Arnalds", pet.name);
+        assertEquals(14, pet.getId());
+        assertEquals("Olafur Eliason Arnalds", pet.getName());
 
         petstore.verify(getRequestedFor(urlEqualTo("/api/v3/pet/14")).withHeader("Accept",
                 equalTo("application/xml, application/json")));
@@ -149,8 +150,8 @@ public class RestOpenApiComponentV3Test extends CamelTestSupport {
 
         assertNotNull(pet);
 
-        assertEquals(Integer.valueOf(14), pet.id);
-        assertEquals("Olafur Eliason Arnalds", pet.name);
+        assertEquals(14, pet.getId());
+        assertEquals("Olafur Eliason Arnalds", pet.getName());
 
         petstore.verify(
                 getRequestedFor(urlEqualTo("/api/v3/pet/14")).withHeader("Accept", equalTo("application/xml, application/json"))
@@ -169,8 +170,8 @@ public class RestOpenApiComponentV3Test extends CamelTestSupport {
 
         assertNotNull(pet);
 
-        assertEquals(Integer.valueOf(14), pet.id);
-        assertEquals("Olafur Eliason Arnalds", pet.name);
+        assertEquals(14, pet.getId());
+        assertEquals("Olafur Eliason Arnalds", pet.getName());
 
         petstore.verify(getRequestedFor(urlEqualTo("/api/v3/pet/14?api_key=dolphins")).withHeader("Accept",
                 equalTo("application/xml, application/json")));
@@ -200,14 +201,15 @@ public class RestOpenApiComponentV3Test extends CamelTestSupport {
         final RestOpenApiComponent component = new RestOpenApiComponent();
         component.setComponentName(componentName);
         component.setHost("http://localhost:" + petstore.port());
-        component.setSpecificationUri(RestOpenApiComponentV3Test.class.getResource("/openapi-v3.json").toURI());
+        component.setSpecificationUri(
+                Objects.requireNonNull(RestOpenApiComponentV3Test.class.getResource("/openapi-v3.json")).toString());
 
         camelContext.addComponent("petStore", component);
 
         final RestOpenApiComponent altPetStore = new RestOpenApiComponent();
         altPetStore.setComponentName(componentName);
         altPetStore.setHost("http://localhost:" + petstore.port());
-        altPetStore.setSpecificationUri(RestOpenApiComponentV3Test.class.getResource("/alt-openapi.json").toURI());
+        altPetStore.setSpecificationUri(RestOpenApiComponentV3Test.class.getResource("/alt-openapi.json").toString());
 
         camelContext.addComponent("altPetStore", altPetStore);
 
@@ -215,7 +217,7 @@ public class RestOpenApiComponentV3Test extends CamelTestSupport {
     }
 
     @Override
-    protected RoutesBuilder createRouteBuilder() throws Exception {
+    protected RoutesBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
             public void configure() throws Exception {

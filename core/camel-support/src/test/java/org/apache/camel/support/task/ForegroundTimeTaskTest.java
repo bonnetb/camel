@@ -29,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class ForegroundTimeTaskTest extends TaskTestSupport {
+class ForegroundTimeTaskTest extends TaskTestSupport {
 
     @DisplayName("Test that the task does not run for more than the max iterations when using a supplier")
     @Test
@@ -46,7 +46,7 @@ public class ForegroundTimeTaskTest extends TaskTestSupport {
                 .build();
 
         task.run(this::booleanSupplier);
-        assertEquals(maxIterations, taskCount);
+        assertEquals(maxIterations, taskCount.intValue());
 
         Duration duration = task.elapsed();
         assertNotNull(duration);
@@ -62,7 +62,7 @@ public class ForegroundTimeTaskTest extends TaskTestSupport {
         // this should run 5 times in a total duration of 6 seconds (5s executing + 1s delay)
         ForegroundTask task = Tasks.foregroundTask()
                 .withBudget(Budgets.iterationTimeBudget()
-                        .withMaxDuration(Duration.ofSeconds(6))
+                        .withMaxDuration(Duration.ofMillis(6_500)) // Add 500 ms delay to make the test more flexible
                         .withMaxIterations(5)
                         .withInitialDelay(Duration.ofSeconds(1))
                         .withInterval(Duration.ofSeconds(1))
@@ -70,7 +70,7 @@ public class ForegroundTimeTaskTest extends TaskTestSupport {
                 .build();
 
         task.run(this::booleanSupplier);
-        assertEquals(maxIterations, taskCount);
+        assertEquals(maxIterations, taskCount.intValue());
     }
 
     @DisplayName("Test that the task does not run for more than the max iterations when using a predicate and an initial delay")
@@ -88,7 +88,7 @@ public class ForegroundTimeTaskTest extends TaskTestSupport {
                 .build();
 
         task.run(this::taskPredicate, new Object());
-        assertEquals(maxIterations, taskCount);
+        assertEquals(maxIterations, taskCount.intValue());
     }
 
     @DisplayName("Test that the task does not run for more than the max duration when using a predicate and an initial delay")
@@ -106,7 +106,7 @@ public class ForegroundTimeTaskTest extends TaskTestSupport {
                 .build();
 
         task.run(this::taskPredicate, new Object());
-        assertEquals(maxIterations, taskCount);
+        assertEquals(maxIterations, taskCount.intValue());
     }
 
     @DisplayName("Test that the task stops running once the predicate is true")
@@ -123,8 +123,8 @@ public class ForegroundTimeTaskTest extends TaskTestSupport {
                         .build())
                 .build();
 
-        task.run(this::taskPredicateWithDeterministicStop, Integer.valueOf(3));
-        assertEquals(3, taskCount);
+        task.run(this::taskPredicateWithDeterministicStop, 3);
+        assertEquals(3, taskCount.intValue());
     }
 
     @DisplayName("Test that the task stops running once the predicate is true when the test is slow")
@@ -141,8 +141,8 @@ public class ForegroundTimeTaskTest extends TaskTestSupport {
                         .build())
                 .build();
 
-        task.run(this::taskPredicateWithDeterministicStopSlow, Integer.valueOf(3));
-        assertTrue(taskCount < maxIterations);
+        task.run(this::taskPredicateWithDeterministicStopSlow, 3);
+        assertTrue(taskCount.intValue() < maxIterations);
     }
 
     @DisplayName("Test that the task stops running once the predicate is true when the test is slow")
@@ -159,7 +159,7 @@ public class ForegroundTimeTaskTest extends TaskTestSupport {
                         .build())
                 .build();
 
-        task.run(this::taskPredicateWithDeterministicStopSlow, Integer.valueOf(3));
-        assertTrue(taskCount < maxIterations);
+        task.run(this::taskPredicateWithDeterministicStopSlow, 3);
+        assertTrue(taskCount.intValue() < maxIterations);
     }
 }

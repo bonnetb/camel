@@ -16,6 +16,13 @@
  */
 package org.apache.camel.component.vertx.websocket;
 
+import java.net.URI;
+import java.util.Map;
+
+import io.vertx.core.http.impl.HttpUtils;
+import org.apache.camel.util.CollectionHelper;
+import org.apache.camel.util.ObjectHelper;
+
 public final class VertxWebsocketHelper {
 
     private VertxWebsocketHelper() {
@@ -23,58 +30,51 @@ public final class VertxWebsocketHelper {
     }
 
     /**
-     * Extracts the port number from the endpoint URI path or returns the Vert.x default HTTP server port (0) if one was
-     * not provided
-     */
-    public static int extractPortNumber(String remaining) {
-        int index1 = remaining.indexOf(':');
-        int index2 = remaining.indexOf('/');
-        if (index1 != -1 && index2 != -1) {
-            String result = remaining.substring(index1 + 1, index2);
-            if (result.isEmpty()) {
-                throw new IllegalArgumentException("Unable to resolve port from URI: " + remaining);
-            }
-
-            try {
-                return Integer.parseInt(result);
-            } catch (NumberFormatException e) {
-                throw new IllegalArgumentException("Unable to parse port: " + result);
-            }
-        } else {
-            return VertxWebsocketConstants.DEFAULT_VERTX_SERVER_PORT;
-        }
-    }
-
-    /**
-     * Extracts the host name from the endpoint URI path or returns the Vert.x default HTTP server host (0.0.0.0) if one
-     * was not provided
-     */
-    public static String extractHostName(String remaining) {
-        int index = remaining.indexOf(':');
-        if (index != -1) {
-            return remaining.substring(0, index);
-        } else {
-            return VertxWebsocketConstants.DEFAULT_VERTX_SERVER_HOST;
-        }
-    }
-
-    /**
-     * Extracts the WebSocket path from the endpoint URI path or returns the Vert.x default HTTP server path (/) if one
-     * was not provided
-     */
-    public static String extractPath(String remaining) {
-        int index = remaining.indexOf('/');
-        if (index != -1) {
-            return remaining.substring(index);
-        } else {
-            return VertxWebsocketConstants.DEFAULT_VERTX_SERVER_PATH + remaining;
-        }
-    }
-
-    /**
      * Creates a VertxWebsocketHostKey from a given VertxWebsocketConfiguration
      */
-    public static VertxWebsocketHostKey createHostKey(VertxWebsocketConfiguration configuration) {
-        return new VertxWebsocketHostKey(configuration.getHost(), configuration.getPort());
+    public static VertxWebsocketHostKey createHostKey(URI websockerURI) {
+        return new VertxWebsocketHostKey(websockerURI.getHost(), websockerURI.getPort());
+    }
+
+    /**
+     * Appends a header value to exchange headers, using a List if there are multiple items for the same key
+     */
+    @SuppressWarnings("unchecked")
+    public static void appendHeader(Map<String, Object> headers, String key, Object value) {
+        CollectionHelper.appendEntry(headers, key, value);
+    }
+
+    /**
+     * Determines whether the path of a WebSocket host (the vertx-websocket consumer) matches a target path (the
+     * vertx-websocket producer), taking path parameters and wildcard paths into consideration.
+     */
+    public static boolean webSocketHostPathMatches(String hostPath, String targetPath) {
+        boolean exactPathMatch = true;
+
+        if (ObjectHelper.isEmpty(hostPath) || ObjectHelper.isEmpty(targetPath)) {
+            // This scenario should not really be possible as the input args come from the vertx-websocket consumer / producer URI
+            return false;
+        }
+
+        // Paths ending with '*' are Vert.x wildcard routes so match on the path prefix
+        if (hostPath.endsWith("*")) {
+            exactPathMatch = false;
+            hostPath = hostPath.substring(0, hostPath.lastIndexOf('*'));
+        }
+
+        String normalizedHostPath = HttpUtils.normalizePath(hostPath + "/");
+        String normalizedTargetPath = HttpUtils.normalizePath(targetPath + "/");
+        String[] hostPathElements = normalizedHostPath.split("/");
+        String[] targetPathElements = normalizedTargetPath.split("/");
+
+        if (exactPathMatch && hostPathElements.length != targetPathElements.length) {
+            return false;
+        }
+
+        if (exactPathMatch) {
+            return normalizedHostPath.equals(normalizedTargetPath);
+        } else {
+            return normalizedTargetPath.startsWith(normalizedHostPath);
+        }
     }
 }

@@ -31,16 +31,16 @@ public class DirectRequestReplyAndSedaInOnlyTest extends ContextTestSupport {
 
         String out = template.requestBody("direct:start", "Hello World", String.class);
         assertEquals("Bye World", out);
-        log.info("Got reply " + out);
+        log.info("Got reply {}", out);
 
         assertMockEndpointsSatisfied();
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 // send the message as InOnly to SEDA as we want to continue
                 // routing
                 // (as we don't want to do request/reply over SEDA)

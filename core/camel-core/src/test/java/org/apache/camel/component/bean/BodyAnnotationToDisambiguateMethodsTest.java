@@ -30,10 +30,10 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 public class BodyAnnotationToDisambiguateMethodsTest extends ContextTestSupport {
     private static final Logger LOG = LoggerFactory.getLogger(BeanRouteTest.class);
-    protected MyBean myBean = new MyBean();
+    protected final MyBean myBean = new MyBean();
 
     @Test
-    public void testSendMessage() throws Exception {
+    public void testSendMessage() {
         String expectedBody = "Wobble";
 
         template.sendBodyAndHeader("direct:in", expectedBody, "foo", "bar");
@@ -42,8 +42,8 @@ public class BodyAnnotationToDisambiguateMethodsTest extends ContextTestSupport 
     }
 
     @Override
-    protected Registry createRegistry() throws Exception {
-        Registry answer = super.createRegistry();
+    protected Registry createCamelRegistry() throws Exception {
+        Registry answer = super.createCamelRegistry();
         answer.bind("myBean", myBean);
         return answer;
     }
@@ -66,11 +66,11 @@ public class BodyAnnotationToDisambiguateMethodsTest extends ContextTestSupport 
 
         public void foo(@Body String body) {
             this.body = body;
-            LOG.info("foo() method called on " + this);
+            LOG.info("foo() method called on {}", this);
         }
 
         public void wrongMethod(String body) {
-            fail("wrongMethod() called with: " + body);
+            fail("wrongMethod() called with: {}" + body);
         }
     }
 }

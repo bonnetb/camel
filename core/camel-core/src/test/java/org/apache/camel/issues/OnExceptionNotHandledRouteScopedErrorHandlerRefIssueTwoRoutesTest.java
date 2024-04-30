@@ -19,7 +19,6 @@ package org.apache.camel.issues;
 import org.apache.camel.CamelExecutionException;
 import org.apache.camel.ContextTestSupport;
 import org.apache.camel.builder.DeadLetterChannelBuilder;
-import org.apache.camel.builder.ErrorHandlerBuilderRef;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.spi.Registry;
 import org.junit.jupiter.api.Test;
@@ -61,21 +60,21 @@ public class OnExceptionNotHandledRouteScopedErrorHandlerRefIssueTwoRoutesTest e
     }
 
     @Override
-    protected Registry createRegistry() throws Exception {
-        Registry jndi = super.createRegistry();
+    protected Registry createCamelRegistry() throws Exception {
+        Registry jndi = super.createCamelRegistry();
         jndi.bind("myDLC", new DeadLetterChannelBuilder("mock:dead"));
         return jndi;
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
-                from("direct:foo").errorHandler(new ErrorHandlerBuilderRef("myDLC")).to("mock:foo")
+            public void configure() {
+                from("direct:foo").errorHandler("myDLC").to("mock:foo")
                         .throwException(new IllegalArgumentException("Damn Foo"));
 
-                from("direct:start").errorHandler(new ErrorHandlerBuilderRef("myDLC"))
+                from("direct:start").errorHandler("myDLC")
                         .onException(IllegalArgumentException.class).handled(false).to("mock:handled").end()
                         .to("mock:a").throwException(new IllegalArgumentException("Damn"));
             }

@@ -25,6 +25,7 @@ import org.apache.camel.Exchange;
 import org.apache.camel.RuntimeCamelException;
 import org.apache.camel.impl.engine.DefaultConsumerTemplate;
 import org.apache.camel.support.DefaultExchange;
+import org.apache.camel.util.StopWatch;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -57,7 +58,7 @@ public class DefaultConsumerTemplateTest extends ContextTestSupport {
     }
 
     @Test
-    public void testConsumeReceive() throws Exception {
+    public void testConsumeReceive() {
         template.sendBody("seda:foo", "Hello");
 
         Exchange out = consumer.receive("seda:foo");
@@ -68,7 +69,7 @@ public class DefaultConsumerTemplateTest extends ContextTestSupport {
     }
 
     @Test
-    public void testConsumeTwiceReceive() throws Exception {
+    public void testConsumeTwiceReceive() {
         template.sendBody("seda:foo", "Hello");
 
         Exchange out = consumer.receive("seda:foo");
@@ -83,7 +84,7 @@ public class DefaultConsumerTemplateTest extends ContextTestSupport {
     }
 
     @Test
-    public void testConsumeReceiveNoWait() throws Exception {
+    public void testConsumeReceiveNoWait() {
         Exchange out = consumer.receiveNoWait("seda:foo");
         assertNull(out);
 
@@ -99,11 +100,11 @@ public class DefaultConsumerTemplateTest extends ContextTestSupport {
     }
 
     @Test
-    public void testConsumeReceiveTimeout() throws Exception {
-        long start = System.currentTimeMillis();
+    public void testConsumeReceiveTimeout() {
+        StopWatch watch = new StopWatch();
         Exchange out = consumer.receive("seda:foo", 1000);
         assertNull(out);
-        long delta = System.currentTimeMillis() - start;
+        long delta = watch.taken();
         assertTrue(delta < 1500, "Should take about 1 sec: " + delta);
 
         template.sendBody("seda:foo", "Hello");
@@ -113,7 +114,7 @@ public class DefaultConsumerTemplateTest extends ContextTestSupport {
     }
 
     @Test
-    public void testConsumeReceiveBody() throws Exception {
+    public void testConsumeReceiveBody() {
         template.sendBody("seda:foo", "Hello");
 
         Object body = consumer.receiveBody("seda:foo");
@@ -121,7 +122,7 @@ public class DefaultConsumerTemplateTest extends ContextTestSupport {
     }
 
     @Test
-    public void testConsumeTwiceReceiveBody() throws Exception {
+    public void testConsumeTwiceReceiveBody() {
         template.sendBody("seda:foo", "Hello");
 
         Object body = consumer.receiveBody("seda:foo");
@@ -134,7 +135,7 @@ public class DefaultConsumerTemplateTest extends ContextTestSupport {
     }
 
     @Test
-    public void testConsumeReceiveBodyNoWait() throws Exception {
+    public void testConsumeReceiveBodyNoWait() {
         Object body = consumer.receiveBodyNoWait("seda:foo");
         assertNull(body);
 
@@ -147,7 +148,7 @@ public class DefaultConsumerTemplateTest extends ContextTestSupport {
     }
 
     @Test
-    public void testConsumeReceiveBodyString() throws Exception {
+    public void testConsumeReceiveBodyString() {
         template.sendBody("seda:foo", "Hello");
 
         String body = consumer.receiveBody("seda:foo", String.class);
@@ -155,7 +156,7 @@ public class DefaultConsumerTemplateTest extends ContextTestSupport {
     }
 
     @Test
-    public void testConsumeTwiceReceiveBodyString() throws Exception {
+    public void testConsumeTwiceReceiveBodyString() {
         template.sendBody("seda:foo", "Hello");
 
         String body = consumer.receiveBody("seda:foo", String.class);
@@ -168,7 +169,7 @@ public class DefaultConsumerTemplateTest extends ContextTestSupport {
     }
 
     @Test
-    public void testConsumeReceiveBodyStringNoWait() throws Exception {
+    public void testConsumeReceiveBodyStringNoWait() {
         String body = consumer.receiveBodyNoWait("seda:foo", String.class);
         assertNull(body);
 
@@ -181,7 +182,7 @@ public class DefaultConsumerTemplateTest extends ContextTestSupport {
     }
 
     @Test
-    public void testConsumeReceiveEndpoint() throws Exception {
+    public void testConsumeReceiveEndpoint() {
         template.sendBody("seda:foo", "Hello");
 
         assertNotNull(consumer.getCamelContext());
@@ -192,7 +193,7 @@ public class DefaultConsumerTemplateTest extends ContextTestSupport {
     }
 
     @Test
-    public void testConsumeReceiveEndpointTimeout() throws Exception {
+    public void testConsumeReceiveEndpointTimeout() {
         template.sendBody("seda:foo", "Hello");
 
         assertNotNull(consumer.getCamelContext());
@@ -203,7 +204,7 @@ public class DefaultConsumerTemplateTest extends ContextTestSupport {
     }
 
     @Test
-    public void testConsumeReceiveEndpointNoWait() throws Exception {
+    public void testConsumeReceiveEndpointNoWait() {
         assertNotNull(consumer.getCamelContext());
         Endpoint endpoint = context.getEndpoint("seda:foo");
 
@@ -222,7 +223,7 @@ public class DefaultConsumerTemplateTest extends ContextTestSupport {
     }
 
     @Test
-    public void testConsumeReceiveEndpointBody() throws Exception {
+    public void testConsumeReceiveEndpointBody() {
         template.sendBody("seda:foo", "Hello");
 
         assertNotNull(consumer.getCamelContext());
@@ -233,7 +234,7 @@ public class DefaultConsumerTemplateTest extends ContextTestSupport {
     }
 
     @Test
-    public void testConsumeReceiveEndpointBodyTimeout() throws Exception {
+    public void testConsumeReceiveEndpointBodyTimeout() {
         template.sendBody("seda:foo", "Hello");
 
         assertNotNull(consumer.getCamelContext());
@@ -244,7 +245,7 @@ public class DefaultConsumerTemplateTest extends ContextTestSupport {
     }
 
     @Test
-    public void testConsumeReceiveEndpointBodyType() throws Exception {
+    public void testConsumeReceiveEndpointBodyType() {
         template.sendBody("seda:foo", "Hello");
 
         assertNotNull(consumer.getCamelContext());
@@ -255,7 +256,7 @@ public class DefaultConsumerTemplateTest extends ContextTestSupport {
     }
 
     @Test
-    public void testConsumeReceiveEndpointBodyTimeoutType() throws Exception {
+    public void testConsumeReceiveEndpointBodyTimeoutType() {
         template.sendBody("seda:foo", "Hello");
 
         assertNotNull(consumer.getCamelContext());
@@ -266,7 +267,7 @@ public class DefaultConsumerTemplateTest extends ContextTestSupport {
     }
 
     @Test
-    public void testConsumeReceiveBodyTimeoutType() throws Exception {
+    public void testConsumeReceiveBodyTimeoutType() {
         template.sendBody("seda:foo", "Hello");
 
         String body = consumer.receiveBody("seda:foo", 1000, String.class);
@@ -274,7 +275,7 @@ public class DefaultConsumerTemplateTest extends ContextTestSupport {
     }
 
     @Test
-    public void testConsumeReceiveEndpointBodyTypeNoWait() throws Exception {
+    public void testConsumeReceiveEndpointBodyTypeNoWait() {
         assertNotNull(consumer.getCamelContext());
         Endpoint endpoint = context.getEndpoint("seda:foo");
 
@@ -290,7 +291,7 @@ public class DefaultConsumerTemplateTest extends ContextTestSupport {
     }
 
     @Test
-    public void testConsumeReceiveEndpointBodyNoWait() throws Exception {
+    public void testConsumeReceiveEndpointBodyNoWait() {
         assertNotNull(consumer.getCamelContext());
         Endpoint endpoint = context.getEndpoint("seda:foo");
 
@@ -306,7 +307,7 @@ public class DefaultConsumerTemplateTest extends ContextTestSupport {
     }
 
     @Test
-    public void testReceiveException() throws Exception {
+    public void testReceiveException() {
         Exchange exchange = new DefaultExchange(context);
         exchange.setException(new IllegalArgumentException("Damn"));
 
@@ -324,7 +325,7 @@ public class DefaultConsumerTemplateTest extends ContextTestSupport {
     }
 
     @Test
-    public void testReceiveOut() throws Exception {
+    public void testReceiveOut() {
         Exchange exchange = new DefaultExchange(context);
         exchange.getMessage().setBody("Bye World");
         template.send("seda:foo", exchange);
@@ -334,7 +335,7 @@ public class DefaultConsumerTemplateTest extends ContextTestSupport {
     }
 
     @Test
-    public void testCacheConsumers() throws Exception {
+    public void testCacheConsumers() {
         ConsumerTemplate template = new DefaultConsumerTemplate(context);
         template.setMaximumCacheSize(500);
         template.start();
@@ -361,7 +362,7 @@ public class DefaultConsumerTemplateTest extends ContextTestSupport {
     }
 
     @Test
-    public void testCacheConsumersFromContext() throws Exception {
+    public void testCacheConsumersFromContext() {
         ConsumerTemplate template = context.createConsumerTemplate(500);
 
         assertEquals(0, template.getCurrentCacheSize(), "Size should be 0");
@@ -386,7 +387,7 @@ public class DefaultConsumerTemplateTest extends ContextTestSupport {
     }
 
     @Test
-    public void testDoneUoW() throws Exception {
+    public void testDoneUoW() {
         template.sendBodyAndHeader(fileUri(), "Hello World", Exchange.FILE_NAME, "hello.txt");
 
         Exchange exchange = consumer.receive(fileUri("?initialDelay=0&delay=10&delete=true"));

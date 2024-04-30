@@ -16,19 +16,20 @@
  */
 package org.apache.camel.component.as2.api.util;
 
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
+import java.security.cert.Certificate;
 
-import org.apache.camel.component.as2.api.AS2Charset;
 import org.apache.camel.component.as2.api.AS2Header;
 import org.apache.camel.component.as2.api.AS2MicAlgorithm;
 import org.apache.camel.component.as2.api.entity.DispositionNotificationOptions;
 import org.apache.camel.component.as2.api.entity.DispositionNotificationOptionsParser;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpEntityEnclosingRequest;
-import org.apache.http.HttpException;
+import org.apache.hc.core5.http.ClassicHttpRequest;
+import org.apache.hc.core5.http.HttpEntity;
+import org.apache.hc.core5.http.HttpException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,7 +46,7 @@ public final class MicUtils {
         public ReceivedContentMic(String digestAlgorithmId, byte[] messageDigest) throws Exception {
             this.digestAlgorithmId = digestAlgorithmId;
             messageDigest = EntityUtils.encode(messageDigest, "base64");
-            this.encodedMessageDigest = new String(messageDigest, AS2Charset.US_ASCII);
+            this.encodedMessageDigest = new String(messageDigest, StandardCharsets.US_ASCII);
         }
 
         // Used when parsing received content MIC from received string
@@ -79,7 +80,7 @@ public final class MicUtils {
     }
 
     public static ReceivedContentMic createReceivedContentMic(
-            HttpEntityEnclosingRequest request, PrivateKey decryptingPrivateKey)
+            ClassicHttpRequest request, Certificate[] validateSigningCertificateChain, PrivateKey decryptingPrivateKey)
             throws HttpException {
 
         String dispositionNotificationOptionsString
@@ -97,7 +98,8 @@ public final class MicUtils {
             return null;
         }
 
-        HttpEntity entity = HttpMessageUtils.extractEdiPayload(request, decryptingPrivateKey);
+        HttpEntity entity = HttpMessageUtils.extractEdiPayload(request,
+                new HttpMessageUtils.DecrpytingAndSigningInfo(validateSigningCertificateChain, decryptingPrivateKey));
 
         byte[] content = EntityUtils.getContent(entity);
 

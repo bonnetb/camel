@@ -16,7 +16,6 @@
  */
 package org.apache.camel.component.box;
 
-import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.util.Date;
 import java.util.HashMap;
@@ -64,7 +63,7 @@ public class BoxTasksManagerIT extends AbstractBoxITSupport {
     @Disabled
     //needs https://community.box.com/t5/custom/page/page-id/BoxViewTicketDetail?ticket_id=1895413 to be solved
     @Test
-    public void testAddAssignmentToTask() throws Exception {
+    public void testAddAssignmentToTask() {
         com.box.sdk.BoxTask result = null;
 
         final Map<String, Object> headers = new HashMap<>();
@@ -76,11 +75,11 @@ public class BoxTasksManagerIT extends AbstractBoxITSupport {
         result = requestBodyAndHeaders("direct://ADDASSIGNMENTTOTASK", null, headers);
 
         assertNotNull(result, "addAssignmentToTask result");
-        LOG.debug("addAssignmentToTask: " + result);
+        LOG.debug("addAssignmentToTask: {}", result);
     }
 
     @Test
-    public void testAddFileTask() throws Exception {
+    public void testAddFileTask() {
         com.box.sdk.BoxTask result = null;
 
         try {
@@ -99,19 +98,19 @@ public class BoxTasksManagerIT extends AbstractBoxITSupport {
             result = requestBodyAndHeaders("direct://ADDFILETASK", null, headers);
 
             assertNotNull(result, "addFileTask result");
-            LOG.debug("addFileTask: " + result);
+            LOG.debug("addFileTask: {}", result);
         } finally {
             if (result != null) {
                 try {
                     result.delete();
-                } catch (Throwable t) {
+                } catch (Exception t) {
                 }
             }
         }
     }
 
     @Test
-    public void testDeleteTask() throws Exception {
+    public void testDeleteTask() {
         // using String message body for single parameter "taskId"
         requestBody("direct://DELETETASK", testTask.getID());
 
@@ -121,7 +120,7 @@ public class BoxTasksManagerIT extends AbstractBoxITSupport {
 
     @Disabled // Receiving "not found" exception from Box API
     @Test
-    public void testDeleteTaskAssignment() throws Exception {
+    public void testDeleteTaskAssignment() {
         BoxTaskAssignment.Info info = testTask.addAssignment(getCurrentUser());
 
         // using String message body for single parameter "taskAssignmentId"
@@ -132,18 +131,18 @@ public class BoxTasksManagerIT extends AbstractBoxITSupport {
     }
 
     @Test
-    public void testGetFileTasks() throws Exception {
+    public void testGetFileTasks() {
         // using String message body for single parameter "fileId"
         @SuppressWarnings("rawtypes")
         final java.util.List result = requestBody("direct://GETFILETASKS", testFile.getID());
 
         assertNotNull(result, "getFileTasks result");
-        LOG.debug("getFileTasks: " + result);
+        LOG.debug("getFileTasks: {}", result);
     }
 
     @Disabled
     @Test
-    public void testGetTaskAssignmentInfo() throws Exception {
+    public void testGetTaskAssignmentInfo() {
         BoxTaskAssignment.Info info = testTask.addAssignment(getCurrentUser());
         com.box.sdk.BoxTaskAssignment.Info result = null;
 
@@ -152,12 +151,12 @@ public class BoxTasksManagerIT extends AbstractBoxITSupport {
             result = requestBody("direct://GETTASKASSIGNMENTINFO", info.getID());
 
             assertNotNull(result, "getTaskAssignmentInfo result");
-            LOG.debug("getTaskAssignmentInfo: " + result);
+            LOG.debug("getTaskAssignmentInfo: {}", result);
         } finally {
             if (result != null) {
                 try {
                     ((BoxTaskAssignment) result.getResource()).delete();
-                } catch (Throwable t) {
+                } catch (Exception t) {
                 }
             }
         }
@@ -166,7 +165,7 @@ public class BoxTasksManagerIT extends AbstractBoxITSupport {
     @Disabled
     //needs https://community.box.com/t5/custom/page/page-id/BoxViewTicketDetail?ticket_id=1895413 to be solved
     @Test
-    public void testGetTaskAssignments() throws Exception {
+    public void testGetTaskAssignments() {
         // using String message body for single parameter "taskId"
 
         //add assignment to task -> to be able to search for assignments
@@ -182,21 +181,21 @@ public class BoxTasksManagerIT extends AbstractBoxITSupport {
         final java.util.List result = requestBody("direct://GETTASKASSIGNMENTS", testTask.getID());
 
         assertNotNull(result, "getTaskAssignments result");
-        LOG.debug("getTaskAssignments: " + result);
+        LOG.debug("getTaskAssignments: {}", result);
     }
 
     @Test
-    public void testGetTaskInfo() throws Exception {
+    public void testGetTaskInfo() {
         // using String message body for single parameter "taskId"
         final com.box.sdk.BoxTask.Info result = requestBody("direct://GETTASKINFO", testTask.getID());
 
         assertNotNull(result, "getTaskInfo result");
-        LOG.debug("getTaskInfo: " + result);
+        LOG.debug("getTaskInfo: {}", result);
     }
 
     @Disabled // No way to change BoxTask.Info parameters
     @Test
-    public void testUpdateTaskInfo() throws Exception {
+    public void testUpdateTaskInfo() {
         BoxTask.Info info = testTask.getInfo();
 
         final Map<String, Object> headers = new HashMap<>();
@@ -208,11 +207,11 @@ public class BoxTasksManagerIT extends AbstractBoxITSupport {
         final com.box.sdk.BoxTask result = requestBodyAndHeaders("direct://UPDATETASKINFO", null, headers);
 
         assertNotNull(result, "updateTaskInfo result");
-        LOG.debug("updateTaskInfo: " + result);
+        LOG.debug("updateTaskInfo: {}", result);
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             public void configure() {
                 // test route for addAssignmentToTask
@@ -274,12 +273,12 @@ public class BoxTasksManagerIT extends AbstractBoxITSupport {
     private void deleteTestTask() {
         try {
             testTask.delete();
-        } catch (Throwable t) {
+        } catch (Exception t) {
         }
         testTask = null;
     }
 
-    private void createTestFile() throws FileNotFoundException {
+    private void createTestFile() {
         BoxFolder rootFolder = BoxFolder.getRootFolder(getConnection());
         InputStream stream = getClass().getResourceAsStream(CAMEL_TEST_FILE);
         testFile = rootFolder.uploadFile(stream, CAMEL_TEST_FILE_NAME).getResource();

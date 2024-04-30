@@ -38,9 +38,9 @@ public class LuceneQueryProcessorIT extends CamelTestSupport {
         return false;
     }
 
-    private void sendRequest() throws Exception {
+    private void sendRequest() {
         template.send("direct:start", new Processor() {
-            public void process(Exchange exchange) throws Exception {
+            public void process(Exchange exchange) {
 
                 // Set the property of the charset encoding
                 exchange.setProperty(Exchange.CHARSET_NAME, "UTF-8");
@@ -67,17 +67,17 @@ public class LuceneQueryProcessorIT extends CamelTestSupport {
                 }
 
                 from("direct:next").process(new Processor() {
-                    public void process(Exchange exchange) throws Exception {
+                    public void process(Exchange exchange) {
                         Hits hits = exchange.getIn().getBody(Hits.class);
                         printResults(hits);
                     }
 
                     private void printResults(Hits hits) {
-                        LOG.debug("Number of hits: " + hits.getNumberOfHits());
+                        LOG.debug("Number of hits: {}", hits.getNumberOfHits());
                         for (int i = 0; i < hits.getNumberOfHits(); i++) {
-                            LOG.debug("Hit " + i + " Index Location:" + hits.getHit().get(i).getHitLocation());
-                            LOG.debug("Hit " + i + " Score:" + hits.getHit().get(i).getScore());
-                            LOG.debug("Hit " + i + " Data:" + hits.getHit().get(i).getData());
+                            LOG.debug("Hit {} Index Location: {}", i, hits.getHit().get(i).getHitLocation());
+                            LOG.debug("Hit {}  Score: {}", i, hits.getHit().get(i).getScore());
+                            LOG.debug("Hit {}  Data: {}", i, hits.getHit().get(i).getData());
                         }
                     }
                 }).to("mock:searchResult");
@@ -110,17 +110,17 @@ public class LuceneQueryProcessorIT extends CamelTestSupport {
                 }
 
                 from("direct:next").process(new Processor() {
-                    public void process(Exchange exchange) throws Exception {
+                    public void process(Exchange exchange) {
                         Hits hits = exchange.getIn().getBody(Hits.class);
                         printResults(hits);
                     }
 
                     private void printResults(Hits hits) {
-                        LOG.debug("Number of hits: " + hits.getNumberOfHits());
+                        LOG.debug("Number of hits: {}", hits.getNumberOfHits());
                         for (int i = 0; i < hits.getNumberOfHits(); i++) {
-                            LOG.debug("Hit " + i + " Index Location:" + hits.getHit().get(i).getHitLocation());
-                            LOG.debug("Hit " + i + " Score:" + hits.getHit().get(i).getScore());
-                            LOG.debug("Hit " + i + " Data:" + hits.getHit().get(i).getData());
+                            LOG.debug("Hit {} Index Location: {}", i, hits.getHit().get(i).getHitLocation());
+                            LOG.debug("Hit {}  Score: {}", i, hits.getHit().get(i).getScore());
+                            LOG.debug("Hit {}  Data: {}", i, hits.getHit().get(i).getData());
                         }
                     }
                 }).to("mock:searchResult");

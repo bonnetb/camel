@@ -5,6 +5,7 @@
 :description: Perform operations on Kubernetes Custom Resources and get notified on Deployment changes.
 :since: 3.7
 :supportlevel: Stable
+:tabs-sync-option:
 :component-header: Both producer and consumer are supported
 //Manually maintained attributes
 :group: Kubernetes
@@ -42,6 +43,7 @@ include::partial$component-endpoint-headers.adoc[]
 - getCustomResource
 - deleteCustomResource
 - createCustomResource
+- updateCustomResource
 
 
 include::spring-boot:partial$starter.adoc[]

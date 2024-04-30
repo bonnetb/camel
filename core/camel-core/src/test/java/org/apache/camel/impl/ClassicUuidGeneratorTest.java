@@ -36,9 +36,8 @@ public class ClassicUuidGeneratorTest {
 
         String firstUUID = uuidGenerator.generateUuid();
         String secondUUID = uuidGenerator.generateUuid();
-        System.out.println(firstUUID);
 
-        assertNotSame(firstUUID, secondUUID);
+        assertNotSame(firstUUID, secondUUID, "The first UUID " + firstUUID + " is equal to the second " + secondUUID);
     }
 
     @Test
@@ -46,17 +45,17 @@ public class ClassicUuidGeneratorTest {
         ClassicUuidGenerator uuidGenerator = new ClassicUuidGenerator();
         StopWatch watch = new StopWatch();
 
-        LOG.info("First id: " + uuidGenerator.generateUuid());
+        LOG.info("First id: {}", uuidGenerator.generateUuid());
         for (int i = 0; i < 500000; i++) {
             uuidGenerator.generateUuid();
         }
-        LOG.info("Last id:  " + uuidGenerator.generateUuid());
+        LOG.info("Last id: {}", uuidGenerator.generateUuid());
 
-        LOG.info("Took " + TimeUtils.printDuration(watch.taken()));
+        LOG.info("Took {}", TimeUtils.printDuration(watch.taken(), true));
     }
 
     @Test
-    public void testSanitizeHostName() throws Exception {
+    public void testSanitizeHostName() {
         assertEquals("somehost.lan", ClassicUuidGenerator.sanitizeHostName("somehost.lan"));
         // include a UTF-8 char in the text \u0E08 is a Thai elephant
         assertEquals("otherhost.lan", ClassicUuidGenerator.sanitizeHostName("other\u0E08host.lan"));

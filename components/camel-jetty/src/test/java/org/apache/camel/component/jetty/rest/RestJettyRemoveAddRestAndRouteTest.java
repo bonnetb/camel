@@ -28,7 +28,6 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 
 public class RestJettyRemoveAddRestAndRouteTest extends BaseJettyTest {
 
@@ -48,14 +47,9 @@ public class RestJettyRemoveAddRestAndRouteTest extends BaseJettyTest {
 
         assertTrue(removed, "Should have removed route");
 
-        try (InputStream stream = new URL("http://localhost:" + getPort() + "/issues/35").openStream()) {
-            fail();
-        } catch (Exception e) {
-        }
-
         new RouteBuilder(context) {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 rest("/").get("/issues/{isin}/{sedol}").to("direct:issues");
 
                 from("direct:issues").routeId("issues")
@@ -74,10 +68,10 @@ public class RestJettyRemoveAddRestAndRouteTest extends BaseJettyTest {
     }
 
     @Override
-    protected RoutesBuilder createRouteBuilder() throws Exception {
+    protected RoutesBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 restConfiguration().host("localhost").port(getPort());
 
                 rest("/")

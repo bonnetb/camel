@@ -25,18 +25,10 @@ public abstract class DefaultKafkaManualCommit implements KafkaManualCommit {
     protected final KafkaManualCommitFactory.CamelExchangePayload camelExchangePayload;
     protected final KafkaManualCommitFactory.KafkaRecordPayload kafkaRecordPayload;
 
-    public DefaultKafkaManualCommit(KafkaManualCommitFactory.CamelExchangePayload camelExchangePayload,
-                                    KafkaManualCommitFactory.KafkaRecordPayload kafkaRecordPayload) {
+    protected DefaultKafkaManualCommit(KafkaManualCommitFactory.CamelExchangePayload camelExchangePayload,
+                                       KafkaManualCommitFactory.KafkaRecordPayload kafkaRecordPayload) {
         this.camelExchangePayload = camelExchangePayload;
         this.kafkaRecordPayload = kafkaRecordPayload;
-    }
-
-    protected String serializeOffsetKey(TopicPartition topicPartition) {
-        return topicPartition.topic() + '/' + topicPartition.partition();
-    }
-
-    protected String serializeOffsetValue(long offset) {
-        return String.valueOf(offset);
     }
 
     /**
@@ -55,6 +47,7 @@ public abstract class DefaultKafkaManualCommit implements KafkaManualCommit {
         return camelExchangePayload.threadId;
     }
 
+    @Deprecated
     public StateRepository<String, String> getOffsetRepository() {
         return camelExchangePayload.offsetRepository;
     }
@@ -73,7 +66,7 @@ public abstract class DefaultKafkaManualCommit implements KafkaManualCommit {
 
     /**
      * Gets the Camel Exchange payload
-     * 
+     *
      * @return
      */
     public KafkaManualCommitFactory.CamelExchangePayload getCamelExchangePayload() {
@@ -82,7 +75,7 @@ public abstract class DefaultKafkaManualCommit implements KafkaManualCommit {
 
     /**
      * Gets the Kafka record payload
-     * 
+     *
      * @return
      */
     public KafkaManualCommitFactory.KafkaRecordPayload getKafkaRecordPayload() {

@@ -36,8 +36,6 @@ public class XsltOutputFileTest extends ContextTestSupport {
 
     @Test
     public void testXsltOutput() throws Exception {
-        testDirectory(true);
-
         MockEndpoint mock = getMockEndpoint("mock:result");
         mock.expectedBodiesReceived("<?xml version=\"1.0\" encoding=\"UTF-8\"?><goodbye>world!</goodbye>");
         mock.expectedFileExists(testFile("xsltme.xml"));
@@ -50,7 +48,7 @@ public class XsltOutputFileTest extends ContextTestSupport {
     }
 
     @Test
-    public void testXsltOutputFileMissingHeader() throws Exception {
+    public void testXsltOutputFileMissingHeader() {
         try {
             template.sendBody("direct:start", "<hello>world!</hello>");
             fail("Should thrown exception");
@@ -61,10 +59,10 @@ public class XsltOutputFileTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:start").to("xslt:org/apache/camel/component/xslt/example.xsl?output=file").to("mock:result");
             }
         };

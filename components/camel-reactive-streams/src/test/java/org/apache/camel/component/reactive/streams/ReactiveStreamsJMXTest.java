@@ -112,7 +112,7 @@ public class ReactiveStreamsJMXTest extends BaseReactiveTest {
     }
 
     @Override
-    protected RoutesBuilder createRouteBuilder() throws Exception {
+    protected RoutesBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
             public void configure() {
@@ -120,7 +120,7 @@ public class ReactiveStreamsJMXTest extends BaseReactiveTest {
                         .delayer(1)
                         .to("mock:unbounded-endpoint");
 
-                from("timer:tick")
+                from("timer:tick?includeMetadata=true")
                         .setBody().simple("Hello world ${header.CamelTimerCounter}")
                         .to("reactive-streams:strings");
 

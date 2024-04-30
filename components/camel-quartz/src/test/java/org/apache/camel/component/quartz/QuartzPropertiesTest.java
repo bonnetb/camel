@@ -23,7 +23,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class QuartzPropertiesTest extends BaseQuartzTest {
 
@@ -54,17 +54,15 @@ public class QuartzPropertiesTest extends BaseQuartzTest {
     }
 
     @Test
-    public void testQuartzPropertiesFileNotFound() throws Exception {
+    public void testQuartzPropertiesFileNotFound() {
         quartz = context.getComponent("quartz", QuartzComponent.class);
 
         quartz.setPropertiesFile("doesnotexist.properties");
 
-        try {
-            quartz.start();
-            fail("Should have thrown exception");
-        } catch (Exception e) {
-            assertEquals("Error loading Quartz properties file: doesnotexist.properties", e.getCause().getMessage());
-        }
+        Exception thrown = assertThrows(Exception.class,
+                () -> quartz.start(),
+                "Should have thrown exception");
+        assertEquals("Error loading Quartz properties file: doesnotexist.properties", thrown.getCause().getMessage());
     }
 
     @Test

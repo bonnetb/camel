@@ -18,18 +18,19 @@ package org.apache.camel.dataformat.base64;
 
 import org.apache.camel.RoutesBuilder;
 import org.apache.camel.builder.RouteBuilder;
+import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.test.junit5.CamelTestSupport;
 import org.junit.jupiter.api.Test;
 
 public class Base64PropertiesFunctionTest extends CamelTestSupport {
 
     @Test
-    public void testBase64() throws Exception {
+    public void testBase64Key() throws Exception {
         getMockEndpoint("mock:result").expectedBodiesReceived("Hello Camel");
 
         template.sendBody("direct:start", "Hello");
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Override
@@ -37,9 +38,11 @@ public class Base64PropertiesFunctionTest extends CamelTestSupport {
         return new RouteBuilder() {
             @Override
             public void configure() {
+                // Q2FtZWw== is the word Camel
+                context.getPropertiesComponent().addInitialProperty("fooKey", "Q2FtZWw==");
+
                 from("direct:start")
-                        // Q2FtZWw== is the word Camel
-                        .setBody(simple("${body} {{base64:Q2FtZWw==}}"))
+                        .setBody(simple("${body} {{base64:fooKey}}"))
                         .to("mock:result");
             }
         };

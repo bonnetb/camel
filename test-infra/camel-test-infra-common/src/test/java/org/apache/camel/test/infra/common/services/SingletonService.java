@@ -38,11 +38,31 @@ public class SingletonService<T extends TestService> implements ExtensionContext
     }
 
     protected void addToStore(ExtensionContext extensionContext) {
-        extensionContext.getRoot().getStore(ExtensionContext.Namespace.GLOBAL).getOrComputeIfAbsent(name, s -> {
-            LOG.debug("Registering singleton service {}", name);
-            service.initialize();
-            return this;
-        });
+        final ExtensionContext root = extensionContext.getRoot();
+        LOG.debug("Using root: {}", root);
+
+        final ExtensionContext.Store store = root.getStore(ExtensionContext.Namespace.GLOBAL);
+        LOG.debug("Using store: {}", store);
+
+        store.getOrComputeIfAbsent(name, this::doInitializeService);
+
+        Runtime.getRuntime().addShutdownHook(new Thread(service::shutdown));
+    }
+
+    protected SingletonService<T> doInitializeService(String name) {
+        LOG.debug("Registering singleton service {}", name);
+        service.initialize();
+        return this;
+    }
+
+    @Override
+    public void beforeAll(ExtensionContext extensionContext) {
+        addToStore(extensionContext);
+    }
+
+    @Override
+    public void afterAll(ExtensionContext extensionContext) {
+        // NO-OP
     }
 
     @Override
@@ -51,18 +71,19 @@ public class SingletonService<T extends TestService> implements ExtensionContext
     }
 
     @Override
-    public void initialize() {
+    public final void initialize() {
         service.initialize();
     }
 
     @Override
-    public void shutdown() {
-        service.shutdown();
+    public final void shutdown() {
+        LOG.error("Singleton services must not be shutdown manually");
+        throw new IllegalArgumentException("Singleton services must not be shutdown manually");
     }
 
     @Override
-    public void close() {
-        service.shutdown();
+    public final void close() {
+
     }
 
     protected T getService() {

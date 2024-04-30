@@ -44,7 +44,7 @@ public class CassandraComponentConsumerIT extends BaseCassandra {
             }
         });
         mock.await(1, TimeUnit.SECONDS);
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Test
@@ -59,7 +59,7 @@ public class CassandraComponentConsumerIT extends BaseCassandra {
             }
         });
         mock.await(1, TimeUnit.SECONDS);
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Test
@@ -75,17 +75,17 @@ public class CassandraComponentConsumerIT extends BaseCassandra {
         });
         mock.await(1, TimeUnit.SECONDS);
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Override
     protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             public void configure() {
-                from(String.format("cql://%s/%s?cql=%s", getUrl(), KEYSPACE_NAME, CQL)).to("mock:resultAll");
-                from(String.format("cql://%s/%s?cql=%s&prepareStatements=false", getUrl(), KEYSPACE_NAME, CQL))
+                fromF("cql://%s/%s?cql=%s", getUrl(), KEYSPACE_NAME, CQL).to("mock:resultAll");
+                fromF("cql://%s/%s?cql=%s&prepareStatements=false", getUrl(), KEYSPACE_NAME, CQL)
                         .to("mock:resultUnprepared");
-                from(String.format("cql://%s/%s?cql=%s&resultSetConversionStrategy=ONE", getUrl(), KEYSPACE_NAME, CQL))
+                fromF("cql://%s/%s?cql=%s&resultSetConversionStrategy=ONE", getUrl(), KEYSPACE_NAME, CQL)
                         .to("mock:resultOne");
             }
         };

@@ -5,6 +5,7 @@
 :description: Query Couchbase Views with a poll strategy and/or perform various operations against Couchbase databases.
 :since: 2.19
 :supportlevel: Stable
+:tabs-sync-option:
 :component-header: Both producer and consumer are supported
 //Manually maintained attributes
 :camel-spring-boot-name: couchbase
@@ -14,7 +15,7 @@
 *{component-header}*
 
 The *couchbase:* component allows you to treat
-https://www.couchbase.com/[CouchBase] instances as a producer or consumer
+https://www.couchbase.com/[Couchbase] instances as a producer or consumer
 of messages.
 
 Maven users will need to add the following dependency to their `pom.xml`
@@ -56,9 +57,10 @@ include::partial$component-endpoint-headers.adoc[]
 
 == Couchbase SDK compatibility
 
-Using collections and scopes is supported only for Couchbase Enterprise Server 6.5+.
+Using collections and scopes is supported only for Couchbase Server 7.0 and later.
 
-This component is currently using Java SDK 3.x so it might be not compatible with older Couchbase servers anymore. See the compatibility https://docs.couchbase.com/java-sdk/current/project-docs/compatibility.html[page].
+This component is currently using Java SDK 3.x, so it might be not compatible with older Couchbase servers anymore.
+Check the compatibility https://docs.couchbase.com/java-sdk/current/project-docs/compatibility.html[page] for details.
 
  * The value formerly interpreted as a bucket-name is now interpreted as a username. The username must correspond to a user defined on the cluster that is being accessed.
  * The value formerly interpreted as a bucket-password is now interpreted as the password of the defined user.

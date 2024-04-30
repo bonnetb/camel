@@ -19,14 +19,14 @@ package org.apache.camel.model;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlElementRef;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
-import javax.xml.bind.annotation.XmlType;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlElementRef;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.XmlType;
 
 import org.apache.camel.Predicate;
 import org.apache.camel.spi.AsPredicate;
@@ -214,11 +214,59 @@ public class OnCompletionDefinition extends OutputDefinition<OnCompletionDefinit
     /**
      * Will use the original input message body when an {@link org.apache.camel.Exchange} for this on completion.
      * <p/>
+     * The original input message is defensively copied, and the copied message body is converted to
+     * {@link org.apache.camel.StreamCache} if possible (stream caching is enabled, can be disabled globally or on the
+     * original route), to ensure the body can be read when the original message is being used later. If the body is
+     * converted to {@link org.apache.camel.StreamCache} then the message body on the current
+     * {@link org.apache.camel.Exchange} is replaced with the {@link org.apache.camel.StreamCache} body. If the body is
+     * not converted to {@link org.apache.camel.StreamCache} then the body will not be able to re-read when accessed
+     * later.
+     * <p/>
+     * <b>Important:</b> The original input means the input message that are bounded by the current
+     * {@link org.apache.camel.spi.UnitOfWork}. An unit of work typically spans one route, or multiple routes if they
+     * are connected using internal endpoints such as direct or seda. When messages is passed via external endpoints
+     * such as JMS or HTTP then the consumer will create a new unit of work, with the message it received as input as
+     * the original input. Also some EIP patterns such as splitter, multicast, will create a new unit of work boundary
+     * for the messages in their sub-route (eg the split message); however these EIPs have an option named
+     * <tt>shareUnitOfWork</tt> which allows to combine with the parent unit of work in regard to error handling and
+     * therefore use the parent original message.
+     * <p/>
+     * By default this feature is off.
+     *
+     * @return     the builder
+     * @deprecated use {@link #useOriginalMessage()}
+     */
+    @Deprecated
+    public OnCompletionDefinition useOriginalBody() {
+        setUseOriginalMessage(Boolean.toString(true));
+        return this;
+    }
+
+    /**
+     * Will use the original input message when an {@link org.apache.camel.Exchange} for this on completion.
+     * <p/>
+     * The original input message is defensively copied, and the copied message body is converted to
+     * {@link org.apache.camel.StreamCache} if possible (stream caching is enabled, can be disabled globally or on the
+     * original route), to ensure the body can be read when the original message is being used later. If the body is
+     * converted to {@link org.apache.camel.StreamCache} then the message body on the current
+     * {@link org.apache.camel.Exchange} is replaced with the {@link org.apache.camel.StreamCache} body. If the body is
+     * not converted to {@link org.apache.camel.StreamCache} then the body will not be able to re-read when accessed
+     * later.
+     * <p/>
+     * <b>Important:</b> The original input means the input message that are bounded by the current
+     * {@link org.apache.camel.spi.UnitOfWork}. An unit of work typically spans one route, or multiple routes if they
+     * are connected using internal endpoints such as direct or seda. When messages is passed via external endpoints
+     * such as JMS or HTTP then the consumer will create a new unit of work, with the message it received as input as
+     * the original input. Also some EIP patterns such as splitter, multicast, will create a new unit of work boundary
+     * for the messages in their sub-route (eg the split message); however these EIPs have an option named
+     * <tt>shareUnitOfWork</tt> which allows to combine with the parent unit of work in regard to error handling and
+     * therefore use the parent original message.
+     * <p/>
      * By default this feature is off.
      *
      * @return the builder
      */
-    public OnCompletionDefinition useOriginalBody() {
+    public OnCompletionDefinition useOriginalMessage() {
         setUseOriginalMessage(Boolean.toString(true));
         return this;
     }
@@ -332,7 +380,26 @@ public class OnCompletionDefinition extends OutputDefinition<OnCompletionDefinit
     /**
      * Will use the original input message body when an {@link org.apache.camel.Exchange} for this on completion.
      * <p/>
+     * The original input message is defensively copied, and the copied message body is converted to
+     * {@link org.apache.camel.StreamCache} if possible (stream caching is enabled, can be disabled globally or on the
+     * original route), to ensure the body can be read when the original message is being used later. If the body is
+     * converted to {@link org.apache.camel.StreamCache} then the message body on the current
+     * {@link org.apache.camel.Exchange} is replaced with the {@link org.apache.camel.StreamCache} body. If the body is
+     * not converted to {@link org.apache.camel.StreamCache} then the body will not be able to re-read when accessed
+     * later.
+     * <p/>
+     * <b>Important:</b> The original input means the input message that are bounded by the current
+     * {@link org.apache.camel.spi.UnitOfWork}. An unit of work typically spans one route, or multiple routes if they
+     * are connected using internal endpoints such as direct or seda. When messages is passed via external endpoints
+     * such as JMS or HTTP then the consumer will create a new unit of work, with the message it received as input as
+     * the original input. Also some EIP patterns such as splitter, multicast, will create a new unit of work boundary
+     * for the messages in their sub-route (eg the split message); however these EIPs have an option named
+     * <tt>shareUnitOfWork</tt> which allows to combine with the parent unit of work in regard to error handling and
+     * therefore use the parent original message.
+     * <p/>
      * By default this feature is off.
+     *
+     * @return the builder
      */
     public void setUseOriginalMessage(String useOriginalMessage) {
         this.useOriginalMessage = useOriginalMessage;

@@ -18,10 +18,11 @@
 package org.apache.camel.component.kafka.consumer;
 
 import java.util.Collections;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.Map;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.component.kafka.KafkaConsumer;
+import org.apache.camel.spi.StateRepository;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
@@ -33,26 +34,19 @@ public class AsyncCommitManager extends AbstractCommitManager {
     private static final Logger LOG = LoggerFactory.getLogger(AsyncCommitManager.class);
     private final Consumer<?, ?> consumer;
 
-    private final ConcurrentLinkedQueue<KafkaAsyncManualCommit> asyncCommits = new ConcurrentLinkedQueue<>();
+    private final OffsetCache offsetCache = new OffsetCache();
+    private final StateRepository<String, String> offsetRepository;
 
     public AsyncCommitManager(Consumer<?, ?> consumer, KafkaConsumer kafkaConsumer, String threadId, String printableTopic) {
         super(consumer, kafkaConsumer, threadId, printableTopic);
 
         this.consumer = consumer;
-    }
 
-    @Override
-    @Deprecated
-    public void processAsyncCommits() {
-        while (!asyncCommits.isEmpty()) {
-            asyncCommits.poll().processAsyncCommit();
-        }
+        offsetRepository = configuration.getOffsetRepository();
     }
 
     @Override
     public void commit() {
-        processAsyncCommits();
-
         if (kafkaConsumer.getEndpoint().getConfiguration().isAutoCommitEnable()) {
             LOG.info("Auto commitAsync {} from {}", threadId, printableTopic);
             consumer.commitAsync();
@@ -60,13 +54,13 @@ public class AsyncCommitManager extends AbstractCommitManager {
     }
 
     @Override
-    public void commitOffsetOnStop(TopicPartition partition, long partitionLastOffset) {
-        commitAsync(consumer, partition, partitionLastOffset);
-    }
+    public void commit(TopicPartition partition) {
+        Long offset = offsetCache.getOffset(partition);
+        if (offset == null) {
+            return;
+        }
 
-    @Override
-    public void commitOffset(TopicPartition partition, long partitionLastOffset) {
-        // NO-OP runs async
+        commitAsync(consumer, partition, offset);
     }
 
     private void commitAsync(Consumer<?, ?> consumer, TopicPartition partition, long partitionLastOffset) {
@@ -74,19 +68,37 @@ public class AsyncCommitManager extends AbstractCommitManager {
             LOG.debug("Auto commitAsync on stop {} from topic {}", threadId, partition.topic());
         }
 
-        consumer.commitAsync(
-                Collections.singletonMap(partition, new OffsetAndMetadata(partitionLastOffset + 1)), null);
+        final Map<TopicPartition, OffsetAndMetadata> topicPartitionOffsetAndMetadataMap
+                = Collections.singletonMap(partition, new OffsetAndMetadata(partitionLastOffset + 1));
+        consumer.commitAsync(topicPartitionOffsetAndMetadataMap, this::postCommitCallback);
     }
 
     @Override
     public KafkaManualCommit getManualCommit(
-            Exchange exchange, TopicPartition partition, ConsumerRecord<Object, Object> record) {
+            Exchange exchange, TopicPartition partition, ConsumerRecord<Object, Object> consumerRecord) {
 
         KafkaManualCommitFactory manualCommitFactory = kafkaConsumer.getEndpoint().getKafkaManualCommitFactory();
         if (manualCommitFactory == null) {
             manualCommitFactory = new DefaultKafkaManualAsyncCommitFactory();
         }
 
-        return getManualCommit(exchange, partition, record, asyncCommits, manualCommitFactory);
+        return getManualCommit(exchange, partition, consumerRecord, manualCommitFactory);
+    }
+
+    @Override
+    public void recordOffset(TopicPartition partition, long partitionLastOffset) {
+        offsetCache.recordOffset(partition, partitionLastOffset);
+    }
+
+    private void postCommitCallback(Map<TopicPartition, OffsetAndMetadata> committed, Exception exception) {
+        if (exception == null) {
+            if (offsetRepository != null) {
+                for (var entry : committed.entrySet()) {
+                    saveStateToOffsetRepository(entry.getKey(), entry.getValue().offset(), offsetRepository);
+                }
+            }
+        }
+
+        offsetCache.removeCommittedEntries(committed, exception);
     }
 }

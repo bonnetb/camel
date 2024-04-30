@@ -29,7 +29,7 @@ import org.apache.camel.util.ObjectHelper;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
 
 /**
- * Sending metrics to AWS CloudWatch using AWS SDK version 2.x.
+ * Sending metrics to AWS CloudWatch.
  */
 @UriEndpoint(firstVersion = "3.1.0", scheme = "aws2-cw", title = "AWS CloudWatch", syntax = "aws2-cw:namespace",
              producerOnly = true, category = { Category.CLOUD, Category.MONITORING }, headersClass = Cw2Constants.class)
@@ -42,6 +42,11 @@ public class Cw2Endpoint extends DefaultEndpoint {
     public Cw2Endpoint(String uri, Component component, Cw2Configuration configuration) {
         super(uri, component);
         this.configuration = configuration;
+    }
+
+    @Override
+    public Cw2Component getComponent() {
+        return (Cw2Component) super.getComponent();
     }
 
     @Override

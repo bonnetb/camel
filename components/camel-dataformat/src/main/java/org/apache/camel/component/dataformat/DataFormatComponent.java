@@ -19,11 +19,11 @@ package org.apache.camel.component.dataformat;
 import java.util.Map;
 
 import org.apache.camel.Endpoint;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.spi.DataFormat;
 import org.apache.camel.spi.PropertyConfigurer;
 import org.apache.camel.spi.annotations.Component;
 import org.apache.camel.support.DefaultComponent;
+import org.apache.camel.support.PluginHelper;
 import org.apache.camel.support.PropertyBindingSupport;
 import org.apache.camel.util.StringHelper;
 
@@ -56,7 +56,7 @@ public class DataFormatComponent extends DefaultComponent {
         }
 
         // find configurer if any
-        PropertyConfigurer configurer = getCamelContext().adapt(ExtendedCamelContext.class).getConfigurerResolver()
+        PropertyConfigurer configurer = PluginHelper.getConfigurerResolver(getCamelContext())
                 .resolvePropertyConfigurer(name + "-dataformat", getCamelContext());
         // bind properties to data format
         PropertyBindingSupport.Builder builder = new PropertyBindingSupport.Builder();

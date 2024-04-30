@@ -16,6 +16,7 @@
  */
 package org.apache.camel.component.vertx.websocket;
 
+import java.net.URI;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -28,11 +29,12 @@ import org.apache.camel.SSLContextParametersAware;
 import org.apache.camel.spi.Metadata;
 import org.apache.camel.spi.annotations.Component;
 import org.apache.camel.support.DefaultComponent;
+import org.apache.camel.util.ObjectHelper;
+import org.apache.camel.util.PropertiesHelper;
+import org.apache.camel.util.URISupport;
+import org.apache.camel.util.UnsafeUriCharactersEncoder;
 
 import static org.apache.camel.component.vertx.websocket.VertxWebsocketHelper.createHostKey;
-import static org.apache.camel.component.vertx.websocket.VertxWebsocketHelper.extractHostName;
-import static org.apache.camel.component.vertx.websocket.VertxWebsocketHelper.extractPath;
-import static org.apache.camel.component.vertx.websocket.VertxWebsocketHelper.extractPortNumber;
 
 @Component("vertx-websocket")
 public class VertxWebsocketComponent extends DefaultComponent implements SSLContextParametersAware {
@@ -48,22 +50,80 @@ public class VertxWebsocketComponent extends DefaultComponent implements SSLCont
     private Router router;
     @Metadata(label = "security", defaultValue = "false")
     private boolean useGlobalSslContextParameters;
+    @Metadata(label = "advanced", defaultValue = VertxWebsocketConstants.DEFAULT_VERTX_SERVER_HOST)
+    private String defaultHost = VertxWebsocketConstants.DEFAULT_VERTX_SERVER_HOST;
+    @Metadata(label = "advanced", defaultValue = "" + VertxWebsocketConstants.DEFAULT_VERTX_SERVER_PORT)
+    private int defaultPort = VertxWebsocketConstants.DEFAULT_VERTX_SERVER_PORT;
+    @Metadata(label = "advanced", defaultValue = "true")
+    private boolean allowOriginHeader = true;
+    @Metadata(label = "advanced")
+    private String originHeaderUrl;
 
     @Override
     protected Endpoint createEndpoint(String uri, String remaining, Map<String, Object> parameters) throws Exception {
-        VertxWebsocketConfiguration configuration = new VertxWebsocketConfiguration();
-        configuration.setHost(extractHostName(remaining));
-        configuration.setPort(extractPortNumber(remaining));
-        configuration.setPath(extractPath(remaining));
+        String wsUri = remaining;
+        if (wsUri.matches("^wss?:.*")) {
+            int schemeSeparatorIndex = remaining.indexOf(":");
+            String scheme = remaining.substring(0, schemeSeparatorIndex);
+            wsUri = scheme + "://" + wsUri.replaceFirst("wss?:/*", "");
+        } else {
+            String scheme = "ws://";
+            // Preserves backwards compatibility for the vertx-websocket  on camel-quarkus / camel-k where the HTTP
+            // server is provided by the runtime platform and the host:port configuration is not strictly required
+            if (remaining.startsWith("/")) {
+                wsUri = scheme + "/" + remaining.replaceAll("^/+", "");
+            } else {
+                wsUri = scheme + remaining;
+            }
+        }
 
-        VertxWebsocketEndpoint endpoint = new VertxWebsocketEndpoint(uri, this, configuration);
+        Map<String, Object> handshakeHeaders = PropertiesHelper.extractProperties(parameters, "handshake.");
+
+        VertxWebsocketConfiguration configuration = new VertxWebsocketConfiguration();
+        configuration.setAllowOriginHeader(isAllowOriginHeader());
+        configuration.setOriginHeaderUrl(getOriginHeaderUrl());
+        configuration.setHandshakeHeaders(handshakeHeaders);
+
+        VertxWebsocketEndpoint endpoint = createEndpointInstance(uri, configuration);
         setProperties(endpoint, parameters);
+
+        URI endpointUri = new URI(UnsafeUriCharactersEncoder.encodeHttpURI(wsUri));
+        URI websocketURI = URISupport.createRemainingURI(endpointUri, parameters);
+
+        if (websocketURI.getHost() == null || websocketURI.getPort() == -1 || ObjectHelper.isEmpty(websocketURI.getPath())) {
+            String path = websocketURI.getPath();
+            String host = websocketURI.getHost();
+            int port = websocketURI.getPort();
+
+            if (websocketURI.getHost() == null) {
+                host = getDefaultHost();
+            }
+
+            if (websocketURI.getPort() == -1) {
+                port = getDefaultPort();
+            }
+
+            if (ObjectHelper.isEmpty(path)) {
+                path = "/";
+            }
+
+            websocketURI = new URI(
+                    websocketURI.getScheme(), websocketURI.getUserInfo(),
+                    host, port, path, websocketURI.getQuery(),
+                    websocketURI.getFragment());
+        }
+
+        configuration.setWebsocketURI(websocketURI);
 
         if (configuration.getSslContextParameters() == null) {
             configuration.setSslContextParameters(retrieveGlobalSslContextParameters());
         }
 
         return endpoint;
+    }
+
+    protected VertxWebsocketEndpoint createEndpointInstance(String uri, VertxWebsocketConfiguration configuration) {
+        return new VertxWebsocketEndpoint(uri, this, configuration);
     }
 
     @Override
@@ -103,7 +163,7 @@ public class VertxWebsocketComponent extends DefaultComponent implements SSLCont
     public void connectConsumer(VertxWebsocketConsumer consumer) {
         VertxWebsocketEndpoint endpoint = consumer.getEndpoint();
         VertxWebsocketConfiguration configuration = endpoint.getConfiguration();
-        VertxWebsocketHostKey hostKey = createHostKey(configuration);
+        VertxWebsocketHostKey hostKey = createHostKey(configuration.getWebsocketURI());
         VertxWebsocketHost host = vertxHostRegistry.computeIfAbsent(hostKey, key -> {
             Router vertxRouter = configuration.getRouter();
             if (vertxRouter == null) {
@@ -141,11 +201,11 @@ public class VertxWebsocketComponent extends DefaultComponent implements SSLCont
     public void disconnectConsumer(VertxWebsocketConsumer consumer) {
         VertxWebsocketEndpoint endpoint = consumer.getEndpoint();
         VertxWebsocketConfiguration configuration = endpoint.getConfiguration();
-        VertxWebsocketHostKey hostKey = createHostKey(configuration);
+        VertxWebsocketHostKey hostKey = createHostKey(configuration.getWebsocketURI());
         VertxWebsocketHost vertxWebsocketHost = vertxHostRegistry.remove(hostKey);
 
         if (vertxWebsocketHost != null) {
-            vertxWebsocketHost.disconnect(configuration.getPath());
+            vertxWebsocketHost.disconnect(configuration.getWebsocketURI().getPath());
         }
     }
 
@@ -199,8 +259,53 @@ public class VertxWebsocketComponent extends DefaultComponent implements SSLCont
         return this.vertxHostRegistry;
     }
 
+    public boolean isAllowOriginHeader() {
+        return allowOriginHeader;
+    }
+
+    /**
+     * Whether the WebSocket client should add the Origin header to the WebSocket handshake request.
+     */
+    public void setAllowOriginHeader(boolean allowOriginHeader) {
+        this.allowOriginHeader = allowOriginHeader;
+    }
+
+    public String getOriginHeaderUrl() {
+        return originHeaderUrl;
+    }
+
+    /**
+     * The value of the Origin header that the WebSocket client should use on the WebSocket handshake request. When not
+     * specified, the WebSocket client will automatically determine the value for the Origin from the request URL.
+     */
+    public void setOriginHeaderUrl(String originHeaderUrl) {
+        this.originHeaderUrl = originHeaderUrl;
+    }
+
     protected VertxWebsocketHost createVertxWebsocketHost(
             VertxWebsocketHostConfiguration hostConfiguration, VertxWebsocketHostKey hostKey) {
         return new VertxWebsocketHost(getCamelContext(), hostConfiguration, hostKey);
+    }
+
+    /**
+     * Default value for host name that the WebSocket should bind to
+     */
+    public void setDefaultHost(String defaultHost) {
+        this.defaultHost = defaultHost;
+    }
+
+    public String getDefaultHost() {
+        return this.defaultHost;
+    }
+
+    /**
+     * Default value for the port that the WebSocket should bind to
+     */
+    public void setDefaultPort(int defaultPort) {
+        this.defaultPort = defaultPort;
+    }
+
+    public int getDefaultPort() {
+        return this.defaultPort;
     }
 }

@@ -19,6 +19,7 @@ package org.apache.camel.impl;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 
+import org.apache.camel.CamelContext;
 import org.apache.camel.ContextTestSupport;
 import org.apache.camel.Exchange;
 import org.apache.camel.builder.RouteBuilder;
@@ -32,8 +33,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class LogDebugBodyStreamsTest extends ContextTestSupport {
 
     @Override
-    protected Registry createRegistry() throws Exception {
-        Registry registry = super.createRegistry();
+    protected CamelContext createCamelContext() throws Exception {
+        CamelContext context = super.createCamelContext();
+        context.setStreamCaching(false); // turn off stream caching as this test case requires that
+        return context;
+    }
+
+    @Override
+    protected Registry createCamelRegistry() throws Exception {
+        Registry registry = super.createCamelRegistry();
         registry.bind("logFormatter", new TraceExchangeFormatter());
         return registry;
     }
@@ -160,10 +168,10 @@ public class LogDebugBodyStreamsTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:start").to("log:foo").to("mock:result");
             }
         };

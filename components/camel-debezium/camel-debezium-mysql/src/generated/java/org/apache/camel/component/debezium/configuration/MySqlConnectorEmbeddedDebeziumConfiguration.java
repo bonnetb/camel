@@ -16,30 +16,28 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     private String snapshotLockingMode = "minimal";
     @UriParam(label = LABEL_NAME)
     private String messageKeyColumns;
+    @UriParam(label = LABEL_NAME)
+    private String customMetricTags;
     @UriParam(label = LABEL_NAME, defaultValue = "0")
     private int queryFetchSize = 0;
-    @UriParam(label = LABEL_NAME)
-    private String columnBlacklist;
-    @UriParam(label = LABEL_NAME)
-    private String tableBlacklist;
+    @UriParam(label = LABEL_NAME, defaultValue = "source")
+    private String signalEnabledChannels = "source";
     @UriParam(label = LABEL_NAME, defaultValue = "true")
     private boolean includeSchemaChanges = true;
+    @UriParam(label = LABEL_NAME, defaultValue = "mysql")
+    private String connectorAdapter = "mysql";
     @UriParam(label = LABEL_NAME)
     private String gtidSourceIncludes;
-    @UriParam(label = LABEL_NAME, defaultValue = "class com.mysql.cj.jdbc.Driver")
+    @UriParam(label = LABEL_NAME, defaultValue = "com.mysql.cj.jdbc.Driver")
     private String databaseJdbcDriver = "com.mysql.cj.jdbc.Driver";
     @UriParam(label = LABEL_NAME)
     private String heartbeatActionQuery;
     @UriParam(label = LABEL_NAME, defaultValue = "500ms", javaType = "java.time.Duration")
     private long pollIntervalMs = 500;
-    @UriParam(label = LABEL_NAME, defaultValue = "100ms", javaType = "java.time.Duration")
-    private int databaseHistoryKafkaRecoveryPollIntervalMs = 100;
     @UriParam(label = LABEL_NAME)
     private String signalDataCollection;
     @UriParam(label = LABEL_NAME)
     private String databaseInitialStatements;
-    @UriParam(label = LABEL_NAME, defaultValue = "false")
-    private boolean databaseHistoryStoreOnlyCapturedTablesDdl = false;
     @UriParam(label = LABEL_NAME)
     private String converters;
     @UriParam(label = LABEL_NAME, defaultValue = "__debezium-heartbeat")
@@ -54,26 +52,26 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     private String databaseUser;
     @UriParam(label = LABEL_NAME)
     private String datatypePropagateSourceType;
-    @UriParam(label = LABEL_NAME, defaultValue = "false")
-    private boolean sanitizeFieldNames = false;
+    @UriParam(label = LABEL_NAME, defaultValue = "disabled")
+    private String snapshotTablesOrderByRowCount = "disabled";
     @UriParam(label = LABEL_NAME)
     private String gtidSourceExcludes;
+    @UriParam(label = LABEL_NAME, defaultValue = "INSERT_INSERT")
+    private String incrementalSnapshotWatermarkingStrategy = "INSERT_INSERT";
     @UriParam(label = LABEL_NAME)
     private String snapshotSelectStatementOverrides;
     @UriParam(label = LABEL_NAME)
-    private String databaseHistoryKafkaBootstrapServers;
-    @UriParam(label = LABEL_NAME)
     private String databaseSslKeystore;
-    @UriParam(label = LABEL_NAME, defaultValue = "v2")
-    private String sourceStructVersion = "v2";
     @UriParam(label = LABEL_NAME, defaultValue = "0ms", javaType = "java.time.Duration")
     private int heartbeatIntervalMs = 0;
     @UriParam(label = LABEL_NAME)
-    private String columnWhitelist;
-    @UriParam(label = LABEL_NAME)
     private String databaseSslTruststorePassword;
     @UriParam(label = LABEL_NAME, defaultValue = "false")
+    private boolean snapshotModeConfigurationBasedSnapshotOnSchemaError = false;
+    @UriParam(label = LABEL_NAME, defaultValue = "false")
     private boolean incrementalSnapshotAllowSchemaChanges = false;
+    @UriParam(label = LABEL_NAME, defaultValue = "false")
+    private boolean schemaHistoryInternalSkipUnparseableDdl = false;
     @UriParam(label = LABEL_NAME)
     private String columnIncludeList;
     @UriParam(label = LABEL_NAME, defaultValue = "true")
@@ -84,6 +82,8 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     private String inconsistentSchemaHandlingMode = "fail";
     @UriParam(label = LABEL_NAME, defaultValue = "1000")
     private int minRowCountToStreamResults = 1000;
+    @UriParam(label = LABEL_NAME, defaultValue = "-1")
+    private int errorsMaxRetries = -1;
     @UriParam(label = LABEL_NAME)
     private String tableExcludeList;
     @UriParam(label = LABEL_NAME)
@@ -91,71 +91,83 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     private String databasePassword;
     @UriParam(label = LABEL_NAME)
     private String databaseExcludeList;
-    @UriParam(label = LABEL_NAME, defaultValue = "false")
-    private boolean databaseHistoryStoreOnlyMonitoredTablesDdl = false;
     @UriParam(label = LABEL_NAME, defaultValue = "true")
     private boolean gtidSourceFilterDmlEvents = true;
     @UriParam(label = LABEL_NAME, defaultValue = "2048")
     private int maxBatchSize = 2048;
-    @UriParam(label = LABEL_NAME)
-    private String skippedOperations;
+    @UriParam(label = LABEL_NAME, defaultValue = "t")
+    private String skippedOperations = "t";
+    @UriParam(label = LABEL_NAME, defaultValue = "io.debezium.schema.SchemaTopicNamingStrategy")
+    private String topicNamingStrategy = "io.debezium.schema.SchemaTopicNamingStrategy";
     @UriParam(label = LABEL_NAME, defaultValue = "true")
     private boolean connectKeepAlive = true;
     @UriParam(label = LABEL_NAME, defaultValue = "initial")
     private String snapshotMode = "initial";
-    @UriParam(label = LABEL_NAME, defaultValue = "io.debezium.relational.history.FileDatabaseHistory")
-    private String databaseHistory = "io.debezium.relational.history.FileDatabaseHistory";
     @UriParam(label = LABEL_NAME, defaultValue = "30s", javaType = "java.time.Duration")
     private int connectTimeoutMs = 30000;
+    @UriParam(label = LABEL_NAME, defaultValue = "false")
+    private boolean snapshotModeConfigurationBasedSnapshotData = false;
     @UriParam(label = LABEL_NAME, defaultValue = "8192")
     private int maxQueueSize = 8192;
     @UriParam(label = LABEL_NAME, defaultValue = "1024")
     private int incrementalSnapshotChunkSize = 1024;
-    @UriParam(label = LABEL_NAME)
-    private String databaseHistoryKafkaTopic;
     @UriParam(label = LABEL_NAME, defaultValue = "10s", javaType = "java.time.Duration")
     private long retriableRestartConnectorWaitMs = 10000;
     @UriParam(label = LABEL_NAME, defaultValue = "0ms", javaType = "java.time.Duration")
     private long snapshotDelayMs = 0;
-    @UriParam(label = LABEL_NAME, defaultValue = "100")
-    private int databaseHistoryKafkaRecoveryAttempts = 100;
     @UriParam(label = LABEL_NAME, defaultValue = "false")
     private boolean provideTransactionMetadata = false;
+    @UriParam(label = LABEL_NAME, defaultValue = "select_all")
+    private String snapshotQueryMode = "select_all";
+    @UriParam(label = LABEL_NAME, defaultValue = "true")
+    private boolean schemaHistoryInternalStoreOnlyCapturedDatabasesDdl = true;
+    @UriParam(label = LABEL_NAME, defaultValue = "false")
+    private boolean schemaHistoryInternalStoreOnlyCapturedTablesDdl = false;
+    @UriParam(label = LABEL_NAME, defaultValue = "false")
+    private boolean snapshotModeConfigurationBasedSnapshotOnDataError = false;
     @UriParam(label = LABEL_NAME)
-    private String tableWhitelist;
+    private String schemaHistoryInternalFileFilename;
     @UriParam(label = LABEL_NAME, defaultValue = "false")
     private boolean tombstonesOnDelete = false;
+    @UriParam(label = LABEL_NAME)
+    @Metadata(required = true)
+    private String topicPrefix;
     @UriParam(label = LABEL_NAME, defaultValue = "precise")
     private String decimalHandlingMode = "precise";
     @UriParam(label = LABEL_NAME, defaultValue = "bytes")
     private String binaryHandlingMode = "bytes";
+    @UriParam(label = LABEL_NAME)
+    private String snapshotQueryModeCustomName;
     @UriParam(label = LABEL_NAME, defaultValue = "false")
     private boolean includeSchemaComments = false;
     @UriParam(label = LABEL_NAME, defaultValue = "off")
     private String snapshotNewTables = "off";
-    @UriParam(label = LABEL_NAME, defaultValue = "false")
-    private boolean databaseHistorySkipUnparseableDdl = false;
+    @UriParam(label = LABEL_NAME, defaultValue = "io.debezium.connector.mysql.MySqlSourceInfoStructMaker")
+    private String sourceinfoStructMaker = "io.debezium.connector.mysql.MySqlSourceInfoStructMaker";
     @UriParam(label = LABEL_NAME, defaultValue = "true")
     private boolean tableIgnoreBuiltin = true;
     @UriParam(label = LABEL_NAME)
     private String snapshotIncludeCollectionList;
-    @UriParam(label = LABEL_NAME)
-    private String databaseHistoryFileFilename;
+    @UriParam(label = LABEL_NAME, defaultValue = "false")
+    private boolean snapshotModeConfigurationBasedStartStream = false;
     @UriParam(label = LABEL_NAME, defaultValue = "long")
     private String bigintUnsignedHandlingMode = "long";
     @UriParam(label = LABEL_NAME)
     private long databaseServerId;
     @UriParam(label = LABEL_NAME, defaultValue = "0")
     private long maxQueueSizeInBytes = 0;
-    @UriParam(label = LABEL_NAME, defaultValue = "${database.server.name}.transaction")
-    private String transactionTopic = "${database.server.name}.transaction";
+    @UriParam(label = LABEL_NAME, defaultValue = "false")
+    private boolean snapshotModeConfigurationBasedSnapshotSchema = false;
     @UriParam(label = LABEL_NAME, defaultValue = "adaptive_time_microseconds")
     private String timePrecisionMode = "adaptive_time_microseconds";
+    @UriParam(label = LABEL_NAME, defaultValue = "5s", javaType = "java.time.Duration")
+    private long signalPollIntervalMs = 5000;
     @UriParam(label = LABEL_NAME, defaultValue = "fail")
     private String eventDeserializationFailureHandlingMode = "fail";
     @UriParam(label = LABEL_NAME)
-    @Metadata(required = true)
-    private String databaseServerName;
+    private String postProcessors;
+    @UriParam(label = LABEL_NAME)
+    private String notificationEnabledChannels;
     @UriParam(label = LABEL_NAME, defaultValue = "fail")
     private String eventProcessingFailureHandlingMode = "fail";
     @UriParam(label = LABEL_NAME, defaultValue = "1")
@@ -164,14 +176,22 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     private int databasePort = 3306;
     @UriParam(label = LABEL_NAME)
     private String databaseSslTruststore;
-    @UriParam(label = LABEL_NAME, defaultValue = "disabled")
-    private String databaseSslMode = "disabled";
+    @UriParam(label = LABEL_NAME)
+    private String notificationSinkTopicName;
+    @UriParam(label = LABEL_NAME)
+    private String snapshotModeCustomName;
+    @UriParam(label = LABEL_NAME, defaultValue = "preferred")
+    private String databaseSslMode = "preferred";
     @UriParam(label = LABEL_NAME)
     private String databaseSslKeystorePassword;
+    @UriParam(label = LABEL_NAME, defaultValue = "io.debezium.storage.kafka.history.KafkaSchemaHistory")
+    private String schemaHistoryInternal = "io.debezium.storage.kafka.history.KafkaSchemaHistory";
     @UriParam(label = LABEL_NAME)
     private String columnExcludeList;
     @UriParam(label = LABEL_NAME)
     private String databaseHostname;
+    @UriParam(label = LABEL_NAME, defaultValue = "none")
+    private String schemaNameAdjustmentMode = "none";
     @UriParam(label = LABEL_NAME, defaultValue = "10000")
     private long databaseServerIdOffset = 10000;
     @UriParam(label = LABEL_NAME, defaultValue = "1m", javaType = "java.time.Duration")
@@ -211,12 +231,12 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     /**
      * A semicolon-separated list of expressions that match fully-qualified
      * tables and column(s) to be used as message key. Each expression must
-     * match the pattern '<fully-qualified table name>:<key columns>',where the
+     * match the pattern '<fully-qualified table name>:<key columns>', where the
      * table names could be defined as (DB_NAME.TABLE_NAME) or
-     * (SCHEMA_NAME.TABLE_NAME), depending on the specific connector,and the key
-     * columns are a comma-separated list of columns representing the custom
+     * (SCHEMA_NAME.TABLE_NAME), depending on the specific connector, and the
+     * key columns are a comma-separated list of columns representing the custom
      * key. For any table without an explicit key configuration the table's
-     * primary key column(s) will be used as message key.Example:
+     * primary key column(s) will be used as message key. Example:
      * dbserver1.inventory.orderlines:orderId,orderLineId;dbserver1.inventory.orders:id
      */
     public void setMessageKeyColumns(String messageKeyColumns) {
@@ -228,8 +248,22 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
+     * The custom metric tags will accept key-value pairs to customize the MBean
+     * object name which should be appended the end of regular name, each key
+     * would represent a tag for the MBean object name, and the corresponding
+     * value would be the value of that tag the key is. For example: k1=v1,k2=v2
+     */
+    public void setCustomMetricTags(String customMetricTags) {
+        this.customMetricTags = customMetricTags;
+    }
+
+    public String getCustomMetricTags() {
+        return customMetricTags;
+    }
+
+    /**
      * The maximum number of records that should be loaded into memory while
-     * streaming.  A value of `0` uses the default JDBC fetch size.
+     * streaming. A value of '0' uses the default JDBC fetch size.
      */
     public void setQueryFetchSize(int queryFetchSize) {
         this.queryFetchSize = queryFetchSize;
@@ -240,28 +274,15 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * Regular expressions matching columns to exclude from change events
-     * (deprecated, use "column.exclude.list" instead)
+     * List of channels names that are enabled. Source channel is enabled by
+     * default
      */
-    public void setColumnBlacklist(String columnBlacklist) {
-        this.columnBlacklist = columnBlacklist;
+    public void setSignalEnabledChannels(String signalEnabledChannels) {
+        this.signalEnabledChannels = signalEnabledChannels;
     }
 
-    public String getColumnBlacklist() {
-        return columnBlacklist;
-    }
-
-    /**
-     * A comma-separated list of regular expressions that match the
-     * fully-qualified names of tables to be excluded from monitoring
-     * (deprecated, use "table.exclude.list" instead)
-     */
-    public void setTableBlacklist(String tableBlacklist) {
-        this.tableBlacklist = tableBlacklist;
-    }
-
-    public String getTableBlacklist() {
-        return tableBlacklist;
+    public String getSignalEnabledChannels() {
+        return signalEnabledChannels;
     }
 
     /**
@@ -269,8 +290,8 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
      * Kafka topic with the same name as the database server ID. Each schema
      * change will be recorded using a key that contains the database name and
      * whose value include logical description of the new schema and optionally
-     * the DDL statement(s).The default is 'true'. This is independent of how
-     * the connector internally records database history.
+     * the DDL statement(s). The default is 'true'. This is independent of how
+     * the connector internally records database schema history.
      */
     public void setIncludeSchemaChanges(boolean includeSchemaChanges) {
         this.includeSchemaChanges = includeSchemaChanges;
@@ -278,6 +299,17 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
 
     public boolean isIncludeSchemaChanges() {
         return includeSchemaChanges;
+    }
+
+    /**
+     * Specifies the connection adapter to be used
+     */
+    public void setConnectorAdapter(String connectorAdapter) {
+        this.connectorAdapter = connectorAdapter;
+    }
+
+    public String getConnectorAdapter() {
+        return connectorAdapter;
     }
 
     /**
@@ -327,19 +359,6 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * The number of milliseconds to wait while polling for persisted data
-     * during recovery.
-     */
-    public void setDatabaseHistoryKafkaRecoveryPollIntervalMs(
-            int databaseHistoryKafkaRecoveryPollIntervalMs) {
-        this.databaseHistoryKafkaRecoveryPollIntervalMs = databaseHistoryKafkaRecoveryPollIntervalMs;
-    }
-
-    public int getDatabaseHistoryKafkaRecoveryPollIntervalMs() {
-        return databaseHistoryKafkaRecoveryPollIntervalMs;
-    }
-
-    /**
      * The name of the data collection that is used to send signals/commands to
      * Debezium. Signaling is disabled when not set.
      */
@@ -356,8 +375,8 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
      * connection (not binlog reading connection) to the database is
      * established. Note that the connector may establish JDBC connections at
      * its own discretion, so this should typically be used for configuration of
-     * session parameters only,but not for executing DML statements. Use doubled
-     * semicolon (';;') to use a semicolon as a character and not as a
+     * session parameters only, but not for executing DML statements. Use
+     * doubled semicolon (';;') to use a semicolon as a character and not as a
      * delimiter.
      */
     public void setDatabaseInitialStatements(String databaseInitialStatements) {
@@ -366,20 +385,6 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
 
     public String getDatabaseInitialStatements() {
         return databaseInitialStatements;
-    }
-
-    /**
-     * Controls what DDL will Debezium store in database history. By default
-     * (false) Debezium will store all incoming DDL statements. If set to true,
-     * then only DDL that manipulates a captured table will be stored.
-     */
-    public void setDatabaseHistoryStoreOnlyCapturedTablesDdl(
-            boolean databaseHistoryStoreOnlyCapturedTablesDdl) {
-        this.databaseHistoryStoreOnlyCapturedTablesDdl = databaseHistoryStoreOnlyCapturedTablesDdl;
-    }
-
-    public boolean isDatabaseHistoryStoreOnlyCapturedTablesDdl() {
-        return databaseHistoryStoreOnlyCapturedTablesDdl;
     }
 
     /**
@@ -423,7 +428,7 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
 
     /**
      * The maximum number of records that should be loaded into memory while
-     * performing a snapshot
+     * performing a snapshot.
      */
     public void setSnapshotFetchSize(int snapshotFetchSize) {
         this.snapshotFetchSize = snapshotFetchSize;
@@ -473,14 +478,18 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * Whether field names will be sanitized to Avro naming conventions
+     * Controls the order in which tables are processed in the initial snapshot.
+     * A `descending` value will order the tables by row count descending. A
+     * `ascending` value will order the tables by row count ascending. A value
+     * of `disabled` (the default) will disable ordering by row count.
      */
-    public void setSanitizeFieldNames(boolean sanitizeFieldNames) {
-        this.sanitizeFieldNames = sanitizeFieldNames;
+    public void setSnapshotTablesOrderByRowCount(
+            String snapshotTablesOrderByRowCount) {
+        this.snapshotTablesOrderByRowCount = snapshotTablesOrderByRowCount;
     }
 
-    public boolean isSanitizeFieldNames() {
-        return sanitizeFieldNames;
+    public String getSnapshotTablesOrderByRowCount() {
+        return snapshotTablesOrderByRowCount;
     }
 
     /**
@@ -496,9 +505,25 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
+     * Specify the strategy used for watermarking during an incremental
+     * snapshot: 'insert_insert' both open and close signal is written into
+     * signal data collection (default); 'insert_delete' only open signal is
+     * written on signal data collection, the close will delete the relative
+     * open signal;
+     */
+    public void setIncrementalSnapshotWatermarkingStrategy(
+            String incrementalSnapshotWatermarkingStrategy) {
+        this.incrementalSnapshotWatermarkingStrategy = incrementalSnapshotWatermarkingStrategy;
+    }
+
+    public String getIncrementalSnapshotWatermarkingStrategy() {
+        return incrementalSnapshotWatermarkingStrategy;
+    }
+
+    /**
      *  This property contains a comma-separated list of fully-qualified tables
-     * (DB_NAME.TABLE_NAME) or (SCHEMA_NAME.TABLE_NAME), depending on
-     * thespecific connectors. Select statements for the individual tables are
+     * (DB_NAME.TABLE_NAME) or (SCHEMA_NAME.TABLE_NAME), depending on the
+     * specific connectors. Select statements for the individual tables are
      * specified in further configuration properties, one for each table,
      * identified by the id
      * 'snapshot.select.statement.overrides.[DB_NAME].[TABLE_NAME]' or
@@ -519,23 +544,8 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * A list of host/port pairs that the connector will use for establishing
-     * the initial connection to the Kafka cluster for retrieving database
-     * schema history previously stored by the connector. This should point to
-     * the same Kafka cluster used by the Kafka Connect process.
-     */
-    public void setDatabaseHistoryKafkaBootstrapServers(
-            String databaseHistoryKafkaBootstrapServers) {
-        this.databaseHistoryKafkaBootstrapServers = databaseHistoryKafkaBootstrapServers;
-    }
-
-    public String getDatabaseHistoryKafkaBootstrapServers() {
-        return databaseHistoryKafkaBootstrapServers;
-    }
-
-    /**
-     * Location of the Java keystore file containing an application process's
-     * own certificate and private key.
+     * The location of the key store file. This is optional and can be used for
+     * two-way authentication between the client and the MySQL Server.
      */
     public void setDatabaseSslKeystore(String databaseSslKeystore) {
         this.databaseSslKeystore = databaseSslKeystore;
@@ -543,18 +553,6 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
 
     public String getDatabaseSslKeystore() {
         return databaseSslKeystore;
-    }
-
-    /**
-     * A version of the format of the publicly visible source part in the
-     * message
-     */
-    public void setSourceStructVersion(String sourceStructVersion) {
-        this.sourceStructVersion = sourceStructVersion;
-    }
-
-    public String getSourceStructVersion() {
-        return sourceStructVersion;
     }
 
     /**
@@ -571,21 +569,8 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * Regular expressions matching columns to include in change events
-     * (deprecated, use "column.include.list" instead)
-     */
-    public void setColumnWhitelist(String columnWhitelist) {
-        this.columnWhitelist = columnWhitelist;
-    }
-
-    public String getColumnWhitelist() {
-        return columnWhitelist;
-    }
-
-    /**
-     * Password to unlock the keystore file (store password) specified by
-     * 'ssl.trustore' configuration property or the 'javax.net.ssl.trustStore'
-     * system or JVM property.
+     * The password for the trust store file. Used to check the integrity of the
+     * truststore, and unlock the truststore.
      */
     public void setDatabaseSslTruststorePassword(
             String databaseSslTruststorePassword) {
@@ -594,6 +579,20 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
 
     public String getDatabaseSslTruststorePassword() {
         return databaseSslTruststorePassword;
+    }
+
+    /**
+     * When 'snapshot.mode' is set as configuration_based, this setting permits
+     * to specify whenever the schema should be snapshotted or not in case of
+     * error.
+     */
+    public void setSnapshotModeConfigurationBasedSnapshotOnSchemaError(
+            boolean snapshotModeConfigurationBasedSnapshotOnSchemaError) {
+        this.snapshotModeConfigurationBasedSnapshotOnSchemaError = snapshotModeConfigurationBasedSnapshotOnSchemaError;
+    }
+
+    public boolean isSnapshotModeConfigurationBasedSnapshotOnSchemaError() {
+        return snapshotModeConfigurationBasedSnapshotOnSchemaError;
     }
 
     /**
@@ -613,6 +612,21 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
 
     public boolean isIncrementalSnapshotAllowSchemaChanges() {
         return incrementalSnapshotAllowSchemaChanges;
+    }
+
+    /**
+     * Controls the action Debezium will take when it meets a DDL statement in
+     * binlog, that it cannot parse.By default the connector will stop operating
+     * but by changing the setting it can ignore the statements which it cannot
+     * parse. If skipping is enabled then Debezium can miss metadata changes.
+     */
+    public void setSchemaHistoryInternalSkipUnparseableDdl(
+            boolean schemaHistoryInternalSkipUnparseableDdl) {
+        this.schemaHistoryInternalSkipUnparseableDdl = schemaHistoryInternalSkipUnparseableDdl;
+    }
+
+    public boolean isSchemaHistoryInternalSkipUnparseableDdl() {
+        return schemaHistoryInternalSkipUnparseableDdl;
     }
 
     /**
@@ -642,7 +656,7 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
 
     /**
      * A comma-separated list of regular expressions matching fully-qualified
-     * names of columns that  adds the columns original type and original length
+     * names of columns that adds the columns original type and original length
      * as parameters to the corresponding field schemas in the emitted change
      * records.
      */
@@ -657,11 +671,11 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     /**
      * Specify how binlog events that belong to a table missing from internal
      * schema representation (i.e. internal representation is not consistent
-     * with database) should be handled, including:'fail' (the default) an
+     * with database) should be handled, including: 'fail' (the default) an
      * exception indicating the problematic event and its binlog position is
      * raised, causing the connector to be stopped; 'warn' the problematic event
-     * and its binlog position will be logged and the event will be
-     * skipped;'skip' the problematic event will be skipped.
+     * and its binlog position will be logged and the event will be skipped;
+     * 'skip' the problematic event will be skipped.
      */
     public void setInconsistentSchemaHandlingMode(
             String inconsistentSchemaHandlingMode) {
@@ -683,6 +697,18 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
 
     public int getMinRowCountToStreamResults() {
         return minRowCountToStreamResults;
+    }
+
+    /**
+     * The maximum number of retries on connection errors before failing (-1 =
+     * no limit, 0 = disabled, > 0 = num of retries).
+     */
+    public void setErrorsMaxRetries(int errorsMaxRetries) {
+        this.errorsMaxRetries = errorsMaxRetries;
+    }
+
+    public int getErrorsMaxRetries() {
+        return errorsMaxRetries;
     }
 
     /**
@@ -721,22 +747,6 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * Controls what DDL will Debezium store in database history. By default
-     * (false) Debezium will store all incoming DDL statements. If set to true,
-     * then only DDL that manipulates a monitored table will be stored
-     * (deprecated, use "database.history.store.only.captured.tables.ddl"
-     * instead)
-     */
-    public void setDatabaseHistoryStoreOnlyMonitoredTablesDdl(
-            boolean databaseHistoryStoreOnlyMonitoredTablesDdl) {
-        this.databaseHistoryStoreOnlyMonitoredTablesDdl = databaseHistoryStoreOnlyMonitoredTablesDdl;
-    }
-
-    public boolean isDatabaseHistoryStoreOnlyMonitoredTablesDdl() {
-        return databaseHistoryStoreOnlyMonitoredTablesDdl;
-    }
-
-    /**
      * If set to true, we will only produce DML events into Kafka for
      * transactions that were written on mysql servers with UUIDs matching the
      * filters defined by the gtid.source.includes or gtid.source.excludes
@@ -763,8 +773,9 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
 
     /**
      * The comma-separated list of operations to skip during streaming, defined
-     * as: 'c' for inserts/create; 'u' for updates; 'd' for deletes. By default,
-     * no operations will be skipped.
+     * as: 'c' for inserts/create; 'u' for updates; 'd' for deletes, 't' for
+     * truncates, and 'none' to indicate nothing skipped. By default, only
+     * truncate operations will be skipped.
      */
     public void setSkippedOperations(String skippedOperations) {
         this.skippedOperations = skippedOperations;
@@ -772,6 +783,19 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
 
     public String getSkippedOperations() {
         return skippedOperations;
+    }
+
+    /**
+     * The name of the TopicNamingStrategy class that should be used to
+     * determine the topic name for data change, schema change, transaction,
+     * heartbeat event etc.
+     */
+    public void setTopicNamingStrategy(String topicNamingStrategy) {
+        this.topicNamingStrategy = topicNamingStrategy;
+    }
+
+    public String getTopicNamingStrategy() {
+        return topicNamingStrategy;
     }
 
     /**
@@ -787,18 +811,27 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * The criteria for running a snapshot upon startup of the connector.
-     * Options include: 'when_needed' to specify that the connector run a
-     * snapshot upon startup whenever it deems it necessary; 'schema_only' to
-     * only take a snapshot of the schema (table structures) but no actual data;
-     * 'initial' (the default) to specify the connector can run a snapshot only
-     * when no offsets are available for the logical server name; 'initial_only'
-     * same as 'initial' except the connector should stop after completing the
-     * snapshot and before it would normally read the binlog; and'never' to
-     * specify the connector should never run a snapshot and that upon first
-     * startup the connector should read from the beginning of the binlog. The
-     * 'never' mode should be used with care, and only when the binlog is known
-     * to contain all history.
+     * The criteria for running a snapshot upon startup of the connector. Select
+     * one of the following snapshot options: 'when_needed': On startup, the
+     * connector runs a snapshot if one is needed.; 'schema_only': If the
+     * connector does not detect any offsets for the logical server name, it
+     * runs a snapshot that captures only the schema (table structures), but not
+     * any table data. After the snapshot completes, the connector begins to
+     * stream changes from the binlog.; 'schema_only_recovery': The connector
+     * performs a snapshot that captures only the database schema history. The
+     * connector then transitions back to streaming. Use this setting to restore
+     * a corrupted or lost database schema history topic. Do not use if the
+     * database schema was modified after the connector stopped.; 'initial'
+     * (default): If the connector does not detect any offsets for the logical
+     * server name, it runs a snapshot that captures the current full state of
+     * the configured tables. After the snapshot completes, the connector begins
+     * to stream changes from the binlog.; 'initial_only': The connector
+     * performs a snapshot as it does for the 'initial' option, but after the
+     * connector completes the snapshot, it stops, and does not stream changes
+     * from the binlog.; 'never': The connector does not run a snapshot. Upon
+     * first startup, the connector immediately begins reading from the
+     * beginning of the binlog. The 'never' mode should be used with care, and
+     * only when the binlog is known to contain all history.
      */
     public void setSnapshotMode(String snapshotMode) {
         this.snapshotMode = snapshotMode;
@@ -806,19 +839,6 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
 
     public String getSnapshotMode() {
         return snapshotMode;
-    }
-
-    /**
-     * The name of the DatabaseHistory class that should be used to store and
-     * recover database schema changes. The configuration properties for the
-     * history are prefixed with the 'database.history.' string.
-     */
-    public void setDatabaseHistory(String databaseHistory) {
-        this.databaseHistory = databaseHistory;
-    }
-
-    public String getDatabaseHistory() {
-        return databaseHistory;
     }
 
     /**
@@ -831,6 +851,19 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
 
     public int getConnectTimeoutMs() {
         return connectTimeoutMs;
+    }
+
+    /**
+     * When 'snapshot.mode' is set as configuration_based, this setting permits
+     * to specify whenever the data should be snapshotted or not.
+     */
+    public void setSnapshotModeConfigurationBasedSnapshotData(
+            boolean snapshotModeConfigurationBasedSnapshotData) {
+        this.snapshotModeConfigurationBasedSnapshotData = snapshotModeConfigurationBasedSnapshotData;
+    }
+
+    public boolean isSnapshotModeConfigurationBasedSnapshotData() {
+        return snapshotModeConfigurationBasedSnapshotData;
     }
 
     /**
@@ -847,7 +880,8 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * The maximum size of chunk for incremental snapshotting
+     * The maximum size of chunk (number of documents/rows) for incremental
+     * snapshotting
      */
     public void setIncrementalSnapshotChunkSize(int incrementalSnapshotChunkSize) {
         this.incrementalSnapshotChunkSize = incrementalSnapshotChunkSize;
@@ -855,17 +889,6 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
 
     public int getIncrementalSnapshotChunkSize() {
         return incrementalSnapshotChunkSize;
-    }
-
-    /**
-     * The name of the topic for the database schema history
-     */
-    public void setDatabaseHistoryKafkaTopic(String databaseHistoryKafkaTopic) {
-        this.databaseHistoryKafkaTopic = databaseHistoryKafkaTopic;
-    }
-
-    public String getDatabaseHistoryKafkaTopic() {
-        return databaseHistoryKafkaTopic;
     }
 
     /**
@@ -894,20 +917,6 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * The number of attempts in a row that no data are returned from Kafka
-     * before recover completes. The maximum amount of time to wait after
-     * receiving no data is (recovery.attempts) x (recovery.poll.interval.ms).
-     */
-    public void setDatabaseHistoryKafkaRecoveryAttempts(
-            int databaseHistoryKafkaRecoveryAttempts) {
-        this.databaseHistoryKafkaRecoveryAttempts = databaseHistoryKafkaRecoveryAttempts;
-    }
-
-    public int getDatabaseHistoryKafkaRecoveryAttempts() {
-        return databaseHistoryKafkaRecoveryAttempts;
-    }
-
-    /**
      * Enables transaction metadata extraction together with event counting
      */
     public void setProvideTransactionMetadata(boolean provideTransactionMetadata) {
@@ -919,20 +928,75 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * The tables for which changes are to be captured (deprecated, use
-     * "table.include.list" instead)
+     * Controls query used during the snapshot
      */
-    public void setTableWhitelist(String tableWhitelist) {
-        this.tableWhitelist = tableWhitelist;
+    public void setSnapshotQueryMode(String snapshotQueryMode) {
+        this.snapshotQueryMode = snapshotQueryMode;
     }
 
-    public String getTableWhitelist() {
-        return tableWhitelist;
+    public String getSnapshotQueryMode() {
+        return snapshotQueryMode;
+    }
+
+    /**
+     * Controls what DDL will Debezium store in database schema history. By
+     * default (true) only DDL that manipulates a table from captured
+     * schema/database will be stored. If set to false, then Debezium will store
+     * all incoming DDL statements.
+     */
+    public void setSchemaHistoryInternalStoreOnlyCapturedDatabasesDdl(
+            boolean schemaHistoryInternalStoreOnlyCapturedDatabasesDdl) {
+        this.schemaHistoryInternalStoreOnlyCapturedDatabasesDdl = schemaHistoryInternalStoreOnlyCapturedDatabasesDdl;
+    }
+
+    public boolean isSchemaHistoryInternalStoreOnlyCapturedDatabasesDdl() {
+        return schemaHistoryInternalStoreOnlyCapturedDatabasesDdl;
+    }
+
+    /**
+     * Controls what DDL will Debezium store in database schema history. By
+     * default (false) Debezium will store all incoming DDL statements. If set
+     * to true, then only DDL that manipulates a captured table will be stored.
+     */
+    public void setSchemaHistoryInternalStoreOnlyCapturedTablesDdl(
+            boolean schemaHistoryInternalStoreOnlyCapturedTablesDdl) {
+        this.schemaHistoryInternalStoreOnlyCapturedTablesDdl = schemaHistoryInternalStoreOnlyCapturedTablesDdl;
+    }
+
+    public boolean isSchemaHistoryInternalStoreOnlyCapturedTablesDdl() {
+        return schemaHistoryInternalStoreOnlyCapturedTablesDdl;
+    }
+
+    /**
+     * When 'snapshot.mode' is set as configuration_based, this setting permits
+     * to specify whenever the data should be snapshotted or not in case of
+     * error.
+     */
+    public void setSnapshotModeConfigurationBasedSnapshotOnDataError(
+            boolean snapshotModeConfigurationBasedSnapshotOnDataError) {
+        this.snapshotModeConfigurationBasedSnapshotOnDataError = snapshotModeConfigurationBasedSnapshotOnDataError;
+    }
+
+    public boolean isSnapshotModeConfigurationBasedSnapshotOnDataError() {
+        return snapshotModeConfigurationBasedSnapshotOnDataError;
+    }
+
+    /**
+     * The path to the file that will be used to record the database schema
+     * history
+     */
+    public void setSchemaHistoryInternalFileFilename(
+            String schemaHistoryInternalFileFilename) {
+        this.schemaHistoryInternalFileFilename = schemaHistoryInternalFileFilename;
+    }
+
+    public String getSchemaHistoryInternalFileFilename() {
+        return schemaHistoryInternalFileFilename;
     }
 
     /**
      * Whether delete operations should be represented by a delete event and a
-     * subsquenttombstone event (true) or only by a delete event (false).
+     * subsequent tombstone event (true) or only by a delete event (false).
      * Emitting the tombstone event (the default behavior) allows Kafka to
      * completely delete all events pertaining to the given key once the source
      * record got deleted.
@@ -946,8 +1010,23 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
+     * Topic prefix that identifies and provides a namespace for the particular
+     * database server/cluster is capturing changes. The topic prefix should be
+     * unique across all other connectors, since it is used as a prefix for all
+     * Kafka topic names that receive events emitted by this connector. Only
+     * alphanumeric characters, hyphens, dots and underscores must be accepted.
+     */
+    public void setTopicPrefix(String topicPrefix) {
+        this.topicPrefix = topicPrefix;
+    }
+
+    public String getTopicPrefix() {
+        return topicPrefix;
+    }
+
+    /**
      * Specify how DECIMAL and NUMERIC columns should be represented in change
-     * events, including:'precise' (the default) uses java.math.BigDecimal to
+     * events, including: 'precise' (the default) uses java.math.BigDecimal to
      * represent values, which are encoded in the change events using a binary
      * representation and Kafka Connect's
      * 'org.apache.kafka.connect.data.Decimal' type; 'string' uses string to
@@ -964,9 +1043,10 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
 
     /**
      * Specify how binary (blob, binary, etc.) columns should be represented in
-     * change events, including:'bytes' represents binary data as byte array
-     * (default)'base64' represents binary data as base64-encoded string'hex'
-     * represents binary data as hex-encoded (base16) string
+     * change events, including: 'bytes' represents binary data as byte array
+     * (default); 'base64' represents binary data as base64-encoded string;
+     * 'base64-url-safe' represents binary data as base64-url-safe-encoded
+     * string; 'hex' represents binary data as hex-encoded (base16) string
      */
     public void setBinaryHandlingMode(String binaryHandlingMode) {
         this.binaryHandlingMode = binaryHandlingMode;
@@ -977,8 +1057,24 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
+     * When 'snapshot.query.mode' is set as custom, this setting must be set to
+     * specify a the name of the custom implementation provided in the 'name()'
+     * method. The implementations must implement the 'SnapshotterQuery'
+     * interface and is called to determine how to build queries during
+     * snapshot.
+     */
+    public void setSnapshotQueryModeCustomName(
+            String snapshotQueryModeCustomName) {
+        this.snapshotQueryModeCustomName = snapshotQueryModeCustomName;
+    }
+
+    public String getSnapshotQueryModeCustomName() {
+        return snapshotQueryModeCustomName;
+    }
+
+    /**
      * Whether the connector parse table and column's comment to metadata
-     * object.Note: Enable this option will bring the implications on memory
+     * object. Note: Enable this option will bring the implications on memory
      * usage. The number and size of ColumnImpl objects is what largely impacts
      * how much memory is consumed by the Debezium connectors, and adding a
      * String to each of them can potentially be quite heavy. The default is
@@ -995,15 +1091,15 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     /**
      * BETA FEATURE: On connector restart, the connector will check if there
      * have been any new tables added to the configuration, and snapshot them.
-     * There is presently only two options:'off': Default behavior. Do not
-     * snapshot new tables.'parallel': The snapshot of the new tables will occur
-     * in parallel to the continued binlog reading of the old tables. When the
-     * snapshot completes, an independent binlog reader will begin reading the
-     * events for the new tables until it catches up to present time. At this
-     * point, both old and new binlog readers will be momentarily halted and new
-     * binlog reader will start that will read the binlog for all configured
-     * tables. The parallel binlog reader will have a configured server id of
-     * 10000 + the primary binlog reader's server id.
+     * There is presently only two options: 'off': Default behavior. Do not
+     * snapshot new tables. 'parallel': The snapshot of the new tables will
+     * occur in parallel to the continued binlog reading of the old tables. When
+     * the snapshot completes, an independent binlog reader will begin reading
+     * the events for the new tables until it catches up to present time. At
+     * this point, both old and new binlog readers will be momentarily halted
+     * and new binlog reader will start that will read the binlog for all
+     * configured tables. The parallel binlog reader will have a configured
+     * server id of 10000 + the primary binlog reader's server id.
      */
     public void setSnapshotNewTables(String snapshotNewTables) {
         this.snapshotNewTables = snapshotNewTables;
@@ -1014,18 +1110,15 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * Controls the action Debezium will take when it meets a DDL statement in
-     * binlog, that it cannot parse.By default the connector will stop operating
-     * but by changing the setting it can ignore the statements which it cannot
-     * parse. If skipping is enabled then Debezium can miss metadata changes.
+     * The name of the SourceInfoStructMaker class that returns SourceInfo
+     * schema and struct.
      */
-    public void setDatabaseHistorySkipUnparseableDdl(
-            boolean databaseHistorySkipUnparseableDdl) {
-        this.databaseHistorySkipUnparseableDdl = databaseHistorySkipUnparseableDdl;
+    public void setSourceinfoStructMaker(String sourceinfoStructMaker) {
+        this.sourceinfoStructMaker = sourceinfoStructMaker;
     }
 
-    public boolean isDatabaseHistorySkipUnparseableDdl() {
-        return databaseHistorySkipUnparseableDdl;
+    public String getSourceinfoStructMaker() {
+        return sourceinfoStructMaker;
     }
 
     /**
@@ -1040,7 +1133,7 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * this setting must be set to specify a list of tables/collections whose
+     * This setting must be set to specify a list of tables/collections whose
      * snapshot must be taken on creating or restarting the connector.
      */
     public void setSnapshotIncludeCollectionList(
@@ -1053,20 +1146,21 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * The path to the file that will be used to record the database history
+     * When 'snapshot.mode' is set as configuration_based, this setting permits
+     * to specify whenever the stream should start or not after snapshot.
      */
-    public void setDatabaseHistoryFileFilename(
-            String databaseHistoryFileFilename) {
-        this.databaseHistoryFileFilename = databaseHistoryFileFilename;
+    public void setSnapshotModeConfigurationBasedStartStream(
+            boolean snapshotModeConfigurationBasedStartStream) {
+        this.snapshotModeConfigurationBasedStartStream = snapshotModeConfigurationBasedStartStream;
     }
 
-    public String getDatabaseHistoryFileFilename() {
-        return databaseHistoryFileFilename;
+    public boolean isSnapshotModeConfigurationBasedStartStream() {
+        return snapshotModeConfigurationBasedStartStream;
     }
 
     /**
      * Specify how BIGINT UNSIGNED columns should be represented in change
-     * events, including:'precise' uses java.math.BigDecimal to represent
+     * events, including: 'precise' uses java.math.BigDecimal to represent
      * values, which are encoded in the change events using a binary
      * representation and Kafka Connect's
      * 'org.apache.kafka.connect.data.Decimal' type; 'long' (the default)
@@ -1085,8 +1179,7 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
      * A numeric ID of this database client, which must be unique across all
      * currently-running database processes in the cluster. This connector joins
      * the MySQL database cluster as another server (with this unique ID) so it
-     * can read the binlog. By default, a random number is generated between
-     * 5400 and 6400.
+     * can read the binlog.
      */
     public void setDatabaseServerId(long databaseServerId) {
         this.databaseServerId = databaseServerId;
@@ -1110,24 +1203,24 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * The name of the transaction metadata topic. The placeholder
-     * ${database.server.name} can be used for referring to the connector's
-     * logical name; defaults to ${database.server.name}.transaction.
+     * When 'snapshot.mode' is set as configuration_based, this setting permits
+     * to specify whenever the schema should be snapshotted or not.
      */
-    public void setTransactionTopic(String transactionTopic) {
-        this.transactionTopic = transactionTopic;
+    public void setSnapshotModeConfigurationBasedSnapshotSchema(
+            boolean snapshotModeConfigurationBasedSnapshotSchema) {
+        this.snapshotModeConfigurationBasedSnapshotSchema = snapshotModeConfigurationBasedSnapshotSchema;
     }
 
-    public String getTransactionTopic() {
-        return transactionTopic;
+    public boolean isSnapshotModeConfigurationBasedSnapshotSchema() {
+        return snapshotModeConfigurationBasedSnapshotSchema;
     }
 
     /**
      * Time, date and timestamps can be represented with different kinds of
-     * precisions, including:'adaptive_time_microseconds': the precision of date
-     * and timestamp values is based the database column's precision; but time
-     * fields always use microseconds precision;'connect': always represents
-     * time, date and timestamp values using Kafka Connect's built-in
+     * precisions, including: 'adaptive_time_microseconds': the precision of
+     * date and timestamp values is based the database column's precision; but
+     * time fields always use microseconds precision; 'connect': always
+     * represents time, date and timestamp values using Kafka Connect's built-in
      * representations for Time, Date, and Timestamp, which uses millisecond
      * precision regardless of the database columns' precision.
      */
@@ -1140,12 +1233,24 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
+     * Interval for looking for new signals in registered channels, given in
+     * milliseconds. Defaults to 5 seconds.
+     */
+    public void setSignalPollIntervalMs(long signalPollIntervalMs) {
+        this.signalPollIntervalMs = signalPollIntervalMs;
+    }
+
+    public long getSignalPollIntervalMs() {
+        return signalPollIntervalMs;
+    }
+
+    /**
      * Specify how failures during deserialization of binlog events (i.e. when
-     * encountering a corrupted event) should be handled, including:'fail' (the
+     * encountering a corrupted event) should be handled, including: 'fail' (the
      * default) an exception indicating the problematic event and its binlog
      * position is raised, causing the connector to be stopped; 'warn' the
      * problematic event and its binlog position will be logged and the event
-     * will be skipped;'ignore' the problematic event will be skipped.
+     * will be skipped; 'ignore' the problematic event will be skipped.
      */
     public void setEventDeserializationFailureHandlingMode(
             String eventDeserializationFailureHandlingMode) {
@@ -1157,25 +1262,36 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * Unique name that identifies the database server and all recorded offsets,
-     * and that is used as a prefix for all schemas and topics. Each distinct
-     * installation should have a separate namespace and be monitored by at most
-     * one Debezium connector.
+     * Optional list of post processors. The processors are defined using
+     * '<post.processor.prefix>.type' config option and configured using options
+     * '<post.processor.prefix.<option>'
      */
-    public void setDatabaseServerName(String databaseServerName) {
-        this.databaseServerName = databaseServerName;
+    public void setPostProcessors(String postProcessors) {
+        this.postProcessors = postProcessors;
     }
 
-    public String getDatabaseServerName() {
-        return databaseServerName;
+    public String getPostProcessors() {
+        return postProcessors;
+    }
+
+    /**
+     * List of notification channels names that are enabled.
+     */
+    public void setNotificationEnabledChannels(
+            String notificationEnabledChannels) {
+        this.notificationEnabledChannels = notificationEnabledChannels;
+    }
+
+    public String getNotificationEnabledChannels() {
+        return notificationEnabledChannels;
     }
 
     /**
      * Specify how failures during processing of events (i.e. when encountering
-     * a corrupted event) should be handled, including:'fail' (the default) an
+     * a corrupted event) should be handled, including: 'fail' (the default) an
      * exception indicating the problematic event and its position is raised,
      * causing the connector to be stopped; 'warn' the problematic event and its
-     * position will be logged and the event will be skipped;'ignore' the
+     * position will be logged and the event will be skipped; 'ignore' the
      * problematic event will be skipped.
      */
     public void setEventProcessingFailureHandlingMode(
@@ -1188,7 +1304,7 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * The maximum number of threads used to perform the snapshot.  Defaults to
+     * The maximum number of threads used to perform the snapshot. Defaults to
      * 1.
      */
     public void setSnapshotMaxThreads(int snapshotMaxThreads) {
@@ -1211,8 +1327,8 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * Location of the Java truststore file containing the collection of CA
-     * certificates trusted by this application process (trust store).
+     * The location of the trust store file for the server certificate
+     * verification.
      */
     public void setDatabaseSslTruststore(String databaseSslTruststore) {
         this.databaseSslTruststore = databaseSslTruststore;
@@ -1223,17 +1339,42 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * Whether to use an encrypted connection to MySQL. Options
-     * include'disabled' (the default) to use an unencrypted connection;
-     * 'preferred' to establish a secure (encrypted) connection if the server
-     * supports secure connections, but fall back to an unencrypted connection
-     * otherwise; 'required' to use a secure (encrypted) connection, and fail if
-     * one cannot be established; 'verify_ca' like 'required' but additionally
-     * verify the server TLS certificate against the configured Certificate
-     * Authority (CA) certificates, or fail if no valid matching CA certificates
-     * are found; or'verify_identity' like 'verify_ca' but additionally verify
-     * that the server certificate matches the host to which the connection is
-     * attempted.
+     * The name of the topic for the notifications. This is required in case
+     * 'sink' is in the list of enabled channels
+     */
+    public void setNotificationSinkTopicName(String notificationSinkTopicName) {
+        this.notificationSinkTopicName = notificationSinkTopicName;
+    }
+
+    public String getNotificationSinkTopicName() {
+        return notificationSinkTopicName;
+    }
+
+    /**
+     * When 'snapshot.mode' is set as custom, this setting must be set to
+     * specify a the name of the custom implementation provided in the 'name()'
+     * method. The implementations must implement the 'Snapshotter' interface
+     * and is called on each app boot to determine whether to do a snapshot.
+     */
+    public void setSnapshotModeCustomName(String snapshotModeCustomName) {
+        this.snapshotModeCustomName = snapshotModeCustomName;
+    }
+
+    public String getSnapshotModeCustomName() {
+        return snapshotModeCustomName;
+    }
+
+    /**
+     * Whether to use an encrypted connection to MySQL. Options include:
+     * 'disabled' to use an unencrypted connection; 'preferred' (the default) to
+     * establish a secure (encrypted) connection if the server supports secure
+     * connections, but fall back to an unencrypted connection otherwise;
+     * 'required' to use a secure (encrypted) connection, and fail if one cannot
+     * be established; 'verify_ca' like 'required' but additionally verify the
+     * server TLS certificate against the configured Certificate Authority (CA)
+     * certificates, or fail if no valid matching CA certificates are found;
+     * or'verify_identity' like 'verify_ca' but additionally verify that the
+     * server certificate matches the host to which the connection is attempted.
      */
     public void setDatabaseSslMode(String databaseSslMode) {
         this.databaseSslMode = databaseSslMode;
@@ -1244,11 +1385,8 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * Password to access the private key from the keystore file specified by
-     * 'ssl.keystore' configuration property or the 'javax.net.ssl.keyStore'
-     * system or JVM property. This password is used to unlock the keystore file
-     * (store password), and to decrypt the private key stored in the keystore
-     * (key password).
+     * The password for the key store file. This is optional and only needed if
+     * 'database.ssl.keystore' is configured.
      */
     public void setDatabaseSslKeystorePassword(
             String databaseSslKeystorePassword) {
@@ -1257,6 +1395,19 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
 
     public String getDatabaseSslKeystorePassword() {
         return databaseSslKeystorePassword;
+    }
+
+    /**
+     * The name of the SchemaHistory class that should be used to store and
+     * recover database schema changes. The configuration properties for the
+     * history are prefixed with the 'schema.history.internal.' string.
+     */
+    public void setSchemaHistoryInternal(String schemaHistoryInternal) {
+        this.schemaHistoryInternal = schemaHistoryInternal;
+    }
+
+    public String getSchemaHistoryInternal() {
+        return schemaHistoryInternal;
     }
 
     /**
@@ -1279,6 +1430,23 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
 
     public String getDatabaseHostname() {
         return databaseHostname;
+    }
+
+    /**
+     * Specify how schema names should be adjusted for compatibility with the
+     * message converter used by the connector, including: 'avro' replaces the
+     * characters that cannot be used in the Avro type name with underscore;
+     * 'avro_unicode' replaces the underscore or characters that cannot be used
+     * in the Avro type name with corresponding unicode like _uxxxx. Note: _ is
+     * an escape sequence like backslash in Java;'none' does not apply any
+     * adjustment (default)
+     */
+    public void setSchemaNameAdjustmentMode(String schemaNameAdjustmentMode) {
+        this.schemaNameAdjustmentMode = schemaNameAdjustmentMode;
+    }
+
+    public String getSchemaNameAdjustmentMode() {
+        return schemaNameAdjustmentMode;
     }
 
     /**
@@ -1321,11 +1489,12 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
     /**
      * Whether the connector should include the original SQL query that
      * generated the change event. Note: This option requires MySQL be
-     * configured with the binlog_rows_query_log_events option set to ON. Query
-     * will not be present for events generated from snapshot. WARNING: Enabling
-     * this option may expose tables or fields explicitly blacklisted or masked
-     * by including the original SQL statement in the change event. For this
-     * reason the default value is 'false'.
+     * configured with the binlog_rows_query_log_events option set to ON. If
+     * using MariaDB, configure the binlog_annotate_row_events option must be
+     * set to ON. Query will not be present for events generated from snapshot.
+     * WARNING: Enabling this option may expose tables or fields explicitly
+     * excluded or masked by including the original SQL statement in the change
+     * event. For this reason the default value is 'false'.
      */
     public void setIncludeQuery(boolean includeQuery) {
         this.includeQuery = includeQuery;
@@ -1352,18 +1521,17 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
         
         addPropertyIfNotNull(configBuilder, "snapshot.locking.mode", snapshotLockingMode);
         addPropertyIfNotNull(configBuilder, "message.key.columns", messageKeyColumns);
+        addPropertyIfNotNull(configBuilder, "custom.metric.tags", customMetricTags);
         addPropertyIfNotNull(configBuilder, "query.fetch.size", queryFetchSize);
-        addPropertyIfNotNull(configBuilder, "column.blacklist", columnBlacklist);
-        addPropertyIfNotNull(configBuilder, "table.blacklist", tableBlacklist);
+        addPropertyIfNotNull(configBuilder, "signal.enabled.channels", signalEnabledChannels);
         addPropertyIfNotNull(configBuilder, "include.schema.changes", includeSchemaChanges);
+        addPropertyIfNotNull(configBuilder, "connector.adapter", connectorAdapter);
         addPropertyIfNotNull(configBuilder, "gtid.source.includes", gtidSourceIncludes);
         addPropertyIfNotNull(configBuilder, "database.jdbc.driver", databaseJdbcDriver);
         addPropertyIfNotNull(configBuilder, "heartbeat.action.query", heartbeatActionQuery);
         addPropertyIfNotNull(configBuilder, "poll.interval.ms", pollIntervalMs);
-        addPropertyIfNotNull(configBuilder, "database.history.kafka.recovery.poll.interval.ms", databaseHistoryKafkaRecoveryPollIntervalMs);
         addPropertyIfNotNull(configBuilder, "signal.data.collection", signalDataCollection);
         addPropertyIfNotNull(configBuilder, "database.initial.statements", databaseInitialStatements);
-        addPropertyIfNotNull(configBuilder, "database.history.store.only.captured.tables.ddl", databaseHistoryStoreOnlyCapturedTablesDdl);
         addPropertyIfNotNull(configBuilder, "converters", converters);
         addPropertyIfNotNull(configBuilder, "heartbeat.topics.prefix", heartbeatTopicsPrefix);
         addPropertyIfNotNull(configBuilder, "binlog.buffer.size", binlogBufferSize);
@@ -1371,64 +1539,75 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
         addPropertyIfNotNull(configBuilder, "snapshot.lock.timeout.ms", snapshotLockTimeoutMs);
         addPropertyIfNotNull(configBuilder, "database.user", databaseUser);
         addPropertyIfNotNull(configBuilder, "datatype.propagate.source.type", datatypePropagateSourceType);
-        addPropertyIfNotNull(configBuilder, "sanitize.field.names", sanitizeFieldNames);
+        addPropertyIfNotNull(configBuilder, "snapshot.tables.order.by.row.count", snapshotTablesOrderByRowCount);
         addPropertyIfNotNull(configBuilder, "gtid.source.excludes", gtidSourceExcludes);
+        addPropertyIfNotNull(configBuilder, "incremental.snapshot.watermarking.strategy", incrementalSnapshotWatermarkingStrategy);
         addPropertyIfNotNull(configBuilder, "snapshot.select.statement.overrides", snapshotSelectStatementOverrides);
-        addPropertyIfNotNull(configBuilder, "database.history.kafka.bootstrap.servers", databaseHistoryKafkaBootstrapServers);
         addPropertyIfNotNull(configBuilder, "database.ssl.keystore", databaseSslKeystore);
-        addPropertyIfNotNull(configBuilder, "source.struct.version", sourceStructVersion);
         addPropertyIfNotNull(configBuilder, "heartbeat.interval.ms", heartbeatIntervalMs);
-        addPropertyIfNotNull(configBuilder, "column.whitelist", columnWhitelist);
         addPropertyIfNotNull(configBuilder, "database.ssl.truststore.password", databaseSslTruststorePassword);
+        addPropertyIfNotNull(configBuilder, "snapshot.mode.configuration.based.snapshot.on.schema.error", snapshotModeConfigurationBasedSnapshotOnSchemaError);
         addPropertyIfNotNull(configBuilder, "incremental.snapshot.allow.schema.changes", incrementalSnapshotAllowSchemaChanges);
+        addPropertyIfNotNull(configBuilder, "schema.history.internal.skip.unparseable.ddl", schemaHistoryInternalSkipUnparseableDdl);
         addPropertyIfNotNull(configBuilder, "column.include.list", columnIncludeList);
         addPropertyIfNotNull(configBuilder, "enable.time.adjuster", enableTimeAdjuster);
         addPropertyIfNotNull(configBuilder, "column.propagate.source.type", columnPropagateSourceType);
         addPropertyIfNotNull(configBuilder, "inconsistent.schema.handling.mode", inconsistentSchemaHandlingMode);
         addPropertyIfNotNull(configBuilder, "min.row.count.to.stream.results", minRowCountToStreamResults);
+        addPropertyIfNotNull(configBuilder, "errors.max.retries", errorsMaxRetries);
         addPropertyIfNotNull(configBuilder, "table.exclude.list", tableExcludeList);
         addPropertyIfNotNull(configBuilder, "database.password", databasePassword);
         addPropertyIfNotNull(configBuilder, "database.exclude.list", databaseExcludeList);
-        addPropertyIfNotNull(configBuilder, "database.history.store.only.monitored.tables.ddl", databaseHistoryStoreOnlyMonitoredTablesDdl);
         addPropertyIfNotNull(configBuilder, "gtid.source.filter.dml.events", gtidSourceFilterDmlEvents);
         addPropertyIfNotNull(configBuilder, "max.batch.size", maxBatchSize);
         addPropertyIfNotNull(configBuilder, "skipped.operations", skippedOperations);
+        addPropertyIfNotNull(configBuilder, "topic.naming.strategy", topicNamingStrategy);
         addPropertyIfNotNull(configBuilder, "connect.keep.alive", connectKeepAlive);
         addPropertyIfNotNull(configBuilder, "snapshot.mode", snapshotMode);
-        addPropertyIfNotNull(configBuilder, "database.history", databaseHistory);
         addPropertyIfNotNull(configBuilder, "connect.timeout.ms", connectTimeoutMs);
+        addPropertyIfNotNull(configBuilder, "snapshot.mode.configuration.based.snapshot.data", snapshotModeConfigurationBasedSnapshotData);
         addPropertyIfNotNull(configBuilder, "max.queue.size", maxQueueSize);
         addPropertyIfNotNull(configBuilder, "incremental.snapshot.chunk.size", incrementalSnapshotChunkSize);
-        addPropertyIfNotNull(configBuilder, "database.history.kafka.topic", databaseHistoryKafkaTopic);
         addPropertyIfNotNull(configBuilder, "retriable.restart.connector.wait.ms", retriableRestartConnectorWaitMs);
         addPropertyIfNotNull(configBuilder, "snapshot.delay.ms", snapshotDelayMs);
-        addPropertyIfNotNull(configBuilder, "database.history.kafka.recovery.attempts", databaseHistoryKafkaRecoveryAttempts);
         addPropertyIfNotNull(configBuilder, "provide.transaction.metadata", provideTransactionMetadata);
-        addPropertyIfNotNull(configBuilder, "table.whitelist", tableWhitelist);
+        addPropertyIfNotNull(configBuilder, "snapshot.query.mode", snapshotQueryMode);
+        addPropertyIfNotNull(configBuilder, "schema.history.internal.store.only.captured.databases.ddl", schemaHistoryInternalStoreOnlyCapturedDatabasesDdl);
+        addPropertyIfNotNull(configBuilder, "schema.history.internal.store.only.captured.tables.ddl", schemaHistoryInternalStoreOnlyCapturedTablesDdl);
+        addPropertyIfNotNull(configBuilder, "snapshot.mode.configuration.based.snapshot.on.data.error", snapshotModeConfigurationBasedSnapshotOnDataError);
+        addPropertyIfNotNull(configBuilder, "schema.history.internal.file.filename", schemaHistoryInternalFileFilename);
         addPropertyIfNotNull(configBuilder, "tombstones.on.delete", tombstonesOnDelete);
+        addPropertyIfNotNull(configBuilder, "topic.prefix", topicPrefix);
         addPropertyIfNotNull(configBuilder, "decimal.handling.mode", decimalHandlingMode);
         addPropertyIfNotNull(configBuilder, "binary.handling.mode", binaryHandlingMode);
+        addPropertyIfNotNull(configBuilder, "snapshot.query.mode.custom.name", snapshotQueryModeCustomName);
         addPropertyIfNotNull(configBuilder, "include.schema.comments", includeSchemaComments);
         addPropertyIfNotNull(configBuilder, "snapshot.new.tables", snapshotNewTables);
-        addPropertyIfNotNull(configBuilder, "database.history.skip.unparseable.ddl", databaseHistorySkipUnparseableDdl);
+        addPropertyIfNotNull(configBuilder, "sourceinfo.struct.maker", sourceinfoStructMaker);
         addPropertyIfNotNull(configBuilder, "table.ignore.builtin", tableIgnoreBuiltin);
         addPropertyIfNotNull(configBuilder, "snapshot.include.collection.list", snapshotIncludeCollectionList);
-        addPropertyIfNotNull(configBuilder, "database.history.file.filename", databaseHistoryFileFilename);
+        addPropertyIfNotNull(configBuilder, "snapshot.mode.configuration.based.start.stream", snapshotModeConfigurationBasedStartStream);
         addPropertyIfNotNull(configBuilder, "bigint.unsigned.handling.mode", bigintUnsignedHandlingMode);
         addPropertyIfNotNull(configBuilder, "database.server.id", databaseServerId);
         addPropertyIfNotNull(configBuilder, "max.queue.size.in.bytes", maxQueueSizeInBytes);
-        addPropertyIfNotNull(configBuilder, "transaction.topic", transactionTopic);
+        addPropertyIfNotNull(configBuilder, "snapshot.mode.configuration.based.snapshot.schema", snapshotModeConfigurationBasedSnapshotSchema);
         addPropertyIfNotNull(configBuilder, "time.precision.mode", timePrecisionMode);
+        addPropertyIfNotNull(configBuilder, "signal.poll.interval.ms", signalPollIntervalMs);
         addPropertyIfNotNull(configBuilder, "event.deserialization.failure.handling.mode", eventDeserializationFailureHandlingMode);
-        addPropertyIfNotNull(configBuilder, "database.server.name", databaseServerName);
+        addPropertyIfNotNull(configBuilder, "post.processors", postProcessors);
+        addPropertyIfNotNull(configBuilder, "notification.enabled.channels", notificationEnabledChannels);
         addPropertyIfNotNull(configBuilder, "event.processing.failure.handling.mode", eventProcessingFailureHandlingMode);
         addPropertyIfNotNull(configBuilder, "snapshot.max.threads", snapshotMaxThreads);
         addPropertyIfNotNull(configBuilder, "database.port", databasePort);
         addPropertyIfNotNull(configBuilder, "database.ssl.truststore", databaseSslTruststore);
+        addPropertyIfNotNull(configBuilder, "notification.sink.topic.name", notificationSinkTopicName);
+        addPropertyIfNotNull(configBuilder, "snapshot.mode.custom.name", snapshotModeCustomName);
         addPropertyIfNotNull(configBuilder, "database.ssl.mode", databaseSslMode);
         addPropertyIfNotNull(configBuilder, "database.ssl.keystore.password", databaseSslKeystorePassword);
+        addPropertyIfNotNull(configBuilder, "schema.history.internal", schemaHistoryInternal);
         addPropertyIfNotNull(configBuilder, "column.exclude.list", columnExcludeList);
         addPropertyIfNotNull(configBuilder, "database.hostname", databaseHostname);
+        addPropertyIfNotNull(configBuilder, "schema.name.adjustment.mode", schemaNameAdjustmentMode);
         addPropertyIfNotNull(configBuilder, "database.server.id.offset", databaseServerIdOffset);
         addPropertyIfNotNull(configBuilder, "connect.keep.alive.interval.ms", connectKeepAliveIntervalMs);
         addPropertyIfNotNull(configBuilder, "table.include.list", tableIncludeList);
@@ -1448,8 +1627,8 @@ public class MySqlConnectorEmbeddedDebeziumConfiguration
         if (isFieldValueNotSet(databasePassword)) {
         	return ConfigurationValidation.notValid("Required field 'databasePassword' must be set.");
         }
-        if (isFieldValueNotSet(databaseServerName)) {
-        	return ConfigurationValidation.notValid("Required field 'databaseServerName' must be set.");
+        if (isFieldValueNotSet(topicPrefix)) {
+        	return ConfigurationValidation.notValid("Required field 'topicPrefix' must be set.");
         }
         return ConfigurationValidation.valid();
     }

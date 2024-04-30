@@ -49,7 +49,7 @@ public abstract class AbstractSalesforceTestBase extends CamelTestSupport {
         // create the component
         component = new SalesforceComponent();
         final SalesforceEndpointConfig config = new SalesforceEndpointConfig();
-        config.setApiVersion(System.getProperty("apiVersion", salesforceApiVersionToUse()));
+        config.setApiVersion(System.getProperty("apiVersion", SalesforceEndpointConfig.DEFAULT_VERSION));
         component.setConfig(config);
         component.setLoginConfig(LoginConfigHelper.getLoginConfig());
 
@@ -60,15 +60,12 @@ public abstract class AbstractSalesforceTestBase extends CamelTestSupport {
         clientProperties.put("maxContentLength", String.valueOf(4 * 1024 * 1024));
         component.setHttpClientProperties(clientProperties);
 
+        component.setHttpClientIdleTimeout(60000);
+
         // set DTO package
         component.setPackages(Merchandise__c.class.getPackage().getName());
 
         // add it to context
         context().addComponent("salesforce", component);
     }
-
-    protected String salesforceApiVersionToUse() {
-        return SalesforceEndpointConfig.DEFAULT_VERSION;
-    }
-
 }

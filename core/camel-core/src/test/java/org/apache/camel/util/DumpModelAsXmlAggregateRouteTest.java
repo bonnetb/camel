@@ -17,9 +17,9 @@
 package org.apache.camel.util;
 
 import org.apache.camel.ContextTestSupport;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.processor.aggregate.GroupedExchangeAggregationStrategy;
+import org.apache.camel.support.PluginHelper;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -32,8 +32,7 @@ public class DumpModelAsXmlAggregateRouteTest extends ContextTestSupport {
 
     @Test
     public void testDumpModelAsXml() throws Exception {
-        ExtendedCamelContext ecc = context.adapt(ExtendedCamelContext.class);
-        String xml = ecc.getModelToXMLDumper().dumpModelAsXml(context, context.getRouteDefinition("myRoute"));
+        String xml = PluginHelper.getModelToXMLDumper(context).dumpModelAsXml(context, context.getRouteDefinition("myRoute"));
         assertNotNull(xml);
         log.info(xml);
 
@@ -43,10 +42,10 @@ public class DumpModelAsXmlAggregateRouteTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:start").routeId("myRoute").to("log:input")
                         .aggregate(header("userId"), new GroupedExchangeAggregationStrategy()).completionSize(3)
                         .to("mock:aggregate")

@@ -16,11 +16,15 @@
  */
 package org.apache.camel.component.sjms.tx;
 
+import org.apache.camel.test.infra.artemis.services.ArtemisService;
+import org.apache.camel.test.infra.artemis.services.ArtemisServiceFactory;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 public class TransactedQueueConsumerTest extends TransactedConsumerSupport {
 
-    private static final String BROKER_URI = "vm://tqc_test_broker?broker.persistent=false&broker.useJmx=false";
+    @RegisterExtension
+    protected static ArtemisService service = ArtemisServiceFactory.createVMService();
 
     /**
      * We want to verify that when consuming from a single destination with multiple routes that we are thread safe and
@@ -28,7 +32,7 @@ public class TransactedQueueConsumerTest extends TransactedConsumerSupport {
      */
     @Test
     public void testRoute() throws Exception {
-        final String destinationName = "sjms:queue:one.consumer.one.route.tx.test";
+        final String destinationName = "sjms:queue:one.consumer.one.route.tx.test.TransactedQueueConsumerTest";
         int routeCount = 1;
         int concurrentConsumers = 1;
         int messageCount = 20;
@@ -41,6 +45,6 @@ public class TransactedQueueConsumerTest extends TransactedConsumerSupport {
 
     @Override
     public String getBrokerUri() {
-        return BROKER_URI;
+        return service.serviceAddress();
     }
 }

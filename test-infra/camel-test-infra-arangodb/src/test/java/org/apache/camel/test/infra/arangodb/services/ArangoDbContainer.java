@@ -16,22 +16,23 @@
  */
 package org.apache.camel.test.infra.arangodb.services;
 
+import org.apache.camel.test.infra.arangodb.common.ArangoDBProperties;
+import org.apache.camel.test.infra.common.LocalPropertyResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.containers.wait.strategy.Wait;
 
-public class ArangoDbContainer extends GenericContainer {
+public class ArangoDbContainer extends GenericContainer<ArangoDbContainer> {
     public static final Integer PORT_DEFAULT = 8529;
-    public static final String ARANGO_IMAGE = "arangodb:3.8.6";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ArangoDbContainer.class);
     private static final String CONTAINER_NAME = "arango";
     private static final String ARANGO_NO_AUTH = "ARANGO_NO_AUTH";
 
     public ArangoDbContainer() {
-        this(ARANGO_IMAGE);
+        this(LocalPropertyResolver.getProperty(ArangoDbContainer.class, ArangoDBProperties.ARANGODB_CONTAINER));
     }
 
     public ArangoDbContainer(String containerName) {
@@ -39,10 +40,10 @@ public class ArangoDbContainer extends GenericContainer {
 
         setWaitStrategy(Wait.forListeningPort());
         addFixedExposedPort(PORT_DEFAULT, PORT_DEFAULT);
-        withNetworkAliases(CONTAINER_NAME);
-        withEnv(ARANGO_NO_AUTH, "1");
-        withLogConsumer(new Slf4jLogConsumer(LOGGER));
-        waitingFor(Wait.forLogMessage(".*is ready for business. Have fun!.*", 1));
+        withNetworkAliases(CONTAINER_NAME)
+                .withEnv(ARANGO_NO_AUTH, "1")
+                .withLogConsumer(new Slf4jLogConsumer(LOGGER))
+                .waitingFor(Wait.forLogMessage(".*is ready for business. Have fun!.*", 1));
     }
 
     public int getServicePort() {

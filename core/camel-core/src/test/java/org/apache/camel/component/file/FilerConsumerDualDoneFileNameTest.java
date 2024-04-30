@@ -16,9 +16,12 @@
  */
 package org.apache.camel.component.file;
 
+import java.util.concurrent.TimeUnit;
+
 import org.apache.camel.ContextTestSupport;
 import org.apache.camel.Exchange;
 import org.apache.camel.builder.RouteBuilder;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -39,7 +42,7 @@ public class FilerConsumerDualDoneFileNameTest extends ContextTestSupport {
     }
 
     @Test
-    public void testOneDoneFileMissing() throws Exception {
+    public void testOneDoneFileMissing() {
         getMockEndpoint("mock:result").expectedBodiesReceived("Hello World");
 
         template.sendBodyAndHeader(fileUri("?doneFileName=${file:name}.ready"), "Hello World", Exchange.FILE_NAME,
@@ -47,16 +50,14 @@ public class FilerConsumerDualDoneFileNameTest extends ContextTestSupport {
         template.sendBodyAndHeader(fileUri(), "Bye World", Exchange.FILE_NAME, "bye.txt");
 
         // give chance to poll 2nd file but it lacks the done file
-        Thread.sleep(250);
-
-        assertMockEndpointsSatisfied();
+        Awaitility.await().pollDelay(250, TimeUnit.MILLISECONDS).untilAsserted(() -> assertMockEndpointsSatisfied());
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from(fileUri("?doneFileName=${file:name}.ready&initialDelay=0&delay=10")).to("mock:result");
             }
         };

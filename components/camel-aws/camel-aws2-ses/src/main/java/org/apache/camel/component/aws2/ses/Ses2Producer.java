@@ -22,12 +22,14 @@ import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.camel.Endpoint;
 import org.apache.camel.Exchange;
 import org.apache.camel.Message;
+import org.apache.camel.health.HealthCheck;
+import org.apache.camel.health.HealthCheckHelper;
+import org.apache.camel.health.WritableHealthCheckRepository;
 import org.apache.camel.support.DefaultProducer;
 import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.util.URISupport;
@@ -51,6 +53,8 @@ public class Ses2Producer extends DefaultProducer {
     private static final Logger LOG = LoggerFactory.getLogger(Ses2Producer.class);
 
     private transient String sesProducerToString;
+    private HealthCheck producerHealthCheck;
+    private WritableHealthCheckRepository healthCheckRepository;
 
     public Ses2Producer(Endpoint endpoint) {
         super(endpoint);
@@ -58,7 +62,7 @@ public class Ses2Producer extends DefaultProducer {
 
     @Override
     public void process(Exchange exchange) throws Exception {
-        if (!(exchange.getIn().getBody() instanceof javax.mail.Message)) {
+        if (!(exchange.getIn().getBody() instanceof jakarta.mail.Message)) {
             SendEmailRequest request = createMailRequest(exchange);
             LOG.trace("Sending request [{}] from exchange [{}]...", request, exchange);
             SendEmailResponse result = getEndpoint().getSESClient().sendEmail(request);
@@ -98,7 +102,7 @@ public class Ses2Producer extends DefaultProducer {
     private software.amazon.awssdk.services.ses.model.Message createMessage(Exchange exchange) {
         software.amazon.awssdk.services.ses.model.Message.Builder message
                 = software.amazon.awssdk.services.ses.model.Message.builder();
-        Boolean isHtmlEmail = exchange.getIn().getHeader(Ses2Constants.HTML_EMAIL, false, Boolean.class);
+        final boolean isHtmlEmail = exchange.getIn().getHeader(Ses2Constants.HTML_EMAIL, false, Boolean.class);
         String content = exchange.getIn().getBody(String.class);
         if (isHtmlEmail) {
             message.body(Body.builder().html(Content.builder().data(content).build()).build());
@@ -112,7 +116,7 @@ public class Ses2Producer extends DefaultProducer {
     private software.amazon.awssdk.services.ses.model.RawMessage createRawMessage(Exchange exchange) throws Exception {
         software.amazon.awssdk.services.ses.model.RawMessage.Builder message
                 = software.amazon.awssdk.services.ses.model.RawMessage.builder();
-        javax.mail.Message content = exchange.getIn().getBody(javax.mail.Message.class);
+        jakarta.mail.Message content = exchange.getIn().getBody(jakarta.mail.Message.class);
         OutputStream byteOutput = new ByteArrayOutputStream();
         try {
             content.writeTo(byteOutput);
@@ -134,7 +138,7 @@ public class Ses2Producer extends DefaultProducer {
         if (ObjectHelper.isNotEmpty(replyToAddresses)) {
             return Stream.of(replyToAddresses.split(","))
                     .map(String::trim)
-                    .collect(Collectors.toList());
+                    .toList();
         } else {
             return Collections.emptyList();
         }
@@ -163,7 +167,7 @@ public class Ses2Producer extends DefaultProducer {
         if (ObjectHelper.isNotEmpty(cc)) {
             return Stream.of(cc.split(","))
                     .map(String::trim)
-                    .collect(Collectors.toList());
+                    .toList();
         } else {
             return Collections.emptyList();
         }
@@ -177,7 +181,7 @@ public class Ses2Producer extends DefaultProducer {
         if (ObjectHelper.isNotEmpty(bcc)) {
             return Stream.of(bcc.split(","))
                     .map(String::trim)
-                    .collect(Collectors.toList());
+                    .toList();
         } else {
             return Collections.emptyList();
         }
@@ -191,7 +195,7 @@ public class Ses2Producer extends DefaultProducer {
         if (ObjectHelper.isNotEmpty(to)) {
             return Stream.of(to.split(","))
                     .map(String::trim)
-                    .collect(Collectors.toList());
+                    .toList();
         } else {
             return Collections.emptyList();
         }
@@ -241,4 +245,29 @@ public class Ses2Producer extends DefaultProducer {
     public static Message getMessageForResponse(final Exchange exchange) {
         return exchange.getMessage();
     }
+
+    @Override
+    protected void doStart() throws Exception {
+        // health-check is optional so discover and resolve
+        healthCheckRepository = HealthCheckHelper.getHealthCheckRepository(
+                getEndpoint().getCamelContext(),
+                "producers",
+                WritableHealthCheckRepository.class);
+
+        if (healthCheckRepository != null) {
+            String id = getEndpoint().getId();
+            producerHealthCheck = new Ses2ProducerHealthCheck(getEndpoint(), id);
+            producerHealthCheck.setEnabled(getEndpoint().getComponent().isHealthCheckProducerEnabled());
+            healthCheckRepository.addHealthCheck(producerHealthCheck);
+        }
+    }
+
+    @Override
+    protected void doStop() throws Exception {
+        if (healthCheckRepository != null && producerHealthCheck != null) {
+            healthCheckRepository.removeHealthCheck(producerHealthCheck);
+            producerHealthCheck = null;
+        }
+    }
+
 }

@@ -31,7 +31,7 @@ import static org.apache.camel.test.junit5.TestSupport.assertFileExists;
 public class FtpProducerExpressionIT extends FtpServerTestSupport {
 
     @BindToRegistry("myguidgenerator")
-    private MyGuidGenerator guid = new MyGuidGenerator();
+    private final MyGuidGenerator guid = new MyGuidGenerator();
 
     private String getFtpUrl() {
         return "ftp://admin@localhost:{{ftp.server.port}}/filelanguage?password=admin";
@@ -41,14 +41,14 @@ public class FtpProducerExpressionIT extends FtpServerTestSupport {
     public void testProduceBeanByExpression() {
         template.sendBody(getFtpUrl() + "&fileName=${bean:myguidgenerator}.bak", "Hello World");
 
-        assertFileExists(ftpFile("filelanguage/123.bak"));
+        assertFileExists(service.ftpFile("filelanguage/123.bak"));
     }
 
     @Test
     public void testProduceBeanByHeader() {
         sendFile(getFtpUrl(), "Hello World", "${bean:myguidgenerator}.bak");
 
-        assertFileExists(ftpFile("filelanguage/123.bak"));
+        assertFileExists(service.ftpFile("filelanguage/123.bak"));
     }
 
     @Test
@@ -56,7 +56,7 @@ public class FtpProducerExpressionIT extends FtpServerTestSupport {
         sendFile(getFtpUrl(), "Hello World", "myfile-${date:now:yyyyMMdd}.txt");
 
         String date = new SimpleDateFormat("yyyyMMdd").format(new Date());
-        assertFileExists(ftpFile("filelanguage/myfile-") + date + ".txt");
+        assertFileExists(service.ftpFile("filelanguage/myfile-") + date + ".txt");
     }
 
     @Test
@@ -64,7 +64,7 @@ public class FtpProducerExpressionIT extends FtpServerTestSupport {
         template.sendBody(getFtpUrl() + "&fileName=myfile-${date:now:yyyyMMdd}.txt", "Hello World");
 
         String date = new SimpleDateFormat("yyyyMMdd").format(new Date());
-        assertFileExists(ftpFile("filelanguage/myfile-") + date + ".txt");
+        assertFileExists(service.ftpFile("filelanguage/myfile-") + date + ".txt");
     }
 
     @Test
@@ -77,14 +77,14 @@ public class FtpProducerExpressionIT extends FtpServerTestSupport {
         template.sendBody(url + "&fileName=" + expression, "Hello World");
 
         String date = new SimpleDateFormat("yyyyMMdd").format(new Date());
-        assertFileExists(ftpFile("filelanguage/filelanguageinbox/myfile-123-") + date + ".txt");
+        assertFileExists(service.ftpFile("filelanguage/filelanguageinbox/myfile-123-") + date + ".txt");
     }
 
     @Test
     public void testProducerSimpleWithHeaderByExpression() {
         template.sendBodyAndHeader(getFtpUrl() + "&fileName=myfile-${header.foo}.txt", "Hello World", "foo", "abc");
 
-        assertFileExists(ftpFile("filelanguage/myfile-abc.txt"));
+        assertFileExists(service.ftpFile("filelanguage/myfile-abc.txt"));
     }
 
     @Test
@@ -96,10 +96,10 @@ public class FtpProducerExpressionIT extends FtpServerTestSupport {
         template.sendBodyAndHeader(getFtpUrl() + "&fileName=mybirthday-${date:header.birthday:yyyyMMdd}.txt", "Hello World",
                 "birthday", date);
 
-        assertFileExists(ftpFile("filelanguage/mybirthday-19740420.txt"));
+        assertFileExists(service.ftpFile("filelanguage/mybirthday-19740420.txt"));
     }
 
-    public class MyGuidGenerator {
+    public static class MyGuidGenerator {
         public String guid() {
             return "123";
         }

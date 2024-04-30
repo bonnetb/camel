@@ -23,6 +23,8 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
+import java.util.function.IntConsumer;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.Endpoint;
@@ -36,6 +38,8 @@ import org.apache.camel.builder.Builder;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.builder.ValueBuilder;
 import org.apache.camel.impl.DefaultCamelContext;
+import org.apache.camel.spi.Debugger;
+import org.apache.camel.spi.FactoryFinder;
 import org.apache.camel.support.DefaultExchange;
 import org.apache.camel.support.PredicateAssertHelper;
 import org.slf4j.Logger;
@@ -460,7 +464,7 @@ public final class TestSupport {
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
-                    // Ignore
+                    Thread.currentThread().interrupt();
                 }
             }
         }
@@ -483,8 +487,9 @@ public final class TestSupport {
                 recursivelyDeleteDirectory(child);
             }
         }
-        boolean success = file.delete();
-        if (!success) {
+        try {
+            Files.delete(file.toPath());
+        } catch (IOException e) {
             LOG.warn("Deletion of file: {} failed", file.getAbsolutePath());
         }
     }
@@ -547,58 +552,42 @@ public final class TestSupport {
     }
 
     /**
-     * Tells whether the current Java version is 1.8.
-     *
-     * @return <tt>true</tt> if its Java 1.8, <tt>false</tt> if its not (for example Java 1.7 or older)
-     */
-    public static boolean isJava18() {
-        return getJavaMajorVersion() == 8;
-
-    }
-
-    /**
-     * Tells whether the current Java version is 1.8 and build_no 261 and later.
-     *
-     * @return <tt>true</tt> if its Java 1.8.0_261 and later, <tt>false</tt> if its not (for example Java 1.8.0_251)
-     */
-    // CHECKSTYLE:OFF
-    public static boolean isJava18_261_later() {
-        boolean ret;
-        String version = System.getProperty("java.version");
-        try {
-            ret = version != null && version.startsWith("1.8.0_")
-                && Integer.parseInt(version.substring(6)) >= 261;
-        } catch (NumberFormatException ex) {
-            ret = false;
-        }
-        return ret;
-    }
-    // CHECKSTYLE:ON
-
-    /**
-     * Tells whether the current Java version is 1.9.
-     *
-     * @return <tt>true</tt> if its Java 1.9, <tt>false</tt> if its not (for example Java 1.8 or older)
-     */
-    public static boolean isJava19() {
-        return getJavaMajorVersion() == 9;
-
-    }
-
-    /**
      * Returns the current major Java version e.g 8.
      * <p/>
      * Uses <tt>java.specification.version</tt> from the system properties to determine the major version.
-     * 
+     *
      * @return the current major Java version.
      */
     public static int getJavaMajorVersion() {
         String javaSpecVersion = System.getProperty("java.specification.version");
-        if (javaSpecVersion.contains(".")) { // before jdk 9
-            return Integer.parseInt(javaSpecVersion.split("\\.")[1]);
-        } else {
-            return Integer.parseInt(javaSpecVersion);
-        }
+        return Integer.parseInt(javaSpecVersion);
     }
 
+    /**
+     * Indicates whether the component {@code camel-debug} is present in the classpath of the test.
+     *
+     * @return {@code true} if it is present, {@code false} otherwise.
+     */
+    public static boolean isCamelDebugPresent() {
+        // Needs to be detected before initializing and starting the camel context
+        return Thread.currentThread()
+                .getContextClassLoader()
+                .getResource(String.format("%s%s", FactoryFinder.DEFAULT_PATH, Debugger.FACTORY))
+               != null;
+    }
+
+    public static String fileUri(Path testDirectory) {
+        return "file:" + testDirectory;
+    }
+
+    public static String fileUri(Path testDirectory, String query) {
+        return "file:" + testDirectory + (query.startsWith("?") ? "" : "/") + query;
+    }
+
+    public static void executeSlowly(int count, long interval, TimeUnit timeUnit, IntConsumer task) throws Exception {
+        for (int i = 0; i < count; i++) {
+            task.accept(i);
+            Thread.sleep(timeUnit.toMillis(interval));
+        }
+    }
 }

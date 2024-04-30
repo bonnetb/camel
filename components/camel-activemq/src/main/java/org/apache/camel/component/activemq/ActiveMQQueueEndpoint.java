@@ -19,8 +19,6 @@ package org.apache.camel.component.activemq;
 import java.util.Collections;
 import java.util.List;
 
-import javax.jms.Queue;
-
 import org.apache.camel.Exchange;
 import org.apache.camel.api.management.ManagedAttribute;
 import org.apache.camel.api.management.ManagedResource;
@@ -79,7 +77,7 @@ public class ActiveMQQueueEndpoint extends ActiveMQEndpoint implements JmsBrowsa
     }
 
     /**
-     * If a number is set > 0 then this limits the number of messages that are returned when browsing the queue
+     * If a number is set > 0, then this limits the number of messages that are returned when browsing the queue
      */
     @ManagedAttribute
     public void setMaximumBrowseSize(int maximumBrowseSize) {

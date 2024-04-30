@@ -5,6 +5,7 @@
 :description: Perform updates on an LDAP server from an LDIF body content.
 :since: 2.20
 :supportlevel: Stable
+:tabs-sync-option:
 :component-header: Only producer is supported
 //Manually maintained attributes
 :camel-spring-boot-name: ldif
@@ -14,7 +15,7 @@
 *{component-header}*
 
 The LDIF component allows you to do updates on an LDAP server
-from a LDIF body content.
+from an LDIF body content.
 
 This component uses a basic URL syntax to access the server. It uses
 the Apache DS LDAP library to process the LDIF. After processing the LDIF,

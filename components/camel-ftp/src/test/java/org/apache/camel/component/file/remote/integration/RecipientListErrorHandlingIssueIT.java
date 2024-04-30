@@ -22,6 +22,7 @@ import java.util.Map;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
+import org.apache.camel.component.mock.MockEndpoint;
 import org.junit.jupiter.api.Test;
 
 public class RecipientListErrorHandlingIssueIT extends FtpServerTestSupport {
@@ -42,7 +43,7 @@ public class RecipientListErrorHandlingIssueIT extends FtpServerTestSupport {
 
                 interceptSendToEndpoint("(ftp|direct):.*").process(new Processor() {
                     public void process(Exchange exchange) {
-                        String target = exchange.getIn().getHeader(Exchange.INTERCEPTED_ENDPOINT, String.class);
+                        String target = exchange.getProperty(Exchange.INTERCEPTED_ENDPOINT, String.class);
                         exchange.getIn().setHeader("target", target);
                     }
                 });
@@ -66,7 +67,7 @@ public class RecipientListErrorHandlingIssueIT extends FtpServerTestSupport {
 
         template.sendBodyAndHeaders("direct:start", "Hello World", headers);
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Test
@@ -96,6 +97,6 @@ public class RecipientListErrorHandlingIssueIT extends FtpServerTestSupport {
 
         template.sendBodyAndHeaders("direct:start", "Hello World", headers);
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 }

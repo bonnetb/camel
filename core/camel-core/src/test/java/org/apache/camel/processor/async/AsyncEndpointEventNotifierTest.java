@@ -50,15 +50,15 @@ public class AsyncEndpointEventNotifierTest extends ContextTestSupport {
         assertTrue(latch.await(10, TimeUnit.SECONDS), "Should count down");
 
         long delta = time.get();
-        log.info("ExchangeEventSent took ms: " + delta);
+        log.info("ExchangeEventSent took ms: {}", delta);
         assertTrue(delta > 200, "Should take about 250 millis sec, was: " + delta);
     }
 
     @Override
     protected CamelContext createCamelContext() throws Exception {
-        DefaultCamelContext context = new DefaultCamelContext(createRegistry());
+        DefaultCamelContext context = new DefaultCamelContext(createCamelRegistry());
         context.getManagementStrategy().addEventNotifier(new EventNotifierSupport() {
-            public void notify(CamelEvent event) throws Exception {
+            public void notify(CamelEvent event) {
                 try {
                     ExchangeSentEvent sent = (ExchangeSentEvent) event;
                     time.set(sent.getTimeTaken());
@@ -80,10 +80,10 @@ public class AsyncEndpointEventNotifierTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 context.addComponent("async", new MyAsyncComponent());
 
                 from("direct:start").to("mock:before").to("async:bye:camel?delay=250").to("mock:result");

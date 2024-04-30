@@ -18,12 +18,9 @@ package org.apache.camel.component.kafka;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 
 import org.apache.camel.health.HealthCheckResultBuilder;
 import org.apache.camel.impl.health.AbstractHealthCheck;
-import org.apache.camel.util.TimeUtils;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 
 /**
  * Kafka consumer readiness health-check
@@ -34,45 +31,40 @@ public class KafkaConsumerHealthCheck extends AbstractHealthCheck {
     private final String routeId;
 
     public KafkaConsumerHealthCheck(KafkaConsumer kafkaConsumer, String routeId) {
-        super("camel", "kafka-consumer-" + routeId);
+        super("camel", "consumer:kafka-" + routeId);
         this.kafkaConsumer = kafkaConsumer;
         this.routeId = routeId;
     }
 
     @Override
-    public boolean isLiveness() {
-        // this health check is only readiness
-        return false;
-    }
-
-    @Override
     protected void doCall(HealthCheckResultBuilder builder, Map<String, Object> options) {
-        List<KafkaFetchRecords> tasks = kafkaConsumer.getTasks();
-        for (KafkaFetchRecords task : tasks) {
-            if (!task.isReady()) {
+        List<TaskHealthState> healthStates = kafkaConsumer.healthStates();
+
+        for (TaskHealthState healthState : healthStates) {
+            if (!healthState.isReady()) {
                 builder.down();
 
-                String msg = "KafkaConsumer is not ready";
-                if (task.isTerminated()) {
-                    msg += " (gave up recovering and terminated the kafka consumer; restart route or application to recover).";
-                } else if (task.isRecoverable()) {
-                    String time = TimeUtils.printDuration(task.getCurrentRecoveryInterval());
-                    msg += " (recovery in progress using " + time + " intervals).";
-                }
+                final String msg = healthState.buildStateMessage();
+
                 builder.message(msg);
 
                 // was this caused by consumer not able to connect then this is stored in last error
-                builder.error(task.getLastError());
+                builder.error(healthState.getLastError());
 
                 KafkaConfiguration cfg = kafkaConsumer.getEndpoint().getConfiguration();
-                Properties props = task.getKafkaProps();
 
-                builder.detail("bootstrap.servers", props.getProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG));
-                builder.detail("client.id", task.getClientId());
-                String gid = props.getProperty(ConsumerConfig.GROUP_ID_CONFIG);
+                if (healthState.getBootstrapServers() != null) {
+                    builder.detail("bootstrap.servers", healthState.getBootstrapServers());
+                }
+                if (healthState.getClientId() != null) {
+                    builder.detail("client.id", healthState.getClientId());
+                }
+
+                String gid = healthState.getGroupId();
                 if (gid != null) {
                     builder.detail("group.id", gid);
                 }
+
                 if (routeId != null) {
                     // camel route id
                     builder.detail("route.id", routeId);

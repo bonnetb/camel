@@ -24,7 +24,7 @@ import org.infinispan.configuration.cache.CacheMode;
 import org.jgroups.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
-import org.testcontainers.shaded.org.apache.commons.lang.SystemUtils;
+import org.testcontainers.shaded.org.apache.commons.lang3.SystemUtils;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -36,14 +36,7 @@ public class InfinispanRemoteConfigurationIT {
 
     @Test
     public void remoteCacheWithoutProperties() throws Exception {
-        InfinispanRemoteConfiguration configuration = new InfinispanRemoteConfiguration();
-        configuration.setHosts(service.host() + ":" + service.port());
-        configuration.setSecure(true);
-        configuration.setUsername(service.username());
-        configuration.setPassword(service.password());
-        configuration.setSecurityServerName("infinispan");
-        configuration.setSaslMechanism("DIGEST-MD5");
-        configuration.setSecurityRealm("default");
+        final InfinispanRemoteConfiguration configuration = getBaseConfiguration();
         if (SystemUtils.IS_OS_MAC) {
             configuration.addConfigurationProperty(
                     "infinispan.client.hotrod.client_intelligence", "BASIC");
@@ -68,8 +61,7 @@ public class InfinispanRemoteConfigurationIT {
         }
     }
 
-    @Test
-    public void remoteCacheWithProperties() throws Exception {
+    private static InfinispanRemoteConfiguration getBaseConfiguration() {
         InfinispanRemoteConfiguration configuration = new InfinispanRemoteConfiguration();
         configuration.setHosts(service.host() + ":" + service.port());
         configuration.setSecure(true);
@@ -78,6 +70,12 @@ public class InfinispanRemoteConfigurationIT {
         configuration.setSecurityServerName("infinispan");
         configuration.setSaslMechanism("DIGEST-MD5");
         configuration.setSecurityRealm("default");
+        return configuration;
+    }
+
+    @Test
+    public void remoteCacheWithProperties() throws Exception {
+        final InfinispanRemoteConfiguration configuration = getBaseConfiguration();
         if (SystemUtils.IS_OS_MAC) {
             configuration.setConfigurationUri("infinispan/client-mac.properties");
         } else {

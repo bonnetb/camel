@@ -28,11 +28,17 @@ public interface ManagedCamelContextMBean extends ManagedPerformanceCounterMBean
     @ManagedAttribute(description = "Camel ID")
     String getCamelId();
 
+    @ManagedAttribute(description = "Camel Description")
+    String getCamelDescription();
+
     @ManagedAttribute(description = "Camel ManagementName")
     String getManagementName();
 
     @ManagedAttribute(description = "Camel Version")
     String getCamelVersion();
+
+    @ManagedAttribute(description = "Camel Profile")
+    String getProfile();
 
     @ManagedAttribute(description = "Camel State")
     String getState();
@@ -120,6 +126,9 @@ public interface ManagedCamelContextMBean extends ManagedPerformanceCounterMBean
     @ManagedAttribute(description = "Average load over the last fifteen minutes")
     String getLoad15();
 
+    @ManagedAttribute(description = "Throughput message/second")
+    String getThroughput();
+
     @ManagedAttribute(description = "Whether breadcrumbs is in use")
     boolean isUseBreadcrumb();
 
@@ -190,7 +199,7 @@ public interface ManagedCamelContextMBean extends ManagedPerformanceCounterMBean
     String dumpRoutesAsXml(boolean resolvePlaceholders) throws Exception;
 
     @ManagedOperation(description = "Dumps the routes as XML")
-    String dumpRoutesAsXml(boolean resolvePlaceholders, boolean resolveDelegateEndpoints) throws Exception;
+    String dumpRoutesAsXml(boolean resolvePlaceholders, boolean generatedIds) throws Exception;
 
     @ManagedOperation(description = "Dumps the CamelContext and routes stats as XML")
     String dumpRoutesStatsAsXml(boolean fullStats, boolean includeProcessors) throws Exception;
@@ -204,9 +213,17 @@ public interface ManagedCamelContextMBean extends ManagedPerformanceCounterMBean
     @ManagedOperation(description = "Dumps the route templates as XML")
     String dumpRouteTemplatesAsXml() throws Exception;
 
-    @ManagedOperation(description = "Dumps all routes with mappings between node ids and their source location/line-number (currently only XML and YAML routes supported) as XML")
-    @Deprecated
-    String dumpRoutesSourceLocationsAsXml() throws Exception;
+    @ManagedOperation(description = "Dumps the routes as YAML")
+    String dumpRoutesAsYaml() throws Exception;
+
+    @ManagedOperation(description = "Dumps the routes as YAML")
+    String dumpRoutesAsYaml(boolean resolvePlaceholders) throws Exception;
+
+    @ManagedOperation(description = "Dumps the routes as YAML")
+    String dumpRoutesAsYaml(boolean resolvePlaceholders, boolean uriAsParameters) throws Exception;
+
+    @ManagedOperation(description = "Dumps the routes as YAML")
+    String dumpRoutesAsYaml(boolean resolvePlaceholders, boolean uriAsParameters, boolean generatedIds) throws Exception;
 
     /**
      * Creates the endpoint by the given uri

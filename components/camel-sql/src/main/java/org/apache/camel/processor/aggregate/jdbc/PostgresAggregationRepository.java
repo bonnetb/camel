@@ -25,7 +25,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 
 /**
  * PostgreSQL specific {@link JdbcAggregationRepository} that deals with SQL Violation Exceptions using special
- * {@code INSERT INTO .. ON CONFLICT DO NOTHING} claues.
+ * {@code INSERT INTO .. ON CONFLICT DO NOTHING} clause.
  */
 public class PostgresAggregationRepository extends JdbcAggregationRepository {
 
@@ -78,9 +78,7 @@ public class PostgresAggregationRepository extends JdbcAggregationRepository {
 
         queryBuilder.append(") VALUES (");
 
-        for (int i = 0; i < totalParameterIndex - 1; i++) {
-            queryBuilder.append("?, ");
-        }
+        queryBuilder.append("?, ".repeat(totalParameterIndex - 1));
         queryBuilder.append("?)");
 
         queryBuilder.append(" ON CONFLICT DO NOTHING");

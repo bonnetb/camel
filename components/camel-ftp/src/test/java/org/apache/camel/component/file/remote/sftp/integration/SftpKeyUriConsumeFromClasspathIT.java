@@ -22,7 +22,7 @@ import org.apache.camel.component.mock.MockEndpoint;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 
-@EnabledIf(value = "org.apache.camel.component.file.remote.services.SftpEmbeddedService#hasRequiredAlgorithms")
+@EnabledIf(value = "org.apache.camel.test.infra.ftp.services.embedded.SftpUtil#hasRequiredAlgorithms('src/test/resources/hostkey.pem')")
 public class SftpKeyUriConsumeFromClasspathIT extends SftpServerTestSupport {
 
     @Test
@@ -39,7 +39,7 @@ public class SftpKeyUriConsumeFromClasspathIT extends SftpServerTestSupport {
 
         context.getRouteController().startRoute("foo");
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Override
@@ -49,8 +49,8 @@ public class SftpKeyUriConsumeFromClasspathIT extends SftpServerTestSupport {
             public void configure() {
                 from("sftp://localhost:{{ftp.server.port}}/{{ftp.root.dir}}"
                      + "?username=admin&knownHostsUri=known_hosts&privateKeyUri=id_rsa&privateKeyPassphrase=secret&delay=10000&disconnect=true")
-                             .routeId("foo").noAutoStartup()
-                             .to("mock:result");
+                        .routeId("foo").noAutoStartup()
+                        .to("mock:result");
             }
         };
     }

@@ -80,7 +80,7 @@ public class FileIdempotentRepositoryReadLockStrategy extends ServiceSupport
             answer = idempotentRepository.add(exchange, key);
         } catch (Exception e) {
             if (LOG.isTraceEnabled()) {
-                LOG.trace("Cannot acquire read lock due to " + e.getMessage() + ". Will skip the file: " + file, e);
+                LOG.trace("Cannot acquire read lock due to {}. Will skip the file: {}", e.getMessage(), file, e);
             }
         }
         if (!answer) {
@@ -111,17 +111,7 @@ public class FileIdempotentRepositoryReadLockStrategy extends ServiceSupport
             }
         };
 
-        if (readLockIdempotentReleaseDelay > 0 && readLockIdempotentReleaseExecutorService != null) {
-            LOG.debug("Scheduling read lock release task to run asynchronous delayed after {} millis",
-                    readLockIdempotentReleaseDelay);
-            readLockIdempotentReleaseExecutorService.schedule(r, readLockIdempotentReleaseDelay, TimeUnit.MILLISECONDS);
-        } else if (readLockIdempotentReleaseDelay > 0) {
-            LOG.debug("Delaying read lock release task {} millis", readLockIdempotentReleaseDelay);
-            Thread.sleep(readLockIdempotentReleaseDelay);
-            r.run();
-        } else {
-            r.run();
-        }
+        delayOrScheduleLockRelease(r);
     }
 
     @Override
@@ -138,6 +128,10 @@ public class FileIdempotentRepositoryReadLockStrategy extends ServiceSupport
             }
         };
 
+        delayOrScheduleLockRelease(r);
+    }
+
+    private void delayOrScheduleLockRelease(Runnable r) throws InterruptedException {
         if (readLockIdempotentReleaseDelay > 0 && readLockIdempotentReleaseExecutorService != null) {
             LOG.debug("Scheduling read lock release task to run asynchronous delayed after {} millis",
                     readLockIdempotentReleaseDelay);

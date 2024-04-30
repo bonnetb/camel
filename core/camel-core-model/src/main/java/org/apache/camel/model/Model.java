@@ -23,6 +23,7 @@ import java.util.function.Function;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.RouteTemplateContext;
+import org.apache.camel.model.app.RegistryBeanDefinition;
 import org.apache.camel.model.cloud.ServiceCallConfigurationDefinition;
 import org.apache.camel.model.rest.RestDefinition;
 import org.apache.camel.model.transformer.TransformerDefinition;
@@ -70,6 +71,22 @@ public interface Model {
      * @return list of the current route configuration definitions
      */
     List<RouteConfigurationDefinition> getRouteConfigurationDefinitions();
+
+    /**
+     * Removes a route configuration from the context
+     *
+     * @param  routeConfigurationDefinition route configuration to remove
+     * @throws Exception                    if the route configuration could not be removed for whatever reason
+     */
+    void removeRouteConfiguration(RouteConfigurationDefinition routeConfigurationDefinition) throws Exception;
+
+    /**
+     * Gets the route configuration definition with the given id
+     *
+     * @param  id id of the route configuration
+     * @return    the route configuration definition or <tt>null</tt> if not found
+     */
+    RouteConfigurationDefinition getRouteConfigurationDefinition(String id);
 
     /**
      * Returns a list of the current route definitions
@@ -210,13 +227,31 @@ public interface Model {
     /**
      * Adds a new route from a given route template
      *
+     * @param  routeId         the id of the new route to add (optional)
+     * @param  routeTemplateId the id of the route template (mandatory)
+     * @param  prefixId        prefix to use when assigning route and node IDs (optional)
+     * @param  parameters      parameters to use for the route template when creating the new route
+     * @return                 the id of the route added (for example when an id was auto assigned)
+     * @throws Exception       is thrown if error creating and adding the new route
+     */
+    String addRouteFromTemplate(
+            String routeId, String routeTemplateId, String prefixId,
+            Map<String, Object> parameters)
+            throws Exception;
+
+    /**
+     * Adds a new route from a given route template
+     *
      * @param  routeId              the id of the new route to add (optional)
      * @param  routeTemplateId      the id of the route template (mandatory)
+     * @param  prefixId             prefix to use when assigning route and node IDs (optional)
      * @param  routeTemplateContext the route template context (mandatory)
      * @return                      the id of the route added (for example when an id was auto assigned)
      * @throws Exception            is thrown if error creating and adding the new route
      */
-    String addRouteFromTemplate(String routeId, String routeTemplateId, RouteTemplateContext routeTemplateContext)
+    String addRouteFromTemplate(
+            String routeId, String routeTemplateId, String prefixId,
+            RouteTemplateContext routeTemplateContext)
             throws Exception;
 
     /**
@@ -454,5 +489,15 @@ public interface Model {
      * Sets a custom {@link ModelReifierFactory}
      */
     void setModelReifierFactory(ModelReifierFactory modelReifierFactory);
+
+    /**
+     * Adds the custom bean
+     */
+    void addRegistryBean(RegistryBeanDefinition bean);
+
+    /**
+     * Gets the custom beans
+     */
+    List<RegistryBeanDefinition> getRegistryBeans();
 
 }

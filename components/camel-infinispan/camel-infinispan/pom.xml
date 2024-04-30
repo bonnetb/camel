@@ -24,7 +24,7 @@
     <parent>
         <groupId>org.apache.camel</groupId>
         <artifactId>camel-infinispan-parent</artifactId>
-        <version>3.17.0-SNAPSHOT</version>
+        <version>4.6.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>camel-infinispan</artifactId>
@@ -32,15 +32,32 @@
     <name>Camel :: Infinispan :: Remote</name>
     <description>Camel Infinispan Remote support</description>
 
+    <properties>
+        <!-- Infinispan container is not available on these platforms -->
+        <skipITs.ppc64le>true</skipITs.ppc64le>
+        <skipITs.s390x>true</skipITs.s390x>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.apache.camel</groupId>
             <artifactId>camel-infinispan-common</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.apache.sshd</groupId>
+            <artifactId>sshd-common</artifactId>
+            <version>${sshd-version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.infinispan</groupId>
             <artifactId>infinispan-client-hotrod</artifactId>
             <version>${infinispan-version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.sshd</groupId>
+                    <artifactId>sshd-common</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.infinispan</groupId>
@@ -48,14 +65,10 @@
             <version>${infinispan-version}</version>
         </dependency>
         <dependency>
-            <groupId>org.infinispan</groupId>
-            <artifactId>infinispan-marshaller-protostuff</artifactId>
-            <version>${infinispan-version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.infinispan</groupId>
-            <artifactId>infinispan-jboss-marshalling</artifactId>
-            <version>${infinispan-version}</version>
+            <groupId>org.infinispan.protostream</groupId>
+            <artifactId>protostream-processor</artifactId>
+            <version>${protostream-version}</version>
+            <scope>provided</scope>
         </dependency>
 
         <!-- testing - camel -->
@@ -90,6 +103,13 @@
             <groupId>org.infinispan</groupId>
             <artifactId>infinispan-core</artifactId>
             <version>${infinispan-version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.infinispan</groupId>
+            <artifactId>infinispan-core</artifactId>
+            <version>${infinispan-version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
@@ -101,29 +121,19 @@
         </dependency>
         <dependency>
             <groupId>org.infinispan</groupId>
-            <artifactId>infinispan-spring5-remote</artifactId>
+            <artifactId>infinispan-spring6-remote</artifactId>
             <version>${infinispan-version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.infinispan.protostream</groupId>
-            <artifactId>sample-domain-definition</artifactId>
+            <artifactId>protostream</artifactId>
             <version>${protostream-version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.infinispan.protostream</groupId>
-            <artifactId>sample-domain-implementation</artifactId>
-            <version>${protostream-version}</version>
+            <type>test-jar</type>
             <scope>test</scope>
         </dependency>
 
         <!-- testing - misc -->
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-slf4j-impl</artifactId>
-            <scope>test</scope>
-        </dependency>
         <dependency>
             <groupId>org.apache.camel</groupId>
             <artifactId>camel-test-junit5</artifactId>
@@ -137,26 +147,40 @@
         <dependency>
             <groupId>org.awaitility</groupId>
             <artifactId>awaitility</artifactId>
+            <version>${awaitility-version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
+            <version>${assertj-version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
 
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-failsafe-plugin</artifactId>
-                <configuration>
-                    <systemPropertyVariables>
-                        <infinispan.test.jgroups.protocol>tcp</infinispan.test.jgroups.protocol>
-                    </systemPropertyVariables>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
+    <profiles>
+        <profile>
+            <id>full</id>
+            <activation>
+                <property>
+                    <name>!quickly</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <configuration>
+                            <systemPropertyVariables>
+                                <infinispan.test.jgroups.protocol>tcp</infinispan.test.jgroups.protocol>
+                            </systemPropertyVariables>
+                            <argLine>--add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.util.concurrent=ALL-UNNAMED</argLine>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
 </project>

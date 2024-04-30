@@ -45,7 +45,6 @@ public class JdbcMessageIdRepositoryTest extends CamelSpringTestSupport {
     protected static final String PROCESSOR_NAME = "myProcessorName";
 
     protected JdbcTemplate jdbcTemplate;
-    protected DataSource dataSource;
 
     @EndpointInject("mock:result")
     protected MockEndpoint resultEndpoint;
@@ -58,7 +57,7 @@ public class JdbcMessageIdRepositoryTest extends CamelSpringTestSupport {
     public void setUp() throws Exception {
         super.setUp();
 
-        dataSource = context.getRegistry().lookupByNameAndType("dataSource", DataSource.class);
+        DataSource dataSource = context.getRegistry().lookupByNameAndType("dataSource", DataSource.class);
         jdbcTemplate = new JdbcTemplate(dataSource);
         jdbcTemplate.afterPropertiesSet();
     }
@@ -75,7 +74,7 @@ public class JdbcMessageIdRepositoryTest extends CamelSpringTestSupport {
         template.sendBodyAndHeader("direct:start", "one", "messageId", "1");
         template.sendBodyAndHeader("direct:start", "three", "messageId", "3");
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
 
         // all 3 messages should be in jdbc repo
         List<String> receivedMessageIds = jdbcTemplate.queryForList(SELECT_ALL_STRING, String.class, PROCESSOR_NAME);
@@ -116,7 +115,7 @@ public class JdbcMessageIdRepositoryTest extends CamelSpringTestSupport {
         template.sendBodyAndHeader("direct:start", "one", "messageId", "1");
         template.sendBodyAndHeader("direct:start", "three", "messageId", "3");
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
 
         jdbcTemplate.update(CLEAR_STRING, PROCESSOR_NAME);
 

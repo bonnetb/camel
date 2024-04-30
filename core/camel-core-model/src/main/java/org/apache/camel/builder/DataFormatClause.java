@@ -16,18 +16,15 @@
  */
 package org.apache.camel.builder;
 
-import java.nio.charset.Charset;
-import java.util.List;
 import java.util.Map;
-import java.util.StringJoiner;
 
 import org.w3c.dom.Node;
 
 import org.apache.camel.model.DataFormatDefinition;
+import org.apache.camel.model.MarshalDefinition;
 import org.apache.camel.model.ProcessorDefinition;
+import org.apache.camel.model.UnmarshalDefinition;
 import org.apache.camel.model.dataformat.ASN1DataFormat;
-import org.apache.camel.model.dataformat.Any23DataFormat;
-import org.apache.camel.model.dataformat.Any23Type;
 import org.apache.camel.model.dataformat.AvroDataFormat;
 import org.apache.camel.model.dataformat.AvroLibrary;
 import org.apache.camel.model.dataformat.Base64DataFormat;
@@ -51,16 +48,18 @@ import org.apache.camel.model.dataformat.JsonLibrary;
 import org.apache.camel.model.dataformat.LZFDataFormat;
 import org.apache.camel.model.dataformat.MimeMultipartDataFormat;
 import org.apache.camel.model.dataformat.PGPDataFormat;
+import org.apache.camel.model.dataformat.ParquetAvroDataFormat;
 import org.apache.camel.model.dataformat.ProtobufDataFormat;
 import org.apache.camel.model.dataformat.ProtobufLibrary;
 import org.apache.camel.model.dataformat.RssDataFormat;
 import org.apache.camel.model.dataformat.SoapDataFormat;
+import org.apache.camel.model.dataformat.SwiftMtDataFormat;
+import org.apache.camel.model.dataformat.SwiftMxDataFormat;
 import org.apache.camel.model.dataformat.SyslogDataFormat;
 import org.apache.camel.model.dataformat.TarFileDataFormat;
 import org.apache.camel.model.dataformat.ThriftDataFormat;
 import org.apache.camel.model.dataformat.TidyMarkupDataFormat;
 import org.apache.camel.model.dataformat.XMLSecurityDataFormat;
-import org.apache.camel.model.dataformat.XStreamDataFormat;
 import org.apache.camel.model.dataformat.YAMLDataFormat;
 import org.apache.camel.model.dataformat.YAMLLibrary;
 import org.apache.camel.model.dataformat.ZipDeflaterDataFormat;
@@ -73,6 +72,8 @@ import org.apache.camel.support.jsse.KeyStoreParameters;
 public class DataFormatClause<T extends ProcessorDefinition<?>> {
     private final T processorType;
     private final Operation operation;
+    private String variableSend;
+    private String variableReceive;
     private boolean allowNullBody;
 
     /**
@@ -89,39 +90,36 @@ public class DataFormatClause<T extends ProcessorDefinition<?>> {
     }
 
     /**
-     * Uses the Any23 data format
-     */
-    public T any23(String baseuri) {
-        return dataFormat(new Any23DataFormat(baseuri));
-    }
-
-    public T any23(String baseuri, Any23Type outputformat) {
-        return dataFormat(new Any23DataFormat(baseuri, outputformat));
-    }
-
-    public T any23(String baseuri, Any23Type outputformat, Map<String, String> configurations) {
-        return dataFormat(new Any23DataFormat(baseuri, outputformat, configurations));
-    }
-
-    public T any23(String baseuri, Any23Type outputformat, Map<String, String> configurations, List<String> extractors) {
-        return dataFormat(new Any23DataFormat(baseuri, outputformat, configurations, extractors));
-    }
-
-    /**
      * Uses the Avro data format
      */
     public T avro() {
         return dataFormat(new AvroDataFormat());
     }
 
-    public T avro(Object schema) {
+    /**
+     * Uses Avro data format with tje given library and schema
+     */
+    public T avro(AvroLibrary library, Object schema) {
         AvroDataFormat dataFormat = new AvroDataFormat();
+        dataFormat.setLibrary(library);
         dataFormat.setSchema(schema);
         return dataFormat(dataFormat);
     }
 
-    public T avro(String instanceClassName) {
-        return dataFormat(new AvroDataFormat(instanceClassName));
+    /**
+     * Uses Avro data format with the given unmarshalType
+     */
+    public T avro(String unmarshalTypeName) {
+        return dataFormat(new AvroDataFormat(unmarshalTypeName));
+    }
+
+    /**
+     * Uses Avro data format with given library and unmarshalType
+     */
+    public T avro(AvroLibrary library, String unmarshalTypeName) {
+        AvroDataFormat df = new AvroDataFormat(unmarshalTypeName);
+        df.setLibrary(library);
+        return dataFormat(df);
     }
 
     /**
@@ -147,6 +145,16 @@ public class DataFormatClause<T extends ProcessorDefinition<?>> {
         AvroDataFormat avroDataFormat = new AvroDataFormat();
         avroDataFormat.setLibrary(library);
         avroDataFormat.setUnmarshalType(unmarshalType);
+        return dataFormat(avroDataFormat);
+    }
+
+    /**
+     * Uses the Avro data format with given unmarshalType and schemaResolver
+     */
+    public T avro(Class<?> unmarshalType, String schemaResolver) {
+        AvroDataFormat avroDataFormat = new AvroDataFormat();
+        avroDataFormat.setUnmarshalType(unmarshalType);
+        avroDataFormat.setSchemaResolver(schemaResolver);
         return dataFormat(avroDataFormat);
     }
 
@@ -868,6 +876,62 @@ public class DataFormatClause<T extends ProcessorDefinition<?>> {
     }
 
     /**
+     * Uses the SWIFT MX data format
+     */
+    public T swiftMx() {
+        return dataFormat(new SwiftMxDataFormat());
+    }
+
+    /**
+     * Uses the SWIFT MX data format.
+     */
+    public T swiftMx(boolean writeInJson) {
+        return dataFormat(new SwiftMxDataFormat(writeInJson));
+    }
+
+    /**
+     * Uses the SWIFT MX data format.
+     */
+    public T swiftMx(boolean writeInJson, String readMessageId, Object readConfig) {
+        return dataFormat(new SwiftMxDataFormat(writeInJson, readMessageId, readConfig));
+    }
+
+    /**
+     * Uses the SWIFT MX data format.
+     */
+    public T swiftMx(boolean writeInJson, String readMessageId, String readConfigRef) {
+        return dataFormat(new SwiftMxDataFormat(writeInJson, readMessageId, readConfigRef));
+    }
+
+    /**
+     * Uses the SWIFT MX data format.
+     */
+    public T swiftMx(Object writeConfig, String readMessageId, Object readConfig) {
+        return dataFormat(new SwiftMxDataFormat(writeConfig, readMessageId, readConfig));
+    }
+
+    /**
+     * Uses the SWIFT MX data format.
+     */
+    public T swiftMx(String writeConfigRef, String readMessageId, String readConfigRef) {
+        return dataFormat(new SwiftMxDataFormat(writeConfigRef, readMessageId, readConfigRef));
+    }
+
+    /**
+     * Uses the SWIFT MT data format
+     */
+    public T swiftMt() {
+        return dataFormat(new SwiftMtDataFormat());
+    }
+
+    /**
+     * Uses the SWIFT MT data format.
+     */
+    public T swiftMt(boolean writeInJson) {
+        return dataFormat(new SwiftMtDataFormat(Boolean.toString(writeInJson)));
+    }
+
+    /**
      * Uses the Syslog data format
      */
     public T syslog() {
@@ -914,63 +978,6 @@ public class DataFormatClause<T extends ProcessorDefinition<?>> {
      */
     public T tidyMarkup() {
         return dataFormat(new TidyMarkupDataFormat(Node.class));
-    }
-
-    /**
-     * Uses the XStream data format.
-     * <p/>
-     * Favor using {@link #xstream(String)} to pass in a permission
-     */
-    public T xstream() {
-        return dataFormat(new XStreamDataFormat());
-    }
-
-    /**
-     * Uses the xstream by setting the encoding or permission
-     *
-     * @param encodingOrPermission is either an encoding or permission syntax
-     */
-    public T xstream(String encodingOrPermission) {
-        // is it an encoding? if not we assume its a permission
-        if (Charset.isSupported(encodingOrPermission)) {
-            return xstream(encodingOrPermission, (String) null);
-        } else {
-            return xstream(null, encodingOrPermission);
-        }
-    }
-
-    /**
-     * Uses the xstream by setting the encoding
-     */
-    public T xstream(String encoding, String permission) {
-        XStreamDataFormat xdf = new XStreamDataFormat();
-        xdf.setPermissions(permission);
-        xdf.setEncoding(encoding);
-        return dataFormat(xdf);
-    }
-
-    /**
-     * Uses the xstream by permitting the java type
-     *
-     * @param type the pojo xstream should use as allowed permission
-     */
-    public T xstream(Class<?> type) {
-        return xstream(null, type);
-    }
-
-    /**
-     * Uses the xstream by permitting the java type
-     *
-     * @param encoding encoding to use
-     * @param type     the pojo class(es) xstream should use as allowed permission
-     */
-    public T xstream(String encoding, Class<?>... type) {
-        StringJoiner stringBuilder = new StringJoiner(",");
-        for (Class<?> clazz : type) {
-            stringBuilder.add("+");
-            stringBuilder.add(clazz.getName());
-        }
-        return xstream(encoding, stringBuilder.toString());
     }
 
     /**
@@ -1326,6 +1333,28 @@ public class DataFormatClause<T extends ProcessorDefinition<?>> {
     }
 
     /**
+     * Uses the parquet-avro file data format
+     */
+    public T parquetAvro() {
+        ParquetAvroDataFormat parquetAvroDataFormat = new ParquetAvroDataFormat();
+        return dataFormat(parquetAvroDataFormat);
+    }
+
+    /**
+     * Uses the parquet-avro file data format
+     */
+    public T parquetAvro(String unmarshalType) {
+        return dataFormat(new ParquetAvroDataFormat(unmarshalType));
+    }
+
+    /**
+     * Uses the parquet-avro file data format
+     */
+    public T parquetAvro(Class<?> unmarshalType) {
+        return dataFormat(new ParquetAvroDataFormat(unmarshalType));
+    }
+
+    /**
      * Uses the FHIR JSON data format
      */
     public T fhirJson() {
@@ -1400,13 +1429,47 @@ public class DataFormatClause<T extends ProcessorDefinition<?>> {
         return this;
     }
 
-    @SuppressWarnings("unchecked")
+    /**
+     * To use a variable to store the received message body (only body, not headers). This is handy for easy access to
+     * the received message body via variables.
+     *
+     * Important: When using receive variable then the received body is stored only in this variable and <b>not</b> on
+     * the current {@link org.apache.camel.Message}.
+     */
+    public DataFormatClause<T> variableSend(String variableSend) {
+        this.variableSend = variableSend;
+        return this;
+    }
+
+    /**
+     * To use a variable to store the received message body (only body, not headers). This is handy for easy access to
+     * the received message body via variables.
+     *
+     * Important: When using receive variable then the received body is stored only in this variable and <b>not</b> on
+     * the current {@link org.apache.camel.Message}.
+     */
+    public DataFormatClause<T> variableReceive(String variableReceive) {
+        this.variableReceive = variableReceive;
+        return this;
+    }
+
     private T dataFormat(DataFormatDefinition dataFormatType) {
         switch (operation) {
             case Unmarshal:
-                return (T) processorType.unmarshal(dataFormatType, allowNullBody);
+                UnmarshalDefinition unmarshal = new UnmarshalDefinition(dataFormatType);
+                if (allowNullBody) {
+                    unmarshal.allowNullBody(true);
+                }
+                unmarshal.setVariableReceive(variableReceive);
+                unmarshal.setVariableSend(variableSend);
+                processorType.addOutput(unmarshal);
+                return processorType;
             case Marshal:
-                return (T) processorType.marshal(dataFormatType);
+                MarshalDefinition marshal = new MarshalDefinition(dataFormatType);
+                marshal.setVariableReceive(variableReceive);
+                marshal.setVariableSend(variableSend);
+                processorType.addOutput(marshal);
+                return processorType;
             default:
                 throw new IllegalArgumentException("Unknown DataFormat operation: " + operation);
         }

@@ -20,24 +20,23 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.ReadableByteChannel;
+import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Predicate;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.CamelExecutionException;
 import org.apache.camel.Endpoint;
 import org.apache.camel.Exchange;
+import org.apache.camel.ExchangeExtension;
 import org.apache.camel.ExchangePattern;
 import org.apache.camel.ExchangePropertyKey;
-import org.apache.camel.ExtendedExchange;
 import org.apache.camel.Message;
 import org.apache.camel.MessageHistory;
 import org.apache.camel.NoSuchBeanException;
@@ -48,31 +47,30 @@ import org.apache.camel.NoTypeConversionAvailableException;
 import org.apache.camel.Route;
 import org.apache.camel.RuntimeCamelException;
 import org.apache.camel.TypeConversionException;
+import org.apache.camel.VariableAware;
 import org.apache.camel.WrappedFile;
 import org.apache.camel.spi.NormalizedEndpointUri;
-import org.apache.camel.spi.Synchronization;
 import org.apache.camel.spi.UnitOfWork;
-import org.apache.camel.spi.annotations.EagerClassloaded;
+import org.apache.camel.spi.VariableRepository;
+import org.apache.camel.spi.VariableRepositoryFactory;
 import org.apache.camel.util.IOHelper;
 import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.util.Scanner;
 import org.apache.camel.util.StringHelper;
-import org.slf4j.Logger;
 
 /**
  * Some helper methods for working with {@link Exchange} objects
  */
-@EagerClassloaded
 public final class ExchangeHelper {
+
+    private static final String DEFAULT_CHARSET_NAME
+            = ObjectHelper.getSystemProperty(Exchange.DEFAULT_CHARSET_PROPERTY, "UTF-8");
+    private static final Charset DEFAULT_CHARSET = Charset.forName(DEFAULT_CHARSET_NAME);
 
     /**
      * Utility classes should not have a public constructor.
      */
     private ExchangeHelper() {
-    }
-
-    public static void onClassloaded(Logger log) {
-        log.trace("Loaded ExchangeHelper");
     }
 
     /**
@@ -285,22 +283,6 @@ public final class ExchangeHelper {
      * @param useSameMessageId whether to use same message id on the copy message.
      */
     public static Exchange createCorrelatedCopy(Exchange exchange, boolean handover, boolean useSameMessageId) {
-        return createCorrelatedCopy(exchange, handover, useSameMessageId, null);
-    }
-
-    /**
-     * Creates a new instance and copies from the current message exchange so that it can be forwarded to another
-     * destination as a new instance. Unlike regular copy this operation will not share the same
-     * {@link org.apache.camel.spi.UnitOfWork} so its should be used for async messaging, where the original and copied
-     * exchange are independent.
-     *
-     * @param exchange         original copy of the exchange
-     * @param handover         whether the on completion callbacks should be handed over to the new copy.
-     * @param useSameMessageId whether to use same message id on the copy message.
-     * @param filter           whether to handover the on completion
-     */
-    public static Exchange createCorrelatedCopy(
-            Exchange exchange, boolean handover, boolean useSameMessageId, Predicate<Synchronization> filter) {
         String id = exchange.getExchangeId();
 
         // make sure to do a safe copy as the correlated copy can be routed independently of the source.
@@ -313,11 +295,10 @@ public final class ExchangeHelper {
             copy.getIn().setMessageId(null);
         }
         // do not share the unit of work
-        ExtendedExchange ce = (ExtendedExchange) copy;
-        ce.setUnitOfWork(null);
+        copy.getExchangeExtension().setUnitOfWork(null);
         if (handover) {
             // Need to hand over the completion for async invocation
-            exchange.adapt(ExtendedExchange.class).handoverCompletions(ce);
+            exchange.getExchangeExtension().handoverCompletions(copy);
         }
         // set a correlation id so we can track back the original exchange
         copy.setProperty(ExchangePropertyKey.CORRELATION_ID, id);
@@ -350,7 +331,7 @@ public final class ExchangeHelper {
      * @param source the source exchange which is not modified
      */
     public static void copyResults(Exchange target, Exchange source) {
-        doCopyResults((ExtendedExchange) target, (ExtendedExchange) source, false);
+        doCopyResults(target, source, false);
     }
 
     /**
@@ -361,65 +342,78 @@ public final class ExchangeHelper {
      * @param source source exchange.
      */
     public static void copyResultsPreservePattern(Exchange target, Exchange source) {
-        doCopyResults((ExtendedExchange) target, (ExtendedExchange) source, true);
+        doCopyResults(target, source, true);
     }
 
-    private static void doCopyResults(ExtendedExchange result, ExtendedExchange source, boolean preserverPattern) {
+    private static void doCopyResults(Exchange result, Exchange source, boolean preserverPattern) {
         if (result == source) {
-            // we just need to ensure MEP is as expected (eg copy result to OUT if out capable)
-            // and the result is not failed
-            if (result.getPattern() == ExchangePattern.InOptionalOut) {
-                // keep as is
-            } else if (result.getPattern().isOutCapable() && !result.hasOut() && !result.isFailed()) {
-                // copy IN to OUT as we expect a OUT response
-                result.getOut().copyFrom(source.getIn());
-            }
+            copyFromOutMessageConditionally(result, source);
             return;
         }
 
         if (source.hasOut()) {
-            if (preserverPattern) {
-                // exchange pattern sensitive
-                Message resultMessage = getResultMessage(result);
-                resultMessage.copyFrom(source.getOut());
-            } else {
-                result.getOut().copyFrom(source.getOut());
-            }
-        } else if (result.getPattern() == ExchangePattern.InOptionalOut) {
-            // special case where the result is InOptionalOut and with no OUT response
-            // so we should return null to indicate this fact
-            result.setOut(null);
+            copyFromOutMessage(result, source, preserverPattern);
         } else {
-            // no results so lets copy the last input
-            // as the final processor on a pipeline might not
-            // have created any OUT; such as a mock:endpoint
-            // so lets assume the last IN is the OUT
-            if (!preserverPattern && result.getPattern().isOutCapable()) {
-                // only set OUT if its OUT capable
-                result.getOut().copyFrom(source.getIn());
-            } else {
-                // if not replace IN instead to keep the MEP
-                result.getIn().copyFrom(source.getIn());
-                // clear any existing OUT as the result is on the IN
-                if (result.hasOut()) {
-                    result.setOut(null);
-                }
-            }
+            copyFromInMessage(result, source, preserverPattern);
         }
 
         if (source.hasProperties()) {
             result.getProperties().putAll(source.getProperties());
         }
-        source.adapt(ExtendedExchange.class).copyInternalProperties(result);
+
+        final ExchangeExtension sourceExtension = source.getExchangeExtension();
+        sourceExtension.copyInternalProperties(result);
+
+        final ExchangeExtension resultExtension = result.getExchangeExtension();
+        sourceExtension.copySafeCopyPropertiesTo(resultExtension);
 
         // copy over state
         result.setRouteStop(source.isRouteStop());
         result.setRollbackOnly(source.isRollbackOnly());
         result.setRollbackOnlyLast(source.isRollbackOnlyLast());
-        result.setNotifyEvent(source.isNotifyEvent());
-        result.setRedeliveryExhausted(source.isRedeliveryExhausted());
-        result.setErrorHandlerHandled(source.getErrorHandlerHandled());
+        resultExtension.setNotifyEvent(sourceExtension.isNotifyEvent());
+        resultExtension.setRedeliveryExhausted(sourceExtension.isRedeliveryExhausted());
+        resultExtension.setErrorHandlerHandled(sourceExtension.getErrorHandlerHandled());
+        resultExtension.setFailureHandled(sourceExtension.isFailureHandled());
+
         result.setException(source.getException());
+    }
+
+    private static void copyFromOutMessageConditionally(Exchange result, Exchange source) {
+        // we just need to ensure MEP is as expected (eg copy result to OUT if out capable)
+        // and the result is not failed
+        if (result.getPattern().isOutCapable() && !result.hasOut() && !result.isFailed()) {
+            // copy IN to OUT as we expect a OUT response
+            result.getOut().copyFrom(source.getIn());
+        }
+    }
+
+    private static void copyFromInMessage(Exchange result, Exchange source, boolean preserverPattern) {
+        // no results so lets copy the last input
+        // as the final processor on a pipeline might not
+        // have created any OUT; such as a mock:endpoint
+        // so lets assume the last IN is the OUT
+        if (!preserverPattern && result.getPattern().isOutCapable()) {
+            // only set OUT if its OUT capable
+            result.getOut().copyFrom(source.getIn());
+        } else {
+            // if not replace IN instead to keep the MEP
+            result.getIn().copyFrom(source.getIn());
+            // clear any existing OUT as the result is on the IN
+            if (result.hasOut()) {
+                result.setOut(null);
+            }
+        }
+    }
+
+    private static void copyFromOutMessage(Exchange result, Exchange source, boolean preserverPattern) {
+        if (preserverPattern) {
+            // exchange pattern sensitive
+            Message resultMessage = getResultMessage(result);
+            resultMessage.copyFrom(source.getOut());
+        } else {
+            result.getOut().copyFrom(source.getOut());
+        }
     }
 
     /**
@@ -484,10 +478,12 @@ public final class ExchangeHelper {
         Message in = exchange.getIn();
         map.put("headers", in.getHeaders());
         map.put("body", in.getBody());
+        map.put("variables", exchange.getVariables());
         if (allowContextMapAll) {
             map.put("in", in);
             map.put("request", in);
             map.put("exchange", exchange);
+            map.put("exchangeProperties", exchange.getAllProperties());
             if (isOutCapable(exchange)) {
                 // if we are out capable then set out and response as well
                 // however only grab OUT if it exists, otherwise reuse IN
@@ -588,17 +584,11 @@ public final class ExchangeHelper {
     public static void prepareAggregation(Exchange oldExchange, Exchange newExchange) {
         // move body/header from OUT to IN
         if (oldExchange != null) {
-            if (oldExchange.hasOut()) {
-                oldExchange.setIn(oldExchange.getOut());
-                oldExchange.setOut(null);
-            }
+            ExchangeHelper.prepareOutToIn(oldExchange);
         }
 
         if (newExchange != null) {
-            if (newExchange.hasOut()) {
-                newExchange.setIn(newExchange.getOut());
-                newExchange.setOut(null);
-            }
+            ExchangeHelper.prepareOutToIn(newExchange);
         }
     }
 
@@ -609,7 +599,7 @@ public final class ExchangeHelper {
      * @return          <tt>true</tt> if failure handled, <tt>false</tt> otherwise
      */
     public static boolean isFailureHandled(Exchange exchange) {
-        return exchange.getProperty(ExchangePropertyKey.FAILURE_HANDLED, false, Boolean.class);
+        return exchange.getExchangeExtension().isFailureHandled();
     }
 
     /**
@@ -638,9 +628,9 @@ public final class ExchangeHelper {
      * @param exchange the exchange
      */
     public static void setFailureHandled(Exchange exchange) {
-        exchange.setProperty(ExchangePropertyKey.FAILURE_HANDLED, Boolean.TRUE);
         // clear exception since its failure handled
         exchange.setException(null);
+        exchange.getExchangeExtension().setFailureHandled(true);
     }
 
     /**
@@ -694,10 +684,6 @@ public final class ExchangeHelper {
             if (hasOut && !notOut) {
                 // we have a response in out and the pattern is out capable
                 answer = exchange.getOut().getBody();
-            } else if (!hasOut && exchange.getPattern() == ExchangePattern.InOptionalOut) {
-                // special case where the result is InOptionalOut and with no OUT response
-                // so we should return null to indicate this fact
-                answer = null;
             } else {
                 // use IN as the response
                 answer = exchange.getIn().getBody();
@@ -728,6 +714,7 @@ public final class ExchangeHelper {
         try {
             return doExtractFutureBody(context, future.get(), type);
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw RuntimeCamelException.wrapRuntimeCamelException(e);
         } catch (ExecutionException e) {
             // execution failed due to an exception so rethrow the cause
@@ -764,6 +751,7 @@ public final class ExchangeHelper {
             }
         } catch (InterruptedException e) {
             // execution failed due interruption so rethrow the cause
+            Thread.currentThread().interrupt();
             throw CamelExecutionException.wrapCamelExecutionException(null, e);
         } catch (ExecutionException e) {
             // execution failed due to an exception so rethrow the cause
@@ -819,43 +807,28 @@ public final class ExchangeHelper {
         return "(MessageId: " + msgId + " on ExchangeId: " + exchange.getExchangeId() + ")";
     }
 
-    /**
-     * Copies the exchange but the copy will be tied to the given context
-     *
-     * @param  exchange the source exchange
-     * @param  context  the camel context
-     * @return          a copy with the given camel context
+    /*
+     * Safe copy message history using a defensive copy
      */
-    public static Exchange copyExchangeAndSetCamelContext(Exchange exchange, CamelContext context) {
-        return copyExchangeAndSetCamelContext(exchange, context, true);
+    private static void setMessageHistory(Exchange target, Exchange source) {
+        final Object history = source.getProperty(ExchangePropertyKey.MESSAGE_HISTORY);
+        if (history != null) {
+            // use thread-safe list as message history may be accessed concurrently
+            target.setProperty(ExchangePropertyKey.MESSAGE_HISTORY, new CopyOnWriteArrayList<>((List<MessageHistory>) history));
+        }
     }
 
     /**
      * Copies the exchange but the copy will be tied to the given context
      *
      * @param  exchange the source exchange
-     * @param  context  the camel context
-     * @param  handover whether to handover on completions from the source to the copy
      * @return          a copy with the given camel context
      */
-    public static Exchange copyExchangeAndSetCamelContext(Exchange exchange, CamelContext context, boolean handover) {
-        DefaultExchange answer = new DefaultExchange(context, exchange.getPattern());
-        if (exchange.hasProperties()) {
-            answer.setProperties(safeCopyProperties(exchange.getProperties()));
-        }
-        exchange.adapt(ExtendedExchange.class).copyInternalProperties(answer);
-        // safe copy message history using a defensive copy
-        List<MessageHistory> history
-                = (List<MessageHistory>) exchange.getProperty(ExchangePropertyKey.MESSAGE_HISTORY);
-        if (history != null) {
-            // use thread-safe list as message history may be accessed concurrently
-            answer.setProperty(ExchangePropertyKey.MESSAGE_HISTORY, new CopyOnWriteArrayList<>(history));
-        }
+    public static Exchange copyExchangeWithProperties(Exchange exchange, CamelContext context) {
+        Exchange answer = exchange.getExchangeExtension().createCopyWithProperties(context);
 
-        if (handover) {
-            // Need to hand over the completion for async invocation
-            exchange.adapt(ExtendedExchange.class).handoverCompletions(answer);
-        }
+        setMessageHistory(answer, exchange);
+
         answer.setIn(exchange.getIn().copy());
         if (exchange.hasOut()) {
             answer.setOut(exchange.getOut().copy());
@@ -922,19 +895,18 @@ public final class ExchangeHelper {
         return StringHelper.before(uri, ":");
     }
 
-    @SuppressWarnings("unchecked")
-    private static Map<String, Object> safeCopyProperties(Map<String, Object> properties) {
-        if (properties == null) {
-            return null;
-        }
-        return new ConcurrentHashMap<>(properties);
-    }
-
     /**
      * @see #getCharsetName(Exchange, boolean)
      */
     public static String getCharsetName(Exchange exchange) {
         return getCharsetName(exchange, true);
+    }
+
+    /**
+     * @see #getCharset(Exchange, boolean)
+     */
+    public static Charset getCharset(Exchange exchange) {
+        return getCharset(exchange, true);
     }
 
     /**
@@ -963,8 +935,39 @@ public final class ExchangeHelper {
         }
     }
 
+    /**
+     * Gets the charset if set as header or property {@link Exchange#CHARSET_NAME}. <b>Notice:</b> The lookup from the
+     * header has priority over the property.
+     *
+     * @param  exchange   the exchange
+     * @param  useDefault should we fallback and use JVM default charset if no property existed?
+     * @return            the charset, or <tt>null</tt> if no found
+     */
+    public static Charset getCharset(Exchange exchange, boolean useDefault) {
+        if (exchange != null) {
+            // header takes precedence
+            String charsetName = exchange.getIn().getHeader(Exchange.CHARSET_NAME, String.class);
+            if (charsetName == null) {
+                charsetName = exchange.getProperty(ExchangePropertyKey.CHARSET_NAME, String.class);
+            }
+            if (charsetName != null) {
+                charsetName = IOHelper.normalizeCharset(charsetName);
+                return Charset.forName(charsetName);
+            }
+        }
+        if (useDefault) {
+            return getDefaultCharset();
+        } else {
+            return null;
+        }
+    }
+
     private static String getDefaultCharsetName() {
-        return ObjectHelper.getSystemProperty(Exchange.DEFAULT_CHARSET_PROPERTY, "UTF-8");
+        return DEFAULT_CHARSET_NAME;
+    }
+
+    private static Charset getDefaultCharset() {
+        return DEFAULT_CHARSET;
     }
 
     /**
@@ -1032,8 +1035,193 @@ public final class ExchangeHelper {
         return answer;
     }
 
+    public static String getRouteGroup(Exchange exchange) {
+        Route rc = getRoute(exchange);
+        if (rc != null) {
+            return rc.getGroup();
+        }
+        return null;
+    }
+
     public static Route getRoute(Exchange exchange) {
         UnitOfWork uow = exchange.getUnitOfWork();
         return uow != null ? uow.getRoute() : null;
     }
+
+    /**
+     * Sets the body in message in the exchange taking the exchange pattern into consideration. If the pattern is out
+     * capable, then the body is set outbound message. Otherwise it is set on the inbound message.
+     *
+     * @param exchange the exchange containing the message to set the body
+     * @param body     the body to set
+     */
+    public static void setInOutBodyPatternAware(Exchange exchange, Object body) {
+        if (exchange.getPattern().isOutCapable()) {
+            exchange.getOut().copyFrom(exchange.getIn());
+            exchange.getOut().setBody(body);
+        } else {
+            exchange.getIn().setBody(body);
+        }
+    }
+
+    /**
+     * Sets the body in message in the exchange taking the exchange pattern into consideration. If the pattern is out
+     * capable, then the body is set outbound message. Otherwise nothing is done.
+     *
+     * @param exchange the exchange containing the message to set the body
+     * @param body     the body to set
+     */
+    public static void setOutBodyPatternAware(Exchange exchange, Object body) {
+        if (exchange.getPattern().isOutCapable()) {
+            exchange.getOut().copyFrom(exchange.getIn());
+            exchange.getOut().setBody(body);
+        }
+    }
+
+    /**
+     * Sets the variable
+     *
+     * @param exchange the exchange
+     * @param name     the variable name. Can be prefixed with repo-id:name to use a specific repository. If no repo-id
+     *                 is provided, then the variable is set on the exchange
+     * @param value    the value of the variable
+     */
+    public static void setVariable(Exchange exchange, String name, Object value) {
+        VariableRepository repo = null;
+        final String id = getRepositoryId(name);
+        if (id != null) {
+            repo = getVariableRepository(exchange, id);
+            name = resolveRepositoryName(exchange, name, id);
+        }
+        final VariableAware va = getVariableAware(exchange, repo);
+        va.setVariable(name, value);
+    }
+
+    private static String getRepositoryId(String name) {
+        String id = StringHelper.before(name, ":");
+        // header and exchange is reserved
+        if (isReserved(id)) {
+            id = null;
+        }
+        return id;
+    }
+
+    private static String resolveRepositoryName(Exchange exchange, String name, String id) {
+        name = StringHelper.after(name, ":");
+        // special for route, where we need to enrich the name with current route id if none given
+        if ("route".equals(id) && !name.contains(":")) {
+            String prefix = getAtRouteId(exchange);
+            if (prefix != null) {
+                name = prefix + ":" + name;
+            }
+        }
+        return name;
+    }
+
+    /**
+     * Sets the variable from the given message body and headers
+     *
+     * @param exchange the exchange
+     * @param name     the variable name. Can be prefixed with repo-id:name to use a specific repository. If no repo-id
+     *                 is provided, then the variable is set on the exchange
+     * @param message  the message with the body and headers as source values
+     */
+    public static void setVariableFromMessageBodyAndHeaders(Exchange exchange, String name, Message message) {
+        VariableRepository repo = null;
+        final String id = getRepositoryId(name);
+        if (id != null) {
+            repo = getVariableRepository(exchange, id);
+            name = resolveRepositoryName(exchange, name, id);
+        }
+        final VariableAware va = getVariableAware(exchange, repo);
+
+        // set body and headers as variables
+        Object body = message.getBody();
+        va.setVariable(name, body);
+        for (Map.Entry<String, Object> header : message.getHeaders().entrySet()) {
+            String key = "header:" + name + "." + header.getKey();
+            Object value = header.getValue();
+            va.setVariable(key, value);
+        }
+    }
+
+    /**
+     * Whether the processing of the {@link Exchange} was success and that the result should be stored in variable.
+     *
+     * @param  exchange the exchange
+     * @param  name     the variable name
+     * @return          true to call setVariableFromMessageBodyAndHeaders to set the result after-wards
+     */
+    public static boolean shouldSetVariableResult(Exchange exchange, String name) {
+        if (name == null) {
+            return false;
+        }
+        // same logic as in Pipeline/PipelineHelper
+        boolean stop
+                = exchange.isRouteStop() || exchange.isFailed() || exchange.isRollbackOnly() || exchange.isRollbackOnlyLast()
+                        || exchange.getExchangeExtension().isErrorHandlerHandledSet()
+                                && exchange.getExchangeExtension().isErrorHandlerHandled();
+        if (stop) {
+            return false;
+        }
+        // success
+        return true;
+    }
+
+    /**
+     * Gets the variable
+     *
+     * @param  exchange the exchange
+     * @param  name     the variable name. Can be prefixed with repo-id:name to lookup the variable from a specific
+     *                  repository. If no repo-id is provided, then the variable is set on the exchange
+     * @return          the variable
+     */
+    public static Object getVariable(Exchange exchange, String name) {
+        VariableRepository repo = null;
+        final String id = getRepositoryId(name);
+        if (id != null) {
+            repo = getVariableRepository(exchange, id);
+
+            name = resolveRepositoryName(exchange, name, id);
+        }
+        final VariableAware va = getVariableAware(exchange, repo);
+        return va.getVariable(name);
+    }
+
+    private static VariableRepository getVariableRepository(Exchange exchange, String id) {
+        VariableRepositoryFactory factory
+                = exchange.getContext().getCamelContextExtension().getContextPlugin(VariableRepositoryFactory.class);
+        VariableRepository repo = factory.getVariableRepository(id);
+        if (repo == null) {
+            throw new IllegalArgumentException("VariableRepository with id: " + id + " does not exist");
+        }
+        return repo;
+    }
+
+    private static boolean isReserved(String id) {
+        return "header".equals(id) || "exchange".equals(id);
+    }
+
+    private static VariableAware getVariableAware(Exchange exchange, VariableRepository repo) {
+        VariableAware va = repo != null ? repo : exchange;
+        return va;
+    }
+
+    /**
+     * Gets the variable, converted to the given type
+     *
+     * @param  exchange the exchange
+     * @param  name     the variable name. Can be prefixed with repo-id:name to lookup the variable from a specific
+     *                  repository. If no repo-id is provided, then the variable is set on the exchange
+     * @param  type     the type to convert to
+     * @return          the variable
+     */
+    public static <T> T getVariable(Exchange exchange, String name, Class<T> type) {
+        Object answer = getVariable(exchange, name);
+        if (answer != null) {
+            return exchange.getContext().getTypeConverter().convertTo(type, exchange, answer);
+        }
+        return null;
+    }
+
 }

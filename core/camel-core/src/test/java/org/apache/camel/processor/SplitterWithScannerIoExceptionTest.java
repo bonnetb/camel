@@ -19,14 +19,17 @@ package org.apache.camel.processor;
 import org.apache.camel.ContextTestSupport;
 import org.apache.camel.builder.RouteBuilder;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
+
+@DisabledOnOs(OS.AIX)
 public class SplitterWithScannerIoExceptionTest extends ContextTestSupport {
 
     @Test
     public void testSplitterStreamingWithError() throws Exception {
-        if (isPlatform("aix") || isJavaVendor("ibm")) {
-            return;
-        }
+        assumeFalse(isJavaVendor("ibm"));
 
         getMockEndpoint("mock:a").expectedMinimumMessageCount(250);
         getMockEndpoint("mock:b").expectedMessageCount(0);
@@ -37,10 +40,10 @@ public class SplitterWithScannerIoExceptionTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 errorHandler(deadLetterChannel("mock:error"));
 
                 // wrong encoding to force the scanner to fail

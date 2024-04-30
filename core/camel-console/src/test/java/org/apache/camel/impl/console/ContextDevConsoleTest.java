@@ -17,16 +17,17 @@
 package org.apache.camel.impl.console;
 
 import org.apache.camel.ContextTestSupport;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.console.DevConsole;
+import org.apache.camel.support.PluginHelper;
+import org.apache.camel.util.json.JsonObject;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 public class ContextDevConsoleTest extends ContextTestSupport {
 
     @Test
-    public void testContext() throws Exception {
-        DevConsole con = context.adapt(ExtendedCamelContext.class).getDevConsoleResolver().resolveDevConsole("context");
+    public void testContextTest() {
+        DevConsole con = PluginHelper.getDevConsoleResolver(context).resolveDevConsole("context");
         Assertions.assertNotNull(con);
         Assertions.assertEquals("camel", con.getGroup());
         Assertions.assertEquals("context", con.getId());
@@ -36,4 +37,17 @@ public class ContextDevConsoleTest extends ContextTestSupport {
         log.info(out);
         Assertions.assertTrue(out.contains(context.getName()));
     }
+
+    @Test
+    public void testContextJson() {
+        DevConsole con = PluginHelper.getDevConsoleResolver(context).resolveDevConsole("context");
+        Assertions.assertNotNull(con);
+        Assertions.assertEquals("camel", con.getGroup());
+        Assertions.assertEquals("context", con.getId());
+
+        JsonObject out = (JsonObject) con.call(DevConsole.MediaType.JSON);
+        Assertions.assertNotNull(out);
+        Assertions.assertEquals(context.getName(), out.getString("name"));
+    }
+
 }

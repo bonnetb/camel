@@ -17,6 +17,7 @@
 package org.apache.camel.component.file.remote.integration;
 
 import java.io.File;
+import java.nio.file.Path;
 
 import org.apache.camel.Endpoint;
 import org.apache.camel.Exchange;
@@ -24,8 +25,9 @@ import org.apache.camel.Producer;
 import org.apache.camel.builder.NotifyBuilder;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
-import org.apache.camel.converter.IOConverter;
+import org.apache.camel.test.junit5.TestSupport;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -34,6 +36,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * the same directory layout.
  */
 public class FromFtpSetNamesWithMultiDirectoriesIT extends FtpServerTestSupport {
+    @TempDir
+    Path testDirectory;
 
     private String getFtpUrl() {
         return "ftp://admin@localhost:{{ftp.server.port}}"
@@ -50,7 +54,7 @@ public class FromFtpSetNamesWithMultiDirectoriesIT extends FtpServerTestSupport 
 
         context.getRouteController().startRoute("foo");
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
         assertTrue(notify.matchesWaitTime());
 
         Exchange ex = resultEndpoint.getExchanges().get(0);
@@ -58,12 +62,12 @@ public class FromFtpSetNamesWithMultiDirectoriesIT extends FtpServerTestSupport 
         assertTrue(bytes.length > 10000, "Logo size wrong");
 
         // assert the file
-        File file = testFile("data1/logo1.jpeg").toFile();
+        File file = testDirectory.resolve("data1/logo1.jpeg").toFile();
         assertTrue(file.exists(), "The binary file should exists");
         assertTrue(file.length() > 10000, "Logo size wrong");
 
         // assert the file
-        file = testFile("data2/logo2.png").toFile();
+        file = testDirectory.resolve("data2/logo2.png").toFile();
         assertTrue(file.exists(), " The binary file should exists");
         assertTrue(file.length() > 50000, "Logo size wrong");
     }
@@ -75,7 +79,7 @@ public class FromFtpSetNamesWithMultiDirectoriesIT extends FtpServerTestSupport 
         String ftpUrl = "ftp://admin@localhost:{{ftp.server.port}}/incoming/data1/?password=admin&binary=true";
         Endpoint endpoint = context.getEndpoint(ftpUrl);
         Exchange exchange = endpoint.createExchange();
-        exchange.getIn().setBody(IOConverter.toFile("src/test/data/ftpbinarytest/logo1.jpeg"));
+        exchange.getIn().setBody(new File("src/test/data/ftpbinarytest/logo1.jpeg"));
         exchange.getIn().setHeader(Exchange.FILE_NAME, "logo1.jpeg");
         Producer producer = endpoint.createProducer();
         producer.start();
@@ -85,7 +89,7 @@ public class FromFtpSetNamesWithMultiDirectoriesIT extends FtpServerTestSupport 
         ftpUrl = "ftp://admin@localhost:{{ftp.server.port}}/incoming/data2/?password=admin&binary=true";
         endpoint = context.getEndpoint(ftpUrl);
         exchange = endpoint.createExchange();
-        exchange.getIn().setBody(IOConverter.toFile("src/test/data/ftpbinarytest/logo2.png"));
+        exchange.getIn().setBody(new File("src/test/data/ftpbinarytest/logo2.png"));
         exchange.getIn().setHeader(Exchange.FILE_NAME, "logo2.png");
         producer = endpoint.createProducer();
         producer.start();
@@ -97,7 +101,7 @@ public class FromFtpSetNamesWithMultiDirectoriesIT extends FtpServerTestSupport 
     protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             public void configure() {
-                from(getFtpUrl()).routeId("foo").noAutoStartup().to(fileUri(), "mock:result");
+                from(getFtpUrl()).routeId("foo").noAutoStartup().to(TestSupport.fileUri(testDirectory), "mock:result");
             }
         };
     }

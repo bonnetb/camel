@@ -16,17 +16,19 @@
  */
 package org.apache.camel.model;
 
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 import org.apache.camel.RouteTemplateContext;
+import org.apache.camel.model.app.BeanPropertiesAdapter;
 import org.apache.camel.spi.Metadata;
 
 /**
@@ -54,9 +56,12 @@ public abstract class BeanFactoryDefinition<
     private String type;
     @XmlAttribute
     @Metadata(label = "advanced")
-    private String beanType;
-    @XmlElement(name = "property")
-    private List<PropertyDefinition> properties;
+    private String scriptLanguage;
+    @XmlTransient
+    private List<PropertyDefinition> propertyDefinitions;
+    @XmlElement(name = "properties")
+    @XmlJavaTypeAdapter(BeanPropertiesAdapter.class)
+    private Map<String, Object> properties;
     @XmlElement(name = "script")
     @Metadata(label = "advanced")
     private String script;
@@ -81,36 +86,16 @@ public abstract class BeanFactoryDefinition<
     }
 
     /**
-     * What type to use for creating the bean. Can be one of: #class,#type,bean,groovy,joor,language,mvel,ognl.
+     * What type to use for creating the bean (FQN classname). Can be prefixed with: #class or #type
      *
      * #class or #type then the bean is created via the fully qualified classname, such as #class:com.foo.MyBean
-     *
-     * The others are scripting languages that gives more power to create the bean with an inlined code in the script
-     * section, such as using groovy.
      */
     public void setType(String type) {
         this.type = type;
     }
 
-    public String getBeanType() {
-        return beanType;
-    }
-
     /**
-     * To set the type (fully qualified class name) of the returned bean created by the script.
-     *
-     * Knowing the type of the bean can be needed when dependency injection by type is in use, or when looking in
-     * registry via class type.
-     */
-    public void setBeanType(String beanType) {
-        this.beanType = beanType;
-    }
-
-    /**
-     * To set the type (fully qualified class name) of the returned bean created by the script.
-     *
-     * Knowing the type of the bean can be needed when dependency injection by type is in use, or when looking in
-     * registry via class type.
+     * To set the type (fully qualified class name) to use for creating the bean.
      */
     public void setBeanType(Class<?> beanType) {
         this.beanClass = beanType;
@@ -120,15 +105,33 @@ public abstract class BeanFactoryDefinition<
         return beanClass;
     }
 
-    public List<PropertyDefinition> getProperties() {
+    public Map<String, Object> getProperties() {
         return properties;
     }
 
     /**
      * Optional properties to set on the created local bean
      */
-    public void setProperties(List<PropertyDefinition> properties) {
+    public void setProperties(Map<String, Object> properties) {
         this.properties = properties;
+    }
+
+    public List<PropertyDefinition> getPropertyDefinitions() {
+        return propertyDefinitions;
+    }
+
+    /**
+     * Optional properties to set on the created local bean
+     */
+    public void setPropertyDefinitions(List<PropertyDefinition> propertyDefinitions) {
+        this.propertyDefinitions = propertyDefinitions;
+    }
+
+    public void addProperty(PropertyDefinition property) {
+        if (propertyDefinitions == null) {
+            propertyDefinitions = new LinkedList<>();
+        }
+        propertyDefinitions.add(property);
     }
 
     public RouteTemplateContext.BeanSupplier<Object> getBeanSupplier() {
@@ -140,6 +143,17 @@ public abstract class BeanFactoryDefinition<
      */
     public void setBeanSupplier(RouteTemplateContext.BeanSupplier<Object> beanSupplier) {
         this.beanSupplier = beanSupplier;
+    }
+
+    public String getScriptLanguage() {
+        return scriptLanguage;
+    }
+
+    /**
+     * The script language to use when using inlined script for creating the bean, such as groovy, java, javascript etc.
+     */
+    public void setScriptLanguage(String scriptLanguage) {
+        this.scriptLanguage = scriptLanguage;
     }
 
     /**
@@ -160,12 +174,9 @@ public abstract class BeanFactoryDefinition<
     // ----------------------------------------------------
 
     /**
-     * What type to use for creating the bean. Can be one of: #class,#type,bean,groovy,joor,language,mvel,ognl.
+     * What type to use for creating the bean. Can be one of: #class or #type
      *
      * #class or #type then the bean is created via the fully qualified classname, such as #class:com.foo.MyBean
-     *
-     * The others are scripting languages that gives more power to create the bean with an inlined code in the script
-     * section, such as using groovy.
      */
     @SuppressWarnings("unchecked")
     public T type(String prefix, Class<?> type) {
@@ -174,21 +185,15 @@ public abstract class BeanFactoryDefinition<
                 prefix = prefix + ":";
             }
             setType(prefix + type.getName());
-        } else {
-            // its a script
-            setType(prefix);
         }
         setBeanType(type);
         return (T) this;
     }
 
     /**
-     * What type to use for creating the bean. Can be one of: #class,#type,bean,groovy,joor,language,mvel,ognl.
+     * What type to use for creating the bean. Can be one of: #class or #type
      *
      * #class or #type then the bean is created via the fully qualified classname, such as #class:com.foo.MyBean
-     *
-     * The others are scripting languages that gives more power to create the bean with an inlined code in the script
-     * section, such as using groovy.
      */
     @SuppressWarnings("unchecked")
     public T type(String type) {
@@ -223,29 +228,12 @@ public abstract class BeanFactoryDefinition<
     }
 
     /**
-     * To set the return type of the script (fully qualified class name).
+     * To set the type (fully qualified class name) to use for creating the bean.
      *
-     * Knowing the type of the bean can be needed when dependency injection by type is in use, or when looking in
-     * registry via class type.
-     *
-     * @param type the fully qualified type of the returned bean from the script
+     * @param type the fully qualified type of the returned bean
      */
     @SuppressWarnings("unchecked")
     public T beanType(Class<?> type) {
-        setBeanType(type);
-        return (T) this;
-    }
-
-    /**
-     * To set the return type of the script (fully qualified class name).
-     *
-     * Knowing the type of the bean can be needed when dependency injection by type is in use, or when looking in
-     * registry via class type.
-     *
-     * @param type the fully qualified type of the returned bean from the script
-     */
-    @SuppressWarnings("unchecked")
-    public T beanType(String type) {
         setBeanType(type);
         return (T) this;
     }
@@ -266,7 +254,8 @@ public abstract class BeanFactoryDefinition<
      * @param method the name of the method to call
      */
     public P bean(Class<?> type, String method) {
-        setType("bean");
+        setScriptLanguage("bean");
+        setBeanType(type);
         if (method != null) {
             setScript(type.getName() + "?method=" + method);
         } else {
@@ -284,7 +273,7 @@ public abstract class BeanFactoryDefinition<
      * @param script the script
      */
     public P groovy(String script) {
-        setType("groovy");
+        setScriptLanguage("groovy");
         setScript(script);
         return parent;
     }
@@ -298,9 +287,21 @@ public abstract class BeanFactoryDefinition<
      * @param script the script
      */
     public P joor(String script) {
-        setType("joor");
+        setScriptLanguage("joor");
         setScript(script);
         return parent;
+    }
+
+    /**
+     * Calls java (Java source that is runtime compiled to Java bytecode) for creating the local bean
+     *
+     * If the script use the prefix <tt>resource:</tt> such as <tt>resource:classpath:com/foo/myscript.groovy</tt>,
+     * <tt>resource:file:/var/myscript.groovy</tt>, then its loaded from the external resource.
+     *
+     * @param script the script
+     */
+    public P java(String script) {
+        return joor(script);
     }
 
     /**
@@ -313,7 +314,7 @@ public abstract class BeanFactoryDefinition<
      * @param script   the script
      */
     public P language(String language, String script) {
-        setType(language);
+        setScriptLanguage(language);
         setScript(script);
         return parent;
     }
@@ -327,7 +328,7 @@ public abstract class BeanFactoryDefinition<
      * @param script the script
      */
     public P mvel(String script) {
-        setType("mvel");
+        setScriptLanguage("mvel");
         setScript(script);
         return parent;
     }
@@ -341,7 +342,7 @@ public abstract class BeanFactoryDefinition<
      * @param script the script
      */
     public P ognl(String script) {
-        setType("ognl");
+        setScriptLanguage("ognl");
         setScript(script);
         return parent;
     }
@@ -354,10 +355,10 @@ public abstract class BeanFactoryDefinition<
      */
     @SuppressWarnings("unchecked")
     public T property(String key, String value) {
-        if (properties == null) {
-            properties = new ArrayList<>();
+        if (propertyDefinitions == null) {
+            propertyDefinitions = new LinkedList<>();
         }
-        properties.add(new PropertyDefinition(key, value));
+        propertyDefinitions.add(new PropertyDefinition(key, value));
         return (T) this;
     }
 
@@ -365,11 +366,8 @@ public abstract class BeanFactoryDefinition<
      * Sets properties to set on the created local bean
      */
     @SuppressWarnings("unchecked")
-    public T properties(Map<String, String> properties) {
-        if (this.properties == null) {
-            this.properties = new ArrayList<>();
-        }
-        properties.forEach((k, v) -> this.properties.add(new PropertyDefinition(k, v)));
+    public T properties(Map<String, Object> properties) {
+        this.properties = properties;
         return (T) this;
     }
 

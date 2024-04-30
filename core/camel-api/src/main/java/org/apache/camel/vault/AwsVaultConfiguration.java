@@ -31,6 +31,16 @@ public class AwsVaultConfiguration extends VaultConfiguration {
     private String region;
     @Metadata
     private boolean defaultCredentialsProvider;
+    @Metadata
+    private boolean profileCredentialsProvider;
+    @Metadata
+    private String profileName;
+    @Metadata
+    private boolean refreshEnabled;
+    @Metadata(defaultValue = "30000")
+    private long refreshPeriod = 30000;
+    @Metadata
+    private String secrets;
 
     public String getAccessKey() {
         return accessKey;
@@ -76,4 +86,58 @@ public class AwsVaultConfiguration extends VaultConfiguration {
         this.defaultCredentialsProvider = defaultCredentialsProvider;
     }
 
+    public boolean isProfileCredentialsProvider() {
+        return profileCredentialsProvider;
+    }
+
+    /**
+     * Define if we want to use the AWS Profile Credentials Provider or not
+     */
+    public void setProfileCredentialsProvider(boolean profileCredentialsProvider) {
+        this.profileCredentialsProvider = profileCredentialsProvider;
+    }
+
+    public String getProfileName() {
+        return profileName;
+    }
+
+    /**
+     * Define the profile name to use if Profile Credentials Provider is selected
+     */
+    public void setProfileName(String profileName) {
+        this.profileName = profileName;
+    }
+
+    public boolean isRefreshEnabled() {
+        return refreshEnabled;
+    }
+
+    /**
+     * Whether to automatically reload Camel upon secrets being updated in AWS.
+     */
+    public void setRefreshEnabled(boolean refreshEnabled) {
+        this.refreshEnabled = refreshEnabled;
+    }
+
+    public long getRefreshPeriod() {
+        return refreshPeriod;
+    }
+
+    /**
+     * The period (millis) between checking AWS for updated secrets.
+     */
+    public void setRefreshPeriod(long refreshPeriod) {
+        this.refreshPeriod = refreshPeriod;
+    }
+
+    public String getSecrets() {
+        return secrets;
+    }
+
+    /**
+     * Specify the secret names (or pattern) to check for updates. Multiple secrets can be separated by comma.
+     */
+    public void setSecrets(String secrets) {
+        this.secrets = secrets;
+    }
 }

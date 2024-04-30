@@ -52,6 +52,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -92,7 +93,7 @@ public class KubernetesClusterServiceTest extends CamelTestSupport {
 
     @ParameterizedTest
     @EnumSource(LeaseResourceType.class)
-    public void testSimpleLeaderElection(LeaseResourceType type) throws Exception {
+    public void testSimpleLeaderElection(LeaseResourceType type) {
         LeaderRecorder mypod1 = addMember("mypod1", type);
         LeaderRecorder mypod2 = addMember("mypod2", type);
         context.start();
@@ -108,10 +109,10 @@ public class KubernetesClusterServiceTest extends CamelTestSupport {
 
     @ParameterizedTest
     @EnumSource(LeaseResourceType.class)
-    public void testMultipleMembersLeaderElection(LeaseResourceType type) throws Exception {
+    public void testMultipleMembersLeaderElection(LeaseResourceType type) {
         int number = 5;
         List<LeaderRecorder> members
-                = IntStream.range(0, number).mapToObj(i -> addMember("mypod" + i, type)).collect(Collectors.toList());
+                = IntStream.range(0, number).mapToObj(i -> addMember("mypod" + i, type)).toList();
         context.start();
 
         for (LeaderRecorder member : members) {
@@ -125,9 +126,10 @@ public class KubernetesClusterServiceTest extends CamelTestSupport {
     }
 
     @Test
-    public void testSimpleLeaderElectionWithExistingConfigMap() throws Exception {
+    public void testSimpleLeaderElectionWithExistingConfigMap() {
         this.configMapLockSimulator = new ConfigMapLockSimulator("leaders");
-        configMapLockSimulator.setResource(new ConfigMapBuilder().withNewMetadata().withName("leaders").and().build(), true);
+        configMapLockSimulator.setResource(
+                new ConfigMapBuilder().withNewMetadata().withNamespace("test").withName("leaders").and().build(), true);
 
         LeaderRecorder mypod1 = addMember("mypod1", LeaseResourceType.ConfigMap);
         LeaderRecorder mypod2 = addMember("mypod2", LeaseResourceType.ConfigMap);
@@ -142,10 +144,10 @@ public class KubernetesClusterServiceTest extends CamelTestSupport {
     }
 
     @Test
-    public void testSimpleLeaderElectionWithExistingLeases() throws Exception {
+    public void testSimpleLeaderElectionWithExistingLeases() {
         LeaseLockSimulator simulator = new LeaseLockSimulator("leaders-mygroup");
         simulator.setResource(new LeaseBuilder()
-                .withNewMetadata().withName("leaders-mygroup")
+                .withNewMetadata().withName("leaders-mygroup").withNamespace("test")
                 .and()
                 .build(), true);
         this.leaseLockSimulators.put("mygroup", simulator);
@@ -164,7 +166,7 @@ public class KubernetesClusterServiceTest extends CamelTestSupport {
 
     @ParameterizedTest
     @EnumSource(LeaseResourceType.class)
-    public void testLeadershipLoss(LeaseResourceType type) throws Exception {
+    public void testLeadershipLoss(LeaseResourceType type) {
         LeaderRecorder mypod1 = addMember("mypod1", type);
         LeaderRecorder mypod2 = addMember("mypod2", type);
         context.start();
@@ -196,7 +198,7 @@ public class KubernetesClusterServiceTest extends CamelTestSupport {
 
     @ParameterizedTest
     @EnumSource(LeaseResourceType.class)
-    public void testSlowLeaderLosingLeadershipOnlyInternally(LeaseResourceType type) throws Exception {
+    public void testSlowLeaderLosingLeadershipOnlyInternally(LeaseResourceType type) {
         LeaderRecorder mypod1 = addMember("mypod1", type);
         LeaderRecorder mypod2 = addMember("mypod2", type);
         context.start();
@@ -211,8 +213,8 @@ public class KubernetesClusterServiceTest extends CamelTestSupport {
 
         delayRequestsFromPod(firstLeader, 10, TimeUnit.SECONDS);
 
-        Thread.sleep(LEASE_TIME_MILLIS);
-        assertNull(formerLeaderRecorder.getCurrentLeader());
+        await().atMost(LEASE_TIME_MILLIS, TimeUnit.MILLISECONDS)
+                .untilAsserted(() -> assertNull(formerLeaderRecorder.getCurrentLeader()));
         assertEquals(firstLeader, formerLoserRecorder.getCurrentLeader());
     }
 
@@ -240,7 +242,7 @@ public class KubernetesClusterServiceTest extends CamelTestSupport {
     }
 
     @Test
-    public void testSharedConfigMap() throws Exception {
+    public void testSharedConfigMap() {
         LeaderRecorder a1 = addMember("a1", LeaseResourceType.ConfigMap);
         LeaderRecorder a2 = addMember("a2", LeaseResourceType.ConfigMap);
         LeaderRecorder b1 = addMember("b1", "app2", LeaseResourceType.ConfigMap);
@@ -276,8 +278,7 @@ public class KubernetesClusterServiceTest extends CamelTestSupport {
 
     @ParameterizedTest
     @MethodSource("rebalancingProvider")
-    public void testRebalancing(LeaseResourceType type, int pods, int partitions, int expectedPartitionsPerPod, int tolerance)
-            throws Exception {
+    public void testRebalancing(LeaseResourceType type, int pods, int partitions, int expectedPartitionsPerPod, int tolerance) {
         Map<String, List<LeaderRecorder>> recorders = createCluster(type, pods, partitions);
         context.start();
 
@@ -311,9 +312,9 @@ public class KubernetesClusterServiceTest extends CamelTestSupport {
             Predicate<Map<String, String>> condition, long time, TimeUnit unit) {
         Awaitility.waitAtMost(time, unit).until(() -> {
             Map<String, String> leaders = new HashMap<>();
-            for (String partition : partitionRecorders.keySet()) {
+            for (Map.Entry<String, List<LeaderRecorder>> entry : partitionRecorders.entrySet()) {
                 String leader = null;
-                for (LeaderRecorder recorder : partitionRecorders.get(partition)) {
+                for (LeaderRecorder recorder : entry.getValue()) {
                     String partitionLeader = recorder.getCurrentLeader();
                     if (partitionLeader == null || isCurrentLeader(leader, partitionLeader)) {
                         return false;
@@ -323,7 +324,7 @@ public class KubernetesClusterServiceTest extends CamelTestSupport {
                 if (leader == null) {
                     return false;
                 }
-                leaders.put(partition, leader);
+                leaders.put(entry.getKey(), leader);
             }
             return condition.test(leaders);
         });
@@ -370,7 +371,7 @@ public class KubernetesClusterServiceTest extends CamelTestSupport {
     private void checkLeadershipChangeDistance(long minimum, TimeUnit unit, LeaderRecorder... recorders) {
         List<LeaderRecorder.LeadershipInfo> infos = Arrays.stream(recorders).flatMap(lr -> lr.getLeadershipInfo().stream())
                 .sorted(Comparator.comparingLong(LeaderRecorder.LeadershipInfo::getChangeTimestamp))
-                .collect(Collectors.toList());
+                .toList();
 
         LeaderRecorder.LeadershipInfo currentLeaderLastSeen = null;
         for (LeaderRecorder.LeadershipInfo info : infos) {

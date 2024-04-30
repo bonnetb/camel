@@ -18,7 +18,6 @@ package org.apache.camel.reifier;
 
 import org.apache.camel.AsyncProcessor;
 import org.apache.camel.Expression;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.Processor;
 import org.apache.camel.Route;
 import org.apache.camel.model.ProcessorDefinition;
@@ -30,6 +29,7 @@ import org.apache.camel.processor.Resequencer;
 import org.apache.camel.processor.StreamResequencer;
 import org.apache.camel.processor.resequencer.DefaultExchangeComparator;
 import org.apache.camel.processor.resequencer.ExpressionResultComparator;
+import org.apache.camel.support.PluginHelper;
 import org.apache.camel.util.ObjectHelper;
 
 public class ResequenceReifier extends ProcessorReifier<ResequenceDefinition> {
@@ -68,13 +68,12 @@ public class ResequenceReifier extends ProcessorReifier<ResequenceDefinition> {
      * @return           the configured batch resequencer.
      * @throws Exception can be thrown
      */
-    @SuppressWarnings("deprecation")
     protected Resequencer createBatchResequencer(BatchResequencerConfig config) throws Exception {
         Processor processor = this.createChildProcessor(true);
         Expression expression = createExpression(definition.getExpression());
 
         // and wrap in unit of work
-        AsyncProcessor target = camelContext.adapt(ExtendedCamelContext.class).getInternalProcessorFactory()
+        AsyncProcessor target = PluginHelper.getInternalProcessorFactory(camelContext)
                 .addUnitOfWorkProcessorAdvice(camelContext, processor, route);
 
         ObjectHelper.notNull(config, "config", this);
@@ -111,7 +110,7 @@ public class ResequenceReifier extends ProcessorReifier<ResequenceDefinition> {
         Processor processor = this.createChildProcessor(true);
         Expression expression = createExpression(definition.getExpression());
 
-        AsyncProcessor target = camelContext.adapt(ExtendedCamelContext.class).getInternalProcessorFactory()
+        AsyncProcessor target = PluginHelper.getInternalProcessorFactory(camelContext)
                 .addUnitOfWorkProcessorAdvice(camelContext, processor, route);
 
         ObjectHelper.notNull(config, "config", this);

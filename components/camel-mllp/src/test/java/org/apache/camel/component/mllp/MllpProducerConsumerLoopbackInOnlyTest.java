@@ -45,13 +45,13 @@ public class MllpProducerConsumerLoopbackInOnlyTest extends CamelTestSupport {
         DefaultCamelContext context = (DefaultCamelContext) super.createCamelContext();
 
         context.setUseMDCLogging(false);
-        context.setName(this.getClass().getSimpleName());
+        context.getCamelContextExtension().setName(this.getClass().getSimpleName());
 
         return context;
     }
 
     @Override
-    protected RouteBuilder[] createRouteBuilders() throws Exception {
+    protected RouteBuilder[] createRouteBuilders() {
         String mllpHost = "localhost";
         int mllpPort = AvailablePortFinder.getNextAvailable();
 
@@ -86,6 +86,6 @@ public class MllpProducerConsumerLoopbackInOnlyTest extends CamelTestSupport {
         String acknowledgement = source.requestBody((Object) testMessage, String.class);
         assertThat("Should receive no acknowledgment for message 1", acknowledgement, CoreMatchers.nullValue());
 
-        assertMockEndpointsSatisfied(60, TimeUnit.SECONDS);
+        MockEndpoint.assertIsSatisfied(context, 60, TimeUnit.SECONDS);
     }
 }

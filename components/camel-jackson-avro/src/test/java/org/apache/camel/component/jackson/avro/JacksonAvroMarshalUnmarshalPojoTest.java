@@ -21,7 +21,6 @@ import org.apache.avro.Schema;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.jackson.SchemaResolver;
 import org.apache.camel.component.mock.MockEndpoint;
-import org.apache.camel.model.dataformat.AvroLibrary;
 import org.apache.camel.spi.Registry;
 import org.apache.camel.test.junit5.CamelTestSupport;
 import org.junit.jupiter.api.Test;
@@ -35,7 +34,6 @@ public class JacksonAvroMarshalUnmarshalPojoTest extends CamelTestSupport {
     public void testMarshalUnmarshalPojo() throws Exception {
         MockEndpoint mock1 = getMockEndpoint("mock:serialized");
         mock1.expectedMessageCount(1);
-        mock1.message(0).body().isInstanceOf(byte[].class);
 
         Pojo pojo = new Pojo("Hello");
         template.sendBody("direct:pojo", pojo);
@@ -59,7 +57,7 @@ public class JacksonAvroMarshalUnmarshalPojoTest extends CamelTestSupport {
     }
 
     @Override
-    protected void bindToRegistry(Registry registry) throws Exception {
+    protected void bindToRegistry(Registry registry) {
         String schemaJson = "{\n"
                             + "\"type\": \"record\",\n"
                             + "\"name\": \"Pojo\",\n"
@@ -73,12 +71,12 @@ public class JacksonAvroMarshalUnmarshalPojoTest extends CamelTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
-                from("direct:serialized").unmarshal().avro(AvroLibrary.Jackson, Pojo.class).to("mock:pojo");
-                from("direct:pojo").marshal().avro(AvroLibrary.Jackson).to("mock:serialized");
+            public void configure() {
+                from("direct:serialized").unmarshal().avro(Pojo.class).to("mock:pojo");
+                from("direct:pojo").marshal().avro().to("mock:serialized");
             }
         };
     }

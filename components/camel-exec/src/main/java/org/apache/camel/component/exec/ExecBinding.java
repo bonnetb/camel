@@ -42,7 +42,7 @@ public interface ExecBinding {
     /**
      * The header value overrides the existing command arguments in the {@link ExecEndpoint} URI. The arguments may be a
      * <code>List<String></code>. In this case no parsing of the arguments is necessary.
-     * 
+     *
      * @see #EXEC_COMMAND_EXECUTABLE
      */
     @Metadata(label = "in", description = "Command-line argument(s) to pass to the executed process. The argument(s)\n" +
@@ -54,7 +54,7 @@ public interface ExecBinding {
     /**
      * Specifies the file name of a file, created by the executable, that should be considered as output of the
      * executable, e.g. a log file.
-     * 
+     *
      * @see ExecResultConverter#toInputStream(ExecResult)
      */
     @Metadata(label = "in", description = "The name of a file, created by the executable, that should be considered\n" +
@@ -80,6 +80,16 @@ public interface ExecBinding {
                                           "terminated. Overrides any existing `timeout` in the URI.",
               javaType = "long")
     String EXEC_COMMAND_TIMEOUT = "CamelExecCommandTimeout";
+
+    /**
+     * Which exit values of the process are considered a success. When the process exits with a value not in this list,
+     * an ExecuteException is raised. When the list is empty (the default), no exception is raised based on the exit
+     * value. Example:
+     */
+    @Metadata(label = "in", description = "The exit values for successful execution of the process.\n" +
+                                          "Overrides any existing `exitValues` in the URI.",
+              javaType = "String")
+    String EXEC_COMMAND_EXIT_VALUES = "CamelExecExitValues";
 
     /**
      * The value of this header is a {@link InputStream} with the standard error stream of the executable.
@@ -122,7 +132,7 @@ public interface ExecBinding {
     /**
      * Creates a {@link ExecCommand} from the headers in the <code>exchange</code> and the settings of the
      * <code>endpoint</code>.
-     * 
+     *
      * @param  exchange a Camel {@link Exchange}
      * @param  endpoint an {@link ExecEndpoint} instance
      * @return          an {@link ExecCommand} object
@@ -132,7 +142,7 @@ public interface ExecBinding {
 
     /**
      * Populates the exchange form the {@link ExecResult}.
-     * 
+     *
      * @param exchange a Camel {@link Exchange}, in which to write the <code>result</code>
      * @param result   the result of a command execution
      * @see            ExecCommandExecutor

@@ -59,12 +59,13 @@ import org.xnio.Options;
  * Expose HTTP and WebSocket endpoints and access external HTTP/WebSocket servers.
  */
 @UriEndpoint(firstVersion = "2.16.0", scheme = "undertow", title = "Undertow", syntax = "undertow:httpURI",
-             category = { Category.HTTP, Category.WEBSOCKET }, lenientProperties = true)
+             category = { Category.HTTP, Category.NETWORKING }, lenientProperties = true,
+             headersClass = UndertowConstants.class)
 public class UndertowEndpoint extends DefaultEndpoint implements AsyncEndpoint, HeaderFilterStrategyAware, DiscoverableService {
 
     private static final Logger LOG = LoggerFactory.getLogger(UndertowEndpoint.class);
 
-    private UndertowComponent component;
+    private final UndertowComponent component;
     private SSLContext sslContext;
     private OptionMap optionMap;
     private HttpHandlerRegistrationInfo registrationInfo;
@@ -532,7 +533,7 @@ public class UndertowEndpoint extends DefaultEndpoint implements AsyncEndpoint, 
             ServiceLoader<UndertowSecurityProvider> securityProvider = ServiceLoader.load(UndertowSecurityProvider.class);
 
             Iterator<UndertowSecurityProvider> iter = securityProvider.iterator();
-            List<String> providers = new LinkedList();
+            List<String> providers = new LinkedList<>();
             while (iter.hasNext()) {
                 UndertowSecurityProvider security = iter.next();
                 //only securityProvider, who accepts security configuration, could be used

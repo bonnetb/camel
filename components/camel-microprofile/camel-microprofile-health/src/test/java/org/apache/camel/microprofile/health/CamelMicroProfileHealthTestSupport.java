@@ -16,17 +16,13 @@
  */
 package org.apache.camel.microprofile.health;
 
-import java.io.ByteArrayOutputStream;
-import java.io.StringReader;
 import java.lang.reflect.Field;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-import javax.json.Json;
-import javax.json.JsonObject;
-import javax.json.stream.JsonParser;
+import jakarta.json.JsonArray;
+import jakarta.json.JsonObject;
 
 import io.smallrye.health.SmallRyeHealth;
 import io.smallrye.health.SmallRyeHealthReporter;
@@ -42,9 +38,6 @@ import org.apache.camel.impl.health.AbstractHealthCheck;
 import org.apache.camel.test.junit5.CamelTestSupport;
 import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.junit.jupiter.api.AfterEach;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class CamelMicroProfileHealthTestSupport extends CamelTestSupport {
 
@@ -75,7 +68,7 @@ public class CamelMicroProfileHealthTestSupport extends CamelTestSupport {
     protected CamelContext createCamelContext() throws Exception {
         CamelContext camelContext = super.createCamelContext();
         HealthCheckRegistry registry = new CamelMicroProfileHealthCheckRegistry();
-        camelContext.setExtension(HealthCheckRegistry.class, registry);
+        camelContext.getCamelContextExtension().addContextPlugin(HealthCheckRegistry.class, registry);
         return camelContext;
     }
 
@@ -83,7 +76,14 @@ public class CamelMicroProfileHealthTestSupport extends CamelTestSupport {
             String expectedName,
             HealthCheckResponse.Status expectedState,
             JsonObject healthObject) {
-        assertHealthCheckOutput(expectedName, expectedState, healthObject, null);
+        CamelMicroProfileHealthTestHelper.assertHealthCheckOutput(expectedName, expectedState, healthObject);
+    }
+
+    protected void assertHealthCheckOutput(
+            String expectedName,
+            HealthCheckResponse.Status expectedState,
+            JsonArray healthObjects) {
+        CamelMicroProfileHealthTestHelper.assertHealthCheckOutput(expectedName, expectedState, healthObjects);
     }
 
     protected void assertHealthCheckOutput(
@@ -92,25 +92,26 @@ public class CamelMicroProfileHealthTestSupport extends CamelTestSupport {
             JsonObject healthObject,
             Consumer<JsonObject> dataObjectAssertions) {
 
-        assertEquals(expectedName, healthObject.getString("name"));
-        assertEquals(expectedState.name(), healthObject.getString("status"));
+        CamelMicroProfileHealthTestHelper.assertHealthCheckOutput(expectedName, expectedState, healthObject,
+                dataObjectAssertions);
+    }
 
-        if (dataObjectAssertions != null) {
-            dataObjectAssertions.accept(healthObject.getJsonObject("data"));
-        }
+    protected void assertHealthCheckOutput(
+            String expectedName,
+            HealthCheckResponse.Status expectedState,
+            JsonArray healthObjects,
+            Consumer<JsonObject> dataObjectAssertions) {
+
+        CamelMicroProfileHealthTestHelper.assertHealthCheckOutput(expectedName, expectedState, healthObjects,
+                dataObjectAssertions);
     }
 
     protected JsonObject getHealthJson(SmallRyeHealth health) {
-        JsonParser parser = Json.createParser(new StringReader(getHealthOutput(health)));
-        assertTrue(parser.hasNext(), "Health check content is empty");
-        parser.next();
-        return parser.getObject();
+        return CamelMicroProfileHealthTestHelper.getHealthJson(reporter, health);
     }
 
     protected String getHealthOutput(SmallRyeHealth health) {
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        reporter.reportHealth(outputStream, health);
-        return new String(outputStream.toByteArray(), StandardCharsets.UTF_8);
+        return CamelMicroProfileHealthTestHelper.getHealthOutput(reporter, health);
     }
 
     protected HealthCheck createLivenessCheck(String id, boolean enabled, Consumer<HealthCheckResultBuilder> consumer) {
@@ -118,6 +119,11 @@ public class CamelMicroProfileHealthTestSupport extends CamelTestSupport {
             @Override
             protected void doCall(HealthCheckResultBuilder builder, Map<String, Object> options) {
                 consumer.accept(builder);
+            }
+
+            @Override
+            public boolean isLiveness() {
+                return true;
             }
 
             @Override
@@ -137,18 +143,16 @@ public class CamelMicroProfileHealthTestSupport extends CamelTestSupport {
             }
 
             @Override
+            public boolean isReadiness() {
+                return true;
+            }
+
+            @Override
             public boolean isLiveness() {
                 return false;
             }
         };
         readinessCheck.setEnabled(enabled);
         return readinessCheck;
-    }
-
-    /**
-     * Dump health check status to stdout, useful for debugging.
-     */
-    protected void dumpHealth(SmallRyeHealth health) {
-        reporter.reportHealth(System.out, health);
     }
 }

@@ -42,7 +42,7 @@ public class OnCompletionFailAndOkTest extends ContextTestSupport {
         getMockEndpoint("mock:result").expectedMessageCount(0);
 
         try {
-            template.sendBody("direct:start", "Kabom");
+            template.sendBody("direct:start", "Kaboom");
             fail("Should throw exception");
         } catch (Exception e) {
             // expected
@@ -54,12 +54,12 @@ public class OnCompletionFailAndOkTest extends ContextTestSupport {
     @Test
     public void testOkAndFail() throws Exception {
         getMockEndpoint("mock:ok").expectedBodiesReceived("Bye World");
-        getMockEndpoint("mock:fail").expectedBodiesReceived("Kabom");
+        getMockEndpoint("mock:fail").expectedBodiesReceived("Kaboom");
         getMockEndpoint("mock:result").expectedBodiesReceived("Bye World");
 
         template.sendBody("direct:start", "Hello World");
         try {
-            template.sendBody("direct:start", "Kabom");
+            template.sendBody("direct:start", "Kaboom");
             fail("Should throw exception");
         } catch (Exception e) {
             // expected
@@ -69,10 +69,10 @@ public class OnCompletionFailAndOkTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:start")
                     .onCompletion().onCompleteOnly().to("log:ok").to("mock:ok").end()
                     .onCompletion().onFailureOnly().to("log:fail").to("mock:fail").end()

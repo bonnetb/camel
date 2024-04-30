@@ -38,14 +38,14 @@ public class GoogleSecretManagerComponent extends DefaultComponent {
     }
 
     protected Endpoint createEndpoint(String uri, String remaining, Map<String, Object> parameters) throws Exception {
-        if (remaining == null || remaining.trim().length() == 0) {
+        if (remaining == null || remaining.isBlank()) {
             throw new IllegalArgumentException("Project id must be specified.");
         }
-        final GoogleSecretManagerConfiguration configuration
+        final GoogleSecretManagerConfiguration endpointConfiguration
                 = this.configuration != null ? this.configuration.copy() : new GoogleSecretManagerConfiguration();
-        configuration.setProject(remaining);
+        endpointConfiguration.setProject(remaining);
 
-        Endpoint endpoint = new GoogleSecretManagerEndpoint(uri, this, configuration);
+        Endpoint endpoint = new GoogleSecretManagerEndpoint(uri, this, endpointConfiguration);
         setProperties(endpoint, parameters);
         return endpoint;
     }

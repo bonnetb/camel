@@ -56,6 +56,11 @@ public class Translate2Endpoint extends ScheduledPollEndpoint {
     }
 
     @Override
+    public Translate2Component getComponent() {
+        return (Translate2Component) super.getComponent();
+    }
+
+    @Override
     public void doStart() throws Exception {
         super.doStart();
 

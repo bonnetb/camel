@@ -42,7 +42,7 @@ public class ThreadsRejectedExecutionTest extends ContextTestSupport {
     public void testThreadsRejectedExecution() throws Exception {
         context.addRoutes(new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 // use a custom pool which rejects any new tasks while currently
                 // in progress
                 // this should force the ThreadsProcessor to run the tasks
@@ -69,7 +69,7 @@ public class ThreadsRejectedExecutionTest extends ContextTestSupport {
     public void testThreadsRejectedExecutionCallerNotRuns() throws Exception {
         context.addRoutes(new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 // use a custom pool which rejects any new tasks while currently
                 // in progress
                 // this should force the ThreadsProcessor to run the tasks
@@ -101,62 +101,10 @@ public class ThreadsRejectedExecutionTest extends ContextTestSupport {
     }
 
     @Test
-    public void testThreadsRejectedDiscard() throws Exception {
-        context.addRoutes(new RouteBuilder() {
-            @Override
-            public void configure() throws Exception {
-                from("seda:start").to("log:before").threads(1, 1).maxPoolSize(1).maxQueueSize(2)
-                        .rejectedPolicy(ThreadPoolRejectedPolicy.Discard).delay(100).to("log:after")
-                        .to("mock:result");
-            }
-        });
-        context.start();
-
-        NotifyBuilder notify = new NotifyBuilder(context).whenDone(10).create();
-
-        getMockEndpoint("mock:result").expectedMinimumMessageCount(2);
-        for (int i = 0; i < 10; i++) {
-            template.sendBody("seda:start", "Message " + i);
-        }
-        assertMockEndpointsSatisfied();
-
-        assertTrue(notify.matchesWaitTime());
-
-        int inflight = context.getInflightRepository().size();
-        assertEquals(0, inflight);
-    }
-
-    @Test
-    public void testThreadsRejectedDiscardOldest() throws Exception {
-        context.addRoutes(new RouteBuilder() {
-            @Override
-            public void configure() throws Exception {
-                from("seda:start").to("log:before").threads(1, 1).maxPoolSize(1).maxQueueSize(2)
-                        .rejectedPolicy(ThreadPoolRejectedPolicy.DiscardOldest).delay(100).to("log:after")
-                        .to("mock:result");
-            }
-        });
-        context.start();
-
-        NotifyBuilder notify = new NotifyBuilder(context).whenDone(10).create();
-
-        getMockEndpoint("mock:result").expectedMinimumMessageCount(2);
-        for (int i = 0; i < 10; i++) {
-            template.sendBody("seda:start", "Message " + i);
-        }
-        assertMockEndpointsSatisfied();
-
-        assertTrue(notify.matchesWaitTime());
-
-        int inflight = context.getInflightRepository().size();
-        assertEquals(0, inflight);
-    }
-
-    @Test
     public void testThreadsRejectedAbort() throws Exception {
         context.addRoutes(new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("seda:start").to("log:before").threads(1, 1).maxPoolSize(1).maxQueueSize(2)
                         .rejectedPolicy(ThreadPoolRejectedPolicy.Abort).delay(100).to("log:after")
                         .to("mock:result");
@@ -182,7 +130,7 @@ public class ThreadsRejectedExecutionTest extends ContextTestSupport {
     public void testThreadsRejectedCallerRuns() throws Exception {
         context.addRoutes(new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("seda:start").to("log:before").threads(1, 1).maxPoolSize(1).maxQueueSize(2)
                         .rejectedPolicy(ThreadPoolRejectedPolicy.CallerRuns).delay(100).to("log:after")
                         .to("mock:result");
@@ -208,7 +156,7 @@ public class ThreadsRejectedExecutionTest extends ContextTestSupport {
     public void testThreadsRejectedAbortNoRedelivery() throws Exception {
         context.addRoutes(new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 onException(Exception.class).redeliveryDelay(250).maximumRedeliveries(3).handled(true).to("mock:error");
 
                 from("seda:start").to("log:before").threads(1, 1).maxPoolSize(1).maxQueueSize(2)

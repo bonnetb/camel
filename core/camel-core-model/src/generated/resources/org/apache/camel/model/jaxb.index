@@ -8,11 +8,13 @@ ClaimCheckDefinition
 ClaimCheckOperation
 ContextScanDefinition
 ConvertBodyDefinition
+ConvertHeaderDefinition
+ConvertVariableDefinition
 DataFormatDefinition
 DelayDefinition
-DescriptionDefinition
 DynamicRouterDefinition
 EnrichDefinition
+ErrorHandlerDefinition
 ExpressionSubElementDefinition
 FaultToleranceConfigurationDefinition
 FilterDefinition
@@ -22,8 +24,6 @@ GlobalOptionDefinition
 GlobalOptionsDefinition
 IdempotentConsumerDefinition
 IdentifiedType
-InOnlyDefinition
-InOutDefinition
 InputTypeDefinition
 InterceptDefinition
 InterceptFromDefinition
@@ -44,6 +44,7 @@ OtherwiseDefinition
 OutputDefinition
 OutputTypeDefinition
 PackageScanDefinition
+PausableDefinition
 PipelineDefinition
 PolicyDefinition
 PollEnrichDefinition
@@ -57,6 +58,7 @@ RemoveHeaderDefinition
 RemoveHeadersDefinition
 RemovePropertiesDefinition
 RemovePropertyDefinition
+RemoveVariableDefinition
 ResequenceDefinition
 Resilience4jConfigurationDefinition
 RestContextRefDefinition
@@ -83,7 +85,10 @@ ScriptDefinition
 SetBodyDefinition
 SetExchangePatternDefinition
 SetHeaderDefinition
+SetHeadersDefinition
 SetPropertyDefinition
+SetVariableDefinition
+SetVariablesDefinition
 SortDefinition
 SplitDefinition
 StepDefinition
@@ -95,6 +100,7 @@ TemplatedRoutesDefinition
 ThreadPoolProfileDefinition
 ThreadsDefinition
 ThrottleDefinition
+ThrottlingMode
 ThrowExceptionDefinition
 ToDefinition
 ToDynamicDefinition
@@ -103,5 +109,6 @@ TransformDefinition
 TryDefinition
 UnmarshalDefinition
 ValidateDefinition
+ValueDefinition
 WhenDefinition
 WireTapDefinition

@@ -17,7 +17,8 @@
 package org.apache.camel.component.aws.secretsmanager;
 
 import java.util.Base64;
-import java.util.Properties;
+import java.util.HashSet;
+import java.util.Set;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -31,6 +32,7 @@ import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.util.StringHelper;
 import org.apache.camel.vault.AwsVaultConfiguration;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
@@ -49,16 +51,20 @@ import software.amazon.awssdk.services.secretsmanager.model.SecretsManagerExcept
  * <li><tt>CAMEL_VAULT_AWS_SECRET_KEY</tt></li>
  * <li><tt>CAMEL_VAULT_AWS_REGION</tt></li>
  * <li><tt>CAMEL_VAULT_AWS_USE_DEFAULT_CREDENTIALS_PROVIDER</tt></li>
+ * <li><tt>CAMEL_VAULT_AWS_USE_PROFILE_CREDENTIALS_PROVIDER</tt></li>
+ * <li><tt>CAMEL_AWS_VAULT_PROFILE_NAME</tt></li>
  * </ul>
  * <p/>
  *
- * Otherwise it is possible to specify the credentials as properties:
+ * Otherwise, it is possible to specify the credentials as properties:
  *
  * <ul>
  * <li><tt>camel.vault.aws.accessKey</tt></li>
  * <li><tt>camel.vault.aws.secretKey</tt></li>
  * <li><tt>camel.vault.aws.region</tt></li>
- * <li><tt>camel.vault.aws.useDefaultCredentialsProvider</tt></li>
+ * <li><tt>camel.vault.aws.defaultCredentialsProvider</tt></li>
+ * <li><tt>camel.vault.aws.profileCredentialsProvider</tt></li>
+ * <li><tt>camel.vault.aws.profileName</tt></li>
  * </ul>
  * <p/>
  *
@@ -73,7 +79,6 @@ import software.amazon.awssdk.services.secretsmanager.model.SecretsManagerExcept
  * <tt>aws:database/username:admin</tt>. The admin value will be returned as default value, if the conditions above were
  * all met.
  */
-
 @org.apache.camel.spi.annotations.PropertiesFunction("aws")
 public class SecretsManagerPropertiesFunction extends ServiceSupport implements PropertiesFunction, CamelContextAware {
 
@@ -82,17 +87,37 @@ public class SecretsManagerPropertiesFunction extends ServiceSupport implements 
     private static final String CAMEL_AWS_VAULT_REGION_ENV = "CAMEL_VAULT_AWS_REGION";
     private static final String CAMEL_AWS_VAULT_USE_DEFAULT_CREDENTIALS_PROVIDER_ENV
             = "CAMEL_VAULT_AWS_USE_DEFAULT_CREDENTIALS_PROVIDER";
+
+    private static final String CAMEL_AWS_VAULT_USE_PROFILE_CREDENTIALS_PROVIDER_ENV
+            = "CAMEL_VAULT_AWS_USE_PROFILE_CREDENTIALS_PROVIDER";
+
+    private static final String CAMEL_AWS_VAULT_PROFILE_NAME_ENV
+            = "CAMEL_AWS_VAULT_PROFILE_NAME";
+
     private CamelContext camelContext;
     private SecretsManagerClient client;
+
+    private final Set<String> secrets = new HashSet<>();
+
+    private String region;
+    private boolean defaultCredentialsProvider;
+
+    private boolean profleCredentialsProvider;
+
+    private String profileName;
 
     @Override
     protected void doStart() throws Exception {
         super.doStart();
+
         String accessKey = System.getenv(CAMEL_AWS_VAULT_ACCESS_KEY_ENV);
         String secretKey = System.getenv(CAMEL_AWS_VAULT_SECRET_KEY_ENV);
         String region = System.getenv(CAMEL_AWS_VAULT_REGION_ENV);
         boolean useDefaultCredentialsProvider
                 = Boolean.parseBoolean(System.getenv(CAMEL_AWS_VAULT_USE_DEFAULT_CREDENTIALS_PROVIDER_ENV));
+        boolean useProfileCredentialsProvider
+                = Boolean.parseBoolean(System.getenv(CAMEL_AWS_VAULT_USE_PROFILE_CREDENTIALS_PROVIDER_ENV));
+        String profileName = System.getenv(CAMEL_AWS_VAULT_PROFILE_NAME_ENV);
         if (ObjectHelper.isEmpty(accessKey) && ObjectHelper.isEmpty(secretKey) && ObjectHelper.isEmpty(region)) {
             AwsVaultConfiguration awsVaultConfiguration = getCamelContext().getVaultConfiguration().aws();
             if (ObjectHelper.isNotEmpty(awsVaultConfiguration)) {
@@ -100,8 +125,11 @@ public class SecretsManagerPropertiesFunction extends ServiceSupport implements 
                 secretKey = awsVaultConfiguration.getSecretKey();
                 region = awsVaultConfiguration.getRegion();
                 useDefaultCredentialsProvider = awsVaultConfiguration.isDefaultCredentialsProvider();
+                useProfileCredentialsProvider = awsVaultConfiguration.isProfileCredentialsProvider();
+                profileName = awsVaultConfiguration.getProfileName();
             }
         }
+        this.region = region;
         if (ObjectHelper.isNotEmpty(accessKey) && ObjectHelper.isNotEmpty(secretKey) && ObjectHelper.isNotEmpty(region)) {
             SecretsManagerClientBuilder clientBuilder = SecretsManagerClient.builder();
             AwsBasicCredentials cred = AwsBasicCredentials.create(accessKey, secretKey);
@@ -109,7 +137,15 @@ public class SecretsManagerPropertiesFunction extends ServiceSupport implements 
             clientBuilder.region(Region.of(region));
             client = clientBuilder.build();
         } else if (useDefaultCredentialsProvider && ObjectHelper.isNotEmpty(region)) {
+            this.defaultCredentialsProvider = true;
             SecretsManagerClientBuilder clientBuilder = SecretsManagerClient.builder();
+            clientBuilder.region(Region.of(region));
+            client = clientBuilder.build();
+        } else if (useProfileCredentialsProvider && ObjectHelper.isNotEmpty(profileName)) {
+            this.profleCredentialsProvider = true;
+            this.profileName = profileName;
+            SecretsManagerClientBuilder clientBuilder = SecretsManagerClient.builder();
+            clientBuilder.credentialsProvider(ProfileCredentialsProvider.create(profileName));
             clientBuilder.region(Region.of(region));
             client = clientBuilder.build();
         } else {
@@ -121,8 +157,14 @@ public class SecretsManagerPropertiesFunction extends ServiceSupport implements 
     @Override
     protected void doStop() throws Exception {
         if (client != null) {
-            client.close();
+            try {
+                client.close();
+            } catch (Exception e) {
+                // ignore
+            }
+            client = null;
         }
+        secrets.clear();
         super.doStop();
     }
 
@@ -137,21 +179,41 @@ public class SecretsManagerPropertiesFunction extends ServiceSupport implements 
         String subkey = null;
         String returnValue = null;
         String defaultValue = null;
+        String version = null;
         if (remainder.contains("/")) {
             key = StringHelper.before(remainder, "/");
             subkey = StringHelper.after(remainder, "/");
             defaultValue = StringHelper.after(subkey, ":");
+            if (ObjectHelper.isNotEmpty(defaultValue)) {
+                if (defaultValue.contains("@")) {
+                    version = StringHelper.after(defaultValue, "@");
+                    defaultValue = StringHelper.before(defaultValue, "@");
+                }
+            }
             if (subkey.contains(":")) {
                 subkey = StringHelper.before(subkey, ":");
+            }
+            if (subkey.contains("@")) {
+                version = StringHelper.after(subkey, "@");
+                subkey = StringHelper.before(subkey, "@");
             }
         } else if (remainder.contains(":")) {
             key = StringHelper.before(remainder, ":");
             defaultValue = StringHelper.after(remainder, ":");
+            if (remainder.contains("@")) {
+                version = StringHelper.after(remainder, "@");
+                defaultValue = StringHelper.before(defaultValue, "@");
+            }
+        } else {
+            if (remainder.contains("@")) {
+                key = StringHelper.before(remainder, "@");
+                version = StringHelper.after(remainder, "@");
+            }
         }
 
         if (key != null) {
             try {
-                returnValue = getSecretFromSource(key, subkey, defaultValue);
+                returnValue = getSecretFromSource(key, subkey, defaultValue, version);
             } catch (JsonProcessingException e) {
                 throw new RuntimeCamelException("Something went wrong while recovering " + key + " from vault");
             }
@@ -161,12 +223,19 @@ public class SecretsManagerPropertiesFunction extends ServiceSupport implements 
     }
 
     private String getSecretFromSource(
-            String key, String subkey, String defaultValue)
+            String key, String subkey, String defaultValue, String version)
             throws JsonProcessingException {
+
+        // capture name of secret
+        secrets.add(key);
+
         String returnValue;
         GetSecretValueRequest request;
         GetSecretValueRequest.Builder builder = GetSecretValueRequest.builder();
         builder.secretId(key);
+        if (ObjectHelper.isNotEmpty(version)) {
+            builder.versionId(version);
+        }
         request = builder.build();
         try {
             GetSecretValueResponse secret = client.getSecretValue(request);
@@ -206,5 +275,40 @@ public class SecretsManagerPropertiesFunction extends ServiceSupport implements 
     @Override
     public CamelContext getCamelContext() {
         return camelContext;
+    }
+
+    /**
+     * Ids of the secrets in use
+     */
+    public Set<String> getSecrets() {
+        return secrets;
+    }
+
+    /**
+     * The region in use for connecting to AWS Secrets Manager
+     */
+    public String getRegion() {
+        return region;
+    }
+
+    /**
+     * Whether login is using default credentials provider
+     */
+    public boolean isDefaultCredentialsProvider() {
+        return defaultCredentialsProvider;
+    }
+
+    /**
+     * Whether login is using default profile credentials provider
+     */
+    public boolean isProfleCredentialsProvider() {
+        return profleCredentialsProvider;
+    }
+
+    /**
+     * The profile name to use when using the profile credentials provider
+     */
+    public String getProfileName() {
+        return profileName;
     }
 }

@@ -21,19 +21,23 @@ import org.apache.camel.Category;
 import org.apache.camel.Consumer;
 import org.apache.camel.Processor;
 import org.apache.camel.Producer;
+import org.apache.camel.spi.Metadata;
 import org.apache.camel.spi.UriEndpoint;
 import org.apache.camel.spi.UriParam;
 import org.apache.camel.support.DefaultEndpoint;
 
 /**
  * Manage Google Secret Manager Secrets
- * 
+ *
  * Google Secret Manager Endpoint.
  */
 @UriEndpoint(firstVersion = "3.16.0", scheme = "google-secret-manager", title = "Google Secret Manager",
              syntax = "google-secret-manager:project", category = {
                      Category.CLOUD },
              producerOnly = true, headersClass = GoogleSecretManagerConstants.class)
+@Metadata(annotations = {
+        "vault=google-secret-manager",
+})
 public class GoogleSecretManagerEndpoint extends DefaultEndpoint {
 
     @UriParam

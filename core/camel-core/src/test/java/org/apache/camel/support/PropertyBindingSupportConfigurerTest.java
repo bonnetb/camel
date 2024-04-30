@@ -23,7 +23,6 @@ import java.util.Properties;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.ContextTestSupport;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.LoggingLevel;
 import org.apache.camel.PropertyBindingException;
 import org.apache.camel.spi.BeanIntrospection;
@@ -58,8 +57,8 @@ public class PropertyBindingSupportConfigurerTest extends ContextTestSupport {
     }
 
     @Test
-    public void testProperties() throws Exception {
-        BeanIntrospection bi = context.adapt(ExtendedCamelContext.class).getBeanIntrospection();
+    public void testProperties() {
+        BeanIntrospection bi = PluginHelper.getBeanIntrospection(context);
         bi.setExtendedStatistics(true);
         bi.setLoggingLevel(LoggingLevel.WARN);
 
@@ -86,8 +85,8 @@ public class PropertyBindingSupportConfigurerTest extends ContextTestSupport {
     }
 
     @Test
-    public void testPropertiesNested() throws Exception {
-        BeanIntrospection bi = context.adapt(ExtendedCamelContext.class).getBeanIntrospection();
+    public void testPropertiesNested() {
+        BeanIntrospection bi = PluginHelper.getBeanIntrospection(context);
         bi.setExtendedStatistics(true);
         bi.setLoggingLevel(LoggingLevel.WARN);
 
@@ -117,7 +116,7 @@ public class PropertyBindingSupportConfigurerTest extends ContextTestSupport {
     }
 
     @Test
-    public void testAutowired() throws Exception {
+    public void testAutowired() {
         Bar bar = new Bar();
 
         Map<String, Object> prop = new HashMap<>();
@@ -141,7 +140,7 @@ public class PropertyBindingSupportConfigurerTest extends ContextTestSupport {
     }
 
     @Test
-    public void testPropertiesOptionalKey() throws Exception {
+    public void testPropertiesOptionalKey() {
         Bar bar = new Bar();
 
         Map<String, Object> prop = new HashMap<>();
@@ -172,7 +171,7 @@ public class PropertyBindingSupportConfigurerTest extends ContextTestSupport {
     }
 
     @Test
-    public void testPropertiesOptionalKeyMandatory() throws Exception {
+    public void testPropertiesOptionalKeyMandatory() {
         Bar bar = new Bar();
 
         Map<String, Object> prop = new HashMap<>();
@@ -220,8 +219,8 @@ public class PropertyBindingSupportConfigurerTest extends ContextTestSupport {
     }
 
     @Test
-    public void testPropertiesNoReflection() throws Exception {
-        BeanIntrospection bi = context.adapt(ExtendedCamelContext.class).getBeanIntrospection();
+    public void testPropertiesNoReflection() {
+        BeanIntrospection bi = PluginHelper.getBeanIntrospection(context);
         bi.setExtendedStatistics(true);
         bi.setLoggingLevel(LoggingLevel.WARN);
 
@@ -254,7 +253,7 @@ public class PropertyBindingSupportConfigurerTest extends ContextTestSupport {
     }
 
     @Test
-    public void testPropertiesDash() throws Exception {
+    public void testPropertiesDash() {
         PropertyBindingSupportTest.Foo foo = new PropertyBindingSupportTest.Foo();
 
         Map<String, Object> prop = new HashMap<>();

@@ -22,9 +22,11 @@ import org.apache.camel.component.pulsar.PulsarConfiguration;
 import org.apache.camel.component.pulsar.PulsarConsumer;
 import org.apache.camel.component.pulsar.PulsarEndpoint;
 import org.apache.camel.component.pulsar.PulsarMessageListener;
+import org.apache.camel.util.ObjectHelper;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.DeadLetterPolicy.DeadLetterPolicyBuilder;
+import org.apache.pulsar.client.api.KeySharedPolicy;
 
 public final class CommonCreationStrategyImpl {
 
@@ -36,6 +38,16 @@ public final class CommonCreationStrategyImpl {
         final PulsarConfiguration endpointConfiguration = pulsarEndpoint.getPulsarConfiguration();
 
         ConsumerBuilder<byte[]> builder = pulsarEndpoint.getPulsarClient().newConsumer();
+        if (endpointConfiguration.getKeySharedPolicy() != null) {
+            if ("AUTO_SPLIT".equalsIgnoreCase(endpointConfiguration.getKeySharedPolicy())) {
+                builder.keySharedPolicy(KeySharedPolicy.autoSplitHashRange());
+            } else if ("STICKY".equalsIgnoreCase(endpointConfiguration.getKeySharedPolicy())) {
+                builder.keySharedPolicy(KeySharedPolicy.stickyHashRange());
+            } else {
+                throw new IllegalArgumentException(
+                        "Unsupported KeySharedPolicy: " + endpointConfiguration.getKeySharedPolicy());
+            }
+        }
         if (endpointConfiguration.isTopicsPattern()) {
             builder.topicsPattern(pulsarEndpoint.getUri());
             if (endpointConfiguration.getSubscriptionTopicsMode() != null) {
@@ -57,7 +69,17 @@ public final class CommonCreationStrategyImpl {
             builder.messageListener(new PulsarMessageListener(pulsarEndpoint, pulsarConsumer));
         }
 
-        if (endpointConfiguration.getMaxRedeliverCount() != null) {
+        if (endpointConfiguration.isEnableRetry()) {
+            // retry mode
+            builder.enableRetry(true);
+            DeadLetterPolicyBuilder policy = DeadLetterPolicy.builder()
+                    .maxRedeliverCount(endpointConfiguration.getMaxRedeliverCount());
+            if (endpointConfiguration.getRetryLetterTopic() != null) {
+                policy.retryLetterTopic(endpointConfiguration.getRetryLetterTopic());
+            }
+            builder.deadLetterPolicy(policy.build());
+        } else if (endpointConfiguration.getMaxRedeliverCount() != null) {
+            // or potentially dead-letter-topic mode
             DeadLetterPolicyBuilder policy = DeadLetterPolicy.builder()
                     .maxRedeliverCount(endpointConfiguration.getMaxRedeliverCount());
             if (endpointConfiguration.getDeadLetterTopic() != null) {
@@ -66,6 +88,15 @@ public final class CommonCreationStrategyImpl {
 
             builder.deadLetterPolicy(policy.build());
         }
+
+        if (ObjectHelper.isNotEmpty(endpointConfiguration.getAckTimeoutRedeliveryBackoff())) {
+            builder.ackTimeoutRedeliveryBackoff(endpointConfiguration.getAckTimeoutRedeliveryBackoff());
+        }
+
+        if (ObjectHelper.isNotEmpty(endpointConfiguration.getNegativeAckRedeliveryBackoff())) {
+            builder.negativeAckRedeliveryBackoff(endpointConfiguration.getNegativeAckRedeliveryBackoff());
+        }
+
         return builder;
     }
 }

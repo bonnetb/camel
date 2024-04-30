@@ -16,6 +16,9 @@
  */
 package org.apache.camel.component.jcache.policy;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import javax.cache.Cache;
 import javax.cache.CacheManager;
 import javax.cache.Caching;
@@ -38,7 +41,7 @@ public class JCachePolicyProcessorTest extends JCachePolicyTestBase {
 
     //Basic test to verify value gets cached and route is not executed for the second time
     @Test
-    public void testValueGetsCached() throws Exception {
+    public void testValueGetsCached() {
         final String key = randomString();
         MockEndpoint mock = getMockEndpoint("mock:value");
         Cache cache = lookupCache("simple");
@@ -63,7 +66,7 @@ public class JCachePolicyProcessorTest extends JCachePolicyTestBase {
 
     //Verify policy applies only on the section of the route wrapped
     @Test
-    public void testPartial() throws Exception {
+    public void testPartial() {
         final String key = randomString();
         MockEndpoint mock = getMockEndpoint("mock:value");
         MockEndpoint mockUnwrapped = getMockEndpoint("mock:unwrapped");
@@ -91,7 +94,7 @@ public class JCachePolicyProcessorTest extends JCachePolicyTestBase {
 
     //Cache is closed
     @Test
-    public void testClosedCache() throws Exception {
+    public void testClosedCache() {
         final String key = randomString();
         MockEndpoint mock = getMockEndpoint("mock:value");
 
@@ -113,7 +116,7 @@ public class JCachePolicyProcessorTest extends JCachePolicyTestBase {
 
     //Key is already stored
     @Test
-    public void testValueWasCached() throws Exception {
+    public void testValueWasCached() {
         final String key = randomString();
         final String value = "test";
         MockEndpoint mock = getMockEndpoint("mock:value");
@@ -133,7 +136,7 @@ public class JCachePolicyProcessorTest extends JCachePolicyTestBase {
 
     //Null final body
     @Test
-    public void testNullResult() throws Exception {
+    public void testNullResult() {
         final String key = randomString();
         MockEndpoint mock = getMockEndpoint("mock:value");
         mock.whenAnyExchangeReceived(e -> e.getMessage().setBody(null));
@@ -151,7 +154,7 @@ public class JCachePolicyProcessorTest extends JCachePolicyTestBase {
 
     //Use a key expression ${header.mykey}
     @Test
-    public void testKeyExpression() throws Exception {
+    public void testKeyExpression() {
         final String key = randomString();
         final String body = randomString();
         MockEndpoint mock = getMockEndpoint("mock:value");
@@ -177,7 +180,7 @@ public class JCachePolicyProcessorTest extends JCachePolicyTestBase {
 
     //Key is null, ${header.mykey} is not set
     @Test
-    public void testKeyNull() throws Exception {
+    public void testKeyNull() {
         final String key = randomString();
         String body = randomString();
         MockEndpoint mock = getMockEndpoint("mock:value");
@@ -208,7 +211,7 @@ public class JCachePolicyProcessorTest extends JCachePolicyTestBase {
 
     //Value is cached after handled exception
     @Test
-    public void testHandledException() throws Exception {
+    public void testHandledException() {
         final String key = randomString();
         MockEndpoint mock = getMockEndpoint("mock:value");
         Cache cache = lookupCache("simple");
@@ -225,7 +228,7 @@ public class JCachePolicyProcessorTest extends JCachePolicyTestBase {
 
     //Nothing is cached after an unhandled exception
     @Test
-    public void testException() throws Exception {
+    public void testException() {
         final String key = randomString();
         MockEndpoint mock = getMockEndpoint("mock:value");
         mock.whenAnyExchangeReceived(e -> {
@@ -245,8 +248,47 @@ public class JCachePolicyProcessorTest extends JCachePolicyTestBase {
 
     }
 
+    //Use a bypass expression ${header.mybypass}
+    @Test
+    public void testBypassExpression() throws Exception {
+        final String key = randomString();
+        final String body = randomString();
+        MockEndpoint mock = getMockEndpoint("mock:value");
+        Cache cache = lookupCache("simple");
+
+        Map<String, Object> headers = new HashMap<>();
+        headers.put("mykey", key);
+        headers.put("mybypass", Boolean.TRUE);
+
+        //Send first, key is not in cache
+        Object responseBody = this.template().requestBodyAndHeaders("direct:cached-bypass", body, headers);
+
+        //We got back the value, mock was called once, value got cached.
+        assertEquals(generateValue(body), cache.get(key));
+        assertEquals(generateValue(body), responseBody);
+        assertEquals(1, mock.getExchanges().size());
+
+        //Send again, use another body, but the same key
+        final String body2 = randomString();
+        responseBody = this.template().requestBodyAndHeaders("direct:cached-bypass", body2, headers);
+
+        //We got back the value, the mock was called again, value got cached
+        assertEquals(generateValue(body2), cache.get(key));
+        assertEquals(generateValue(body2), responseBody);
+        assertEquals(2, mock.getExchanges().size());
+
+        //Send again, use another body, but the same key; disable bypass
+        headers.put("mybypass", Boolean.FALSE);
+        responseBody = this.template().requestBodyAndHeaders("direct:cached-bypass", body, headers);
+
+        //We got back the cached value, the mock was not called again
+        assertEquals(generateValue(body2), cache.get(key));
+        assertEquals(generateValue(body2), responseBody);
+        assertEquals(2, mock.getExchanges().size());
+    }
+
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             public void configure() {
                 CacheManager cacheManager = Caching.getCachingProvider().getCacheManager();
@@ -297,6 +339,16 @@ public class JCachePolicyProcessorTest extends JCachePolicyTestBase {
                 jcachePolicy.setKeyExpression(simple("${header.mykey}"));
 
                 from("direct:cached-byheader")
+                        .policy(jcachePolicy)
+                        .to("mock:value");
+
+                //Use ${header.mykey} as the key, ${header.mybypass} as bypass
+                jcachePolicy = new JCachePolicy();
+                jcachePolicy.setCache(cacheManager.getCache("simple"));
+                jcachePolicy.setKeyExpression(simple("${header.mykey}"));
+                jcachePolicy.setBypassExpression(simple("${header.mybypass}"));
+
+                from("direct:cached-bypass")
                         .policy(jcachePolicy)
                         .to("mock:value");
             }

@@ -27,14 +27,16 @@ import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
 
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.Exchange;
 import org.apache.camel.RuntimeExchangeException;
 import org.apache.camel.converter.stream.CachedOutputStream;
 import org.apache.camel.support.CamelObjectInputStream;
+import org.apache.camel.support.http.HttpUtil;
+import org.apache.camel.util.CollectionHelper;
 import org.apache.camel.util.IOHelper;
 import org.apache.camel.util.URISupport;
 import org.apache.camel.util.UnsafeUriCharactersEncoder;
@@ -54,11 +56,11 @@ public final class HttpHelper {
     }
 
     public static void setCharsetFromContentType(String contentType, Exchange exchange) {
-        org.apache.camel.http.base.HttpHelper.setCharsetFromContentType(contentType, exchange);
+        HttpUtil.setCharsetFromContentType(contentType, exchange);
     }
 
     public static String getCharsetFromContentType(String contentType) {
-        return org.apache.camel.http.base.HttpHelper.getCharsetFromContentType(contentType);
+        return HttpUtil.getCharsetFromContentType(contentType);
     }
 
     /**
@@ -118,7 +120,7 @@ public final class HttpHelper {
             return null;
         }
 
-        Object answer = null;
+        Object answer;
         ObjectInputStream ois = new CamelObjectInputStream(is, context);
         try {
             answer = ois.readObject();
@@ -202,20 +204,24 @@ public final class HttpHelper {
             if (path.length() > 1 && path.startsWith("/")) {
                 path = path.substring(1);
             }
-            if (path.length() > 0) {
+            if (!path.isEmpty()) {
                 // inject the dynamic path before the query params, if there are any
                 int idx = uri.indexOf('?');
 
                 // if there are no query params
                 if (idx == -1) {
                     // make sure that there is exactly one "/" between HTTP_URI and HTTP_PATH
-                    uri = uri.endsWith("/") || path.startsWith("/") ? uri : uri + "/";
-                    uri = uri.concat(path);
+                    if (uri.endsWith("/") && path.startsWith("/")) {
+                        uri = uri.concat(path.substring(1));
+                    } else {
+                        uri = uri.endsWith("/") || path.startsWith("/") ? uri : uri + "/";
+                        uri = uri.concat(path);
+                    }
                 } else {
                     // there are query params, so inject the relative path in the right place
                     String base = uri.substring(0, idx);
                     base = base.endsWith("/") ? base : base + "/";
-                    base = base.concat(path);
+                    base = base.concat(path.startsWith("/") ? path.substring(1) : path);
                     uri = base.concat(uri.substring(idx));
                 }
             }
@@ -272,10 +278,8 @@ public final class HttpHelper {
      * @param key     the key
      * @param value   the value
      */
-    @SuppressWarnings("unchecked")
     public static void appendHeader(Map<String, Object> headers, String key, Object value) {
-        org.apache.camel.http.base.HttpHelper.appendHeader(headers, key, value);
-
+        CollectionHelper.appendEntry(headers, key, value);
     }
 
     /**

@@ -35,11 +35,15 @@ public class Kinesis2Configuration implements Cloneable {
     private String accessKey;
     @UriParam(label = "security", secret = true, description = "Amazon AWS Secret Key")
     private String secretKey;
-    @UriParam(description = "The region in which Kinesis Firehose client needs to work. When using this parameter, the configuration will expect the lowercase name of the "
+    @UriParam(label = "security", secret = true,
+              description = "Amazon AWS Session Token used when the user needs to assume a IAM role")
+    private String sessionToken;
+    @UriParam(enums = "ap-south-2,ap-south-1,eu-south-1,eu-south-2,us-gov-east-1,me-central-1,il-central-1,ca-central-1,eu-central-1,us-iso-west-1,eu-central-2,us-west-1,us-west-2,af-south-1,eu-north-1,eu-west-3,eu-west-2,eu-west-1,ap-northeast-3,ap-northeast-2,ap-northeast-1,me-south-1,sa-east-1,ap-east-1,cn-north-1,us-gov-west-1,ap-southeast-1,ap-southeast-2,us-iso-east-1,ap-southeast-3,ap-southeast-4,us-east-1,us-east-2,cn-northwest-1,us-isob-east-1,aws-global,aws-cn-global,aws-us-gov-global,aws-iso-global,aws-iso-b-global",
+              description = "The region in which Kinesis Firehose client needs to work. When using this parameter, the configuration will expect the lowercase name of the "
                             + "region (for example ap-east-1) You'll need to use the name Region.EU_WEST_1.id()")
     private String region;
     @UriParam(description = "Amazon Kinesis client to use for all requests for this endpoint")
-    @Metadata(autowired = true)
+    @Metadata(label = "advanced", autowired = true)
     private KinesisClient amazonKinesisClient;
     @UriParam(label = "consumer", description = "Maximum number of records that will be fetched in each poll",
               defaultValue = "1")
@@ -58,30 +62,44 @@ public class Kinesis2Configuration implements Cloneable {
                             + "in case of silent there will be no logging and the consumer will start from the beginning,"
                             + "in case of fail a ReachedClosedStateException will be raised")
     private Kinesis2ShardClosedStrategyEnum shardClosed;
-    @UriParam(enums = "HTTP,HTTPS", defaultValue = "HTTPS",
+    @UriParam(label = "proxy", enums = "HTTP,HTTPS", defaultValue = "HTTPS",
               description = "To define a proxy protocol when instantiating the Kinesis client")
     private Protocol proxyProtocol = Protocol.HTTPS;
-    @UriParam(description = "To define a proxy host when instantiating the Kinesis client")
+    @UriParam(label = "proxy", description = "To define a proxy host when instantiating the Kinesis client")
     private String proxyHost;
-    @UriParam(description = "To define a proxy port when instantiating the Kinesis client")
+    @UriParam(label = "proxy", description = "To define a proxy port when instantiating the Kinesis client")
     private Integer proxyPort;
-    @UriParam(defaultValue = "false", description = "If we want to trust all certificates in case of overriding the endpoint")
+    @UriParam(label = "security", description = "If we want to trust all certificates in case of overriding the endpoint")
     private boolean trustAllCertificates;
+    @UriParam(label = "advanced",
+              description = "If we want to a KinesisAsyncClient instance set it to true")
+    private boolean asyncClient;
     @UriParam(label = "common", defaultValue = "true",
               description = "This option will set the CBOR_ENABLED property during the execution")
     private boolean cborEnabled = true;
     @UriParam(label = "common", defaultValue = "false",
-              description = "Set the need for overidding the endpoint. This option needs to be used in combination with uriEndpointOverride"
+              description = "Set the need for overriding the endpoint. This option needs to be used in combination with uriEndpointOverride"
                             + " option")
     private boolean overrideEndpoint;
     @UriParam(label = "common",
               description = "Set the overriding uri endpoint. This option needs to be used in combination with overrideEndpoint option")
     private String uriEndpointOverride;
-    @UriParam(label = "common", defaultValue = "false",
-              description = "Set whether the Kinesis client should expect to load credentials through a default credentials provider or to expect "
-                            +
-                            "static credentials to be passed in.")
+    @UriParam(label = "security",
+              description = "Set whether the Kinesis client should expect to load credentials through a default credentials provider or to expect"
+                            + " static credentials to be passed in.")
     private boolean useDefaultCredentialsProvider;
+    @UriParam(label = "security",
+              description = "Set whether the Kinesis client should expect to load credentials through a profile credentials provider.")
+    private boolean useProfileCredentialsProvider;
+
+    @UriParam(label = "security",
+              description = "Set whether the Kinesis client should expect to use Session Credentials. This is useful in situation in which the user"
+                            +
+                            " needs to assume a IAM role for doing operations in Kinesis.")
+    private boolean useSessionCredentials;
+    @UriParam(label = "security",
+              description = "If using a profile credentials provider this parameter will set the profile name.")
+    private String profileCredentialsName;
 
     public KinesisClient getAmazonKinesisClient() {
         return amazonKinesisClient;
@@ -225,6 +243,46 @@ public class Kinesis2Configuration implements Cloneable {
 
     public void setUseDefaultCredentialsProvider(boolean useDefaultCredentialsProvider) {
         this.useDefaultCredentialsProvider = useDefaultCredentialsProvider;
+    }
+
+    public boolean isUseProfileCredentialsProvider() {
+        return useProfileCredentialsProvider;
+    }
+
+    public void setUseProfileCredentialsProvider(boolean useProfileCredentialsProvider) {
+        this.useProfileCredentialsProvider = useProfileCredentialsProvider;
+    }
+
+    public String getProfileCredentialsName() {
+        return profileCredentialsName;
+    }
+
+    public void setProfileCredentialsName(String profileCredentialsName) {
+        this.profileCredentialsName = profileCredentialsName;
+    }
+
+    public String getSessionToken() {
+        return sessionToken;
+    }
+
+    public void setSessionToken(String sessionToken) {
+        this.sessionToken = sessionToken;
+    }
+
+    public boolean isUseSessionCredentials() {
+        return useSessionCredentials;
+    }
+
+    public void setUseSessionCredentials(boolean useSessionCredentials) {
+        this.useSessionCredentials = useSessionCredentials;
+    }
+
+    public boolean isAsyncClient() {
+        return asyncClient;
+    }
+
+    public void setAsyncClient(boolean asyncClient) {
+        this.asyncClient = asyncClient;
     }
 
     // *************************************************

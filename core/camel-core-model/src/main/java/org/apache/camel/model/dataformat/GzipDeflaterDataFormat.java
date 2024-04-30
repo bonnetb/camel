@@ -16,8 +16,10 @@
  */
 package org.apache.camel.model.dataformat;
 
-import javax.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
 
+import org.apache.camel.builder.DataFormatBuilder;
 import org.apache.camel.model.DataFormatDefinition;
 import org.apache.camel.spi.Metadata;
 
@@ -32,4 +34,14 @@ public class GzipDeflaterDataFormat extends DataFormatDefinition {
         super("gzipDeflater");
     }
 
+    /**
+     * {@code Builder} is a specific builder for {@link GzipDeflaterDataFormat}.
+     */
+    @XmlTransient
+    public static class Builder implements DataFormatBuilder<GzipDeflaterDataFormat> {
+        @Override
+        public GzipDeflaterDataFormat end() {
+            return new GzipDeflaterDataFormat();
+        }
+    }
 }

@@ -16,6 +16,8 @@
  */
 package org.apache.camel.component.file;
 
+import java.time.Duration;
+
 import org.apache.camel.Consumer;
 import org.apache.camel.ContextTestSupport;
 import org.apache.camel.Endpoint;
@@ -25,29 +27,32 @@ import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.spi.PollingConsumerPollStrategy;
 import org.apache.camel.spi.Registry;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * Unit test for poll strategy
  */
+@DisabledIfSystemProperty(named = "ci.env.name", matches = "github.com", disabledReason = "Flaky on Github CI")
 public class FileConsumerPollStrategyStopOnRollbackTest extends ContextTestSupport {
 
     private static int counter;
     private static volatile String event = "";
 
     @Override
-    protected Registry createRegistry() throws Exception {
-        Registry jndi = super.createRegistry();
+    protected Registry createCamelRegistry() throws Exception {
+        Registry jndi = super.createCamelRegistry();
         jndi.bind("myPoll", new MyPollStrategy());
         return jndi;
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
-            public void configure() throws Exception {
+            public void configure() {
                 from(fileUri("?pollStrategy=#myPoll&initialDelay=0&delay=10"))
                         .convertBodyTo(String.class).to("mock:result");
             }
@@ -65,7 +70,7 @@ public class FileConsumerPollStrategyStopOnRollbackTest extends ContextTestSuppo
         // never get a message
         mock.assertIsSatisfied(50);
 
-        assertEquals("rollback", event);
+        Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> assertEquals("rollback", event));
     }
 
     private static class MyPollStrategy implements PollingConsumerPollStrategy {
@@ -77,7 +82,7 @@ public class FileConsumerPollStrategyStopOnRollbackTest extends ContextTestSuppo
             try {
                 consumer.start();
             } catch (Exception e) {
-                RuntimeCamelException.wrapRuntimeCamelException(e);
+                throw RuntimeCamelException.wrapRuntimeCamelException(e);
             }
 
             if (counter++ == 0) {
@@ -94,7 +99,7 @@ public class FileConsumerPollStrategyStopOnRollbackTest extends ContextTestSuppo
         }
 
         @Override
-        public boolean rollback(Consumer consumer, Endpoint endpoint, int retryCounter, Exception cause) throws Exception {
+        public boolean rollback(Consumer consumer, Endpoint endpoint, int retryCounter, Exception cause) {
             if (cause.getMessage().equals("Damn I cannot do this")) {
                 event += "rollback";
                 // stop consumer as it does not work

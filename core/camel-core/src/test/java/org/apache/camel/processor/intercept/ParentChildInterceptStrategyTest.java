@@ -21,7 +21,6 @@ import java.util.List;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.ContextTestSupport;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.NamedNode;
 import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
@@ -63,11 +62,11 @@ public class ParentChildInterceptStrategyTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
-                context.adapt(ExtendedCamelContext.class).addInterceptStrategy(new MyParentChildInterceptStrategy());
+            public void configure() {
+                context.getCamelContextExtension().addInterceptStrategy(new MyParentChildInterceptStrategy());
 
                 from("direct:start").routeId("route").to("mock:a").id("task-a").choice().id("choice")
                         .when(simple("${body} contains 'Camel'")).id("when").to("mock:b").id("task-b")
@@ -82,8 +81,7 @@ public class ParentChildInterceptStrategyTest extends ContextTestSupport {
 
         @Override
         public Processor wrapProcessorInInterceptors(
-                final CamelContext context, final NamedNode node, final Processor target, final Processor nextTarget)
-                throws Exception {
+                final CamelContext context, final NamedNode node, final Processor target, final Processor nextTarget) {
             ProcessorDefinition<?> definition = (ProcessorDefinition<?>) node;
             String targetId = definition.hasCustomIdAssigned() ? definition.getId() : definition.getLabel();
             ProcessorDefinition<?> parent = definition.getParent();

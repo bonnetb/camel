@@ -30,16 +30,19 @@
     <bean id="otherToXOrder" class="org.apache.camel.processor.transformer.TransformerRouteTest$OtherToXOrderTransformer"/>
     <bean id="xOrderResponseToOther" class="org.apache.camel.processor.transformer.TransformerRouteTest$XOrderResponseToOtherTransformer"/>
     <bean id="myMyDataTypeFormatDef" class="org.apache.camel.processor.transformer.TransformerRouteTest$MyDataFormatDefinition"/>
-    
+
     <camelContext xmlns="http://camel.apache.org/schema/spring">
-    
+    <jmxAgent id="jmx" disabled="true"/>
+
         <endpoint id="myXmlEndpoint" uri="direct:endpointXmlTransformer"/>
 
         <transformers>
+            <loadTransformer defaults="true"/>
+            <loadTransformer packageScan="org.apache.camel.processor.transformer.custom"/>
             <dataFormatTransformer scheme="json">
                 <custom ref="myJsonDataFormatDef"/>
             </dataFormatTransformer>
-            <dataFormatTransformer scheme="myDataType">
+            <dataFormatTransformer name="myDataType">
                 <custom ref="myMyDataTypeFormatDef"/>
             </dataFormatTransformer>
             <endpointTransformer ref="myXmlEndpoint" fromType="xml:XmlXOrder" toType="java:org.apache.camel.processor.transformer.TransformerRouteTest$XOrder"/>
@@ -59,7 +62,7 @@
                 <simple>${body} not is 'org.apache.camel.processor.transformer.TransformerRouteTest\\$AOrder'</simple>
                 <throwException exceptionType="java.lang.Exception" message="expected AOrder object but was '${body}'"/>
             </when>
-            <inOut uri="direct:xyz"/>
+            <to uri="direct:xyz" pattern="InOut"/>
             <to uri="mock:abcresult"/>
         </route>
 
@@ -74,31 +77,31 @@
             <setBody><constant>response</constant></setBody>
             <to uri="mock:xyzresult"/>
         </route>
-        
+
         <route>
             <from uri="direct:dataFormat"/>
             <inputType urn="json:JsonXOrder"/>
             <outputType urn="json:JsonXOrderResponse"/>
-            <inOut uri="direct:xyz"/>
+            <to uri="direct:xyz" pattern="InOut"/>
         </route>
-        
+
         <route>
             <from uri="direct:endpoint"/>
             <inputType urn="xml:XmlXOrder"/>
             <outputType urn="xml:XmlXOrderResponse"/>
-            <inOut uri="direct:xyz"/>
+            <to uri="direct:xyz" pattern="InOut"/>
         </route>
-        
+
         <route>
             <from uri="direct:endpointXmlTransformer"/>
             <process ref="myXmlProcessor"/>
         </route>
-        
+
         <route>
             <from uri="direct:custom"/>
             <inputType urn="other:OtherXOrder"/>
             <outputType urn="other:OtherXOrderResponse"/>
-            <inOut uri="direct:xyz"/>
+            <to uri="direct:xyz" pattern="InOut"/>
         </route>
 
         <route>
@@ -114,5 +117,5 @@
         </route>
 
     </camelContext>
-  
+
 </beans>

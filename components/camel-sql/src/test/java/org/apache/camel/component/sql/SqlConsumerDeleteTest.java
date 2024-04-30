@@ -46,7 +46,7 @@ public class SqlConsumerDeleteTest extends CamelTestSupport {
     public void setUp() throws Exception {
         db = new EmbeddedDatabaseBuilder()
                 .setName(getClass().getSimpleName())
-                .setType(EmbeddedDatabaseType.DERBY)
+                .setType(EmbeddedDatabaseType.H2)
                 .addScript("sql/createAndPopulateDatabase.sql").build();
 
         jdbcTemplate = new JdbcTemplate(db);
@@ -59,7 +59,9 @@ public class SqlConsumerDeleteTest extends CamelTestSupport {
     public void tearDown() throws Exception {
         super.tearDown();
 
-        db.shutdown();
+        if (db != null) {
+            db.shutdown();
+        }
     }
 
     @Test
@@ -67,7 +69,7 @@ public class SqlConsumerDeleteTest extends CamelTestSupport {
         MockEndpoint mock = getMockEndpoint("mock:result");
         mock.expectedMessageCount(3);
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
 
         List<Exchange> exchanges = mock.getReceivedExchanges();
         assertEquals(3, exchanges.size());

@@ -33,7 +33,6 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.RuntimeCamelException;
 import org.apache.camel.api.management.ManagedAttribute;
 import org.apache.camel.api.management.ManagedResource;
@@ -61,14 +60,15 @@ public class FileWatcherResourceReloadStrategy extends ResourceReloadStrategySup
 
     private static final Logger LOG = LoggerFactory.getLogger(FileWatcherResourceReloadStrategy.class);
 
-    private String folder;
-    private boolean isRecursive;
-    private WatchService watcher;
-    private ExecutorService executorService;
-    private WatchFileChangesTask task;
-    private Map<WatchKey, Path> folderKeys;
-    private long pollTimeout = 2000;
-    private FileFilter fileFilter;
+    WatchService watcher;
+    ExecutorService executorService;
+    WatchFileChangesTask task;
+    Map<WatchKey, Path> folderKeys;
+    FileFilter fileFilter;
+    String folder;
+    boolean isRecursive;
+    boolean scheduler = true;
+    long pollTimeout = 2000;
 
     public FileWatcherResourceReloadStrategy() {
         setRecursive(false);
@@ -94,6 +94,10 @@ public class FileWatcherResourceReloadStrategy extends ResourceReloadStrategySup
 
     public void setRecursive(boolean isRecursive) {
         this.isRecursive = isRecursive;
+    }
+
+    public void setScheduler(boolean scheduler) {
+        this.scheduler = scheduler;
     }
 
     /**
@@ -130,6 +134,11 @@ public class FileWatcherResourceReloadStrategy extends ResourceReloadStrategySup
     }
 
     @Override
+    public void onReload(Object source) {
+        // this implementation uses a watcher to automatic reload
+    }
+
+    @Override
     protected void doStart() throws Exception {
         super.doStart();
 
@@ -137,10 +146,17 @@ public class FileWatcherResourceReloadStrategy extends ResourceReloadStrategySup
             // no folder configured
             return;
         }
+        if (!scheduler) {
+            // do not start scheduler so exit start phase
+            return;
+        }
 
         File dir = new File(folder);
         if (dir.exists() && dir.isDirectory()) {
-            LOG.info("Starting ReloadStrategy to watch directory: {}", dir);
+            String msg = startupMessage(dir);
+            if (msg != null) {
+                LOG.info(msg);
+            }
 
             WatchEvent.Modifier modifier = null;
 
@@ -160,7 +176,7 @@ public class FileWatcherResourceReloadStrategy extends ResourceReloadStrategySup
                     }
                 }
                 if (modifier != null) {
-                    LOG.info(
+                    LOG.debug(
                             "On Mac OS X the JDK WatchService is slow by default so enabling SensitivityWatchEventModifier.HIGH as workaround");
                 } else {
                     LOG.warn(
@@ -190,6 +206,10 @@ public class FileWatcherResourceReloadStrategy extends ResourceReloadStrategySup
         }
     }
 
+    protected String startupMessage(File dir) {
+        return "Starting ReloadStrategy to watch directory: " + dir;
+    }
+
     private WatchKey registerPathToWatcher(WatchEvent.Modifier modifier, Path path, WatchService watcher) throws IOException {
         WatchKey key;
         if (modifier != null) {
@@ -202,7 +222,7 @@ public class FileWatcherResourceReloadStrategy extends ResourceReloadStrategySup
 
     private void registerRecursive(final WatchService watcher, final Path root, final WatchEvent.Modifier modifier)
             throws IOException {
-        Files.walkFileTree(root, new SimpleFileVisitor<Path>() {
+        Files.walkFileTree(root, new SimpleFileVisitor<>() {
             @Override
             public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
                 WatchKey key = registerPathToWatcher(modifier, dir, watcher);
@@ -257,6 +277,8 @@ public class FileWatcherResourceReloadStrategy extends ResourceReloadStrategySup
                     // wait for a key to be available
                     key = watcher.poll(pollTimeout, TimeUnit.MILLISECONDS);
                 } catch (InterruptedException ex) {
+                    LOG.info("Interrupted while polling for file changes");
+                    Thread.currentThread().interrupt();
                     break;
                 }
 
@@ -272,22 +294,26 @@ public class FileWatcherResourceReloadStrategy extends ResourceReloadStrategySup
                         WatchEvent<Path> we = (WatchEvent<Path>) event;
                         Path path = we.context();
                         File file = pathToReload.resolve(path).toFile();
+                        LOG.trace("File watch-event: {} on file: {}", we, file);
+                        if (file.isDirectory()) {
+                            continue;
+                        }
+
                         String name = FileUtil.compactPath(file.getPath());
                         LOG.debug("Detected Modified/Created file: {}", name);
                         boolean accept = fileFilter == null || fileFilter.accept(file);
                         if (accept) {
                             LOG.debug("Accepted Modified/Created file: {}", name);
                             try {
-                                ExtendedCamelContext ecc = getCamelContext().adapt(ExtendedCamelContext.class);
                                 // must use file resource loader as we cannot load from classpath
-                                Resource resource = ecc.getResourceLoader().resolveResource("file:" + name);
+                                Resource resource
+                                        = PluginHelper.getResourceLoader(getCamelContext()).resolveResource("file:" + name);
                                 getResourceReload().onReload(name, resource);
                                 incSucceededCounter();
                             } catch (Exception e) {
                                 incFailedCounter();
-                                LOG.warn("Error reloading routes from file: " + name + " due " + e.getMessage()
-                                         + ". This exception is ignored.",
-                                        e);
+                                LOG.warn("Error reloading routes from file: {} due to {}. This exception is ignored.", name,
+                                        e.getMessage(), e);
                             }
                         }
                     }

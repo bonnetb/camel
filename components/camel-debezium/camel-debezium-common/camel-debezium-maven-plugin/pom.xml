@@ -24,14 +24,14 @@
     <parent>
         <groupId>org.apache.camel</groupId>
         <artifactId>camel-debezium-common-parent</artifactId>
-        <version>3.17.0-SNAPSHOT</version>
+        <version>4.6.0-SNAPSHOT</version>
     </parent>
 
     <groupId>org.apache.camel.maven</groupId>
     <artifactId>camel-debezium-maven-plugin</artifactId>
     <packaging>maven-plugin</packaging>
-    <name>Camel :: Debezium :: Maven plugin</name>
-    <description>Camel Debezium Maven plugin</description>
+    <name>Camel :: Debezium :: Maven Plugin</name>
+    <description>Camel Debezium Maven Plugin</description>
 
     <properties>
         <firstVersion>3.0.0</firstVersion>
@@ -100,23 +100,6 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.camel</groupId>
-                <artifactId>camel-bundle-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <phase>none</phase>
-                    </execution>
-                    <execution>
-                        <id>versions</id>
-                        <phase>none</phase>
-                    </execution>
-                    <execution>
-                        <id>bundle-manifest</id>
-                        <phase>none</phase>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.camel</groupId>
                 <artifactId>camel-package-maven-plugin</artifactId>
                 <executions>
                     <execution>
@@ -130,6 +113,30 @@
                     <execution>
                         <id>readme</id>
                         <phase>none</phase>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-plugin-plugin</artifactId>
+                <configuration>
+                    <goalPrefix>camel-debezium</goalPrefix>
+                    <!-- see http://jira.codehaus.org/browse/MNG-5346 -->
+                    <skipErrorNoDescriptorsFound>true</skipErrorNoDescriptorsFound>
+                    <mojoDependencies />
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>mojo-descriptor</id>
+                        <goals>
+                            <goal>descriptor</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>help-goal</id>
+                        <goals>
+                            <goal>helpmojo</goal>
+                        </goals>
                     </execution>
                 </executions>
             </plugin>

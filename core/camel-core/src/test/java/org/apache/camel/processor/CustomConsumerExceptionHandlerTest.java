@@ -33,8 +33,8 @@ public class CustomConsumerExceptionHandlerTest extends ContextTestSupport {
     private static final CountDownLatch LATCH = new CountDownLatch(1);
 
     @Override
-    protected Registry createRegistry() throws Exception {
-        Registry jndi = super.createRegistry();
+    protected Registry createCamelRegistry() throws Exception {
+        Registry jndi = super.createCamelRegistry();
         jndi.bind("myHandler", new MyExceptionHandler());
         return jndi;
     }
@@ -53,10 +53,10 @@ public class CustomConsumerExceptionHandlerTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("seda:foo?exceptionHandler=#myHandler").routeId("foo").to("mock:foo").to("direct:bar")
                         .to("mock:result");
 
@@ -67,7 +67,7 @@ public class CustomConsumerExceptionHandlerTest extends ContextTestSupport {
         };
     }
 
-    private final class MyExceptionHandler implements ExceptionHandler {
+    private static final class MyExceptionHandler implements ExceptionHandler {
 
         @Override
         public void handleException(Throwable exception) {

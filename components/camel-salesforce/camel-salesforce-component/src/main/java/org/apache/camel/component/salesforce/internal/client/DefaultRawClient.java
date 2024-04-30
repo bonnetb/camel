@@ -28,11 +28,10 @@ import org.apache.camel.component.salesforce.api.SalesforceException;
 import org.apache.camel.component.salesforce.internal.PayloadFormat;
 import org.apache.camel.component.salesforce.internal.SalesforceSession;
 import org.apache.commons.io.IOUtils;
-import org.eclipse.jetty.client.api.Request;
-import org.eclipse.jetty.client.api.Response;
-import org.eclipse.jetty.client.util.InputStreamContentProvider;
+import org.eclipse.jetty.client.InputStreamRequestContent;
+import org.eclipse.jetty.client.Request;
+import org.eclipse.jetty.client.Response;
 import org.eclipse.jetty.http.HttpHeader;
-import org.eclipse.jetty.util.StringUtil;
 
 public class DefaultRawClient extends AbstractClientBase implements RawClient {
 
@@ -49,8 +48,8 @@ public class DefaultRawClient extends AbstractClientBase implements RawClient {
     @Override
     protected void setAccessToken(Request request) {
         // replace old token
-        request.getHeaders().put(BULK_TOKEN_HEADER, accessToken);
-        request.getHeaders().put(REST_TOKEN_HEADER, TOKEN_PREFIX + accessToken);
+        request.headers(h -> h.add(BULK_TOKEN_HEADER, accessToken));
+        request.headers(h -> h.add(REST_TOKEN_HEADER, TOKEN_PREFIX + accessToken));
     }
 
     @Override
@@ -66,7 +65,7 @@ public class DefaultRawClient extends AbstractClientBase implements RawClient {
 
     /**
      * Make a raw HTTP request to salesforce
-     * 
+     *
      * @param method   HTTP method. "GET", "POST", etc.
      * @param path     The path of the URL. Must begin with a "/"
      * @param format   Encoding format
@@ -81,14 +80,14 @@ public class DefaultRawClient extends AbstractClientBase implements RawClient {
         final Request request = getRequest(method, instanceUrl + path, headers);
         final String contentType = PayloadFormat.JSON.equals(format) ? APPLICATION_JSON_UTF8 : APPLICATION_XML_UTF8;
         if (!request.getHeaders().contains(HttpHeader.ACCEPT)) {
-            request.header(HttpHeader.ACCEPT, contentType);
+            request.headers(h -> h.add(HttpHeader.ACCEPT, contentType));
         }
-        request.header(HttpHeader.ACCEPT_CHARSET, StringUtil.__UTF8);
+        request.headers(h -> h.add(HttpHeader.ACCEPT_CHARSET, StandardCharsets.UTF_8.name()));
         if (!request.getHeaders().contains(HttpHeader.CONTENT_TYPE)) {
-            request.header(HttpHeader.CONTENT_TYPE, contentType);
+            request.headers(h -> h.add(HttpHeader.CONTENT_TYPE, contentType));
         }
         if (body != null) {
-            request.content(new InputStreamContentProvider(body));
+            request.body(new InputStreamRequestContent(body));
         }
         setAccessToken(request);
         doHttpRequest(request, new DelegatingClientCallback(callback));

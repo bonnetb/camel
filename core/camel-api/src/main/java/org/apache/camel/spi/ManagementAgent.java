@@ -20,6 +20,7 @@ import javax.management.JMException;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 
+import org.apache.camel.ManagementMBeansLevel;
 import org.apache.camel.ManagementStatisticsLevel;
 import org.apache.camel.Service;
 
@@ -71,7 +72,7 @@ public interface ManagementAgent extends Service {
      *
      * @param  name  the mbean name
      * @param  mbean the client interface, such as from the {@link org.apache.camel.api.management.mbean} package.
-     * @return       the client or <tt>null</tt> if mbean does not exists
+     * @return       the client or <tt>null</tt> if mbean does not exist
      */
     <T> T newProxyClient(ObjectName name, Class<T> mbean);
 
@@ -199,6 +200,34 @@ public interface ManagementAgent extends Service {
     void setRegisterNewRoutes(Boolean registerNewRoutes);
 
     /**
+     * Whether to register mbeans for routes created by a Kamelet
+     * <p/>
+     * This option is default <tt>false</tt>.
+     */
+    Boolean getRegisterRoutesCreateByKamelet();
+
+    /**
+     * Whether to register mbeans for routes created by a Kamelet
+     * <p/>
+     * This option is default <tt>false</tt>.
+     */
+    void setRegisterRoutesCreateByKamelet(Boolean registerRoutesCreateByKamelet);
+
+    /**
+     * Whether to register mbeans for routes created by a route templates (not Kamelets)
+     * <p/>
+     * This option is default <tt>true</tt>.
+     */
+    Boolean getRegisterRoutesCreateByTemplate();
+
+    /**
+     * Whether to register mbeans for routes created by a route templates (not Kamelets)
+     * <p/>
+     * This option is default <tt>true</tt>.
+     */
+    void setRegisterRoutesCreateByTemplate(Boolean registerRoutesCreateByTemplate);
+
+    /**
      * Whether to remove detected sensitive information (such as passwords) from MBean names and attributes.
      * <p/>
      * This option is default <tt>false</tt>.
@@ -295,6 +324,23 @@ public interface ManagementAgent extends Service {
     ManagementStatisticsLevel getStatisticsLevel();
 
     /**
+     * Sets the mbeans registration level
+     * <p/>
+     * Default is {@link org.apache.camel.ManagementMBeansLevel#Default}
+     * <p/>
+     *
+     * @param level the new level
+     */
+    void setMBeansLevel(ManagementMBeansLevel level);
+
+    /**
+     * § Gets the mbeans registration level
+     *
+     * @return the level
+     */
+    ManagementMBeansLevel getMBeansLevel();
+
+    /**
      * Gets whether host IP Address to be used instead of host name.
      *
      * @return <tt>true</tt> if included
@@ -303,9 +349,19 @@ public interface ManagementAgent extends Service {
 
     /**
      * Sets whether to use host IP Address
-     * 
+     *
      * @param useHostIPAddress <tt>true</tt> to use IP Address.
      */
     void setUseHostIPAddress(Boolean useHostIPAddress);
+
+    /**
+     * Gets whether updating routes via JMX is allowed (is default disabled).
+     */
+    Boolean getUpdateRouteEnabled();
+
+    /**
+     * Sets whether updating routes via JMX is allowed (is default disabled).
+     */
+    void setUpdateRouteEnabled(Boolean updateRouteEnabled);
 
 }

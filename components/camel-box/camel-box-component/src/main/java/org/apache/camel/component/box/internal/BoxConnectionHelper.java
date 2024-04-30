@@ -36,7 +36,7 @@ import com.box.sdk.InMemoryLRUAccessTokenCache;
 import com.box.sdk.JWTEncryptionPreferences;
 import org.apache.camel.RuntimeCamelException;
 import org.apache.camel.component.box.BoxConfiguration;
-import org.apache.http.HttpHost;
+import org.apache.hc.core5.http.HttpHost;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -119,8 +119,7 @@ public final class BoxConnectionHelper {
             passwordField.val(configuration.getUserPassword());
 
             //submit loginPage
-            final Map<String, String> cookies = new HashMap<>();
-            cookies.putAll(loginPageResponse.cookies());
+            final Map<String, String> cookies = new HashMap<>(loginPageResponse.cookies());
 
             Connection.Response response = addProxy(loginForm.submit(), proxy)
                     .cookies(cookies)
@@ -139,16 +138,16 @@ public final class BoxConnectionHelper {
             //parse request_token from javascript from head, it is the first script in the header
             final String requestTokenScript = consentPage.select("script").first().html();
             final Matcher m = Pattern.compile("var\\s+request_token\\s+=\\s+'([^'].+)'.*").matcher(requestTokenScript);
+            String requestToken = "";
             if (m.find()) {
-                final String requestToken = m.group(1);
-                response = addProxy(consentForm.submit(), proxy)
-                        .data("request_token", requestToken)
-                        .followRedirects(false)
-                        .cookies(cookies)
-                        .execute();
-            } else {
-                throw new IllegalArgumentException("Error authorizing application: Can not parse request token.");
+                requestToken = m.group(1);
             }
+            response = addProxy(consentForm.submit(), proxy)
+                    .data("request_token", requestToken)
+                    .followRedirects(false)
+                    .cookies(cookies)
+                    .execute();
+
             final String location = response.header("Location");
 
             final Map<String, String> params = new HashMap<>();
@@ -246,7 +245,7 @@ public final class BoxConnectionHelper {
         }
 
         try {
-            return BoxDeveloperEditionAPIConnection.getAppUserConnection(configuration.getUserId(),
+            return BoxDeveloperEditionAPIConnection.getUserConnection(configuration.getUserId(),
                     configuration.getClientId(), configuration.getClientSecret(), encryptionPref, accessTokenCache);
         } catch (BoxAPIException e) {
             throw new RuntimeCamelException(

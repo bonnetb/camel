@@ -43,11 +43,6 @@ public class FunctionGraphProducer extends DefaultProducer {
         this.endpoint = endpoint;
     }
 
-    @Override
-    protected void doStart() throws Exception {
-        super.doStart();
-    }
-
     public void process(Exchange exchange) throws Exception {
         ClientConfigurations clientConfigurations = new ClientConfigurations(endpoint);
 
@@ -71,7 +66,7 @@ public class FunctionGraphProducer extends DefaultProducer {
 
     /**
      * Perform invoke function operation and map return object to exchange body
-     * 
+     *
      * @param exchange
      * @param clientConfigurations
      */
@@ -123,7 +118,7 @@ public class FunctionGraphProducer extends DefaultProducer {
      * Update dynamic client configurations. Some endpoint parameters (operation, function name, package, and
      * XCFFLogType) can also be passed via exchange properties, so they can be updated between each transaction. Since
      * they can change, we must clear the previous transaction and update these parameters with their new values
-     * 
+     *
      * @param exchange
      * @param clientConfigurations
      */

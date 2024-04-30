@@ -21,7 +21,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.CamelContextAware;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.NamedNode;
 import org.apache.camel.impl.event.DefaultEventFactory;
 import org.apache.camel.spi.CamelEvent;
@@ -87,9 +86,11 @@ public class DefaultManagementStrategy extends ServiceSupport implements Managem
             this.startedEventNotifiers.add(eventNotifier);
         }
         if (getCamelContext() != null) {
+            // inject camel context if needed
+            CamelContextAware.trySetCamelContext(eventNotifier, getCamelContext());
             // okay we have an event notifier that accepts exchange events so its applicable
             if (!eventNotifier.isIgnoreExchangeEvents()) {
-                getCamelContext().adapt(ExtendedCamelContext.class).setEventNotificationApplicable(true);
+                getCamelContext().getCamelContextExtension().setEventNotificationApplicable(true);
             }
         }
     }
@@ -192,7 +193,7 @@ public class DefaultManagementStrategy extends ServiceSupport implements Managem
     protected void doInit() throws Exception {
         ObjectHelper.notNull(getCamelContext(), "CamelContext", this);
         if (!getEventNotifiers().isEmpty()) {
-            getCamelContext().adapt(ExtendedCamelContext.class).setEventNotificationApplicable(true);
+            getCamelContext().getCamelContextExtension().setEventNotificationApplicable(true);
         }
         for (EventNotifier notifier : eventNotifiers) {
             // inject CamelContext if the service is aware

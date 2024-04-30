@@ -19,11 +19,11 @@ package org.apache.camel.dsl.js;
 import java.util.function.Consumer;
 
 import org.apache.camel.CamelContext;
+import org.apache.camel.ErrorHandlerFactory;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.camel.builder.BuilderSupport;
 import org.apache.camel.builder.EndpointConsumerBuilder;
-import org.apache.camel.builder.ErrorHandlerBuilder;
 import org.apache.camel.builder.endpoint.EndpointBuilderFactory;
 import org.apache.camel.builder.endpoint.EndpointRouteBuilder;
 import org.apache.camel.model.InterceptDefinition;
@@ -36,6 +36,7 @@ import org.apache.camel.model.rest.RestConfigurationDefinition;
 import org.apache.camel.model.rest.RestDefinition;
 import org.apache.camel.spi.Registry;
 
+@Deprecated
 public class JavaScriptDSL extends BuilderSupport implements EndpointBuilderFactory {
     public final Registry registry;
     public final EndpointRouteBuilder builder;
@@ -89,7 +90,7 @@ public class JavaScriptDSL extends BuilderSupport implements EndpointBuilderFact
         return builder.interceptSendToEndpoint(uri);
     }
 
-    public void errorHandler(ErrorHandlerBuilder handler) {
+    public void errorHandler(ErrorHandlerFactory handler) {
         builder.errorHandler(handler);
     }
 

@@ -24,6 +24,7 @@ import org.apache.camel.Exchange;
 import org.apache.camel.Message;
 import org.apache.camel.support.DefaultProducer;
 import org.apache.camel.support.task.BlockingTask;
+import org.apache.camel.util.ObjectHelper;
 import org.jsmpp.DefaultPDUReader;
 import org.jsmpp.DefaultPDUSender;
 import org.jsmpp.SynchronizedPDUSender;
@@ -70,8 +71,10 @@ public class SmppProducer extends DefaultProducer {
                 configuration.getSessionStateListener().onStateChange(newState, oldState, source);
             }
 
-            if (newState.equals(SessionState.CLOSED)) {
-                LOG.warn("Lost connection to: {} - trying to reconnect...", getEndpoint().getConnectionString());
+            if (newState.equals(SessionState.UNBOUND) || newState.equals(SessionState.CLOSED)) {
+                LOG.warn(newState.equals(SessionState.UNBOUND)
+                        ? "Session to {} was unbound - trying to reconnect" : "Lost connection to: {} - trying to reconnect...",
+                        getEndpoint().getConnectionString());
                 closeSession();
                 reconnect(configuration.getInitialReconnectDelay());
             }
@@ -96,7 +99,7 @@ public class SmppProducer extends DefaultProducer {
         }
     }
 
-    private SMPPSession createSession() throws IOException {
+    private SMPPSession createSession() throws Exception {
         LOG.debug("Connecting to: {}...", getEndpoint().getConnectionString());
 
         SMPPSession session = createSMPPSession();
@@ -105,17 +108,25 @@ public class SmppProducer extends DefaultProducer {
         session.setPduProcessorDegree(this.configuration.getPduProcessorDegree());
         session.setQueueCapacity(this.configuration.getPduProcessorQueueCapacity());
         session.addSessionStateListener(internalSessionStateListener);
+        BindType bindType = BindType.BIND_TX;
+        if (ObjectHelper.isNotEmpty(this.configuration.getMessageReceiverRouteId())) {
+            session.setMessageReceiverListener(new MessageReceiverListenerImpl(
+                    getEndpoint(),
+                    this.configuration.getMessageReceiverRouteId()));
+            bindType = BindType.BIND_TRX;
+        }
         session.connectAndBind(
                 this.configuration.getHost(),
                 this.configuration.getPort(),
                 new BindParameter(
-                        BindType.BIND_TX,
+                        bindType,
                         this.configuration.getSystemId(),
                         this.configuration.getPassword(),
                         this.configuration.getSystemType(),
                         TypeOfNumber.valueOf(configuration.getTypeOfNumber()),
                         NumberingPlanIndicator.valueOf(configuration.getNumberingPlanIndicator()),
-                        ""));
+                        "",
+                        configuration.getInterfaceVersionByte()));
 
         LOG.info("Connected to: {}", getEndpoint().getConnectionString());
 
@@ -124,7 +135,7 @@ public class SmppProducer extends DefaultProducer {
 
     /**
      * Factory method to easily instantiate a mock SMPPSession
-     * 
+     *
      * @return the SMPPSession
      */
     SMPPSession createSMPPSession() {
@@ -164,7 +175,7 @@ public class SmppProducer extends DefaultProducer {
             }
         }
 
-        // only possible by trying to reconnect 
+        // only possible by trying to reconnect
         if (this.session == null) {
             throw new IOException("Lost connection to " + getEndpoint().getConnectionString() + " and yet not reconnected");
         }
@@ -235,7 +246,7 @@ public class SmppProducer extends DefaultProducer {
 
             session = createSession();
             return true;
-        } catch (IOException e) {
+        } catch (Exception e) {
             LOG.warn("Failed to reconnect to {}", getEndpoint().getConnectionString());
             closeSession();
 
@@ -250,7 +261,7 @@ public class SmppProducer extends DefaultProducer {
 
     /**
      * Returns the smppConfiguration for this producer
-     * 
+     *
      * @return the configuration
      */
     public SmppConfiguration getConfiguration() {

@@ -36,13 +36,13 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 public class FileExclusiveReadNoneStrategyTest extends ContextTestSupport {
 
     private static final Logger LOG = LoggerFactory.getLogger(FileExclusiveReadNoneStrategyTest.class);
-    private String fileUrl = fileUri("slowfile?noop=true&initialDelay=0&delay=10&readLock=none");
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
+        String fileUrl = fileUri("slowfile?noop=true&initialDelay=0&delay=10&readLock=none");
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("seda:start").process(new MySlowFileProcessor());
                 from(fileUrl + "&readLockTimeout=500").to("mock:result");
             }
@@ -61,7 +61,7 @@ public class FileExclusiveReadNoneStrategyTest extends ContextTestSupport {
         mock.assertIsSatisfied();
 
         String body = mock.getReceivedExchanges().get(0).getIn().getBody(String.class);
-        LOG.debug("Body is: " + body);
+        LOG.debug("Body is: {}", body);
         assertFalse(body.endsWith("Bye World"), "Should not wait and read the entire file");
     }
 

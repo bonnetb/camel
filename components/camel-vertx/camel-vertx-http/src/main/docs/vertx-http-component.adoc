@@ -5,6 +5,7 @@
 :description: Send requests to external HTTP servers using Vert.x
 :since: 3.5
 :supportlevel: Stable
+:tabs-sync-option:
 :component-header: Only producer is supported
 //Manually maintained attributes
 :camel-spring-boot-name: vertx-http
@@ -13,7 +14,7 @@
 
 *{component-header}*
 
-The http://vertx.io/[Vert.x] HTTP component provides the capability to produce messages to HTTP endpoints via the https://vertx.io/docs/vertx-web-client/java/[Vert.x Web Client].
+The https://vertx.io/[Vert.x] HTTP component provides the capability to produce messages to HTTP endpoints via the https://vertx.io/docs/vertx-web-client/java/[Vert.x Web Client].
 
 Maven users will need to add the following dependency to their `pom.xml`
 for this component:
@@ -49,34 +50,9 @@ include::partial$component-endpoint-options.adoc[]
 
 // endpoint options: END
 
-
-== Message Headers
-
-[width="100%",cols="10%,20%,70%",options="header",]
-|=======================================================================
-|Name |Type |Description
-
-|`Exchange.HTTP_URI` |`String` |URI to call. Will override the existing URI set directly on the endpoint.
-This URI is the URI of the http server to call. Its not the same as the
-Camel endpoint URI, where you can configure endpoint options such as
-security etc. This header does not support that, its only the URI of the
-http server.
-
-|`Exchange.HTTP_PATH` |`String` |Request URI's path, the header will be used to build the request URI
-with the HTTP_URI.
-
-|`Exchange.HTTP_QUERY` |`String` |URI parameters. Will override existing URI parameters set directly on
-the endpoint.
-
-|`Exchange.HTTP_RESPONSE_CODE` |`int` |The HTTP response code from the external server.
-
-|`Exchange.HTTP_RESPONSE_TEXT` | `String` |The HTTP response text from the external server.
-
-|`Exchange.CONTENT_TYPE` |`String` |The HTTP content type. Is set on both the IN and OUT message to provide
-a content type, such as `text/html`.
-
-|`Exchange.CONTENT_ENCODING` |`String` |The HTTP content encoding. Is set to provide a content encoding, such as `gzip`.
-|=======================================================================
+// component headers: START
+include::partial$component-endpoint-headers.adoc[]
+// component headers: END
 
 == Usage
 The following example shows how to send a request to an HTTP endpoint.
@@ -97,7 +73,7 @@ URI, or as a header with the key `Exchange.HTTP_QUERY` on the message.
 
 == Response code
 
-Camel will handle according to the HTTP response code:
+Camel will handle, according to the HTTP response code:
 
 * Response code is in the range 100..299, Camel regards it as a success
 response.
@@ -119,7 +95,7 @@ codes. This allows you to get any response from the remote server.
 
 * The HTTP status code
 * The HTTP status line (text of the status code)
-* Redirect location, if server returned a redirect
+* Redirect location if server returned a redirect
 * Response body as a `java.lang.String`, if server provided a body as
 response
 
@@ -158,7 +134,7 @@ WebClientOptions options = new WebClientOptions().setMaxRedirects(5)
     .setIdleTimeout(10)
     .setConnectTimeout(3);
 
-camelContext.getRegistry.bind("clinetOptions", options);
+camelContext.getRegistry.bind("clientOptions", options);
 ---------------------------
 
 Then reference the options on the `vertx-http` producer.
@@ -166,7 +142,7 @@ Then reference the options on the `vertx-http` producer.
 [source,java]
 ---------------------------
 from("direct:start")
-    .to("vertx-http:http://localhost:8080?webClientOptions=#options")
+    .to("vertx-http:http://localhost:8080?webClientOptions=#clientOptions")
 ---------------------------
 
 == SSL

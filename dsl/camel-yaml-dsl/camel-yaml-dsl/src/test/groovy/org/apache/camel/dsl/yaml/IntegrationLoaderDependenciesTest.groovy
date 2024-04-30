@@ -21,7 +21,7 @@ import org.apache.camel.spi.DependencyStrategy
 
 class IntegrationLoaderDependenciesTest extends YamlTestSupport {
 
-    var List<String> deps = new ArrayList<>()
+    var Set<String> deps = new LinkedHashSet<>()
 
     @Override
     def doSetup() {
@@ -45,7 +45,7 @@ class IntegrationLoaderDependenciesTest extends YamlTestSupport {
                 spec:
                   dependencies:
                     - "mvn:org.apache.commons:commons-dbcp2:2.9.0"
-                    - "mvn:org.postgresql:postgresql:42.3.3"
+                    - "mvn:org.postgresql:postgresql:42.6.0"
                   flows:
                     - from:
                         uri: "sql:SELECT * FROM table1"
@@ -76,7 +76,7 @@ class IntegrationLoaderDependenciesTest extends YamlTestSupport {
 
             deps.size() == 2
             deps[0] == 'mvn:org.apache.commons:commons-dbcp2:2.9.0'
-            deps[1] == 'mvn:org.postgresql:postgresql:42.3.3'
+            deps[1] == 'mvn:org.postgresql:postgresql:42.6.0'
     }
 
 }

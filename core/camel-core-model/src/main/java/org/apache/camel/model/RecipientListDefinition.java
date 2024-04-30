@@ -18,11 +18,11 @@ package org.apache.camel.model;
 
 import java.util.concurrent.ExecutorService;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
 
 import org.apache.camel.AggregationStrategy;
 import org.apache.camel.Expression;
@@ -65,6 +65,9 @@ public class RecipientListDefinition<Type extends ProcessorDefinition<Type>> ext
     @XmlAttribute
     @Metadata(javaType = "java.lang.Boolean")
     private String parallelProcessing;
+    @XmlAttribute
+    @Metadata(javaType = "java.lang.Boolean")
+    private String synchronous;
     @XmlAttribute
     @Metadata(javaType = "java.time.Duration", defaultValue = "0")
     private String timeout;
@@ -197,6 +200,10 @@ public class RecipientListDefinition<Type extends ProcessorDefinition<Type>> ext
      * until all messages has been fully processed, before it continues. Its only the sending and processing the replies
      * from the recipients which happens concurrently.
      *
+     * When parallel processing is enabled, then the Camel routing engin will continue processing using last used thread
+     * from the parallel thread pool. However, if you want to use the original thread that called the recipient list,
+     * then make sure to enable the synchronous option as well.
+     *
      * @return the builder
      */
     public RecipientListDefinition<Type> parallelProcessing() {
@@ -209,11 +216,30 @@ public class RecipientListDefinition<Type extends ProcessorDefinition<Type>> ext
      * until all messages has been fully processed, before it continues. Its only the sending and processing the replies
      * from the recipients which happens concurrently.
      *
+     * When parallel processing is enabled, then the Camel routing engin will continue processing using last used thread
+     * from the parallel thread pool. However, if you want to use the original thread that called the recipient list,
+     * then make sure to enable the synchronous option as well.
+     *
+     * @return the builder
+     */
+    public RecipientListDefinition<Type> parallelProcessing(String parallelProcessing) {
+        setParallelProcessing(parallelProcessing);
+        return this;
+    }
+
+    /**
+     * If enabled then sending messages to the recipients occurs concurrently. Note the caller thread will still wait
+     * until all messages has been fully processed, before it continues. Its only the sending and processing the replies
+     * from the recipients which happens concurrently.
+     *
+     * When parallel processing is enabled, then the Camel routing engin will continue processing using last used thread
+     * from the parallel thread pool. However, if you want to use the original thread that called the recipient list,
+     * then make sure to enable the synchronous option as well.
+     *
      * @return the builder
      */
     public RecipientListDefinition<Type> parallelProcessing(boolean parallelProcessing) {
-        setParallelProcessing(Boolean.toString(parallelProcessing));
-        return this;
+        return parallelProcessing(Boolean.toString(parallelProcessing));
     }
 
     /**
@@ -225,7 +251,63 @@ public class RecipientListDefinition<Type extends ProcessorDefinition<Type>> ext
      * @return the builder
      */
     public RecipientListDefinition<Type> parallelAggregate() {
-        setParallelAggregate(Boolean.toString(true));
+        return parallelAggregate(Boolean.toString(true));
+    }
+
+    /**
+     * If enabled then the aggregate method on AggregationStrategy can be called concurrently. Notice that this would
+     * require the implementation of AggregationStrategy to be implemented as thread-safe. By default this is false
+     * meaning that Camel synchronizes the call to the aggregate method. Though in some use-cases this can be used to
+     * archive higher performance when the AggregationStrategy is implemented as thread-safe.
+     *
+     * @return the builder
+     */
+    public RecipientListDefinition<Type> parallelAggregate(boolean parallelAggregate) {
+        setParallelAggregate(Boolean.toString(parallelAggregate));
+        return this;
+    }
+
+    /**
+     * If enabled then the aggregate method on AggregationStrategy can be called concurrently. Notice that this would
+     * require the implementation of AggregationStrategy to be implemented as thread-safe. By default this is false
+     * meaning that Camel synchronizes the call to the aggregate method. Though in some use-cases this can be used to
+     * archive higher performance when the AggregationStrategy is implemented as thread-safe.
+     *
+     * @return the builder
+     */
+    public RecipientListDefinition<Type> parallelAggregate(String parallelAggregate) {
+        setParallelAggregate(parallelAggregate);
+        return this;
+    }
+
+    /**
+     * Sets whether synchronous processing should be strictly used. When enabled then the same thread is used to
+     * continue routing after the recipient list is complete, even if parallel processing is enabled.
+     *
+     * @return the builder
+     */
+    public RecipientListDefinition<Type> synchronous() {
+        return synchronous(true);
+    }
+
+    /**
+     * Sets whether synchronous processing should be strictly used. When enabled then the same thread is used to
+     * continue routing after the recipient list is complete, even if parallel processing is enabled.
+     *
+     * @return the builder
+     */
+    public RecipientListDefinition<Type> synchronous(boolean synchronous) {
+        return synchronous(Boolean.toString(synchronous));
+    }
+
+    /**
+     * Sets whether synchronous processing should be strictly used. When enabled then the same thread is used to
+     * continue routing after the recipient list is complete, even if parallel processing is enabled.
+     *
+     * @return the builder
+     */
+    public RecipientListDefinition<Type> synchronous(String synchronous) {
+        setSynchronous(synchronous);
         return this;
     }
 
@@ -344,7 +426,7 @@ public class RecipientListDefinition<Type extends ProcessorDefinition<Type>> ext
      * producers when using this recipient list, when uris are reused.
      * <p>
      * Beware that when using dynamic endpoints then it affects how well the cache can be utilized. If each dynamic
-     * endpoint is unique then its best to turn of caching by setting this to -1, which allows Camel to not cache both
+     * endpoint is unique then its best to turn off caching by setting this to -1, which allows Camel to not cache both
      * the producers and endpoints; they are regarded as prototype scoped and will be stopped and discarded after use.
      * This reduces memory usage as otherwise producers/endpoints are stored in memory in the caches.
      * <p>
@@ -368,7 +450,7 @@ public class RecipientListDefinition<Type extends ProcessorDefinition<Type>> ext
      * producers when using this recipient list, when uris are reused.
      * <p>
      * Beware that when using dynamic endpoints then it affects how well the cache can be utilized. If each dynamic
-     * endpoint is unique then its best to turn of caching by setting this to -1, which allows Camel to not cache both
+     * endpoint is unique then its best to turn off caching by setting this to -1, which allows Camel to not cache both
      * the producers and endpoints; they are regarded as prototype scoped and will be stopped and discarded after use.
      * This reduces memory usage as otherwise producers/endpoints are stored in memory in the caches.
      * <p>
@@ -428,6 +510,14 @@ public class RecipientListDefinition<Type extends ProcessorDefinition<Type>> ext
 
     public void setParallelProcessing(String parallelProcessing) {
         this.parallelProcessing = parallelProcessing;
+    }
+
+    public String getSynchronous() {
+        return synchronous;
+    }
+
+    public void setSynchronous(String synchronous) {
+        this.synchronous = synchronous;
     }
 
     public String getIgnoreInvalidEndpoints() {

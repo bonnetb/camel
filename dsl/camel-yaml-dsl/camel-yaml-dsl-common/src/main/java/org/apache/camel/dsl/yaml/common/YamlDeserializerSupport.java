@@ -279,6 +279,13 @@ public class YamlDeserializerSupport {
         return answer;
     }
 
+    public static <T> List<T> asList(Node node, Class<T> type) throws YamlDeserializationException {
+        List<T> answer = new ArrayList<>();
+        asCollection(node, type, answer);
+
+        return answer;
+    }
+
     public static <T> Set<T> asFlatSet(Node node, Class<T> type) throws YamlDeserializationException {
         Set<T> answer = new HashSet<>();
         asFlatCollection(node, type, answer);
@@ -289,6 +296,11 @@ public class YamlDeserializerSupport {
     public static <T> void asFlatCollection(Node node, Class<T> type, Collection<T> collection)
             throws YamlDeserializationException {
         asCollection(node, type, collection, true);
+    }
+
+    public static <T> void asCollection(Node node, Class<T> type, Collection<T> collection)
+            throws YamlDeserializationException {
+        asCollection(node, type, collection, false);
     }
 
     private static <T> void asCollection(Node node, Class<T> type, Collection<T> collection, boolean flat)
@@ -374,29 +386,23 @@ public class YamlDeserializerSupport {
         return node;
     }
 
-    public static Map<String, Object> parseParameters(Block target, NodeTuple node) {
+    public static Map<String, Object> parseParameters(NodeTuple node) {
         Node value = node.getValueNode();
-        final YamlDeserializationContext dc = getDeserializationContext(value);
-        Map<String, Object> answer = asScalarMap(value);
-        return answer;
+        return asScalarMap(value);
     }
 
     public static void setSteps(Block target, Node node) {
-        final YamlDeserializationContext dc = getDeserializationContext(node);
-        boolean flow = dc.getDeserializationMode() == YamlDeserializationMode.FLOW;
-        setSteps(target, node, flow);
+        setStepsFlowMode(target, node);
     }
 
-    private static void setSteps(Block target, Node node, boolean flowMode) {
+    private static void setStepsFlowMode(Block target, Node node) {
         Block block = target;
         for (ProcessorDefinition<?> definition : asFlatList(node, ProcessorDefinition.class)) {
             block.addOutput(definition);
-
-            if (flowMode) {
-                if (definition instanceof OutputNode) {
-                    if (ObjectHelper.isEmpty(definition.getOutputs())) {
-                        block = definition;
-                    }
+            // flow mode
+            if (definition instanceof OutputNode) {
+                if (ObjectHelper.isEmpty(definition.getOutputs())) {
+                    block = definition;
                 }
             }
         }

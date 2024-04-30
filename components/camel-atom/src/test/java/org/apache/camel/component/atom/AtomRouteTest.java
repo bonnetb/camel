@@ -18,7 +18,7 @@ package org.apache.camel.component.atom;
 
 import java.util.List;
 
-import org.apache.abdera.model.Entry;
+import com.apptasticsoftware.rssreader.Item;
 import org.apache.camel.Exchange;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
@@ -41,7 +41,7 @@ public class AtomRouteTest extends CamelTestSupport {
         MockEndpoint endpoint = getMockEndpoint("mock:results");
         endpoint.expectedMessageCount(7);
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
 
         List<Exchange> list = endpoint.getReceivedExchanges();
         String[] expectedTitles = {
@@ -54,11 +54,11 @@ public class AtomRouteTest extends CamelTestSupport {
                 "ActiveMQ webinar archive available" };
         int counter = 0;
         for (Exchange exchange : list) {
-            Entry entry = exchange.getIn().getBody(Entry.class);
+            Item entry = exchange.getIn().getBody(Item.class);
             assertNotNull(entry, "No entry found for exchange: " + exchange);
 
             String expectedTitle = expectedTitles[counter];
-            String title = entry.getTitle();
+            String title = entry.getTitle().get();
             assertEquals(expectedTitle, title, "Title of message " + counter);
 
             LOG.debug("<<<< {}", entry);

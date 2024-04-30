@@ -16,7 +16,7 @@
  */
 package org.apache.camel.component.sjms;
 
-import org.apache.activemq.ActiveMQConnectionFactory;
+import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
 import org.apache.camel.CamelContext;
 import org.apache.camel.Endpoint;
 import org.apache.camel.impl.DefaultCamelContext;
@@ -34,7 +34,8 @@ public class SjmsEndpointConnectionSettingsTest extends CamelTestSupport {
 
     @Test
     public void testConnectionFactory() {
-        Endpoint endpoint = context.getEndpoint("sjms:queue:test?connectionFactory=#activemq");
+        Endpoint endpoint
+                = context.getEndpoint("sjms:queue:test.SjmsEndpointConnectionSettingsTest?connectionFactory=#activemq");
         assertNotNull(endpoint);
         assertTrue(endpoint instanceof SjmsEndpoint);
         SjmsEndpoint qe = (SjmsEndpoint) endpoint;

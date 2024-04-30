@@ -80,7 +80,7 @@ public class ManagedTypeConverterRegistryTest extends ManagementTestSupport {
         failed = (Long) mbeanServer.getAttribute(name, "FailedCounter");
         assertEquals(0, failed.intValue());
         miss = (Long) mbeanServer.getAttribute(name, "MissCounter");
-        assertEquals(0, miss.intValue());
+        assertEquals(2, miss.intValue());  // stream caching misses
 
         // reset
         mbeanServer.invoke(name, "resetTypeConversionCounters", null, null);
@@ -96,7 +96,7 @@ public class ManagedTypeConverterRegistryTest extends ManagementTestSupport {
         failed = (Long) mbeanServer.getAttribute(name, "FailedCounter");
         assertEquals(1, failed.intValue());
         miss = (Long) mbeanServer.getAttribute(name, "MissCounter");
-        assertEquals(0, miss.intValue());
+        assertEquals(1, miss.intValue());  // stream caching misses
 
         // reset
         mbeanServer.invoke(name, "resetTypeConversionCounters", null, null);
@@ -126,10 +126,10 @@ public class ManagedTypeConverterRegistryTest extends ManagementTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:start").routeId("foo")
                         .convertBodyTo(int.class)
                         .to("mock:a");

@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class VertxHttpProxyServerTest extends VertxHttpTestSupport {
 
-    private int port2 = AvailablePortFinder.getNextAvailable();
+    private final int port2 = AvailablePortFinder.getNextAvailable();
 
     @Test
     public void testProxyConfiguration() {
@@ -57,10 +57,10 @@ public class VertxHttpProxyServerTest extends VertxHttpTestSupport {
     }
 
     @Override
-    protected RoutesBuilder createRouteBuilder() throws Exception {
+    protected RoutesBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from(getTestServerUri())
                         .setBody(constant("Hello Proxied World"));
 

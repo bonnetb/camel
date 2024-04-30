@@ -18,8 +18,8 @@ package org.apache.camel.http.common;
 
 import java.io.IOException;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.RuntimeCamelException;
@@ -98,7 +98,7 @@ public class HttpMessage extends DefaultMessage {
         }
 
         try {
-            return endpoint.getHttpBinding().parseBody(this);
+            return endpoint.getHttpBinding().parseBody(request, this);
         } catch (IOException e) {
             throw new RuntimeCamelException(e);
         } finally {

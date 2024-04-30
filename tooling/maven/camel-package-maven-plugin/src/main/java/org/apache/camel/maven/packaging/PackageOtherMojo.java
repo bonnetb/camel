@@ -31,7 +31,7 @@ import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.project.MavenProjectHelper;
-import org.sonatype.plexus.build.incremental.BuildContext;
+import org.codehaus.plexus.build.BuildContext;
 
 /**
  * Analyses the Camel plugins in a project and generates extra descriptor information for easier auto-discovery in
@@ -40,15 +40,9 @@ import org.sonatype.plexus.build.incremental.BuildContext;
 @Mojo(name = "generate-others-list", threadSafe = true)
 public class PackageOtherMojo extends AbstractGeneratorMojo {
 
-    /**
-     * The output directory for generated components file
-     */
     @Parameter(defaultValue = "${project.basedir}/src/generated/resources")
     protected File otherOutDir;
 
-    /**
-     * The output directory for generated languages file
-     */
     @Parameter(defaultValue = "${project.basedir}/src/generated/resources")
     protected File schemaOutDir;
 
@@ -129,6 +123,8 @@ public class PackageOtherMojo extends AbstractGeneratorMojo {
                 title = Strings.camelDashToTitle(name);
             }
             model.setTitle(title);
+
+            SchemaHelper.addModelMetadata(model, project);
 
             // grab level from pom.xml or default to stable
             String level = project.getProperties().getProperty("supportLevel");

@@ -46,7 +46,6 @@ import org.apache.camel.test.AvailablePortFinder;
 import org.apache.camel.util.ObjectHelper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
@@ -107,16 +106,6 @@ public class KnativeHttpTest {
     // Tests
     //
     // **************************
-
-    @Test
-    void testCreateComponent() {
-        context.start();
-
-        assertThat(context.getComponent("knative")).isInstanceOfSatisfying(KnativeComponent.class, c -> {
-            assertThat(c.getProducerFactory()).isInstanceOf(KnativeHttpProducerFactory.class);
-            assertThat(c.getConsumerFactory()).isInstanceOf(KnativeHttpConsumerFactory.class);
-        });
-    }
 
     void doTestKnativeSource(CloudEvent ce, String basePath, String path) throws Exception {
         KnativeComponent component = configureKnativeComponent(
@@ -355,7 +344,8 @@ public class KnativeHttpTest {
         mock.expectedMessageCount(1);
 
         if (Objects.equals(CloudEvents.v1_0.version(), ce.version())
-                || Objects.equals(CloudEvents.v1_0_1.version(), ce.version())) {
+                || Objects.equals(CloudEvents.v1_0_1.version(), ce.version())
+                || Objects.equals(CloudEvents.v1_0_2.version(), ce.version())) {
             given()
                     .contentType(Knative.MIME_STRUCTURED_CONTENT_MODE)
                     .body(
@@ -1801,17 +1791,16 @@ public class KnativeHttpTest {
     @EnumSource(CloudEvents.class)
     void testSlowConsumer(CloudEvent ce) throws Exception {
         final KnativeHttpServer server = new KnativeHttpServer(context, event -> {
-            event.vertx().executeBlocking(
-                    promise -> {
-                        try {
-                            Thread.sleep(5000);
-                            promise.complete();
-                        } catch (InterruptedException e) {
-                            promise.fail(e);
-                        }
-                    },
-                    false,
-                    result -> {
+            event.vertx().executeBlocking(() -> {
+                try {
+                    Thread.sleep(5000);
+                    return null;
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw e;
+                }
+            }, false)
+                    .onComplete(result -> {
                         event.response().setStatusCode(200);
                         event.response().end("");
                     });

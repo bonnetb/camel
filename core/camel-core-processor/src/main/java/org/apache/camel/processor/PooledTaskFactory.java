@@ -47,7 +47,15 @@ public abstract class PooledTaskFactory extends PooledObjectFactorySupport<Poole
                 statistics.acquired.increment();
             }
         }
-        task.prepare(exchange, callback);
+        try {
+            task.prepare(exchange, callback);
+        } catch (Exception e) {
+            // if error during prepare then we need to discard this task
+            if (statisticsEnabled) {
+                statistics.discarded.increment();
+            }
+            throw e;
+        }
         return task;
     }
 
@@ -64,7 +72,7 @@ public abstract class PooledTaskFactory extends PooledObjectFactorySupport<Poole
                 }
             }
             return inserted;
-        } catch (Throwable e) {
+        } catch (Exception e) {
             if (statisticsEnabled) {
                 statistics.discarded.increment();
             }

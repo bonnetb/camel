@@ -21,11 +21,11 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
 
 import org.apache.camel.model.OptionalIdentifiedDefinition;
 import org.apache.camel.spi.Metadata;
@@ -40,6 +40,8 @@ public class RestBindingDefinition extends OptionalIdentifiedDefinition<RestBind
 
     @XmlTransient
     private Map<String, String> defaultValues;
+    @XmlTransient
+    private Map<String, String> allowedValues;
     @XmlTransient
     private Boolean requiredBody;
     @XmlTransient
@@ -74,6 +76,9 @@ public class RestBindingDefinition extends OptionalIdentifiedDefinition<RestBind
     @Metadata(label = "advanced", javaType = "java.lang.Boolean", defaultValue = "false")
     private String enableCORS;
     @XmlAttribute
+    @Metadata(label = "advanced", javaType = "java.lang.Boolean", defaultValue = "false")
+    private String enableNoContentResponse;
+    @XmlAttribute
     @Metadata(label = "advanced")
     private String component;
 
@@ -100,6 +105,19 @@ public class RestBindingDefinition extends OptionalIdentifiedDefinition<RestBind
             defaultValues = new HashMap<>();
         }
         defaultValues.put(paramName, defaultValue);
+    }
+
+    /**
+     * Adds allowed value(s) for the query parameter
+     *
+     * @param paramName    query parameter name
+     * @param allowedValue the allowed value (separate by comma)
+     */
+    public void addAllowedValue(String paramName, String allowedValue) {
+        if (allowedValues == null) {
+            allowedValues = new HashMap<>();
+        }
+        allowedValues.put(paramName, allowedValue);
     }
 
     /**
@@ -147,6 +165,13 @@ public class RestBindingDefinition extends OptionalIdentifiedDefinition<RestBind
      */
     public Map<String, String> getDefaultValues() {
         return defaultValues;
+    }
+
+    /**
+     * Gets the registered allowed values for query parameters
+     */
+    public Map<String, String> getAllowedValues() {
+        return allowedValues;
     }
 
     /**
@@ -282,6 +307,19 @@ public class RestBindingDefinition extends OptionalIdentifiedDefinition<RestBind
      */
     public void setEnableCORS(String enableCORS) {
         this.enableCORS = enableCORS;
+    }
+
+    public String getEnableNoContentResponse() {
+        return enableNoContentResponse;
+    }
+
+    /**
+     * Whether to return HTTP 204 with an empty body when a response contains an empty JSON object or XML root object.
+     * <p/>
+     * The default value is false.
+     */
+    public void setEnableNoContentResponse(String enableNoContentResponse) {
+        this.enableNoContentResponse = enableNoContentResponse;
     }
 
     @Override

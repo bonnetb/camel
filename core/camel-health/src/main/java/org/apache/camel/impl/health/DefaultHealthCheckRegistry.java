@@ -25,12 +25,12 @@ import java.util.stream.Stream;
 import org.apache.camel.CamelContext;
 import org.apache.camel.CamelContextAware;
 import org.apache.camel.DeferredContextBinding;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.health.HealthCheck;
 import org.apache.camel.health.HealthCheckRegistry;
 import org.apache.camel.health.HealthCheckRepository;
 import org.apache.camel.health.HealthCheckResolver;
 import org.apache.camel.support.PatternHelper;
+import org.apache.camel.support.PluginHelper;
 import org.apache.camel.support.service.ServiceHelper;
 import org.apache.camel.support.service.ServiceSupport;
 import org.apache.camel.util.ObjectHelper;
@@ -173,25 +173,23 @@ public class DefaultHealthCheckRegistry extends ServiceSupport implements Health
         return answer;
     }
 
-    @SuppressWarnings("unchecked")
     private HealthCheck resolveHealthCheckById(String id) {
         HealthCheck answer = checks.stream().filter(h -> h.getId().equals(id)).findFirst()
                 .orElse(camelContext.getRegistry().findByTypeWithName(HealthCheck.class).get(id));
         if (answer == null) {
-            HealthCheckResolver resolver = camelContext.adapt(ExtendedCamelContext.class).getHealthCheckResolver();
+            HealthCheckResolver resolver = PluginHelper.getHealthCheckResolver(camelContext);
             answer = resolver.resolveHealthCheck(id);
         }
 
         return answer;
     }
 
-    @SuppressWarnings("unchecked")
     private HealthCheckRepository resolveHealthCheckRepositoryById(String id) {
         HealthCheckRepository answer = repositories.stream().filter(h -> h.getId().equals(id)).findFirst()
                 .orElse(camelContext.getRegistry().findByTypeWithName(HealthCheckRepository.class).get(id));
         if (answer == null) {
             // discover via classpath (try first via -health-check-repository and then id as-is)
-            HealthCheckResolver resolver = camelContext.adapt(ExtendedCamelContext.class).getHealthCheckResolver();
+            HealthCheckResolver resolver = PluginHelper.getHealthCheckResolver(camelContext);
             answer = resolver.resolveHealthCheckRepository(id);
         }
 
@@ -301,9 +299,9 @@ public class DefaultHealthCheckRegistry extends ServiceSupport implements Health
             Collection<HealthCheck> col = loader.loadHealthChecks();
             // register loaded health-checks
             col.forEach(this::register);
-            if (col.size() > 0) {
-                String time = TimeUtils.printDuration(watch.taken());
-                LOG.info("Health checks (scanned: {}) loaded in {}", col.size(), time);
+            if (!col.isEmpty()) {
+                String time = TimeUtils.printDuration(watch.taken(), true);
+                LOG.debug("Health checks (scanned: {}) loaded in {}", col.size(), time);
             }
         }
     }
@@ -317,11 +315,14 @@ public class DefaultHealthCheckRegistry extends ServiceSupport implements Health
             if (PatternHelper.matchPatterns(id, s)) {
                 return true;
             }
-            // special for route and consumer health checks
+            // special for route, consumer and producer health checks
             if (id.startsWith("route:")) {
                 id = id.substring(6);
                 return PatternHelper.matchPatterns(id, s);
             } else if (id.startsWith("consumer:")) {
+                id = id.substring(9);
+                return PatternHelper.matchPatterns(id, s);
+            } else if (id.startsWith("producer:")) {
                 id = id.substring(9);
                 return PatternHelper.matchPatterns(id, s);
             }

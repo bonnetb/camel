@@ -35,10 +35,10 @@ import org.junit.jupiter.api.Test;
 public class MultiCastParallelAndStreamCachingWithEncryptionTest extends ContextTestSupport {
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 context.setStreamCaching(true);
                 context.getStreamCachingStrategy().setEnabled(true);
                 context.getStreamCachingStrategy().setSpoolDirectory(testDirectory().toFile());
@@ -80,7 +80,7 @@ public class MultiCastParallelAndStreamCachingWithEncryptionTest extends Context
     /**
      * Tests the FileInputStreamCache. The sent input stream is transformed to FileInputStreamCache before the
      * multi-cast processor is called.
-     * 
+     *
      * @throws Exception
      */
     @Test

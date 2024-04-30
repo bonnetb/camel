@@ -18,6 +18,8 @@ package org.apache.camel.component.aws2.sqs.client;
 
 import org.apache.camel.component.aws2.sqs.Sqs2Configuration;
 import org.apache.camel.component.aws2.sqs.client.impl.Sqs2ClientIAMOptimized;
+import org.apache.camel.component.aws2.sqs.client.impl.Sqs2ClientIAMProfileOptimizedImpl;
+import org.apache.camel.component.aws2.sqs.client.impl.Sqs2ClientSessionTokenImpl;
 import org.apache.camel.component.aws2.sqs.client.impl.Sqs2ClientStandardImpl;
 
 /**
@@ -30,12 +32,19 @@ public final class Sqs2ClientFactory {
 
     /**
      * Return the correct aws SQS client (based on remote vs local).
-     * 
+     *
      * @param  configuration configuration
      * @return               SqsClient
      */
     public static Sqs2InternalClient getSqsClient(Sqs2Configuration configuration) {
-        return configuration.isUseDefaultCredentialsProvider()
-                ? new Sqs2ClientIAMOptimized(configuration) : new Sqs2ClientStandardImpl(configuration);
+        if (Boolean.TRUE.equals(configuration.isUseDefaultCredentialsProvider())) {
+            return new Sqs2ClientIAMOptimized(configuration);
+        } else if (Boolean.TRUE.equals(configuration.isUseProfileCredentialsProvider())) {
+            return new Sqs2ClientIAMProfileOptimizedImpl(configuration);
+        } else if (Boolean.TRUE.equals(configuration.isUseSessionCredentials())) {
+            return new Sqs2ClientSessionTokenImpl(configuration);
+        } else {
+            return new Sqs2ClientStandardImpl(configuration);
+        }
     }
 }

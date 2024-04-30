@@ -18,11 +18,11 @@ package org.apache.camel.model;
 
 import java.util.List;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlElementRef;
-import javax.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlElementRef;
+import jakarta.xml.bind.annotation.XmlRootElement;
 
 import org.apache.camel.Predicate;
 import org.apache.camel.spi.AsPredicate;
@@ -112,18 +112,6 @@ public class InterceptSendToEndpointDefinition extends OutputDefinition<Intercep
     /**
      * After sending to the endpoint then send the message to this url which allows to process its result.
      *
-     * @return     the builder
-     * @deprecated use {@link #afterUri(String)}
-     */
-    @Deprecated
-    public InterceptSendToEndpointDefinition afterUrl(String url) {
-        setAfterUri(url);
-        return this;
-    }
-
-    /**
-     * After sending to the endpoint then send the message to this url which allows to process its result.
-     *
      * @return the builder
      */
     public InterceptSendToEndpointDefinition afterUri(String uri) {
@@ -149,27 +137,30 @@ public class InterceptSendToEndpointDefinition extends OutputDefinition<Intercep
         // interceptor
         ProcessorDefinition<?> first = getOutputs().get(0);
         if (first instanceof WhenDefinition && !(first instanceof WhenSkipSendToEndpointDefinition)) {
-            WhenDefinition when = (WhenDefinition) first;
-
-            // create a copy of when to use as replacement
-            WhenSkipSendToEndpointDefinition newWhen = new WhenSkipSendToEndpointDefinition();
-            newWhen.setExpression(when.getExpression());
-            newWhen.setId(when.getId());
-            newWhen.setInheritErrorHandler(when.isInheritErrorHandler());
-            newWhen.setParent(when.getParent());
-            newWhen.setDescription(when.getDescription());
-
-            // move this outputs to the when, expect the first one
-            // as the first one is the interceptor itself
-            for (int i = 1; i < outputs.size(); i++) {
-                ProcessorDefinition<?> out = outputs.get(i);
-                newWhen.addOutput(out);
-            }
+            final WhenSkipSendToEndpointDefinition newWhen = toWhenSkipSendToEndpointDefinition((WhenDefinition) first);
             // remove the moved from the original output, by just keeping the
             // first one
             clearOutput();
             outputs.add(newWhen);
         }
+    }
+
+    private WhenSkipSendToEndpointDefinition toWhenSkipSendToEndpointDefinition(WhenDefinition first) {
+        // create a copy of when to use as replacement
+        WhenSkipSendToEndpointDefinition newWhen = new WhenSkipSendToEndpointDefinition();
+        newWhen.setExpression(first.getExpression());
+        newWhen.setId(first.getId());
+        newWhen.setInheritErrorHandler(first.isInheritErrorHandler());
+        newWhen.setParent(first.getParent());
+        newWhen.setDescription(first.getDescription());
+
+        // move this outputs to the when, expect the first one
+        // as the first one is the interceptor itself
+        for (int i = 1; i < outputs.size(); i++) {
+            ProcessorDefinition<?> out = outputs.get(i);
+            newWhen.addOutput(out);
+        }
+        return newWhen;
     }
 
     public String getSkipSendToOriginalEndpoint() {

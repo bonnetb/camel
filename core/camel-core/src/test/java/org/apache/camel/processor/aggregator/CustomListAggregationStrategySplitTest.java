@@ -62,10 +62,10 @@ public class CustomListAggregationStrategySplitTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:start").split(body(), new MyListOfNumbersStrategy()).to("mock:line").end().to("mock:result");
             }
         };
@@ -74,7 +74,7 @@ public class CustomListAggregationStrategySplitTest extends ContextTestSupport {
     /**
      * Our strategy just group a list of integers.
      */
-    public final class MyListOfNumbersStrategy extends AbstractListAggregationStrategy<Integer> {
+    public static final class MyListOfNumbersStrategy extends AbstractListAggregationStrategy<Integer> {
 
         @Override
         public Integer getValue(Exchange exchange) {

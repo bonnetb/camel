@@ -43,9 +43,10 @@ public class RestUndertowHttpPojoTypeTest extends BaseUndertowTest {
         // Wasn't clear if there's a way to put this test into camel-core just to test the model
         // perhaps without starting the Camel Context?
 
-        List<RestDefinition> restDefinitions = context().getExtension(Model.class).getRestDefinitions();
+        List<RestDefinition> restDefinitions
+                = context().getCamelContextExtension().getContextPlugin(Model.class).getRestDefinitions();
         assertNotNull(restDefinitions);
-        assertTrue(restDefinitions.size() > 0);
+        assertTrue(!restDefinitions.isEmpty());
 
         RestDefinition restDefinition = restDefinitions.get(0);
         List<VerbDefinition> verbs = restDefinition.getVerbs();
@@ -122,7 +123,7 @@ public class RestUndertowHttpPojoTypeTest extends BaseUndertowTest {
         assertNotNull(outExchange);
         assertEquals(400, outExchange.getMessage().getHeader(Exchange.HTTP_RESPONSE_CODE));
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Test
@@ -153,7 +154,7 @@ public class RestUndertowHttpPojoTypeTest extends BaseUndertowTest {
         assertNotNull(outExchange);
         assertEquals(200, outExchange.getMessage().getHeader(Exchange.HTTP_RESPONSE_CODE));
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
 
         Exchange exchange = mock.assertExchangeReceived(0);
         UserPojo[] receivedUsers = exchange.getIn().getBody(UserPojo[].class);
@@ -183,7 +184,7 @@ public class RestUndertowHttpPojoTypeTest extends BaseUndertowTest {
         assertNotNull(outExchange);
         assertEquals(400, outExchange.getMessage().getHeader(Exchange.HTTP_RESPONSE_CODE));
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Test
@@ -214,7 +215,7 @@ public class RestUndertowHttpPojoTypeTest extends BaseUndertowTest {
         assertNotNull(outExchange);
         assertEquals(200, outExchange.getMessage().getHeader(Exchange.HTTP_RESPONSE_CODE));
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
 
         Exchange exchange = mock.assertExchangeReceived(0);
         UserPojo[] receivedUsers = exchange.getIn().getBody(UserPojo[].class);
@@ -244,7 +245,7 @@ public class RestUndertowHttpPojoTypeTest extends BaseUndertowTest {
         assertNotNull(outExchange);
         assertEquals(400, outExchange.getMessage().getHeader(Exchange.HTTP_RESPONSE_CODE));
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Override

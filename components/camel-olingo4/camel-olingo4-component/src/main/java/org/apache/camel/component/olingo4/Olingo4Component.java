@@ -53,11 +53,11 @@ public class Olingo4Component extends AbstractApiComponent<Olingo4ApiName, Oling
     private Olingo4AppWrapper apiProxy;
 
     public Olingo4Component() {
-        super(Olingo4Endpoint.class, Olingo4ApiName.class, Olingo4ApiCollection.getCollection());
+        super(Olingo4ApiName.class, Olingo4ApiCollection.getCollection());
     }
 
     public Olingo4Component(CamelContext context) {
-        super(context, Olingo4Endpoint.class, Olingo4ApiName.class, Olingo4ApiCollection.getCollection());
+        super(context, Olingo4ApiName.class, Olingo4ApiCollection.getCollection());
     }
 
     @Override
@@ -68,6 +68,9 @@ public class Olingo4Component extends AbstractApiComponent<Olingo4ApiName, Oling
     @Override
     protected Endpoint createEndpoint(String uri, String remaining, Map<String, Object> parameters) throws Exception {
         // parse remaining to extract resourcePath and queryParams
+        if (remaining.startsWith("DEFAULT/")) {
+            remaining = remaining.substring(8);
+        }
         final String[] pathSegments = remaining.split("/", -1);
         final String methodName = pathSegments[0];
 
@@ -118,10 +121,10 @@ public class Olingo4Component extends AbstractApiComponent<Olingo4ApiName, Oling
 
     public Olingo4AppWrapper createApiProxy(Olingo4Configuration endpointConfiguration) {
         final Olingo4AppWrapper result;
-        if (endpointConfiguration.equals(this.configuration)) {
+        if (endpointConfiguration.equals(getConfiguration())) {
             synchronized (this) {
                 if (apiProxy == null) {
-                    apiProxy = createOlingo4App(this.configuration);
+                    apiProxy = createOlingo4App(getConfiguration());
                 }
             }
             result = apiProxy;
@@ -161,9 +164,7 @@ public class Olingo4Component extends AbstractApiComponent<Olingo4ApiName, Oling
             }
             try {
                 asyncClientBuilder.setSSLContext(sslContextParameters.createSSLContext(getCamelContext()));
-            } catch (GeneralSecurityException e) {
-                throw RuntimeCamelException.wrapRuntimeCamelException(e);
-            } catch (IOException e) {
+            } catch (IOException | GeneralSecurityException e) {
                 throw RuntimeCamelException.wrapRuntimeCamelException(e);
             }
 

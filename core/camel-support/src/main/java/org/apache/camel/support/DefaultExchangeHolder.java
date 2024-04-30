@@ -170,8 +170,8 @@ public class DefaultExchangeHolder implements Serializable {
             }
         }
         if (payload.properties != null) {
-            for (String key : payload.properties.keySet()) {
-                exchange.setProperty(key, payload.properties.get(key));
+            for (Map.Entry<String, Object> entry : payload.properties.entrySet()) {
+                exchange.setProperty(entry.getKey(), entry.getValue());
             }
         }
         exchange.setException(payload.exception);
@@ -327,9 +327,9 @@ public class DefaultExchangeHolder implements Serializable {
      * <li>Number</li>
      * <li>java.util.Date</li>
      * </ul>
-     * 
+     *
      * We make possible store serialized headers by the boolean field allowSerializedHeaders
-     * 
+     *
      * @param  headerName             the header name
      * @param  headerValue            the header value
      * @param  allowSerializedHeaders the header value

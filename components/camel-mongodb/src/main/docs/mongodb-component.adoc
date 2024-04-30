@@ -5,6 +5,7 @@
 :description: Perform operations on MongoDB documents and collections.
 :since: 2.19
 :supportlevel: Stable
+:tabs-sync-option:
 :component-header: Both producer and consumer are supported
 //Manually maintained attributes
 :camel-spring-boot-name: mongodb
@@ -259,7 +260,9 @@ collection.
 
 [source,java]
 ------------------------------------------------------------------------------------------------------------------------------------
-// from("direct:count").to("mongodb:myDb?database=tickets&collection=flights&operation=count&dynamicity=true");
+from("direct:count")
+  .to("mongodb:myDb?database=tickets&collection=flights&operation=count&dynamicity=true");
+
 Long result = template.requestBodyAndHeader("direct:count", "irrelevantBody", MongoDbConstants.COLLECTION, "dynamicCollectionName");
 assertTrue("Result is not of type Long", result instanceof Long);
 ------------------------------------------------------------------------------------------------------------------------------------

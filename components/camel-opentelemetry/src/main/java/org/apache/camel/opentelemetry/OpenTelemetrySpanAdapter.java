@@ -29,7 +29,7 @@ import org.apache.camel.tracing.Tag;
 
 public class OpenTelemetrySpanAdapter implements SpanAdapter {
     private static final String DEFAULT_EVENT_NAME = "log";
-    private static EnumMap<Tag, String> tagMap = new EnumMap<>(Tag.class);
+    private static Map<Tag, String> tagMap = new EnumMap<>(Tag.class);
 
     static {
         tagMap.put(Tag.COMPONENT, "component");
@@ -70,12 +70,16 @@ public class OpenTelemetrySpanAdapter implements SpanAdapter {
 
     @Override
     public void setTag(Tag key, String value) {
-        this.span.setAttribute(tagMap.get(key), value);
+        String attribute = tagMap.getOrDefault(key, key.getAttribute());
+        this.span.setAttribute(attribute, value);
+        if (!attribute.equals(key.getAttribute())) {
+            this.span.setAttribute(key.getAttribute(), value);
+        }
     }
 
     @Override
     public void setTag(Tag key, Number value) {
-        this.span.setAttribute(tagMap.get(key), value.intValue());
+        this.span.setAttribute(tagMap.getOrDefault(key, key.getAttribute()), value.intValue());
     }
 
     @Override
@@ -106,6 +110,11 @@ public class OpenTelemetrySpanAdapter implements SpanAdapter {
     @Override
     public String spanId() {
         return span.getSpanContext().getSpanId();
+    }
+
+    @Override
+    public AutoCloseable makeCurrent() {
+        return span.makeCurrent();
     }
 
     String getEventNameFromFields(Map<String, ?> fields) {

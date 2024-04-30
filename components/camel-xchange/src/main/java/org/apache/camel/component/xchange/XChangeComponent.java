@@ -50,22 +50,26 @@ public class XChangeComponent extends DefaultComponent {
         return xchanges.get(name);
     }
 
+    void putXChange(String name, XChange xchange) {
+        xchanges.put(name, xchange);
+    }
+
     @Override
     protected void doShutdown() throws Exception {
         super.doShutdown();
         xchanges.clear();
     }
 
+    protected Exchange createExchange(Class<? extends Exchange> exchangeClass) {
+        return ExchangeFactory.INSTANCE.createExchange(exchangeClass);
+    }
+
     private synchronized XChange getOrCreateXChange(String name) {
-        XChange xchange = xchanges.get(name);
-        if (xchange == null) {
+        return xchanges.computeIfAbsent(name, xc -> {
             Class<? extends Exchange> exchangeClass = XChangeHelper.loadXChangeClass(getCamelContext(), name);
             Assert.notNull(exchangeClass, "XChange not supported: " + name);
-            xchange = new XChange(ExchangeFactory.INSTANCE.createExchange(exchangeClass));
-            xchanges.put(name, xchange);
-        }
-
-        return xchange;
+            return new XChange(createExchange(exchangeClass));
+        });
     }
 
 }

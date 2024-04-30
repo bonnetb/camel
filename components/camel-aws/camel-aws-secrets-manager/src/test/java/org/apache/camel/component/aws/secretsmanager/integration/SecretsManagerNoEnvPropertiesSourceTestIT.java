@@ -18,6 +18,7 @@ package org.apache.camel.component.aws.secretsmanager.integration;
 
 import org.apache.camel.FailedToCreateRouteException;
 import org.apache.camel.builder.RouteBuilder;
+import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.test.junit5.CamelTestSupport;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperties;
@@ -52,7 +53,7 @@ public class SecretsManagerNoEnvPropertiesSourceTestIT extends CamelTestSupport 
 
         template.sendBody("direct:start", "Hello World");
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Test
@@ -73,7 +74,7 @@ public class SecretsManagerNoEnvPropertiesSourceTestIT extends CamelTestSupport 
 
         template.sendBody("direct:username", "Hello World");
         template.sendBody("direct:password", "Hello World");
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Test
@@ -94,7 +95,7 @@ public class SecretsManagerNoEnvPropertiesSourceTestIT extends CamelTestSupport 
 
         template.sendBody("direct:username", "Hello World");
         template.sendBody("direct:password", "Hello World");
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Test
@@ -115,7 +116,7 @@ public class SecretsManagerNoEnvPropertiesSourceTestIT extends CamelTestSupport 
 
             template.sendBody("direct:start", "Hello World");
 
-            assertMockEndpointsSatisfied();
+            MockEndpoint.assertIsSatisfied(context);
         });
     }
 
@@ -136,7 +137,7 @@ public class SecretsManagerNoEnvPropertiesSourceTestIT extends CamelTestSupport 
             getMockEndpoint("mock:bar").expectedBodiesReceived("admin");
 
             template.sendBody("direct:username", "Hello World");
-            assertMockEndpointsSatisfied();
+            MockEndpoint.assertIsSatisfied(context);
         });
     }
 
@@ -158,7 +159,7 @@ public class SecretsManagerNoEnvPropertiesSourceTestIT extends CamelTestSupport 
 
         template.sendBody("direct:username", "Hello World");
         template.sendBody("direct:password", "Hello World");
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Test
@@ -179,7 +180,7 @@ public class SecretsManagerNoEnvPropertiesSourceTestIT extends CamelTestSupport 
 
         template.sendBody("direct:username", "Hello World");
         template.sendBody("direct:password", "Hello World");
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Test
@@ -201,7 +202,7 @@ public class SecretsManagerNoEnvPropertiesSourceTestIT extends CamelTestSupport 
 
             template.sendBody("direct:username", "Hello World");
             template.sendBody("direct:password", "Hello World");
-            assertMockEndpointsSatisfied();
+            MockEndpoint.assertIsSatisfied(context);
         });
     }
 
@@ -223,7 +224,7 @@ public class SecretsManagerNoEnvPropertiesSourceTestIT extends CamelTestSupport 
 
         template.sendBody("direct:username", "Hello World");
         template.sendBody("direct:password", "Hello World");
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Test
@@ -243,7 +244,7 @@ public class SecretsManagerNoEnvPropertiesSourceTestIT extends CamelTestSupport 
             getMockEndpoint("mock:bar").expectedBodiesReceived("admin");
 
             template.sendBody("direct:username", "Hello World");
-            assertMockEndpointsSatisfied();
+            MockEndpoint.assertIsSatisfied(context);
         });
     }
 
@@ -266,7 +267,7 @@ public class SecretsManagerNoEnvPropertiesSourceTestIT extends CamelTestSupport 
 
             template.sendBody("direct:username", "Hello World");
             template.sendBody("direct:password", "Hello World");
-            assertMockEndpointsSatisfied();
+            MockEndpoint.assertIsSatisfied(context);
         });
     }
 
@@ -286,7 +287,7 @@ public class SecretsManagerNoEnvPropertiesSourceTestIT extends CamelTestSupport 
         getMockEndpoint("mock:bar").expectedBodiesReceived("admin");
 
         template.sendBody("direct:username", "Hello World");
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Test
@@ -307,7 +308,7 @@ public class SecretsManagerNoEnvPropertiesSourceTestIT extends CamelTestSupport 
 
         template.sendBody("direct:username", "Hello World");
         template.sendBody("direct:password", "Hello World");
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Test
@@ -328,6 +329,124 @@ public class SecretsManagerNoEnvPropertiesSourceTestIT extends CamelTestSupport 
 
         template.sendBody("direct:username", "Hello World");
         template.sendBody("direct:password", "Hello World");
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
+    }
+
+    @Test
+    public void testPropertiesWithVersionFunction() throws Exception {
+        context.getVaultConfiguration().aws().setAccessKey(System.getProperty("camel.vault.aws.accessKey"));
+        context.getVaultConfiguration().aws().setSecretKey(System.getProperty("camel.vault.aws.secretKey"));
+        context.getVaultConfiguration().aws().setRegion(System.getProperty("camel.vault.aws.region"));
+        context.addRoutes(new RouteBuilder() {
+            @Override
+            public void configure() {
+                from("direct:version").setBody(simple("{{aws:test/id@e8d0e680-a504-4b70-a9b2-acf5efe0ba23}}")).to("mock:bar");
+            }
+        });
+        context.start();
+
+        getMockEndpoint("mock:bar").expectedBodiesReceived("27");
+
+        template.sendBody("direct:version", "Hello World");
+        MockEndpoint.assertIsSatisfied(context);
+    }
+
+    @Test
+    public void testPropertiesWithVersionAndNoFieldFunction() throws Exception {
+        context.getVaultConfiguration().aws().setAccessKey(System.getProperty("camel.vault.aws.accessKey"));
+        context.getVaultConfiguration().aws().setSecretKey(System.getProperty("camel.vault.aws.secretKey"));
+        context.getVaultConfiguration().aws().setRegion(System.getProperty("camel.vault.aws.region"));
+        context.addRoutes(new RouteBuilder() {
+            @Override
+            public void configure() {
+                from("direct:version").setBody(simple("{{aws:test@e8d0e680-a504-4b70-a9b2-acf5efe0ba23}}")).to("mock:bar");
+            }
+        });
+        context.start();
+
+        getMockEndpoint("mock:bar").expectedBodiesReceived("{\"id\":\"27\"}");
+
+        template.sendBody("direct:version", "Hello World");
+        MockEndpoint.assertIsSatisfied(context);
+    }
+
+    @Test
+    public void testPropertiesWithVersionNoFieldAndDefaultValueFunction() throws Exception {
+        context.getVaultConfiguration().aws().setAccessKey(System.getProperty("camel.vault.aws.accessKey"));
+        context.getVaultConfiguration().aws().setSecretKey(System.getProperty("camel.vault.aws.secretKey"));
+        context.getVaultConfiguration().aws().setRegion(System.getProperty("camel.vault.aws.region"));
+        context.addRoutes(new RouteBuilder() {
+            @Override
+            public void configure() {
+                from("direct:version").setBody(simple("{{aws:test:pippo@e8d0e680-a504-4b70-a9b2-acf5efe0ba23}}"))
+                        .to("mock:bar");
+            }
+        });
+        context.start();
+
+        getMockEndpoint("mock:bar").expectedBodiesReceived("{\"id\":\"27\"}");
+
+        template.sendBody("direct:version", "Hello World");
+        MockEndpoint.assertIsSatisfied(context);
+    }
+
+    @Test
+    public void testPropertiesWithVersionNoFieldDefaultValueNotExistentSecretFunction() throws Exception {
+        context.getVaultConfiguration().aws().setAccessKey(System.getProperty("camel.vault.aws.accessKey"));
+        context.getVaultConfiguration().aws().setSecretKey(System.getProperty("camel.vault.aws.secretKey"));
+        context.getVaultConfiguration().aws().setRegion(System.getProperty("camel.vault.aws.region"));
+        context.addRoutes(new RouteBuilder() {
+            @Override
+            public void configure() {
+                from("direct:version").setBody(simple("{{aws:test1:pippo@e8d0e680-a504-4b70-a9b2-acf5efe0ba23}}"))
+                        .to("mock:bar");
+            }
+        });
+        context.start();
+
+        getMockEndpoint("mock:bar").expectedBodiesReceived("pippo");
+
+        template.sendBody("direct:version", "Hello World");
+        MockEndpoint.assertIsSatisfied(context);
+    }
+
+    @Test
+    public void testPropertiesWithVersionNoFieldDefaultValueNotExistentVersionFunction() throws Exception {
+        context.getVaultConfiguration().aws().setAccessKey(System.getProperty("camel.vault.aws.accessKey"));
+        context.getVaultConfiguration().aws().setSecretKey(System.getProperty("camel.vault.aws.secretKey"));
+        context.getVaultConfiguration().aws().setRegion(System.getProperty("camel.vault.aws.region"));
+        context.addRoutes(new RouteBuilder() {
+            @Override
+            public void configure() {
+                from("direct:version").setBody(simple("{{aws:test1:pippo@e8d0e680-a504-4b70-a9b2-acf5efe0ba29}}"))
+                        .to("mock:bar");
+            }
+        });
+        context.start();
+
+        getMockEndpoint("mock:bar").expectedBodiesReceived("pippo");
+
+        template.sendBody("direct:version", "Hello World");
+        MockEndpoint.assertIsSatisfied(context);
+    }
+
+    @Test
+    public void testPropertiesWithVersionFieldAndDefaultValueFunction() throws Exception {
+        context.getVaultConfiguration().aws().setAccessKey(System.getProperty("camel.vault.aws.accessKey"));
+        context.getVaultConfiguration().aws().setSecretKey(System.getProperty("camel.vault.aws.secretKey"));
+        context.getVaultConfiguration().aws().setRegion(System.getProperty("camel.vault.aws.region"));
+        context.addRoutes(new RouteBuilder() {
+            @Override
+            public void configure() {
+                from("direct:version").setBody(simple("{{aws:test/id:pippo@e8d0e680-a504-4b70-a9b2-acf5efe0ba23}}"))
+                        .to("mock:bar");
+            }
+        });
+        context.start();
+
+        getMockEndpoint("mock:bar").expectedBodiesReceived("27");
+
+        template.sendBody("direct:version", "Hello World");
+        MockEndpoint.assertIsSatisfied(context);
     }
 }

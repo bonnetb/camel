@@ -93,6 +93,12 @@ public @interface CsvRecord {
     boolean quotingEscaped() default false;
 
     /**
+     * Indicate if the values should be quoted only when needed (optional) - if enabled then the value is only quoted
+     * when it contains the configured separator, quote, or crlf characters. The quoting option must also be enabled.
+     */
+    boolean quotingOnlyWhenNeeded() default false;
+
+    /**
      * Last record spans rest of line (optional) - if enabled then the last column is auto spanned to end of line, for
      * example if its a comment, etc this allows the line to contain all characters, also the delimiter char.
      */
@@ -112,5 +118,10 @@ public @interface CsvRecord {
      * The remove quotes parameter flags if unmarshalling should try to remove quotes for each field
      */
     boolean removeQuotes() default true;
+
+    /**
+     * Whether to trim each line (stand and end) before parsing the line into data fields.
+     */
+    boolean trimLine() default true;
 
 }

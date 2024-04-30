@@ -35,14 +35,14 @@ import org.apache.camel.util.ObjectHelper;
  * builds the message (via the fluent methods) that also sends the message. <br/>
  * <p/>
  * When using the fluent template its required to chain the methods such as:
- * 
+ *
  * <pre>
  *     FluentProducerTemplate fluent = ...
  *     fluent.withHeader("foo", 123).withHeader("bar", 456).withBody("Hello World").to("kafka:cheese").send();
  * </pre>
- * 
+ *
  * The following code is <b>wrong</b> (do not do this)
- * 
+ *
  * <pre>
  *     FluentProducerTemplate fluent = ...
  *     fluent.withHeader("foo", 123);
@@ -51,9 +51,9 @@ import org.apache.camel.util.ObjectHelper;
  *     fluent.to("kafka:cheese");
  *     fluent.send();
  * </pre>
- * 
+ *
  * If you do not want to chain fluent methods you can do as follows:
- * 
+ *
  * <pre>
  *     FluentProducerTemplate fluent = ...
  *     fluent = fluent.withHeader("foo", 123);
@@ -171,14 +171,6 @@ public interface FluentProducerTemplate extends Service {
     // -----------------------------------------------------------------------
 
     /**
-     * Remove the body and headers.
-     *
-     * @deprecated the template automatic clears when sending
-     */
-    @Deprecated
-    FluentProducerTemplate clearAll();
-
-    /**
      * Set the headers
      *
      * <b>Important:</b> You can either only use either withExchange, or withProcessor or a combination of
@@ -200,12 +192,46 @@ public interface FluentProducerTemplate extends Service {
     FluentProducerTemplate withHeader(String key, Object value);
 
     /**
-     * Remove the headers.
+     * Set the exchange properties
      *
-     * @deprecated the template automatic clears when sending
+     * <b>Important:</b> You can either only use either withExchange, or withProcessor or a combination of
+     * withBody/withHeaders to construct the message to be sent.
+     *
+     * @param properties the exchange properties
      */
-    @Deprecated
-    FluentProducerTemplate clearHeaders();
+    FluentProducerTemplate withExchangeProperties(Map<String, Object> properties);
+
+    /**
+     * Set the exchange property
+     *
+     * <b>Important:</b> You can either only use either withExchange, or withProcessor or a combination of
+     * withBody/withHeaders to construct the message to be sent.
+     *
+     * @param key   the key of the exchange property
+     * @param value the value of the exchange property
+     */
+    FluentProducerTemplate withExchangeProperty(String key, Object value);
+
+    /**
+     * Set the variables
+     *
+     * <b>Important:</b> You can either only use either withExchange, or withProcessor or a combination of
+     * withBody/withHeaders to construct the message to be sent.
+     *
+     * @param variables the variables
+     */
+    FluentProducerTemplate withVariables(Map<String, Object> variables);
+
+    /**
+     * Set the exchange property
+     *
+     * <b>Important:</b> You can either only use either withExchange, or withProcessor or a combination of
+     * withBody/withHeaders to construct the message to be sent.
+     *
+     * @param key   the key of the variable
+     * @param value the value of the variable
+     */
+    FluentProducerTemplate withVariable(String key, Object value);
 
     /**
      * Set the message body
@@ -227,14 +253,6 @@ public interface FluentProducerTemplate extends Service {
      * @param type the type which the body should be converted to
      */
     FluentProducerTemplate withBodyAs(Object body, Class<?> type);
-
-    /**
-     * Remove the body.
-     *
-     * @deprecated the template automatic clears when sending
-     */
-    @Deprecated
-    FluentProducerTemplate clearBody();
 
     /**
      * To customize the producer template for advanced usage like to set the executor service to use.
@@ -289,15 +307,15 @@ public interface FluentProducerTemplate extends Service {
      * <pre>
      * {@code
      * FluentProducerTemplate.on(context)
-     *     .withProcessor(
-     *         exchange -> {
-     *             exchange.getIn().setHeader("Key1", "Val1");
-     *             exchange.getIn().setHeader("Key2", "Val2");
-     *             exchange.getIn().setBody("the body");
-     *         }
-     *      )
-     *     .to("direct:start")
-     *     .request()}
+     *         .withProcessor(
+     *                 exchange -> {
+     *                     exchange.getIn().setHeader("Key1", "Val1");
+     *                     exchange.getIn().setHeader("Key2", "Val2");
+     *                     exchange.getIn().setBody("the body");
+     *                 })
+     *         .to("direct:start")
+     *         .request()
+     * }
      * </pre>
      *
      * <b>Important:</b> You can either only use either withExchange, or withProcessor or a combination of

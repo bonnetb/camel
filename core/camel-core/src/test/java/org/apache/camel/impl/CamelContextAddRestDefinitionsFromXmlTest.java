@@ -19,12 +19,11 @@ package org.apache.camel.impl;
 import java.net.URL;
 import java.util.List;
 
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.Unmarshaller;
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBException;
+import jakarta.xml.bind.Unmarshaller;
 
 import org.apache.camel.ContextTestSupport;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.Route;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.rest.DummyRestConsumerFactory;
@@ -32,6 +31,7 @@ import org.apache.camel.component.rest.DummyRestProcessorFactory;
 import org.apache.camel.model.RouteDefinition;
 import org.apache.camel.model.rest.RestDefinition;
 import org.apache.camel.spi.Registry;
+import org.apache.camel.support.PluginHelper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -42,8 +42,8 @@ public class CamelContextAddRestDefinitionsFromXmlTest extends ContextTestSuppor
     protected JAXBContext jaxbContext;
 
     @Override
-    protected Registry createRegistry() throws Exception {
-        Registry registry = super.createRegistry();
+    protected Registry createCamelRegistry() throws Exception {
+        Registry registry = super.createCamelRegistry();
         registry.bind("dummy-rest", new DummyRestConsumerFactory());
         registry.bind("dummy-rest-api", new DummyRestProcessorFactory());
         return registry;
@@ -53,15 +53,14 @@ public class CamelContextAddRestDefinitionsFromXmlTest extends ContextTestSuppor
     @BeforeEach
     public void setUp() throws Exception {
         super.setUp();
-        jaxbContext = (JAXBContext) context.adapt(ExtendedCamelContext.class).getModelJAXBContextFactory().newJAXBContext();
+        jaxbContext = (JAXBContext) PluginHelper.getModelJAXBContextFactory(context).newJAXBContext();
     }
 
     protected Object parseUri(String uri) throws JAXBException {
         Unmarshaller unmarshaller = jaxbContext.createUnmarshaller();
         URL resource = getClass().getResource(uri);
         assertNotNull(resource, "Cannot find resource on the classpath: " + uri);
-        Object value = unmarshaller.unmarshal(resource);
-        return value;
+        return unmarshaller.unmarshal(resource);
     }
 
     protected RestDefinition loadRest(String uri) throws Exception {
@@ -98,10 +97,10 @@ public class CamelContextAddRestDefinitionsFromXmlTest extends ContextTestSuppor
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 restConfiguration().host("localhost").component("dummy-rest").apiContextPath("/api-docs");
             }
         };

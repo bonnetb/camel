@@ -22,7 +22,6 @@ import org.apache.camel.AsyncProcessor;
 import org.apache.camel.Endpoint;
 import org.apache.camel.ExchangePattern;
 import org.apache.camel.Expression;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.LineNumberAware;
 import org.apache.camel.Processor;
 import org.apache.camel.Route;
@@ -36,6 +35,7 @@ import org.apache.camel.processor.WireTapProcessor;
 import org.apache.camel.support.CamelContextHelper;
 import org.apache.camel.support.EndpointHelper;
 import org.apache.camel.support.LanguageSupport;
+import org.apache.camel.support.PluginHelper;
 import org.apache.camel.util.StringHelper;
 
 public class WireTapReifier extends ToDynamicReifier<WireTapDefinition<?>> {
@@ -46,6 +46,10 @@ public class WireTapReifier extends ToDynamicReifier<WireTapDefinition<?>> {
 
     @Override
     public Processor createProcessor() throws Exception {
+        if (definition.getVariableReceive() != null) {
+            throw new IllegalArgumentException("WireTap does not support variableReceive");
+        }
+
         // must use InOnly for WireTap
         definition.setPattern(ExchangePattern.InOnly.name());
 
@@ -56,7 +60,7 @@ public class WireTapReifier extends ToDynamicReifier<WireTapDefinition<?>> {
         // optimize to only use dynamic processor if really needed
         String uri;
         if (definition.getEndpointProducerBuilder() != null) {
-            uri = definition.getEndpointProducerBuilder().getUri();
+            uri = definition.getEndpointProducerBuilder().getRawUri();
         } else {
             uri = StringHelper.notEmpty(definition.getUri(), "uri", this);
         }
@@ -69,16 +73,19 @@ public class WireTapReifier extends ToDynamicReifier<WireTapDefinition<?>> {
 
         SendDynamicProcessor dynamicSendProcessor = null;
         SendProcessor sendProcessor = null;
-        boolean simple = LanguageSupport.hasSimpleFunction(definition.getUri());
+        boolean simple = LanguageSupport.hasSimpleFunction(uri);
         boolean dynamic = parseBoolean(definition.getDynamicUri(), true);
-        if (dynamic && simple) {
-            // dynamic so we need the dynamic send processor
+        boolean invalid = parseBoolean(definition.getIgnoreInvalidEndpoint(), false);
+        if (dynamic && simple || invalid) {
+            // dynamic or ignore-invalid so we need the dynamic send processor
             dynamicSendProcessor = (SendDynamicProcessor) super.createProcessor();
         } else {
             // static so we can use a plain send processor
             Endpoint endpoint = CamelContextHelper.resolveEndpoint(camelContext, uri, null);
             LineNumberAware.trySetLineNumberAware(endpoint, definition);
             sendProcessor = new SendProcessor(endpoint);
+            sendProcessor.setVariableSend(parseString(definition.getVariableSend()));
+            sendProcessor.setVariableReceive(parseString(definition.getVariableReceive()));
         }
 
         // create error handler we need to use for processing the wire tapped
@@ -86,7 +93,7 @@ public class WireTapReifier extends ToDynamicReifier<WireTapDefinition<?>> {
         Processor childProcessor = wrapInErrorHandler(producer);
 
         // and wrap in unit of work
-        AsyncProcessor target = camelContext.adapt(ExtendedCamelContext.class).getInternalProcessorFactory()
+        AsyncProcessor target = PluginHelper.getInternalProcessorFactory(camelContext)
                 .addUnitOfWorkProcessorAdvice(camelContext, childProcessor, route);
 
         // is true by default

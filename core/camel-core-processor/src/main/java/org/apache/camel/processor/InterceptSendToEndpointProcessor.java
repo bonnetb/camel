@@ -31,6 +31,7 @@ import org.apache.camel.support.AsyncProcessorConverterHelper;
 import org.apache.camel.support.AsyncProcessorSupport;
 import org.apache.camel.support.DefaultAsyncProducer;
 import org.apache.camel.support.DefaultInterceptSendToEndpoint;
+import org.apache.camel.support.ExchangeHelper;
 import org.apache.camel.support.service.ServiceHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,8 +73,7 @@ public class InterceptSendToEndpointProcessor extends DefaultAsyncProducer {
             LOG.debug("Sending to endpoint: {} is intercepted and detoured to: {} for exchange: {}", getEndpoint(),
                     endpoint.getBefore(), exchange);
         }
-        // add header with the real endpoint uri
-        exchange.getIn().setHeader(Exchange.INTERCEPTED_ENDPOINT, delegate.getEndpointUri());
+        exchange.setProperty(ExchangePropertyKey.INTERCEPTED_ENDPOINT, delegate.getEndpointUri());
 
         if (pipeline != null) {
             // detour the exchange with the pipeline that has before and after included
@@ -108,11 +108,7 @@ public class InterceptSendToEndpointProcessor extends DefaultAsyncProducer {
         }
 
         if (!shouldSkip) {
-            if (exchange.hasOut()) {
-                // replace OUT with IN as detour changed something
-                exchange.setIn(exchange.getOut());
-                exchange.setOut(null);
-            }
+            ExchangeHelper.prepareOutToIn(exchange);
 
             // route to original destination leveraging the asynchronous routing engine if possible
             boolean s = producer.process(exchange, ds -> {
@@ -151,20 +147,24 @@ public class InterceptSendToEndpointProcessor extends DefaultAsyncProducer {
                 }
             };
             // only execute the after if the intercept when predicate matches
-            Predicate predicate = exchange -> {
-                Boolean whenMatches
-                        = (Boolean) exchange.removeProperty(ExchangePropertyKey.INTERCEPT_SEND_TO_ENDPOINT_WHEN_MATCHED);
-                return whenMatches == null || whenMatches;
-            };
-            AsyncProcessor after = null;
-            if (endpoint.getAfter() != null) {
-                after = AsyncProcessorConverterHelper.convert(endpoint.getAfter());
-            }
-            FilterProcessor filter = new FilterProcessor(getEndpoint().getCamelContext(), predicate, after);
+            final FilterProcessor filter = createFilterProcessor();
             pipeline = new Pipeline(getEndpoint().getCamelContext(), Arrays.asList(before, ascb, filter));
         }
 
         ServiceHelper.buildService(producer, pipeline);
+    }
+
+    private FilterProcessor createFilterProcessor() {
+        Predicate predicate = exchange -> {
+            Boolean whenMatches
+                    = (Boolean) exchange.removeProperty(ExchangePropertyKey.INTERCEPT_SEND_TO_ENDPOINT_WHEN_MATCHED);
+            return whenMatches == null || whenMatches;
+        };
+        AsyncProcessor after = null;
+        if (endpoint.getAfter() != null) {
+            after = AsyncProcessorConverterHelper.convert(endpoint.getAfter());
+        }
+        return new FilterProcessor(getEndpoint().getCamelContext(), predicate, after);
     }
 
     @Override

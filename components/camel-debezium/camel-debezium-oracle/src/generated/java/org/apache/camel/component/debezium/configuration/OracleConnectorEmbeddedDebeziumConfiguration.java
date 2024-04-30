@@ -18,72 +18,140 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
     private boolean logMiningBufferDropOnStop = false;
     @UriParam(label = LABEL_NAME)
     private String messageKeyColumns;
-    @UriParam(label = LABEL_NAME, defaultValue = "0")
-    private int queryFetchSize = 0;
     @UriParam(label = LABEL_NAME)
-    private String logMiningArchiveDestinationName;
+    private String customMetricTags;
     @UriParam(label = LABEL_NAME)
-    private String columnBlacklist;
-    @UriParam(label = LABEL_NAME, defaultValue = "0ms", javaType = "java.time.Duration")
-    private long logMiningSleepTimeMinMs = 0;
-    @UriParam(label = LABEL_NAME)
-    private String tableBlacklist;
+    private String openlogreplicatorHost;
+    @UriParam(label = LABEL_NAME, defaultValue = "source")
+    private String signalEnabledChannels = "source";
     @UriParam(label = LABEL_NAME, defaultValue = "true")
     private boolean includeSchemaChanges = true;
+    @UriParam(label = LABEL_NAME, defaultValue = "false")
+    private boolean logMiningIncludeRedoSql = false;
+    @UriParam(label = LABEL_NAME)
+    private String signalDataCollection;
+    @UriParam(label = LABEL_NAME)
+    private String converters;
+    @UriParam(label = LABEL_NAME)
+    private int snapshotFetchSize;
+    @UriParam(label = LABEL_NAME, defaultValue = "10s", javaType = "java.time.Duration")
+    private long snapshotLockTimeoutMs = 10000;
+    @UriParam(label = LABEL_NAME, defaultValue = "1000000")
+    private long logMiningScnGapDetectionGapSizeMin = 1000000;
+    @UriParam(label = LABEL_NAME)
+    private String databaseDbname;
+    @UriParam(label = LABEL_NAME, defaultValue = "disabled")
+    private String snapshotTablesOrderByRowCount = "disabled";
+    @UriParam(label = LABEL_NAME, defaultValue = "1s", javaType = "java.time.Duration")
+    private long logMiningSleepTimeDefaultMs = 1000;
+    @UriParam(label = LABEL_NAME)
+    private String snapshotSelectStatementOverrides;
+    @UriParam(label = LABEL_NAME, defaultValue = "10s", javaType = "java.time.Duration")
+    private long logMiningArchiveLogOnlyScnPollIntervalMs = 10000;
+    @UriParam(label = LABEL_NAME, defaultValue = "false")
+    private boolean logMiningRestartConnection = false;
+    @UriParam(label = LABEL_NAME)
+    private String tableExcludeList;
+    @UriParam(label = LABEL_NAME, defaultValue = "2048")
+    private int maxBatchSize = 2048;
+    @UriParam(label = LABEL_NAME)
+    private String logMiningBufferInfinispanCacheTransactions;
+    @UriParam(label = LABEL_NAME, defaultValue = "io.debezium.schema.SchemaTopicNamingStrategy")
+    private String topicNamingStrategy = "io.debezium.schema.SchemaTopicNamingStrategy";
+    @UriParam(label = LABEL_NAME, defaultValue = "initial")
+    private String snapshotMode = "initial";
+    @UriParam(label = LABEL_NAME, defaultValue = "false")
+    private boolean snapshotModeConfigurationBasedSnapshotData = false;
+    @UriParam(label = LABEL_NAME, defaultValue = "10s", javaType = "java.time.Duration")
+    private long retriableRestartConnectorWaitMs = 10000;
+    @UriParam(label = LABEL_NAME, defaultValue = "0ms", javaType = "java.time.Duration")
+    private long snapshotDelayMs = 0;
+    @UriParam(label = LABEL_NAME, defaultValue = "redo_log_catalog")
+    private String logMiningStrategy = "redo_log_catalog";
+    @UriParam(label = LABEL_NAME, defaultValue = "false")
+    private boolean snapshotModeConfigurationBasedSnapshotOnDataError = false;
+    @UriParam(label = LABEL_NAME)
+    private String schemaHistoryInternalFileFilename;
+    @UriParam(label = LABEL_NAME, defaultValue = "false")
+    private boolean tombstonesOnDelete = false;
+    @UriParam(label = LABEL_NAME, defaultValue = "precise")
+    private String decimalHandlingMode = "precise";
+    @UriParam(label = LABEL_NAME, defaultValue = "bytes")
+    private String binaryHandlingMode = "bytes";
+    @UriParam(label = LABEL_NAME)
+    private String databaseOutServerName;
+    @UriParam(label = LABEL_NAME, defaultValue = "0")
+    private long archiveLogHours = 0;
+    @UriParam(label = LABEL_NAME)
+    private String snapshotIncludeCollectionList;
+    @UriParam(label = LABEL_NAME, defaultValue = "false")
+    private boolean snapshotModeConfigurationBasedStartStream = false;
+    @UriParam(label = LABEL_NAME)
+    private String databasePdbName;
+    @UriParam(label = LABEL_NAME, defaultValue = "LogMiner")
+    private String databaseConnectionAdapter = "LogMiner";
+    @UriParam(label = LABEL_NAME, defaultValue = "LOG_MINING_FLUSH")
+    private String logMiningFlushTableName = "LOG_MINING_FLUSH";
+    @UriParam(label = LABEL_NAME)
+    private String openlogreplicatorSource;
+    @UriParam(label = LABEL_NAME, defaultValue = "memory")
+    private String logMiningBufferType = "memory";
+    @UriParam(label = LABEL_NAME, defaultValue = "5s", javaType = "java.time.Duration")
+    private long signalPollIntervalMs = 5000;
+    @UriParam(label = LABEL_NAME)
+    private String notificationEnabledChannels;
+    @UriParam(label = LABEL_NAME, defaultValue = "fail")
+    private String eventProcessingFailureHandlingMode = "fail";
+    @UriParam(label = LABEL_NAME, defaultValue = "1")
+    private int snapshotMaxThreads = 1;
+    @UriParam(label = LABEL_NAME)
+    private String notificationSinkTopicName;
+    @UriParam(label = LABEL_NAME)
+    private String snapshotModeCustomName;
+    @UriParam(label = LABEL_NAME, defaultValue = "none")
+    private String logMiningQueryFilterMode = "none";
+    @UriParam(label = LABEL_NAME, defaultValue = "none")
+    private String schemaNameAdjustmentMode = "none";
+    @UriParam(label = LABEL_NAME, defaultValue = "20000")
+    private long logMiningBatchSizeDefault = 20000;
+    @UriParam(label = LABEL_NAME)
+    private String tableIncludeList;
+    @UriParam(label = LABEL_NAME, defaultValue = "10000")
+    private int queryFetchSize = 10000;
+    @UriParam(label = LABEL_NAME, defaultValue = "0ms", javaType = "java.time.Duration")
+    private long logMiningSleepTimeMinMs = 0;
     @UriParam(label = LABEL_NAME, defaultValue = "__debezium_unavailable_value")
     private String unavailableValuePlaceholder = "__debezium_unavailable_value";
     @UriParam(label = LABEL_NAME)
     private String heartbeatActionQuery;
     @UriParam(label = LABEL_NAME, defaultValue = "500ms", javaType = "java.time.Duration")
     private long pollIntervalMs = 500;
-    @UriParam(label = LABEL_NAME, defaultValue = "100ms", javaType = "java.time.Duration")
-    private int databaseHistoryKafkaRecoveryPollIntervalMs = 100;
     @UriParam(label = LABEL_NAME)
-    private String signalDataCollection;
+    private String logMiningUsernameIncludeList;
     @UriParam(label = LABEL_NAME, defaultValue = "false")
     private boolean lobEnabled = false;
     @UriParam(label = LABEL_NAME, defaultValue = "numeric")
     private String intervalHandlingMode = "numeric";
-    @UriParam(label = LABEL_NAME, defaultValue = "false")
-    private boolean databaseHistoryStoreOnlyCapturedTablesDdl = false;
-    @UriParam(label = LABEL_NAME)
-    private String converters;
     @UriParam(label = LABEL_NAME, defaultValue = "__debezium-heartbeat")
     private String heartbeatTopicsPrefix = "__debezium-heartbeat";
     @UriParam(label = LABEL_NAME, defaultValue = "false")
     private boolean logMiningArchiveLogOnlyMode = false;
     @UriParam(label = LABEL_NAME)
-    private int snapshotFetchSize;
-    @UriParam(label = LABEL_NAME)
     private String logMiningBufferInfinispanCacheSchemaChanges;
-    @UriParam(label = LABEL_NAME, defaultValue = "10s", javaType = "java.time.Duration")
-    private long snapshotLockTimeoutMs = 10000;
     @UriParam(label = LABEL_NAME, defaultValue = "3s", javaType = "java.time.Duration")
     private long logMiningSleepTimeMaxMs = 3000;
-    @UriParam(label = LABEL_NAME, defaultValue = "1000000")
-    private long logMiningScnGapDetectionGapSizeMin = 1000000;
     @UriParam(label = LABEL_NAME)
     private String databaseUser;
     @UriParam(label = LABEL_NAME)
-    private String databaseDbname;
-    @UriParam(label = LABEL_NAME)
     private String datatypePropagateSourceType;
-    @UriParam(label = LABEL_NAME, defaultValue = "false")
-    private boolean sanitizeFieldNames = false;
-    @UriParam(label = LABEL_NAME, defaultValue = "1s", javaType = "java.time.Duration")
-    private long logMiningSleepTimeDefaultMs = 1000;
-    @UriParam(label = LABEL_NAME)
-    private String snapshotSelectStatementOverrides;
-    @UriParam(label = LABEL_NAME)
-    private String databaseHistoryKafkaBootstrapServers;
-    @UriParam(label = LABEL_NAME, defaultValue = "v2")
-    private String sourceStructVersion = "v2";
+    @UriParam(label = LABEL_NAME, defaultValue = "INSERT_INSERT")
+    private String incrementalSnapshotWatermarkingStrategy = "INSERT_INSERT";
     @UriParam(label = LABEL_NAME, defaultValue = "0ms", javaType = "java.time.Duration")
     private int heartbeatIntervalMs = 0;
-    @UriParam(label = LABEL_NAME)
-    private String columnWhitelist;
-    @UriParam(label = LABEL_NAME, defaultValue = "10s", javaType = "java.time.Duration")
-    private long logMiningArchiveLogOnlyScnPollIntervalMs = 10000;
+    @UriParam(label = LABEL_NAME, defaultValue = "false")
+    private boolean snapshotModeConfigurationBasedSnapshotOnSchemaError = false;
+    @UriParam(label = LABEL_NAME, defaultValue = "false")
+    private boolean schemaHistoryInternalSkipUnparseableDdl = false;
     @UriParam(label = LABEL_NAME)
     private String columnIncludeList;
     @UriParam(label = LABEL_NAME)
@@ -92,104 +160,74 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
     private String columnPropagateSourceType;
     @UriParam(label = LABEL_NAME)
     private String logMiningBufferInfinispanCacheProcessedTransactions;
-    @UriParam(label = LABEL_NAME)
-    private String tableExcludeList;
+    @UriParam(label = LABEL_NAME, defaultValue = "-1")
+    private int errorsMaxRetries = -1;
     @UriParam(label = LABEL_NAME)
     @Metadata(required = true)
     private String databasePassword;
     @UriParam(label = LABEL_NAME)
     private String logMiningBufferInfinispanCacheEvents;
-    @UriParam(label = LABEL_NAME, defaultValue = "false")
-    private boolean databaseHistoryStoreOnlyMonitoredTablesDdl = false;
-    @UriParam(label = LABEL_NAME, defaultValue = "2048")
-    private int maxBatchSize = 2048;
+    @UriParam(label = LABEL_NAME, defaultValue = "t")
+    private String skippedOperations = "t";
     @UriParam(label = LABEL_NAME)
-    private String skippedOperations;
-    @UriParam(label = LABEL_NAME)
-    private String logMiningBufferInfinispanCacheTransactions;
+    private String archiveDestinationName;
     @UriParam(label = LABEL_NAME, defaultValue = "20s", javaType = "java.time.Duration")
     private long logMiningScnGapDetectionTimeIntervalMaxMs = 20000;
-    @UriParam(label = LABEL_NAME, defaultValue = "initial")
-    private String snapshotMode = "initial";
-    @UriParam(label = LABEL_NAME, defaultValue = "class io.debezium.relational.history.KafkaDatabaseHistory")
-    private String databaseHistory = "io.debezium.relational.history.KafkaDatabaseHistory";
     @UriParam(label = LABEL_NAME, defaultValue = "8192")
     private int maxQueueSize = 8192;
     @UriParam(label = LABEL_NAME)
     private String racNodes;
     @UriParam(label = LABEL_NAME)
-    private String databaseHistoryKafkaTopic;
-    @UriParam(label = LABEL_NAME, defaultValue = "10s", javaType = "java.time.Duration")
-    private long retriableRestartConnectorWaitMs = 10000;
+    private String logMiningBufferInfinispanCacheGlobal;
+    @UriParam(label = LABEL_NAME, defaultValue = "0")
+    private long logMiningBufferTransactionEventsThreshold = 0;
     @UriParam(label = LABEL_NAME, defaultValue = "0ms", javaType = "java.time.Duration")
-    private long snapshotDelayMs = 0;
-    @UriParam(label = LABEL_NAME, defaultValue = "redo_log_catalog")
-    private String logMiningStrategy = "redo_log_catalog";
-    @UriParam(label = LABEL_NAME, defaultValue = "100")
-    private int databaseHistoryKafkaRecoveryAttempts = 100;
+    private long logMiningTransactionRetentionMs = 0;
     @UriParam(label = LABEL_NAME, defaultValue = "false")
     private boolean provideTransactionMetadata = false;
-    @UriParam(label = LABEL_NAME)
-    private String tableWhitelist;
     @UriParam(label = LABEL_NAME, defaultValue = "false")
-    private boolean tombstonesOnDelete = false;
-    @UriParam(label = LABEL_NAME, defaultValue = "precise")
-    private String decimalHandlingMode = "precise";
-    @UriParam(label = LABEL_NAME, defaultValue = "bytes")
-    private String binaryHandlingMode = "bytes";
+    private boolean schemaHistoryInternalStoreOnlyCapturedTablesDdl = false;
+    @UriParam(label = LABEL_NAME, defaultValue = "false")
+    private boolean schemaHistoryInternalStoreOnlyCapturedDatabasesDdl = false;
+    @UriParam(label = LABEL_NAME, defaultValue = "0")
+    private int snapshotDatabaseErrorsMaxRetries = 0;
+    @UriParam(label = LABEL_NAME)
+    @Metadata(required = true)
+    private String topicPrefix;
     @UriParam(label = LABEL_NAME, defaultValue = "false")
     private boolean includeSchemaComments = false;
-    @UriParam(label = LABEL_NAME, defaultValue = "false")
-    private boolean databaseHistorySkipUnparseableDdl = false;
+    @UriParam(label = LABEL_NAME, defaultValue = "io.debezium.connector.oracle.OracleSourceInfoStructMaker")
+    private String sourceinfoStructMaker = "io.debezium.connector.oracle.OracleSourceInfoStructMaker";
     @UriParam(label = LABEL_NAME)
-    private String databaseOutServerName;
-    @UriParam(label = LABEL_NAME, defaultValue = "0")
-    private long logMiningArchiveLogHours = 0;
-    @UriParam(label = LABEL_NAME, defaultValue = "0")
-    private long logMiningTransactionRetentionHours = 0;
-    @UriParam(label = LABEL_NAME)
-    private String snapshotIncludeCollectionList;
-    @UriParam(label = LABEL_NAME)
-    private String databaseHistoryFileFilename;
+    private int openlogreplicatorPort;
     @UriParam(label = LABEL_NAME, defaultValue = "100000")
     private long logMiningBatchSizeMax = 100000;
-    @UriParam(label = LABEL_NAME)
-    private String databasePdbName;
-    @UriParam(label = LABEL_NAME, defaultValue = "LogMiner")
-    private String databaseConnectionAdapter = "LogMiner";
     @UriParam(label = LABEL_NAME, defaultValue = "0")
     private long maxQueueSizeInBytes = 0;
-    @UriParam(label = LABEL_NAME, defaultValue = "memory")
-    private String logMiningBufferType = "memory";
-    @UriParam(label = LABEL_NAME, defaultValue = "${database.server.name}.transaction")
-    private String transactionTopic = "${database.server.name}.transaction";
     @UriParam(label = LABEL_NAME)
     private String databaseUrl;
+    @UriParam(label = LABEL_NAME, defaultValue = "false")
+    private boolean snapshotModeConfigurationBasedSnapshotSchema = false;
     @UriParam(label = LABEL_NAME, defaultValue = "adaptive")
     private String timePrecisionMode = "adaptive";
     @UriParam(label = LABEL_NAME)
-    @Metadata(required = true)
-    private String databaseServerName;
-    @UriParam(label = LABEL_NAME, defaultValue = "fail")
-    private String eventProcessingFailureHandlingMode = "fail";
-    @UriParam(label = LABEL_NAME, defaultValue = "1")
-    private int snapshotMaxThreads = 1;
+    private String postProcessors;
     @UriParam(label = LABEL_NAME, defaultValue = "1528")
     private int databasePort = 1528;
     @UriParam(label = LABEL_NAME, defaultValue = "200ms", javaType = "java.time.Duration")
     private long logMiningSleepTimeIncrementMs = 200;
+    @UriParam(label = LABEL_NAME, defaultValue = "io.debezium.storage.kafka.history.KafkaSchemaHistory")
+    private String schemaHistoryInternal = "io.debezium.storage.kafka.history.KafkaSchemaHistory";
     @UriParam(label = LABEL_NAME)
     private String columnExcludeList;
+    @UriParam(label = LABEL_NAME, defaultValue = "0ms", javaType = "java.time.Duration")
+    private long logMiningSessionMaxMs = 0;
     @UriParam(label = LABEL_NAME)
     private String databaseHostname;
     @UriParam(label = LABEL_NAME, defaultValue = "1000")
     private long logMiningBatchSizeMin = 1000;
-    @UriParam(label = LABEL_NAME, defaultValue = "20000")
-    private long logMiningBatchSizeDefault = 20000;
     @UriParam(label = LABEL_NAME)
     private String snapshotEnhancePredicateScn;
-    @UriParam(label = LABEL_NAME)
-    private String tableIncludeList;
 
     /**
      * Controls how the connector holds locks on tables while performing the
@@ -227,12 +265,12 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
     /**
      * A semicolon-separated list of expressions that match fully-qualified
      * tables and column(s) to be used as message key. Each expression must
-     * match the pattern '<fully-qualified table name>:<key columns>',where the
+     * match the pattern '<fully-qualified table name>:<key columns>', where the
      * table names could be defined as (DB_NAME.TABLE_NAME) or
-     * (SCHEMA_NAME.TABLE_NAME), depending on the specific connector,and the key
-     * columns are a comma-separated list of columns representing the custom
+     * (SCHEMA_NAME.TABLE_NAME), depending on the specific connector, and the
+     * key columns are a comma-separated list of columns representing the custom
      * key. For any table without an explicit key configuration the table's
-     * primary key column(s) will be used as message key.Example:
+     * primary key column(s) will be used as message key. Example:
      * dbserver1.inventory.orderlines:orderId,orderLineId;dbserver1.inventory.orders:id
      */
     public void setMessageKeyColumns(String messageKeyColumns) {
@@ -244,67 +282,40 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * The maximum number of records that should be loaded into memory while
-     * streaming.  A value of `0` uses the default JDBC fetch size.
+     * The custom metric tags will accept key-value pairs to customize the MBean
+     * object name which should be appended the end of regular name, each key
+     * would represent a tag for the MBean object name, and the corresponding
+     * value would be the value of that tag the key is. For example: k1=v1,k2=v2
      */
-    public void setQueryFetchSize(int queryFetchSize) {
-        this.queryFetchSize = queryFetchSize;
+    public void setCustomMetricTags(String customMetricTags) {
+        this.customMetricTags = customMetricTags;
     }
 
-    public int getQueryFetchSize() {
-        return queryFetchSize;
+    public String getCustomMetricTags() {
+        return customMetricTags;
     }
 
     /**
-     * Sets the specific archive log destination as the source for reading
-     * archive logs.When not set, the connector will automatically select the
-     * first LOCAL and VALID destination.
+     * The hostname of the OpenLogReplicator network service
      */
-    public void setLogMiningArchiveDestinationName(
-            String logMiningArchiveDestinationName) {
-        this.logMiningArchiveDestinationName = logMiningArchiveDestinationName;
+    public void setOpenlogreplicatorHost(String openlogreplicatorHost) {
+        this.openlogreplicatorHost = openlogreplicatorHost;
     }
 
-    public String getLogMiningArchiveDestinationName() {
-        return logMiningArchiveDestinationName;
+    public String getOpenlogreplicatorHost() {
+        return openlogreplicatorHost;
     }
 
     /**
-     * Regular expressions matching columns to exclude from change events
-     * (deprecated, use "column.exclude.list" instead)
+     * List of channels names that are enabled. Source channel is enabled by
+     * default
      */
-    public void setColumnBlacklist(String columnBlacklist) {
-        this.columnBlacklist = columnBlacklist;
+    public void setSignalEnabledChannels(String signalEnabledChannels) {
+        this.signalEnabledChannels = signalEnabledChannels;
     }
 
-    public String getColumnBlacklist() {
-        return columnBlacklist;
-    }
-
-    /**
-     * The minimum amount of time that the connector will sleep after reading
-     * data from redo/archive logs and before starting reading data again. Value
-     * is in milliseconds.
-     */
-    public void setLogMiningSleepTimeMinMs(long logMiningSleepTimeMinMs) {
-        this.logMiningSleepTimeMinMs = logMiningSleepTimeMinMs;
-    }
-
-    public long getLogMiningSleepTimeMinMs() {
-        return logMiningSleepTimeMinMs;
-    }
-
-    /**
-     * A comma-separated list of regular expressions that match the
-     * fully-qualified names of tables to be excluded from monitoring
-     * (deprecated, use "table.exclude.list" instead)
-     */
-    public void setTableBlacklist(String tableBlacklist) {
-        this.tableBlacklist = tableBlacklist;
-    }
-
-    public String getTableBlacklist() {
-        return tableBlacklist;
+    public String getSignalEnabledChannels() {
+        return signalEnabledChannels;
     }
 
     /**
@@ -312,8 +323,8 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
      * Kafka topic with the same name as the database server ID. Each schema
      * change will be recorded using a key that contains the database name and
      * whose value include logical description of the new schema and optionally
-     * the DDL statement(s).The default is 'true'. This is independent of how
-     * the connector internally records database history.
+     * the DDL statement(s). The default is 'true'. This is independent of how
+     * the connector internally records database schema history.
      */
     public void setIncludeSchemaChanges(boolean includeSchemaChanges) {
         this.includeSchemaChanges = includeSchemaChanges;
@@ -324,52 +335,15 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * Specify the constant that will be provided by Debezium to indicate that
-     * the original value is unavailable and not provided by the database.
+     * When enabled, the transaction log REDO SQL will be included in the source
+     * information block.
      */
-    public void setUnavailableValuePlaceholder(
-            String unavailableValuePlaceholder) {
-        this.unavailableValuePlaceholder = unavailableValuePlaceholder;
+    public void setLogMiningIncludeRedoSql(boolean logMiningIncludeRedoSql) {
+        this.logMiningIncludeRedoSql = logMiningIncludeRedoSql;
     }
 
-    public String getUnavailableValuePlaceholder() {
-        return unavailableValuePlaceholder;
-    }
-
-    /**
-     * The query executed with every heartbeat.
-     */
-    public void setHeartbeatActionQuery(String heartbeatActionQuery) {
-        this.heartbeatActionQuery = heartbeatActionQuery;
-    }
-
-    public String getHeartbeatActionQuery() {
-        return heartbeatActionQuery;
-    }
-
-    /**
-     * Time to wait for new change events to appear after receiving no events,
-     * given in milliseconds. Defaults to 500 ms.
-     */
-    public void setPollIntervalMs(long pollIntervalMs) {
-        this.pollIntervalMs = pollIntervalMs;
-    }
-
-    public long getPollIntervalMs() {
-        return pollIntervalMs;
-    }
-
-    /**
-     * The number of milliseconds to wait while polling for persisted data
-     * during recovery.
-     */
-    public void setDatabaseHistoryKafkaRecoveryPollIntervalMs(
-            int databaseHistoryKafkaRecoveryPollIntervalMs) {
-        this.databaseHistoryKafkaRecoveryPollIntervalMs = databaseHistoryKafkaRecoveryPollIntervalMs;
-    }
-
-    public int getDatabaseHistoryKafkaRecoveryPollIntervalMs() {
-        return databaseHistoryKafkaRecoveryPollIntervalMs;
+    public boolean isLogMiningIncludeRedoSql() {
+        return logMiningIncludeRedoSql;
     }
 
     /**
@@ -382,47 +356,6 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
 
     public String getSignalDataCollection() {
         return signalDataCollection;
-    }
-
-    /**
-     * When set to `false`, the default, LOB fields will not be captured nor
-     * emitted. When set to `true`, the connector will capture LOB fields and
-     * emit changes for those fields like any other column type.
-     */
-    public void setLobEnabled(boolean lobEnabled) {
-        this.lobEnabled = lobEnabled;
-    }
-
-    public boolean isLobEnabled() {
-        return lobEnabled;
-    }
-
-    /**
-     * Specify how INTERVAL columns should be represented in change events,
-     * including:'string' represents values as an exact ISO formatted
-     * string'numeric' (default) represents values using the inexact conversion
-     * into microseconds
-     */
-    public void setIntervalHandlingMode(String intervalHandlingMode) {
-        this.intervalHandlingMode = intervalHandlingMode;
-    }
-
-    public String getIntervalHandlingMode() {
-        return intervalHandlingMode;
-    }
-
-    /**
-     * Controls what DDL will Debezium store in database history. By default
-     * (false) Debezium will store all incoming DDL statements. If set to true,
-     * then only DDL that manipulates a captured table will be stored.
-     */
-    public void setDatabaseHistoryStoreOnlyCapturedTablesDdl(
-            boolean databaseHistoryStoreOnlyCapturedTablesDdl) {
-        this.databaseHistoryStoreOnlyCapturedTablesDdl = databaseHistoryStoreOnlyCapturedTablesDdl;
-    }
-
-    public boolean isDatabaseHistoryStoreOnlyCapturedTablesDdl() {
-        return databaseHistoryStoreOnlyCapturedTablesDdl;
     }
 
     /**
@@ -439,36 +372,8 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * The prefix that is used to name heartbeat topics.Defaults to
-     * __debezium-heartbeat.
-     */
-    public void setHeartbeatTopicsPrefix(String heartbeatTopicsPrefix) {
-        this.heartbeatTopicsPrefix = heartbeatTopicsPrefix;
-    }
-
-    public String getHeartbeatTopicsPrefix() {
-        return heartbeatTopicsPrefix;
-    }
-
-    /**
-     * When set to `false`, the default, the connector will mine both archive
-     * log and redo logs to emit change events. When set to `true`, the
-     * connector will only mine archive logs. There are circumstances where its
-     * advantageous to only mine archive logs and accept latency in event
-     * emission due to frequent revolving redo logs.
-     */
-    public void setLogMiningArchiveLogOnlyMode(
-            boolean logMiningArchiveLogOnlyMode) {
-        this.logMiningArchiveLogOnlyMode = logMiningArchiveLogOnlyMode;
-    }
-
-    public boolean isLogMiningArchiveLogOnlyMode() {
-        return logMiningArchiveLogOnlyMode;
-    }
-
-    /**
      * The maximum number of records that should be loaded into memory while
-     * performing a snapshot
+     * performing a snapshot.
      */
     public void setSnapshotFetchSize(int snapshotFetchSize) {
         this.snapshotFetchSize = snapshotFetchSize;
@@ -476,18 +381,6 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
 
     public int getSnapshotFetchSize() {
         return snapshotFetchSize;
-    }
-
-    /**
-     * Specifies the XML configuration for the Infinispan 'schema-changes' cache
-     */
-    public void setLogMiningBufferInfinispanCacheSchemaChanges(
-            String logMiningBufferInfinispanCacheSchemaChanges) {
-        this.logMiningBufferInfinispanCacheSchemaChanges = logMiningBufferInfinispanCacheSchemaChanges;
-    }
-
-    public String getLogMiningBufferInfinispanCacheSchemaChanges() {
-        return logMiningBufferInfinispanCacheSchemaChanges;
     }
 
     /**
@@ -501,19 +394,6 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
 
     public long getSnapshotLockTimeoutMs() {
         return snapshotLockTimeoutMs;
-    }
-
-    /**
-     * The maximum amount of time that the connector will sleep after reading
-     * data from redo/archive logs and before starting reading data again. Value
-     * is in milliseconds.
-     */
-    public void setLogMiningSleepTimeMaxMs(long logMiningSleepTimeMaxMs) {
-        this.logMiningSleepTimeMaxMs = logMiningSleepTimeMaxMs;
-    }
-
-    public long getLogMiningSleepTimeMaxMs() {
-        return logMiningSleepTimeMaxMs;
     }
 
     /**
@@ -532,17 +412,6 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * Name of the database user to be used when connecting to the database.
-     */
-    public void setDatabaseUser(String databaseUser) {
-        this.databaseUser = databaseUser;
-    }
-
-    public String getDatabaseUser() {
-        return databaseUser;
-    }
-
-    /**
      * The name of the database from which the connector should capture changes
      */
     public void setDatabaseDbname(String databaseDbname) {
@@ -554,29 +423,18 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * A comma-separated list of regular expressions matching the
-     * database-specific data type names that adds the data type's original type
-     * and original length as parameters to the corresponding field schemas in
-     * the emitted change records.
+     * Controls the order in which tables are processed in the initial snapshot.
+     * A `descending` value will order the tables by row count descending. A
+     * `ascending` value will order the tables by row count ascending. A value
+     * of `disabled` (the default) will disable ordering by row count.
      */
-    public void setDatatypePropagateSourceType(
-            String datatypePropagateSourceType) {
-        this.datatypePropagateSourceType = datatypePropagateSourceType;
+    public void setSnapshotTablesOrderByRowCount(
+            String snapshotTablesOrderByRowCount) {
+        this.snapshotTablesOrderByRowCount = snapshotTablesOrderByRowCount;
     }
 
-    public String getDatatypePropagateSourceType() {
-        return datatypePropagateSourceType;
-    }
-
-    /**
-     * Whether field names will be sanitized to Avro naming conventions
-     */
-    public void setSanitizeFieldNames(boolean sanitizeFieldNames) {
-        this.sanitizeFieldNames = sanitizeFieldNames;
-    }
-
-    public boolean isSanitizeFieldNames() {
-        return sanitizeFieldNames;
+    public String getSnapshotTablesOrderByRowCount() {
+        return snapshotTablesOrderByRowCount;
     }
 
     /**
@@ -594,8 +452,8 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
 
     /**
      *  This property contains a comma-separated list of fully-qualified tables
-     * (DB_NAME.TABLE_NAME) or (SCHEMA_NAME.TABLE_NAME), depending on
-     * thespecific connectors. Select statements for the individual tables are
+     * (DB_NAME.TABLE_NAME) or (SCHEMA_NAME.TABLE_NAME), depending on the
+     * specific connectors. Select statements for the individual tables are
      * specified in further configuration properties, one for each table,
      * identified by the id
      * 'snapshot.select.statement.overrides.[DB_NAME].[TABLE_NAME]' or
@@ -616,58 +474,6 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * A list of host/port pairs that the connector will use for establishing
-     * the initial connection to the Kafka cluster for retrieving database
-     * schema history previously stored by the connector. This should point to
-     * the same Kafka cluster used by the Kafka Connect process.
-     */
-    public void setDatabaseHistoryKafkaBootstrapServers(
-            String databaseHistoryKafkaBootstrapServers) {
-        this.databaseHistoryKafkaBootstrapServers = databaseHistoryKafkaBootstrapServers;
-    }
-
-    public String getDatabaseHistoryKafkaBootstrapServers() {
-        return databaseHistoryKafkaBootstrapServers;
-    }
-
-    /**
-     * A version of the format of the publicly visible source part in the
-     * message
-     */
-    public void setSourceStructVersion(String sourceStructVersion) {
-        this.sourceStructVersion = sourceStructVersion;
-    }
-
-    public String getSourceStructVersion() {
-        return sourceStructVersion;
-    }
-
-    /**
-     * Length of an interval in milli-seconds in in which the connector
-     * periodically sends heartbeat messages to a heartbeat topic. Use 0 to
-     * disable heartbeat messages. Disabled by default.
-     */
-    public void setHeartbeatIntervalMs(int heartbeatIntervalMs) {
-        this.heartbeatIntervalMs = heartbeatIntervalMs;
-    }
-
-    public int getHeartbeatIntervalMs() {
-        return heartbeatIntervalMs;
-    }
-
-    /**
-     * Regular expressions matching columns to include in change events
-     * (deprecated, use "column.include.list" instead)
-     */
-    public void setColumnWhitelist(String columnWhitelist) {
-        this.columnWhitelist = columnWhitelist;
-    }
-
-    public String getColumnWhitelist() {
-        return columnWhitelist;
-    }
-
-    /**
      * The interval in milliseconds to wait between polls checking to see if the
      * SCN is in the archive logs.
      */
@@ -681,53 +487,19 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * Regular expressions matching columns to include in change events
+     * Debezium opens a database connection and keeps that connection open
+     * throughout the entire streaming phase. In some situations, this can lead
+     * to excessive SGA memory usage. By setting this option to 'true' (the
+     * default is 'false'), the connector will close and re-open a database
+     * connection after every detected log switch or if the
+     * log.mining.session.max.ms has been reached.
      */
-    public void setColumnIncludeList(String columnIncludeList) {
-        this.columnIncludeList = columnIncludeList;
+    public void setLogMiningRestartConnection(boolean logMiningRestartConnection) {
+        this.logMiningRestartConnection = logMiningRestartConnection;
     }
 
-    public String getColumnIncludeList() {
-        return columnIncludeList;
-    }
-
-    /**
-     * Comma separated list of usernames to exclude from LogMiner query.
-     */
-    public void setLogMiningUsernameExcludeList(
-            String logMiningUsernameExcludeList) {
-        this.logMiningUsernameExcludeList = logMiningUsernameExcludeList;
-    }
-
-    public String getLogMiningUsernameExcludeList() {
-        return logMiningUsernameExcludeList;
-    }
-
-    /**
-     * A comma-separated list of regular expressions matching fully-qualified
-     * names of columns that  adds the columns original type and original length
-     * as parameters to the corresponding field schemas in the emitted change
-     * records.
-     */
-    public void setColumnPropagateSourceType(String columnPropagateSourceType) {
-        this.columnPropagateSourceType = columnPropagateSourceType;
-    }
-
-    public String getColumnPropagateSourceType() {
-        return columnPropagateSourceType;
-    }
-
-    /**
-     * Specifies the XML configuration for the Infinispan
-     * 'processed-transactions' cache
-     */
-    public void setLogMiningBufferInfinispanCacheProcessedTransactions(
-            String logMiningBufferInfinispanCacheProcessedTransactions) {
-        this.logMiningBufferInfinispanCacheProcessedTransactions = logMiningBufferInfinispanCacheProcessedTransactions;
-    }
-
-    public String getLogMiningBufferInfinispanCacheProcessedTransactions() {
-        return logMiningBufferInfinispanCacheProcessedTransactions;
+    public boolean isLogMiningRestartConnection() {
+        return logMiningRestartConnection;
     }
 
     /**
@@ -743,45 +515,6 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * Password of the database user to be used when connecting to the database.
-     */
-    public void setDatabasePassword(String databasePassword) {
-        this.databasePassword = databasePassword;
-    }
-
-    public String getDatabasePassword() {
-        return databasePassword;
-    }
-
-    /**
-     * Specifies the XML configuration for the Infinispan 'events' cache
-     */
-    public void setLogMiningBufferInfinispanCacheEvents(
-            String logMiningBufferInfinispanCacheEvents) {
-        this.logMiningBufferInfinispanCacheEvents = logMiningBufferInfinispanCacheEvents;
-    }
-
-    public String getLogMiningBufferInfinispanCacheEvents() {
-        return logMiningBufferInfinispanCacheEvents;
-    }
-
-    /**
-     * Controls what DDL will Debezium store in database history. By default
-     * (false) Debezium will store all incoming DDL statements. If set to true,
-     * then only DDL that manipulates a monitored table will be stored
-     * (deprecated, use "database.history.store.only.captured.tables.ddl"
-     * instead)
-     */
-    public void setDatabaseHistoryStoreOnlyMonitoredTablesDdl(
-            boolean databaseHistoryStoreOnlyMonitoredTablesDdl) {
-        this.databaseHistoryStoreOnlyMonitoredTablesDdl = databaseHistoryStoreOnlyMonitoredTablesDdl;
-    }
-
-    public boolean isDatabaseHistoryStoreOnlyMonitoredTablesDdl() {
-        return databaseHistoryStoreOnlyMonitoredTablesDdl;
-    }
-
-    /**
      * Maximum size of each batch of source records. Defaults to 2048.
      */
     public void setMaxBatchSize(int maxBatchSize) {
@@ -790,19 +523,6 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
 
     public int getMaxBatchSize() {
         return maxBatchSize;
-    }
-
-    /**
-     * The comma-separated list of operations to skip during streaming, defined
-     * as: 'c' for inserts/create; 'u' for updates; 'd' for deletes. By default,
-     * no operations will be skipped.
-     */
-    public void setSkippedOperations(String skippedOperations) {
-        this.skippedOperations = skippedOperations;
-    }
-
-    public String getSkippedOperations() {
-        return skippedOperations;
     }
 
     /**
@@ -818,27 +538,38 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * Used for SCN gap detection, if the difference between current SCN and
-     * previous end SCN is bigger than
-     * log.mining.scn.gap.detection.gap.size.min, and the time difference of
-     * current SCN and previous end SCN is smaller than  this value, consider it
-     * a SCN gap.
+     * The name of the TopicNamingStrategy class that should be used to
+     * determine the topic name for data change, schema change, transaction,
+     * heartbeat event etc.
      */
-    public void setLogMiningScnGapDetectionTimeIntervalMaxMs(
-            long logMiningScnGapDetectionTimeIntervalMaxMs) {
-        this.logMiningScnGapDetectionTimeIntervalMaxMs = logMiningScnGapDetectionTimeIntervalMaxMs;
+    public void setTopicNamingStrategy(String topicNamingStrategy) {
+        this.topicNamingStrategy = topicNamingStrategy;
     }
 
-    public long getLogMiningScnGapDetectionTimeIntervalMaxMs() {
-        return logMiningScnGapDetectionTimeIntervalMaxMs;
+    public String getTopicNamingStrategy() {
+        return topicNamingStrategy;
     }
 
     /**
-     * The criteria for running a snapshot upon startup of the connector.
-     * Options include: 'initial' (the default) to specify the connector should
-     * run a snapshot only when no offsets are available for the logical server
-     * name; 'schema_only' to specify the connector should run a snapshot of the
-     * schema when no offsets are available for the logical server name. 
+     * The criteria for running a snapshot upon startup of the connector. Select
+     * one of the following snapshot options: 'always': The connector runs a
+     * snapshot every time that it starts. After the snapshot completes, the
+     * connector begins to stream changes from the redo logs.; 'initial'
+     * (default): If the connector does not detect any offsets for the logical
+     * server name, it runs a snapshot that captures the current full state of
+     * the configured tables. After the snapshot completes, the connector begins
+     * to stream changes from the redo logs. 'initial_only': The connector
+     * performs a snapshot as it does for the 'initial' option, but after the
+     * connector completes the snapshot, it stops, and does not stream changes
+     * from the redo logs.; 'schema_only': If the connector does not detect any
+     * offsets for the logical server name, it runs a snapshot that captures
+     * only the schema (table structures), but not any table data. After the
+     * snapshot completes, the connector begins to stream changes from the redo
+     * logs.; 'schema_only_recovery': The connector performs a snapshot that
+     * captures only the database schema history. The connector then transitions
+     * to streaming from the redo logs. Use this setting to restore a corrupted
+     * or lost database schema history topic. Do not use if the database schema
+     * was modified after the connector stopped.
      */
     public void setSnapshotMode(String snapshotMode) {
         this.snapshotMode = snapshotMode;
@@ -849,51 +580,16 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * The name of the DatabaseHistory class that should be used to store and
-     * recover database schema changes. The configuration properties for the
-     * history are prefixed with the 'database.history.' string.
+     * When 'snapshot.mode' is set as configuration_based, this setting permits
+     * to specify whenever the data should be snapshotted or not.
      */
-    public void setDatabaseHistory(String databaseHistory) {
-        this.databaseHistory = databaseHistory;
+    public void setSnapshotModeConfigurationBasedSnapshotData(
+            boolean snapshotModeConfigurationBasedSnapshotData) {
+        this.snapshotModeConfigurationBasedSnapshotData = snapshotModeConfigurationBasedSnapshotData;
     }
 
-    public String getDatabaseHistory() {
-        return databaseHistory;
-    }
-
-    /**
-     * Maximum size of the queue for change events read from the database log
-     * but not yet recorded or forwarded. Defaults to 8192, and should always be
-     * larger than the maximum batch size.
-     */
-    public void setMaxQueueSize(int maxQueueSize) {
-        this.maxQueueSize = maxQueueSize;
-    }
-
-    public int getMaxQueueSize() {
-        return maxQueueSize;
-    }
-
-    /**
-     * A comma-separated list of RAC node hostnames or ip addresses
-     */
-    public void setRacNodes(String racNodes) {
-        this.racNodes = racNodes;
-    }
-
-    public String getRacNodes() {
-        return racNodes;
-    }
-
-    /**
-     * The name of the topic for the database schema history
-     */
-    public void setDatabaseHistoryKafkaTopic(String databaseHistoryKafkaTopic) {
-        this.databaseHistoryKafkaTopic = databaseHistoryKafkaTopic;
-    }
-
-    public String getDatabaseHistoryKafkaTopic() {
-        return databaseHistoryKafkaTopic;
+    public boolean isSnapshotModeConfigurationBasedSnapshotData() {
+        return snapshotModeConfigurationBasedSnapshotData;
     }
 
     /**
@@ -934,45 +630,35 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * The number of attempts in a row that no data are returned from Kafka
-     * before recover completes. The maximum amount of time to wait after
-     * receiving no data is (recovery.attempts) x (recovery.poll.interval.ms).
+     * When 'snapshot.mode' is set as configuration_based, this setting permits
+     * to specify whenever the data should be snapshotted or not in case of
+     * error.
      */
-    public void setDatabaseHistoryKafkaRecoveryAttempts(
-            int databaseHistoryKafkaRecoveryAttempts) {
-        this.databaseHistoryKafkaRecoveryAttempts = databaseHistoryKafkaRecoveryAttempts;
+    public void setSnapshotModeConfigurationBasedSnapshotOnDataError(
+            boolean snapshotModeConfigurationBasedSnapshotOnDataError) {
+        this.snapshotModeConfigurationBasedSnapshotOnDataError = snapshotModeConfigurationBasedSnapshotOnDataError;
     }
 
-    public int getDatabaseHistoryKafkaRecoveryAttempts() {
-        return databaseHistoryKafkaRecoveryAttempts;
+    public boolean isSnapshotModeConfigurationBasedSnapshotOnDataError() {
+        return snapshotModeConfigurationBasedSnapshotOnDataError;
     }
 
     /**
-     * Enables transaction metadata extraction together with event counting
+     * The path to the file that will be used to record the database schema
+     * history
      */
-    public void setProvideTransactionMetadata(boolean provideTransactionMetadata) {
-        this.provideTransactionMetadata = provideTransactionMetadata;
+    public void setSchemaHistoryInternalFileFilename(
+            String schemaHistoryInternalFileFilename) {
+        this.schemaHistoryInternalFileFilename = schemaHistoryInternalFileFilename;
     }
 
-    public boolean isProvideTransactionMetadata() {
-        return provideTransactionMetadata;
-    }
-
-    /**
-     * The tables for which changes are to be captured (deprecated, use
-     * "table.include.list" instead)
-     */
-    public void setTableWhitelist(String tableWhitelist) {
-        this.tableWhitelist = tableWhitelist;
-    }
-
-    public String getTableWhitelist() {
-        return tableWhitelist;
+    public String getSchemaHistoryInternalFileFilename() {
+        return schemaHistoryInternalFileFilename;
     }
 
     /**
      * Whether delete operations should be represented by a delete event and a
-     * subsquenttombstone event (true) or only by a delete event (false).
+     * subsequent tombstone event (true) or only by a delete event (false).
      * Emitting the tombstone event (the default behavior) allows Kafka to
      * completely delete all events pertaining to the given key once the source
      * record got deleted.
@@ -987,7 +673,7 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
 
     /**
      * Specify how DECIMAL and NUMERIC columns should be represented in change
-     * events, including:'precise' (the default) uses java.math.BigDecimal to
+     * events, including: 'precise' (the default) uses java.math.BigDecimal to
      * represent values, which are encoded in the change events using a binary
      * representation and Kafka Connect's
      * 'org.apache.kafka.connect.data.Decimal' type; 'string' uses string to
@@ -1004,9 +690,10 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
 
     /**
      * Specify how binary (blob, binary, etc.) columns should be represented in
-     * change events, including:'bytes' represents binary data as byte array
-     * (default)'base64' represents binary data as base64-encoded string'hex'
-     * represents binary data as hex-encoded (base16) string
+     * change events, including: 'bytes' represents binary data as byte array
+     * (default); 'base64' represents binary data as base64-encoded string;
+     * 'base64-url-safe' represents binary data as base64-url-safe-encoded
+     * string; 'hex' represents binary data as hex-encoded (base16) string
      */
     public void setBinaryHandlingMode(String binaryHandlingMode) {
         this.binaryHandlingMode = binaryHandlingMode;
@@ -1014,37 +701,6 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
 
     public String getBinaryHandlingMode() {
         return binaryHandlingMode;
-    }
-
-    /**
-     * Whether the connector parse table and column's comment to metadata
-     * object.Note: Enable this option will bring the implications on memory
-     * usage. The number and size of ColumnImpl objects is what largely impacts
-     * how much memory is consumed by the Debezium connectors, and adding a
-     * String to each of them can potentially be quite heavy. The default is
-     * 'false'.
-     */
-    public void setIncludeSchemaComments(boolean includeSchemaComments) {
-        this.includeSchemaComments = includeSchemaComments;
-    }
-
-    public boolean isIncludeSchemaComments() {
-        return includeSchemaComments;
-    }
-
-    /**
-     * Controls the action Debezium will take when it meets a DDL statement in
-     * binlog, that it cannot parse.By default the connector will stop operating
-     * but by changing the setting it can ignore the statements which it cannot
-     * parse. If skipping is enabled then Debezium can miss metadata changes.
-     */
-    public void setDatabaseHistorySkipUnparseableDdl(
-            boolean databaseHistorySkipUnparseableDdl) {
-        this.databaseHistorySkipUnparseableDdl = databaseHistorySkipUnparseableDdl;
-    }
-
-    public boolean isDatabaseHistorySkipUnparseableDdl() {
-        return databaseHistorySkipUnparseableDdl;
     }
 
     /**
@@ -1059,32 +715,19 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * The number of hours in the past from SYSDATE to mine archive logs.  Using
+     * The number of hours in the past from SYSDATE to mine archive logs. Using
      * 0 mines all available archive logs
      */
-    public void setLogMiningArchiveLogHours(long logMiningArchiveLogHours) {
-        this.logMiningArchiveLogHours = logMiningArchiveLogHours;
+    public void setArchiveLogHours(long archiveLogHours) {
+        this.archiveLogHours = archiveLogHours;
     }
 
-    public long getLogMiningArchiveLogHours() {
-        return logMiningArchiveLogHours;
-    }
-
-    /**
-     * Hours to keep long running transactions in transaction buffer between log
-     * mining sessions.  By default, all transactions are retained.
-     */
-    public void setLogMiningTransactionRetentionHours(
-            long logMiningTransactionRetentionHours) {
-        this.logMiningTransactionRetentionHours = logMiningTransactionRetentionHours;
-    }
-
-    public long getLogMiningTransactionRetentionHours() {
-        return logMiningTransactionRetentionHours;
+    public long getArchiveLogHours() {
+        return archiveLogHours;
     }
 
     /**
-     * this setting must be set to specify a list of tables/collections whose
+     * This setting must be set to specify a list of tables/collections whose
      * snapshot must be taken on creating or restarting the connector.
      */
     public void setSnapshotIncludeCollectionList(
@@ -1097,27 +740,16 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * The path to the file that will be used to record the database history
+     * When 'snapshot.mode' is set as configuration_based, this setting permits
+     * to specify whenever the stream should start or not after snapshot.
      */
-    public void setDatabaseHistoryFileFilename(
-            String databaseHistoryFileFilename) {
-        this.databaseHistoryFileFilename = databaseHistoryFileFilename;
+    public void setSnapshotModeConfigurationBasedStartStream(
+            boolean snapshotModeConfigurationBasedStartStream) {
+        this.snapshotModeConfigurationBasedStartStream = snapshotModeConfigurationBasedStartStream;
     }
 
-    public String getDatabaseHistoryFileFilename() {
-        return databaseHistoryFileFilename;
-    }
-
-    /**
-     * The maximum SCN interval size that this connector will use when reading
-     * from redo/archive logs.
-     */
-    public void setLogMiningBatchSizeMax(long logMiningBatchSizeMax) {
-        this.logMiningBatchSizeMax = logMiningBatchSizeMax;
-    }
-
-    public long getLogMiningBatchSizeMax() {
-        return logMiningBatchSizeMax;
+    public boolean isSnapshotModeConfigurationBasedStartStream() {
+        return snapshotModeConfigurationBasedStartStream;
     }
 
     /**
@@ -1146,16 +778,27 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * Maximum size of the queue in bytes for change events read from the
-     * database log but not yet recorded or forwarded. Defaults to 0. Mean the
-     * feature is not enabled
+     * The name of the flush table used by the connector, defaults to
+     * LOG_MINING_FLUSH.
      */
-    public void setMaxQueueSizeInBytes(long maxQueueSizeInBytes) {
-        this.maxQueueSizeInBytes = maxQueueSizeInBytes;
+    public void setLogMiningFlushTableName(String logMiningFlushTableName) {
+        this.logMiningFlushTableName = logMiningFlushTableName;
     }
 
-    public long getMaxQueueSizeInBytes() {
-        return maxQueueSizeInBytes;
+    public String getLogMiningFlushTableName() {
+        return logMiningFlushTableName;
+    }
+
+    /**
+     * The configured logical source name in the OpenLogReplicator configuration
+     * that is to stream changes
+     */
+    public void setOpenlogreplicatorSource(String openlogreplicatorSource) {
+        this.openlogreplicatorSource = openlogreplicatorSource;
+    }
+
+    public String getOpenlogreplicatorSource() {
+        return openlogreplicatorSource;
     }
 
     /**
@@ -1179,16 +822,703 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * The name of the transaction metadata topic. The placeholder
-     * ${database.server.name} can be used for referring to the connector's
-     * logical name; defaults to ${database.server.name}.transaction.
+     * Interval for looking for new signals in registered channels, given in
+     * milliseconds. Defaults to 5 seconds.
      */
-    public void setTransactionTopic(String transactionTopic) {
-        this.transactionTopic = transactionTopic;
+    public void setSignalPollIntervalMs(long signalPollIntervalMs) {
+        this.signalPollIntervalMs = signalPollIntervalMs;
     }
 
-    public String getTransactionTopic() {
-        return transactionTopic;
+    public long getSignalPollIntervalMs() {
+        return signalPollIntervalMs;
+    }
+
+    /**
+     * List of notification channels names that are enabled.
+     */
+    public void setNotificationEnabledChannels(
+            String notificationEnabledChannels) {
+        this.notificationEnabledChannels = notificationEnabledChannels;
+    }
+
+    public String getNotificationEnabledChannels() {
+        return notificationEnabledChannels;
+    }
+
+    /**
+     * Specify how failures during processing of events (i.e. when encountering
+     * a corrupted event) should be handled, including: 'fail' (the default) an
+     * exception indicating the problematic event and its position is raised,
+     * causing the connector to be stopped; 'warn' the problematic event and its
+     * position will be logged and the event will be skipped; 'ignore' the
+     * problematic event will be skipped.
+     */
+    public void setEventProcessingFailureHandlingMode(
+            String eventProcessingFailureHandlingMode) {
+        this.eventProcessingFailureHandlingMode = eventProcessingFailureHandlingMode;
+    }
+
+    public String getEventProcessingFailureHandlingMode() {
+        return eventProcessingFailureHandlingMode;
+    }
+
+    /**
+     * The maximum number of threads used to perform the snapshot. Defaults to
+     * 1.
+     */
+    public void setSnapshotMaxThreads(int snapshotMaxThreads) {
+        this.snapshotMaxThreads = snapshotMaxThreads;
+    }
+
+    public int getSnapshotMaxThreads() {
+        return snapshotMaxThreads;
+    }
+
+    /**
+     * The name of the topic for the notifications. This is required in case
+     * 'sink' is in the list of enabled channels
+     */
+    public void setNotificationSinkTopicName(String notificationSinkTopicName) {
+        this.notificationSinkTopicName = notificationSinkTopicName;
+    }
+
+    public String getNotificationSinkTopicName() {
+        return notificationSinkTopicName;
+    }
+
+    /**
+     * When 'snapshot.mode' is set as custom, this setting must be set to
+     * specify a the name of the custom implementation provided in the 'name()'
+     * method. The implementations must implement the 'Snapshotter' interface
+     * and is called on each app boot to determine whether to do a snapshot.
+     */
+    public void setSnapshotModeCustomName(String snapshotModeCustomName) {
+        this.snapshotModeCustomName = snapshotModeCustomName;
+    }
+
+    public String getSnapshotModeCustomName() {
+        return snapshotModeCustomName;
+    }
+
+    /**
+     * Specifies how the filter configuration is applied to the LogMiner
+     * database query.
+     * none - The query does not apply any schema or table filters, all
+     * filtering is at runtime by the connector.
+     * in - The query uses SQL in-clause expressions to specify the schema or
+     * table filters.
+     * regex - The query uses Oracle REGEXP_LIKE expressions to specify the
+     * schema or table filters.
+     */
+    public void setLogMiningQueryFilterMode(String logMiningQueryFilterMode) {
+        this.logMiningQueryFilterMode = logMiningQueryFilterMode;
+    }
+
+    public String getLogMiningQueryFilterMode() {
+        return logMiningQueryFilterMode;
+    }
+
+    /**
+     * Specify how schema names should be adjusted for compatibility with the
+     * message converter used by the connector, including: 'avro' replaces the
+     * characters that cannot be used in the Avro type name with underscore;
+     * 'avro_unicode' replaces the underscore or characters that cannot be used
+     * in the Avro type name with corresponding unicode like _uxxxx. Note: _ is
+     * an escape sequence like backslash in Java;'none' does not apply any
+     * adjustment (default)
+     */
+    public void setSchemaNameAdjustmentMode(String schemaNameAdjustmentMode) {
+        this.schemaNameAdjustmentMode = schemaNameAdjustmentMode;
+    }
+
+    public String getSchemaNameAdjustmentMode() {
+        return schemaNameAdjustmentMode;
+    }
+
+    /**
+     * The starting SCN interval size that the connector will use for reading
+     * data from redo/archive logs.
+     */
+    public void setLogMiningBatchSizeDefault(long logMiningBatchSizeDefault) {
+        this.logMiningBatchSizeDefault = logMiningBatchSizeDefault;
+    }
+
+    public long getLogMiningBatchSizeDefault() {
+        return logMiningBatchSizeDefault;
+    }
+
+    /**
+     * The tables for which changes are to be captured
+     */
+    public void setTableIncludeList(String tableIncludeList) {
+        this.tableIncludeList = tableIncludeList;
+    }
+
+    public String getTableIncludeList() {
+        return tableIncludeList;
+    }
+
+    /**
+     * The maximum number of records that should be loaded into memory while
+     * streaming. A value of '0' uses the default JDBC fetch size, defaults to
+     * '2000'.
+     */
+    public void setQueryFetchSize(int queryFetchSize) {
+        this.queryFetchSize = queryFetchSize;
+    }
+
+    public int getQueryFetchSize() {
+        return queryFetchSize;
+    }
+
+    /**
+     * The minimum amount of time that the connector will sleep after reading
+     * data from redo/archive logs and before starting reading data again. Value
+     * is in milliseconds.
+     */
+    public void setLogMiningSleepTimeMinMs(long logMiningSleepTimeMinMs) {
+        this.logMiningSleepTimeMinMs = logMiningSleepTimeMinMs;
+    }
+
+    public long getLogMiningSleepTimeMinMs() {
+        return logMiningSleepTimeMinMs;
+    }
+
+    /**
+     * Specify the constant that will be provided by Debezium to indicate that
+     * the original value is unavailable and not provided by the database.
+     */
+    public void setUnavailableValuePlaceholder(
+            String unavailableValuePlaceholder) {
+        this.unavailableValuePlaceholder = unavailableValuePlaceholder;
+    }
+
+    public String getUnavailableValuePlaceholder() {
+        return unavailableValuePlaceholder;
+    }
+
+    /**
+     * The query executed with every heartbeat.
+     */
+    public void setHeartbeatActionQuery(String heartbeatActionQuery) {
+        this.heartbeatActionQuery = heartbeatActionQuery;
+    }
+
+    public String getHeartbeatActionQuery() {
+        return heartbeatActionQuery;
+    }
+
+    /**
+     * Time to wait for new change events to appear after receiving no events,
+     * given in milliseconds. Defaults to 500 ms.
+     */
+    public void setPollIntervalMs(long pollIntervalMs) {
+        this.pollIntervalMs = pollIntervalMs;
+    }
+
+    public long getPollIntervalMs() {
+        return pollIntervalMs;
+    }
+
+    /**
+     * Comma separated list of usernames to include from LogMiner query.
+     */
+    public void setLogMiningUsernameIncludeList(
+            String logMiningUsernameIncludeList) {
+        this.logMiningUsernameIncludeList = logMiningUsernameIncludeList;
+    }
+
+    public String getLogMiningUsernameIncludeList() {
+        return logMiningUsernameIncludeList;
+    }
+
+    /**
+     * When set to 'false', the default, LOB fields will not be captured nor
+     * emitted. When set to 'true', the connector will capture LOB fields and
+     * emit changes for those fields like any other column type.
+     */
+    public void setLobEnabled(boolean lobEnabled) {
+        this.lobEnabled = lobEnabled;
+    }
+
+    public boolean isLobEnabled() {
+        return lobEnabled;
+    }
+
+    /**
+     * Specify how INTERVAL columns should be represented in change events,
+     * including: 'string' represents values as an exact ISO formatted string;
+     * 'numeric' (default) represents values using the inexact conversion into
+     * microseconds
+     */
+    public void setIntervalHandlingMode(String intervalHandlingMode) {
+        this.intervalHandlingMode = intervalHandlingMode;
+    }
+
+    public String getIntervalHandlingMode() {
+        return intervalHandlingMode;
+    }
+
+    /**
+     * The prefix that is used to name heartbeat topics.Defaults to
+     * __debezium-heartbeat.
+     */
+    public void setHeartbeatTopicsPrefix(String heartbeatTopicsPrefix) {
+        this.heartbeatTopicsPrefix = heartbeatTopicsPrefix;
+    }
+
+    public String getHeartbeatTopicsPrefix() {
+        return heartbeatTopicsPrefix;
+    }
+
+    /**
+     * When set to 'false', the default, the connector will mine both archive
+     * log and redo logs to emit change events. When set to 'true', the
+     * connector will only mine archive logs. There are circumstances where its
+     * advantageous to only mine archive logs and accept latency in event
+     * emission due to frequent revolving redo logs.
+     */
+    public void setLogMiningArchiveLogOnlyMode(
+            boolean logMiningArchiveLogOnlyMode) {
+        this.logMiningArchiveLogOnlyMode = logMiningArchiveLogOnlyMode;
+    }
+
+    public boolean isLogMiningArchiveLogOnlyMode() {
+        return logMiningArchiveLogOnlyMode;
+    }
+
+    /**
+     * Specifies the XML configuration for the Infinispan 'schema-changes' cache
+     */
+    public void setLogMiningBufferInfinispanCacheSchemaChanges(
+            String logMiningBufferInfinispanCacheSchemaChanges) {
+        this.logMiningBufferInfinispanCacheSchemaChanges = logMiningBufferInfinispanCacheSchemaChanges;
+    }
+
+    public String getLogMiningBufferInfinispanCacheSchemaChanges() {
+        return logMiningBufferInfinispanCacheSchemaChanges;
+    }
+
+    /**
+     * The maximum amount of time that the connector will sleep after reading
+     * data from redo/archive logs and before starting reading data again. Value
+     * is in milliseconds.
+     */
+    public void setLogMiningSleepTimeMaxMs(long logMiningSleepTimeMaxMs) {
+        this.logMiningSleepTimeMaxMs = logMiningSleepTimeMaxMs;
+    }
+
+    public long getLogMiningSleepTimeMaxMs() {
+        return logMiningSleepTimeMaxMs;
+    }
+
+    /**
+     * Name of the database user to be used when connecting to the database.
+     */
+    public void setDatabaseUser(String databaseUser) {
+        this.databaseUser = databaseUser;
+    }
+
+    public String getDatabaseUser() {
+        return databaseUser;
+    }
+
+    /**
+     * A comma-separated list of regular expressions matching the
+     * database-specific data type names that adds the data type's original type
+     * and original length as parameters to the corresponding field schemas in
+     * the emitted change records.
+     */
+    public void setDatatypePropagateSourceType(
+            String datatypePropagateSourceType) {
+        this.datatypePropagateSourceType = datatypePropagateSourceType;
+    }
+
+    public String getDatatypePropagateSourceType() {
+        return datatypePropagateSourceType;
+    }
+
+    /**
+     * Specify the strategy used for watermarking during an incremental
+     * snapshot: 'insert_insert' both open and close signal is written into
+     * signal data collection (default); 'insert_delete' only open signal is
+     * written on signal data collection, the close will delete the relative
+     * open signal;
+     */
+    public void setIncrementalSnapshotWatermarkingStrategy(
+            String incrementalSnapshotWatermarkingStrategy) {
+        this.incrementalSnapshotWatermarkingStrategy = incrementalSnapshotWatermarkingStrategy;
+    }
+
+    public String getIncrementalSnapshotWatermarkingStrategy() {
+        return incrementalSnapshotWatermarkingStrategy;
+    }
+
+    /**
+     * Length of an interval in milli-seconds in in which the connector
+     * periodically sends heartbeat messages to a heartbeat topic. Use 0 to
+     * disable heartbeat messages. Disabled by default.
+     */
+    public void setHeartbeatIntervalMs(int heartbeatIntervalMs) {
+        this.heartbeatIntervalMs = heartbeatIntervalMs;
+    }
+
+    public int getHeartbeatIntervalMs() {
+        return heartbeatIntervalMs;
+    }
+
+    /**
+     * When 'snapshot.mode' is set as configuration_based, this setting permits
+     * to specify whenever the schema should be snapshotted or not in case of
+     * error.
+     */
+    public void setSnapshotModeConfigurationBasedSnapshotOnSchemaError(
+            boolean snapshotModeConfigurationBasedSnapshotOnSchemaError) {
+        this.snapshotModeConfigurationBasedSnapshotOnSchemaError = snapshotModeConfigurationBasedSnapshotOnSchemaError;
+    }
+
+    public boolean isSnapshotModeConfigurationBasedSnapshotOnSchemaError() {
+        return snapshotModeConfigurationBasedSnapshotOnSchemaError;
+    }
+
+    /**
+     * Controls the action Debezium will take when it meets a DDL statement in
+     * binlog, that it cannot parse.By default the connector will stop operating
+     * but by changing the setting it can ignore the statements which it cannot
+     * parse. If skipping is enabled then Debezium can miss metadata changes.
+     */
+    public void setSchemaHistoryInternalSkipUnparseableDdl(
+            boolean schemaHistoryInternalSkipUnparseableDdl) {
+        this.schemaHistoryInternalSkipUnparseableDdl = schemaHistoryInternalSkipUnparseableDdl;
+    }
+
+    public boolean isSchemaHistoryInternalSkipUnparseableDdl() {
+        return schemaHistoryInternalSkipUnparseableDdl;
+    }
+
+    /**
+     * Regular expressions matching columns to include in change events
+     */
+    public void setColumnIncludeList(String columnIncludeList) {
+        this.columnIncludeList = columnIncludeList;
+    }
+
+    public String getColumnIncludeList() {
+        return columnIncludeList;
+    }
+
+    /**
+     * Comma separated list of usernames to exclude from LogMiner query.
+     */
+    public void setLogMiningUsernameExcludeList(
+            String logMiningUsernameExcludeList) {
+        this.logMiningUsernameExcludeList = logMiningUsernameExcludeList;
+    }
+
+    public String getLogMiningUsernameExcludeList() {
+        return logMiningUsernameExcludeList;
+    }
+
+    /**
+     * A comma-separated list of regular expressions matching fully-qualified
+     * names of columns that adds the columns original type and original length
+     * as parameters to the corresponding field schemas in the emitted change
+     * records.
+     */
+    public void setColumnPropagateSourceType(String columnPropagateSourceType) {
+        this.columnPropagateSourceType = columnPropagateSourceType;
+    }
+
+    public String getColumnPropagateSourceType() {
+        return columnPropagateSourceType;
+    }
+
+    /**
+     * Specifies the XML configuration for the Infinispan
+     * 'processed-transactions' cache
+     */
+    public void setLogMiningBufferInfinispanCacheProcessedTransactions(
+            String logMiningBufferInfinispanCacheProcessedTransactions) {
+        this.logMiningBufferInfinispanCacheProcessedTransactions = logMiningBufferInfinispanCacheProcessedTransactions;
+    }
+
+    public String getLogMiningBufferInfinispanCacheProcessedTransactions() {
+        return logMiningBufferInfinispanCacheProcessedTransactions;
+    }
+
+    /**
+     * The maximum number of retries on connection errors before failing (-1 =
+     * no limit, 0 = disabled, > 0 = num of retries).
+     */
+    public void setErrorsMaxRetries(int errorsMaxRetries) {
+        this.errorsMaxRetries = errorsMaxRetries;
+    }
+
+    public int getErrorsMaxRetries() {
+        return errorsMaxRetries;
+    }
+
+    /**
+     * Password of the database user to be used when connecting to the database.
+     */
+    public void setDatabasePassword(String databasePassword) {
+        this.databasePassword = databasePassword;
+    }
+
+    public String getDatabasePassword() {
+        return databasePassword;
+    }
+
+    /**
+     * Specifies the XML configuration for the Infinispan 'events' cache
+     */
+    public void setLogMiningBufferInfinispanCacheEvents(
+            String logMiningBufferInfinispanCacheEvents) {
+        this.logMiningBufferInfinispanCacheEvents = logMiningBufferInfinispanCacheEvents;
+    }
+
+    public String getLogMiningBufferInfinispanCacheEvents() {
+        return logMiningBufferInfinispanCacheEvents;
+    }
+
+    /**
+     * The comma-separated list of operations to skip during streaming, defined
+     * as: 'c' for inserts/create; 'u' for updates; 'd' for deletes, 't' for
+     * truncates, and 'none' to indicate nothing skipped. By default, only
+     * truncate operations will be skipped.
+     */
+    public void setSkippedOperations(String skippedOperations) {
+        this.skippedOperations = skippedOperations;
+    }
+
+    public String getSkippedOperations() {
+        return skippedOperations;
+    }
+
+    /**
+     * Sets the specific archive log destination as the source for reading
+     * archive logs.When not set, the connector will automatically select the
+     * first LOCAL and VALID destination.
+     */
+    public void setArchiveDestinationName(String archiveDestinationName) {
+        this.archiveDestinationName = archiveDestinationName;
+    }
+
+    public String getArchiveDestinationName() {
+        return archiveDestinationName;
+    }
+
+    /**
+     * Used for SCN gap detection, if the difference between current SCN and
+     * previous end SCN is bigger than
+     * log.mining.scn.gap.detection.gap.size.min, and the time difference of
+     * current SCN and previous end SCN is smaller than  this value, consider it
+     * a SCN gap.
+     */
+    public void setLogMiningScnGapDetectionTimeIntervalMaxMs(
+            long logMiningScnGapDetectionTimeIntervalMaxMs) {
+        this.logMiningScnGapDetectionTimeIntervalMaxMs = logMiningScnGapDetectionTimeIntervalMaxMs;
+    }
+
+    public long getLogMiningScnGapDetectionTimeIntervalMaxMs() {
+        return logMiningScnGapDetectionTimeIntervalMaxMs;
+    }
+
+    /**
+     * Maximum size of the queue for change events read from the database log
+     * but not yet recorded or forwarded. Defaults to 8192, and should always be
+     * larger than the maximum batch size.
+     */
+    public void setMaxQueueSize(int maxQueueSize) {
+        this.maxQueueSize = maxQueueSize;
+    }
+
+    public int getMaxQueueSize() {
+        return maxQueueSize;
+    }
+
+    /**
+     * A comma-separated list of RAC node hostnames or ip addresses
+     */
+    public void setRacNodes(String racNodes) {
+        this.racNodes = racNodes;
+    }
+
+    public String getRacNodes() {
+        return racNodes;
+    }
+
+    /**
+     * Specifies the XML configuration for the Infinispan 'global' configuration
+     */
+    public void setLogMiningBufferInfinispanCacheGlobal(
+            String logMiningBufferInfinispanCacheGlobal) {
+        this.logMiningBufferInfinispanCacheGlobal = logMiningBufferInfinispanCacheGlobal;
+    }
+
+    public String getLogMiningBufferInfinispanCacheGlobal() {
+        return logMiningBufferInfinispanCacheGlobal;
+    }
+
+    /**
+     * The number of events a transaction can include before the transaction is
+     * discarded. This is useful for managing buffer memory and/or space when
+     * dealing with very large transactions. Defaults to 0, meaning that no
+     * threshold is applied and transactions can have unlimited events.
+     */
+    public void setLogMiningBufferTransactionEventsThreshold(
+            long logMiningBufferTransactionEventsThreshold) {
+        this.logMiningBufferTransactionEventsThreshold = logMiningBufferTransactionEventsThreshold;
+    }
+
+    public long getLogMiningBufferTransactionEventsThreshold() {
+        return logMiningBufferTransactionEventsThreshold;
+    }
+
+    /**
+     * Duration in milliseconds to keep long running transactions in transaction
+     * buffer between log mining sessions. By default, all transactions are
+     * retained.
+     */
+    public void setLogMiningTransactionRetentionMs(
+            long logMiningTransactionRetentionMs) {
+        this.logMiningTransactionRetentionMs = logMiningTransactionRetentionMs;
+    }
+
+    public long getLogMiningTransactionRetentionMs() {
+        return logMiningTransactionRetentionMs;
+    }
+
+    /**
+     * Enables transaction metadata extraction together with event counting
+     */
+    public void setProvideTransactionMetadata(boolean provideTransactionMetadata) {
+        this.provideTransactionMetadata = provideTransactionMetadata;
+    }
+
+    public boolean isProvideTransactionMetadata() {
+        return provideTransactionMetadata;
+    }
+
+    /**
+     * Controls what DDL will Debezium store in database schema history. By
+     * default (false) Debezium will store all incoming DDL statements. If set
+     * to true, then only DDL that manipulates a captured table will be stored.
+     */
+    public void setSchemaHistoryInternalStoreOnlyCapturedTablesDdl(
+            boolean schemaHistoryInternalStoreOnlyCapturedTablesDdl) {
+        this.schemaHistoryInternalStoreOnlyCapturedTablesDdl = schemaHistoryInternalStoreOnlyCapturedTablesDdl;
+    }
+
+    public boolean isSchemaHistoryInternalStoreOnlyCapturedTablesDdl() {
+        return schemaHistoryInternalStoreOnlyCapturedTablesDdl;
+    }
+
+    /**
+     * Controls what DDL will Debezium store in database schema history. By
+     * default (true) only DDL that manipulates a table from captured
+     * schema/database will be stored. If set to false, then Debezium will store
+     * all incoming DDL statements.
+     */
+    public void setSchemaHistoryInternalStoreOnlyCapturedDatabasesDdl(
+            boolean schemaHistoryInternalStoreOnlyCapturedDatabasesDdl) {
+        this.schemaHistoryInternalStoreOnlyCapturedDatabasesDdl = schemaHistoryInternalStoreOnlyCapturedDatabasesDdl;
+    }
+
+    public boolean isSchemaHistoryInternalStoreOnlyCapturedDatabasesDdl() {
+        return schemaHistoryInternalStoreOnlyCapturedDatabasesDdl;
+    }
+
+    /**
+     * The number of attempts to retry database errors during snapshots before
+     * failing.
+     */
+    public void setSnapshotDatabaseErrorsMaxRetries(
+            int snapshotDatabaseErrorsMaxRetries) {
+        this.snapshotDatabaseErrorsMaxRetries = snapshotDatabaseErrorsMaxRetries;
+    }
+
+    public int getSnapshotDatabaseErrorsMaxRetries() {
+        return snapshotDatabaseErrorsMaxRetries;
+    }
+
+    /**
+     * Topic prefix that identifies and provides a namespace for the particular
+     * database server/cluster is capturing changes. The topic prefix should be
+     * unique across all other connectors, since it is used as a prefix for all
+     * Kafka topic names that receive events emitted by this connector. Only
+     * alphanumeric characters, hyphens, dots and underscores must be accepted.
+     */
+    public void setTopicPrefix(String topicPrefix) {
+        this.topicPrefix = topicPrefix;
+    }
+
+    public String getTopicPrefix() {
+        return topicPrefix;
+    }
+
+    /**
+     * Whether the connector parse table and column's comment to metadata
+     * object. Note: Enable this option will bring the implications on memory
+     * usage. The number and size of ColumnImpl objects is what largely impacts
+     * how much memory is consumed by the Debezium connectors, and adding a
+     * String to each of them can potentially be quite heavy. The default is
+     * 'false'.
+     */
+    public void setIncludeSchemaComments(boolean includeSchemaComments) {
+        this.includeSchemaComments = includeSchemaComments;
+    }
+
+    public boolean isIncludeSchemaComments() {
+        return includeSchemaComments;
+    }
+
+    /**
+     * The name of the SourceInfoStructMaker class that returns SourceInfo
+     * schema and struct.
+     */
+    public void setSourceinfoStructMaker(String sourceinfoStructMaker) {
+        this.sourceinfoStructMaker = sourceinfoStructMaker;
+    }
+
+    public String getSourceinfoStructMaker() {
+        return sourceinfoStructMaker;
+    }
+
+    /**
+     * The port of the OpenLogReplicator network service
+     */
+    public void setOpenlogreplicatorPort(int openlogreplicatorPort) {
+        this.openlogreplicatorPort = openlogreplicatorPort;
+    }
+
+    public int getOpenlogreplicatorPort() {
+        return openlogreplicatorPort;
+    }
+
+    /**
+     * The maximum SCN interval size that this connector will use when reading
+     * from redo/archive logs.
+     */
+    public void setLogMiningBatchSizeMax(long logMiningBatchSizeMax) {
+        this.logMiningBatchSizeMax = logMiningBatchSizeMax;
+    }
+
+    public long getLogMiningBatchSizeMax() {
+        return logMiningBatchSizeMax;
+    }
+
+    /**
+     * Maximum size of the queue in bytes for change events read from the
+     * database log but not yet recorded or forwarded. Defaults to 0. Mean the
+     * feature is not enabled
+     */
+    public void setMaxQueueSizeInBytes(long maxQueueSizeInBytes) {
+        this.maxQueueSizeInBytes = maxQueueSizeInBytes;
+    }
+
+    public long getMaxQueueSizeInBytes() {
+        return maxQueueSizeInBytes;
     }
 
     /**
@@ -1204,14 +1534,27 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
+     * When 'snapshot.mode' is set as configuration_based, this setting permits
+     * to specify whenever the schema should be snapshotted or not.
+     */
+    public void setSnapshotModeConfigurationBasedSnapshotSchema(
+            boolean snapshotModeConfigurationBasedSnapshotSchema) {
+        this.snapshotModeConfigurationBasedSnapshotSchema = snapshotModeConfigurationBasedSnapshotSchema;
+    }
+
+    public boolean isSnapshotModeConfigurationBasedSnapshotSchema() {
+        return snapshotModeConfigurationBasedSnapshotSchema;
+    }
+
+    /**
      * Time, date, and timestamps can be represented with different kinds of
-     * precisions, including:'adaptive' (the default) bases the precision of
+     * precisions, including: 'adaptive' (the default) bases the precision of
      * time, date, and timestamp values on the database column's precision;
      * 'adaptive_time_microseconds' like 'adaptive' mode, but TIME fields always
-     * use microseconds precision;'connect' always represents time, date, and
+     * use microseconds precision; 'connect' always represents time, date, and
      * timestamp values using Kafka Connect's built-in representations for Time,
      * Date, and Timestamp, which uses millisecond precision regardless of the
-     * database columns' precision .
+     * database columns' precision.
      */
     public void setTimePrecisionMode(String timePrecisionMode) {
         this.timePrecisionMode = timePrecisionMode;
@@ -1222,46 +1565,16 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * Unique name that identifies the database server and all recorded offsets,
-     * and that is used as a prefix for all schemas and topics. Each distinct
-     * installation should have a separate namespace and be monitored by at most
-     * one Debezium connector.
+     * Optional list of post processors. The processors are defined using
+     * '<post.processor.prefix>.type' config option and configured using options
+     * '<post.processor.prefix.<option>'
      */
-    public void setDatabaseServerName(String databaseServerName) {
-        this.databaseServerName = databaseServerName;
+    public void setPostProcessors(String postProcessors) {
+        this.postProcessors = postProcessors;
     }
 
-    public String getDatabaseServerName() {
-        return databaseServerName;
-    }
-
-    /**
-     * Specify how failures during processing of events (i.e. when encountering
-     * a corrupted event) should be handled, including:'fail' (the default) an
-     * exception indicating the problematic event and its position is raised,
-     * causing the connector to be stopped; 'warn' the problematic event and its
-     * position will be logged and the event will be skipped;'ignore' the
-     * problematic event will be skipped.
-     */
-    public void setEventProcessingFailureHandlingMode(
-            String eventProcessingFailureHandlingMode) {
-        this.eventProcessingFailureHandlingMode = eventProcessingFailureHandlingMode;
-    }
-
-    public String getEventProcessingFailureHandlingMode() {
-        return eventProcessingFailureHandlingMode;
-    }
-
-    /**
-     * The maximum number of threads used to perform the snapshot.  Defaults to
-     * 1.
-     */
-    public void setSnapshotMaxThreads(int snapshotMaxThreads) {
-        this.snapshotMaxThreads = snapshotMaxThreads;
-    }
-
-    public int getSnapshotMaxThreads() {
-        return snapshotMaxThreads;
+    public String getPostProcessors() {
+        return postProcessors;
     }
 
     /**
@@ -1290,6 +1603,19 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
+     * The name of the SchemaHistory class that should be used to store and
+     * recover database schema changes. The configuration properties for the
+     * history are prefixed with the 'schema.history.internal.' string.
+     */
+    public void setSchemaHistoryInternal(String schemaHistoryInternal) {
+        this.schemaHistoryInternal = schemaHistoryInternal;
+    }
+
+    public String getSchemaHistoryInternal() {
+        return schemaHistoryInternal;
+    }
+
+    /**
      * Regular expressions matching columns to exclude from change events
      */
     public void setColumnExcludeList(String columnExcludeList) {
@@ -1298,6 +1624,19 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
 
     public String getColumnExcludeList() {
         return columnExcludeList;
+    }
+
+    /**
+     * The maximum number of milliseconds that a LogMiner session lives for
+     * before being restarted. Defaults to 0 (indefinite until a log switch
+     * occurs)
+     */
+    public void setLogMiningSessionMaxMs(long logMiningSessionMaxMs) {
+        this.logMiningSessionMaxMs = logMiningSessionMaxMs;
+    }
+
+    public long getLogMiningSessionMaxMs() {
+        return logMiningSessionMaxMs;
     }
 
     /**
@@ -1325,18 +1664,6 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
     }
 
     /**
-     * The starting SCN interval size that the connector will use for reading
-     * data from redo/archive logs.
-     */
-    public void setLogMiningBatchSizeDefault(long logMiningBatchSizeDefault) {
-        this.logMiningBatchSizeDefault = logMiningBatchSizeDefault;
-    }
-
-    public long getLogMiningBatchSizeDefault() {
-        return logMiningBatchSizeDefault;
-    }
-
-    /**
      * A token to replace on snapshot predicate template
      */
     public void setSnapshotEnhancePredicateScn(
@@ -1348,17 +1675,6 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
         return snapshotEnhancePredicateScn;
     }
 
-    /**
-     * The tables for which changes are to be captured
-     */
-    public void setTableIncludeList(String tableIncludeList) {
-        this.tableIncludeList = tableIncludeList;
-    }
-
-    public String getTableIncludeList() {
-        return tableIncludeList;
-    }
-
     @Override
     protected Configuration createConnectorConfiguration() {
         final Configuration.Builder configBuilder = Configuration.create();
@@ -1366,91 +1682,110 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
         addPropertyIfNotNull(configBuilder, "snapshot.locking.mode", snapshotLockingMode);
         addPropertyIfNotNull(configBuilder, "log.mining.buffer.drop.on.stop", logMiningBufferDropOnStop);
         addPropertyIfNotNull(configBuilder, "message.key.columns", messageKeyColumns);
-        addPropertyIfNotNull(configBuilder, "query.fetch.size", queryFetchSize);
-        addPropertyIfNotNull(configBuilder, "log.mining.archive.destination.name", logMiningArchiveDestinationName);
-        addPropertyIfNotNull(configBuilder, "column.blacklist", columnBlacklist);
-        addPropertyIfNotNull(configBuilder, "log.mining.sleep.time.min.ms", logMiningSleepTimeMinMs);
-        addPropertyIfNotNull(configBuilder, "table.blacklist", tableBlacklist);
+        addPropertyIfNotNull(configBuilder, "custom.metric.tags", customMetricTags);
+        addPropertyIfNotNull(configBuilder, "openlogreplicator.host", openlogreplicatorHost);
+        addPropertyIfNotNull(configBuilder, "signal.enabled.channels", signalEnabledChannels);
         addPropertyIfNotNull(configBuilder, "include.schema.changes", includeSchemaChanges);
+        addPropertyIfNotNull(configBuilder, "log.mining.include.redo.sql", logMiningIncludeRedoSql);
+        addPropertyIfNotNull(configBuilder, "signal.data.collection", signalDataCollection);
+        addPropertyIfNotNull(configBuilder, "converters", converters);
+        addPropertyIfNotNull(configBuilder, "snapshot.fetch.size", snapshotFetchSize);
+        addPropertyIfNotNull(configBuilder, "snapshot.lock.timeout.ms", snapshotLockTimeoutMs);
+        addPropertyIfNotNull(configBuilder, "log.mining.scn.gap.detection.gap.size.min", logMiningScnGapDetectionGapSizeMin);
+        addPropertyIfNotNull(configBuilder, "database.dbname", databaseDbname);
+        addPropertyIfNotNull(configBuilder, "snapshot.tables.order.by.row.count", snapshotTablesOrderByRowCount);
+        addPropertyIfNotNull(configBuilder, "log.mining.sleep.time.default.ms", logMiningSleepTimeDefaultMs);
+        addPropertyIfNotNull(configBuilder, "snapshot.select.statement.overrides", snapshotSelectStatementOverrides);
+        addPropertyIfNotNull(configBuilder, "log.mining.archive.log.only.scn.poll.interval.ms", logMiningArchiveLogOnlyScnPollIntervalMs);
+        addPropertyIfNotNull(configBuilder, "log.mining.restart.connection", logMiningRestartConnection);
+        addPropertyIfNotNull(configBuilder, "table.exclude.list", tableExcludeList);
+        addPropertyIfNotNull(configBuilder, "max.batch.size", maxBatchSize);
+        addPropertyIfNotNull(configBuilder, "log.mining.buffer.infinispan.cache.transactions", logMiningBufferInfinispanCacheTransactions);
+        addPropertyIfNotNull(configBuilder, "topic.naming.strategy", topicNamingStrategy);
+        addPropertyIfNotNull(configBuilder, "snapshot.mode", snapshotMode);
+        addPropertyIfNotNull(configBuilder, "snapshot.mode.configuration.based.snapshot.data", snapshotModeConfigurationBasedSnapshotData);
+        addPropertyIfNotNull(configBuilder, "retriable.restart.connector.wait.ms", retriableRestartConnectorWaitMs);
+        addPropertyIfNotNull(configBuilder, "snapshot.delay.ms", snapshotDelayMs);
+        addPropertyIfNotNull(configBuilder, "log.mining.strategy", logMiningStrategy);
+        addPropertyIfNotNull(configBuilder, "snapshot.mode.configuration.based.snapshot.on.data.error", snapshotModeConfigurationBasedSnapshotOnDataError);
+        addPropertyIfNotNull(configBuilder, "schema.history.internal.file.filename", schemaHistoryInternalFileFilename);
+        addPropertyIfNotNull(configBuilder, "tombstones.on.delete", tombstonesOnDelete);
+        addPropertyIfNotNull(configBuilder, "decimal.handling.mode", decimalHandlingMode);
+        addPropertyIfNotNull(configBuilder, "binary.handling.mode", binaryHandlingMode);
+        addPropertyIfNotNull(configBuilder, "database.out.server.name", databaseOutServerName);
+        addPropertyIfNotNull(configBuilder, "archive.log.hours", archiveLogHours);
+        addPropertyIfNotNull(configBuilder, "snapshot.include.collection.list", snapshotIncludeCollectionList);
+        addPropertyIfNotNull(configBuilder, "snapshot.mode.configuration.based.start.stream", snapshotModeConfigurationBasedStartStream);
+        addPropertyIfNotNull(configBuilder, "database.pdb.name", databasePdbName);
+        addPropertyIfNotNull(configBuilder, "database.connection.adapter", databaseConnectionAdapter);
+        addPropertyIfNotNull(configBuilder, "log.mining.flush.table.name", logMiningFlushTableName);
+        addPropertyIfNotNull(configBuilder, "openlogreplicator.source", openlogreplicatorSource);
+        addPropertyIfNotNull(configBuilder, "log.mining.buffer.type", logMiningBufferType);
+        addPropertyIfNotNull(configBuilder, "signal.poll.interval.ms", signalPollIntervalMs);
+        addPropertyIfNotNull(configBuilder, "notification.enabled.channels", notificationEnabledChannels);
+        addPropertyIfNotNull(configBuilder, "event.processing.failure.handling.mode", eventProcessingFailureHandlingMode);
+        addPropertyIfNotNull(configBuilder, "snapshot.max.threads", snapshotMaxThreads);
+        addPropertyIfNotNull(configBuilder, "notification.sink.topic.name", notificationSinkTopicName);
+        addPropertyIfNotNull(configBuilder, "snapshot.mode.custom.name", snapshotModeCustomName);
+        addPropertyIfNotNull(configBuilder, "log.mining.query.filter.mode", logMiningQueryFilterMode);
+        addPropertyIfNotNull(configBuilder, "schema.name.adjustment.mode", schemaNameAdjustmentMode);
+        addPropertyIfNotNull(configBuilder, "log.mining.batch.size.default", logMiningBatchSizeDefault);
+        addPropertyIfNotNull(configBuilder, "table.include.list", tableIncludeList);
+        addPropertyIfNotNull(configBuilder, "query.fetch.size", queryFetchSize);
+        addPropertyIfNotNull(configBuilder, "log.mining.sleep.time.min.ms", logMiningSleepTimeMinMs);
         addPropertyIfNotNull(configBuilder, "unavailable.value.placeholder", unavailableValuePlaceholder);
         addPropertyIfNotNull(configBuilder, "heartbeat.action.query", heartbeatActionQuery);
         addPropertyIfNotNull(configBuilder, "poll.interval.ms", pollIntervalMs);
-        addPropertyIfNotNull(configBuilder, "database.history.kafka.recovery.poll.interval.ms", databaseHistoryKafkaRecoveryPollIntervalMs);
-        addPropertyIfNotNull(configBuilder, "signal.data.collection", signalDataCollection);
+        addPropertyIfNotNull(configBuilder, "log.mining.username.include.list", logMiningUsernameIncludeList);
         addPropertyIfNotNull(configBuilder, "lob.enabled", lobEnabled);
         addPropertyIfNotNull(configBuilder, "interval.handling.mode", intervalHandlingMode);
-        addPropertyIfNotNull(configBuilder, "database.history.store.only.captured.tables.ddl", databaseHistoryStoreOnlyCapturedTablesDdl);
-        addPropertyIfNotNull(configBuilder, "converters", converters);
         addPropertyIfNotNull(configBuilder, "heartbeat.topics.prefix", heartbeatTopicsPrefix);
         addPropertyIfNotNull(configBuilder, "log.mining.archive.log.only.mode", logMiningArchiveLogOnlyMode);
-        addPropertyIfNotNull(configBuilder, "snapshot.fetch.size", snapshotFetchSize);
         addPropertyIfNotNull(configBuilder, "log.mining.buffer.infinispan.cache.schema_changes", logMiningBufferInfinispanCacheSchemaChanges);
-        addPropertyIfNotNull(configBuilder, "snapshot.lock.timeout.ms", snapshotLockTimeoutMs);
         addPropertyIfNotNull(configBuilder, "log.mining.sleep.time.max.ms", logMiningSleepTimeMaxMs);
-        addPropertyIfNotNull(configBuilder, "log.mining.scn.gap.detection.gap.size.min", logMiningScnGapDetectionGapSizeMin);
         addPropertyIfNotNull(configBuilder, "database.user", databaseUser);
-        addPropertyIfNotNull(configBuilder, "database.dbname", databaseDbname);
         addPropertyIfNotNull(configBuilder, "datatype.propagate.source.type", datatypePropagateSourceType);
-        addPropertyIfNotNull(configBuilder, "sanitize.field.names", sanitizeFieldNames);
-        addPropertyIfNotNull(configBuilder, "log.mining.sleep.time.default.ms", logMiningSleepTimeDefaultMs);
-        addPropertyIfNotNull(configBuilder, "snapshot.select.statement.overrides", snapshotSelectStatementOverrides);
-        addPropertyIfNotNull(configBuilder, "database.history.kafka.bootstrap.servers", databaseHistoryKafkaBootstrapServers);
-        addPropertyIfNotNull(configBuilder, "source.struct.version", sourceStructVersion);
+        addPropertyIfNotNull(configBuilder, "incremental.snapshot.watermarking.strategy", incrementalSnapshotWatermarkingStrategy);
         addPropertyIfNotNull(configBuilder, "heartbeat.interval.ms", heartbeatIntervalMs);
-        addPropertyIfNotNull(configBuilder, "column.whitelist", columnWhitelist);
-        addPropertyIfNotNull(configBuilder, "log.mining.archive.log.only.scn.poll.interval.ms", logMiningArchiveLogOnlyScnPollIntervalMs);
+        addPropertyIfNotNull(configBuilder, "snapshot.mode.configuration.based.snapshot.on.schema.error", snapshotModeConfigurationBasedSnapshotOnSchemaError);
+        addPropertyIfNotNull(configBuilder, "schema.history.internal.skip.unparseable.ddl", schemaHistoryInternalSkipUnparseableDdl);
         addPropertyIfNotNull(configBuilder, "column.include.list", columnIncludeList);
         addPropertyIfNotNull(configBuilder, "log.mining.username.exclude.list", logMiningUsernameExcludeList);
         addPropertyIfNotNull(configBuilder, "column.propagate.source.type", columnPropagateSourceType);
         addPropertyIfNotNull(configBuilder, "log.mining.buffer.infinispan.cache.processed_transactions", logMiningBufferInfinispanCacheProcessedTransactions);
-        addPropertyIfNotNull(configBuilder, "table.exclude.list", tableExcludeList);
+        addPropertyIfNotNull(configBuilder, "errors.max.retries", errorsMaxRetries);
         addPropertyIfNotNull(configBuilder, "database.password", databasePassword);
         addPropertyIfNotNull(configBuilder, "log.mining.buffer.infinispan.cache.events", logMiningBufferInfinispanCacheEvents);
-        addPropertyIfNotNull(configBuilder, "database.history.store.only.monitored.tables.ddl", databaseHistoryStoreOnlyMonitoredTablesDdl);
-        addPropertyIfNotNull(configBuilder, "max.batch.size", maxBatchSize);
         addPropertyIfNotNull(configBuilder, "skipped.operations", skippedOperations);
-        addPropertyIfNotNull(configBuilder, "log.mining.buffer.infinispan.cache.transactions", logMiningBufferInfinispanCacheTransactions);
+        addPropertyIfNotNull(configBuilder, "archive.destination.name", archiveDestinationName);
         addPropertyIfNotNull(configBuilder, "log.mining.scn.gap.detection.time.interval.max.ms", logMiningScnGapDetectionTimeIntervalMaxMs);
-        addPropertyIfNotNull(configBuilder, "snapshot.mode", snapshotMode);
-        addPropertyIfNotNull(configBuilder, "database.history", databaseHistory);
         addPropertyIfNotNull(configBuilder, "max.queue.size", maxQueueSize);
         addPropertyIfNotNull(configBuilder, "rac.nodes", racNodes);
-        addPropertyIfNotNull(configBuilder, "database.history.kafka.topic", databaseHistoryKafkaTopic);
-        addPropertyIfNotNull(configBuilder, "retriable.restart.connector.wait.ms", retriableRestartConnectorWaitMs);
-        addPropertyIfNotNull(configBuilder, "snapshot.delay.ms", snapshotDelayMs);
-        addPropertyIfNotNull(configBuilder, "log.mining.strategy", logMiningStrategy);
-        addPropertyIfNotNull(configBuilder, "database.history.kafka.recovery.attempts", databaseHistoryKafkaRecoveryAttempts);
+        addPropertyIfNotNull(configBuilder, "log.mining.buffer.infinispan.cache.global", logMiningBufferInfinispanCacheGlobal);
+        addPropertyIfNotNull(configBuilder, "log.mining.buffer.transaction.events.threshold", logMiningBufferTransactionEventsThreshold);
+        addPropertyIfNotNull(configBuilder, "log.mining.transaction.retention.ms", logMiningTransactionRetentionMs);
         addPropertyIfNotNull(configBuilder, "provide.transaction.metadata", provideTransactionMetadata);
-        addPropertyIfNotNull(configBuilder, "table.whitelist", tableWhitelist);
-        addPropertyIfNotNull(configBuilder, "tombstones.on.delete", tombstonesOnDelete);
-        addPropertyIfNotNull(configBuilder, "decimal.handling.mode", decimalHandlingMode);
-        addPropertyIfNotNull(configBuilder, "binary.handling.mode", binaryHandlingMode);
+        addPropertyIfNotNull(configBuilder, "schema.history.internal.store.only.captured.tables.ddl", schemaHistoryInternalStoreOnlyCapturedTablesDdl);
+        addPropertyIfNotNull(configBuilder, "schema.history.internal.store.only.captured.databases.ddl", schemaHistoryInternalStoreOnlyCapturedDatabasesDdl);
+        addPropertyIfNotNull(configBuilder, "snapshot.database.errors.max.retries", snapshotDatabaseErrorsMaxRetries);
+        addPropertyIfNotNull(configBuilder, "topic.prefix", topicPrefix);
         addPropertyIfNotNull(configBuilder, "include.schema.comments", includeSchemaComments);
-        addPropertyIfNotNull(configBuilder, "database.history.skip.unparseable.ddl", databaseHistorySkipUnparseableDdl);
-        addPropertyIfNotNull(configBuilder, "database.out.server.name", databaseOutServerName);
-        addPropertyIfNotNull(configBuilder, "log.mining.archive.log.hours", logMiningArchiveLogHours);
-        addPropertyIfNotNull(configBuilder, "log.mining.transaction.retention.hours", logMiningTransactionRetentionHours);
-        addPropertyIfNotNull(configBuilder, "snapshot.include.collection.list", snapshotIncludeCollectionList);
-        addPropertyIfNotNull(configBuilder, "database.history.file.filename", databaseHistoryFileFilename);
+        addPropertyIfNotNull(configBuilder, "sourceinfo.struct.maker", sourceinfoStructMaker);
+        addPropertyIfNotNull(configBuilder, "openlogreplicator.port", openlogreplicatorPort);
         addPropertyIfNotNull(configBuilder, "log.mining.batch.size.max", logMiningBatchSizeMax);
-        addPropertyIfNotNull(configBuilder, "database.pdb.name", databasePdbName);
-        addPropertyIfNotNull(configBuilder, "database.connection.adapter", databaseConnectionAdapter);
         addPropertyIfNotNull(configBuilder, "max.queue.size.in.bytes", maxQueueSizeInBytes);
-        addPropertyIfNotNull(configBuilder, "log.mining.buffer.type", logMiningBufferType);
-        addPropertyIfNotNull(configBuilder, "transaction.topic", transactionTopic);
         addPropertyIfNotNull(configBuilder, "database.url", databaseUrl);
+        addPropertyIfNotNull(configBuilder, "snapshot.mode.configuration.based.snapshot.schema", snapshotModeConfigurationBasedSnapshotSchema);
         addPropertyIfNotNull(configBuilder, "time.precision.mode", timePrecisionMode);
-        addPropertyIfNotNull(configBuilder, "database.server.name", databaseServerName);
-        addPropertyIfNotNull(configBuilder, "event.processing.failure.handling.mode", eventProcessingFailureHandlingMode);
-        addPropertyIfNotNull(configBuilder, "snapshot.max.threads", snapshotMaxThreads);
+        addPropertyIfNotNull(configBuilder, "post.processors", postProcessors);
         addPropertyIfNotNull(configBuilder, "database.port", databasePort);
         addPropertyIfNotNull(configBuilder, "log.mining.sleep.time.increment.ms", logMiningSleepTimeIncrementMs);
+        addPropertyIfNotNull(configBuilder, "schema.history.internal", schemaHistoryInternal);
         addPropertyIfNotNull(configBuilder, "column.exclude.list", columnExcludeList);
+        addPropertyIfNotNull(configBuilder, "log.mining.session.max.ms", logMiningSessionMaxMs);
         addPropertyIfNotNull(configBuilder, "database.hostname", databaseHostname);
         addPropertyIfNotNull(configBuilder, "log.mining.batch.size.min", logMiningBatchSizeMin);
-        addPropertyIfNotNull(configBuilder, "log.mining.batch.size.default", logMiningBatchSizeDefault);
         addPropertyIfNotNull(configBuilder, "snapshot.enhance.predicate.scn", snapshotEnhancePredicateScn);
-        addPropertyIfNotNull(configBuilder, "table.include.list", tableIncludeList);
         
         return configBuilder.build();
     }
@@ -1465,8 +1800,8 @@ public class OracleConnectorEmbeddedDebeziumConfiguration
         if (isFieldValueNotSet(databasePassword)) {
         	return ConfigurationValidation.notValid("Required field 'databasePassword' must be set.");
         }
-        if (isFieldValueNotSet(databaseServerName)) {
-        	return ConfigurationValidation.notValid("Required field 'databaseServerName' must be set.");
+        if (isFieldValueNotSet(topicPrefix)) {
+        	return ConfigurationValidation.notValid("Required field 'topicPrefix' must be set.");
         }
         return ConfigurationValidation.valid();
     }

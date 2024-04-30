@@ -16,12 +16,13 @@
  */
 package org.apache.camel.model.dataformat;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
 
+import org.apache.camel.builder.DataFormatBuilder;
 import org.apache.camel.model.DataFormatDefinition;
 import org.apache.camel.spi.Metadata;
 
@@ -43,6 +44,12 @@ public class HL7DataFormat extends DataFormatDefinition {
 
     public HL7DataFormat() {
         super("hl7");
+    }
+
+    private HL7DataFormat(Builder builder) {
+        this();
+        this.parser = builder.parser;
+        this.validate = builder.validate;
     }
 
     public String getValidate() {
@@ -69,4 +76,46 @@ public class HL7DataFormat extends DataFormatDefinition {
         this.parser = parser;
     }
 
+    /**
+     * {@code Builder} is a specific builder for {@link HL7DataFormat}.
+     */
+    @XmlTransient
+    public static class Builder implements DataFormatBuilder<HL7DataFormat> {
+
+        private Object parser;
+        private String validate;
+
+        /**
+         * Whether to validate the HL7 message
+         * <p/>
+         * Is by default true.
+         */
+        public Builder validate(String validate) {
+            this.validate = validate;
+            return this;
+        }
+
+        /**
+         * Whether to validate the HL7 message
+         * <p/>
+         * Is by default true.
+         */
+        public Builder validate(boolean validate) {
+            this.validate = Boolean.toString(validate);
+            return this;
+        }
+
+        /**
+         * To use a custom HL7 parser
+         */
+        public Builder parser(Object parser) {
+            this.parser = parser;
+            return this;
+        }
+
+        @Override
+        public HL7DataFormat end() {
+            return new HL7DataFormat(this);
+        }
+    }
 }

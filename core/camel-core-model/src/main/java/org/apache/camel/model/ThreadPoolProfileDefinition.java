@@ -18,10 +18,10 @@ package org.apache.camel.model;
 
 import java.util.concurrent.TimeUnit;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlRootElement;
 
 import org.apache.camel.spi.Metadata;
 import org.apache.camel.util.concurrent.ThreadPoolRejectedPolicy;
@@ -58,7 +58,7 @@ public class ThreadPoolProfileDefinition extends OptionalIdentifiedDefinition<Th
     private String allowCoreThreadTimeOut;
     @XmlAttribute
     @Metadata(label = "advanced", javaType = "org.apache.camel.util.concurrent.ThreadPoolRejectedPolicy",
-              enums = "Abort,CallerRuns,DiscardOldest,Discard")
+              enums = "Abort,CallerRuns")
     private String rejectedPolicy;
 
     public ThreadPoolProfileDefinition() {

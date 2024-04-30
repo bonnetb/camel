@@ -29,31 +29,31 @@ import static org.mockito.Mockito.when;
 public class MockitoMockForClassTest extends ContextTestSupport {
 
     @Test
-    public void testCallingMock() throws Exception {
+    public void testCallingMock() {
         Object response = template.requestBody("direct:start", "anything");
         assertEquals("mocked answer", response);
     }
 
     @Override
-    protected Registry createRegistry() throws Exception {
+    protected Registry createCamelRegistry() throws Exception {
         MyService mockService = Mockito.mock(MyService.class);
         when(mockService.doSomething(any())).thenReturn("mocked answer");
 
-        Registry answer = super.createRegistry();
+        Registry answer = super.createCamelRegistry();
         answer.bind("myService", mockService);
         return answer;
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:start").bean("bean:myService");
             }
         };
     }
 
-    public class MyService {
+    public static class MyService {
         public String doSomething(String body) {
             return "real answer";
         }

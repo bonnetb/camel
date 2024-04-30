@@ -20,13 +20,15 @@ import com.azure.cosmos.ConsistencyLevel;
 import com.azure.cosmos.CosmosAsyncClient;
 import com.azure.cosmos.models.ChangeFeedProcessorOptions;
 import com.azure.cosmos.models.CosmosQueryRequestOptions;
-import com.azure.cosmos.models.PartitionKey;
+import com.azure.cosmos.models.IndexingPolicy;
 import com.azure.cosmos.models.ThroughputProperties;
 import org.apache.camel.RuntimeCamelException;
 import org.apache.camel.spi.Metadata;
 import org.apache.camel.spi.UriParam;
 import org.apache.camel.spi.UriParams;
 import org.apache.camel.spi.UriPath;
+
+import static org.apache.camel.component.azure.cosmosdb.CredentialType.SHARED_ACCOUNT_KEY;
 
 @UriParams
 public class CosmosDbConfiguration implements Cloneable {
@@ -36,7 +38,7 @@ public class CosmosDbConfiguration implements Cloneable {
     @UriPath
     private String containerName;
     @UriParam(label = "security", secret = true)
-    @Metadata(required = true)
+    @Metadata(required = false)
     private String accountKey;
     @UriParam(label = "common")
     @Metadata(required = true)
@@ -64,6 +66,8 @@ public class CosmosDbConfiguration implements Cloneable {
     private boolean createDatabaseIfNotExists;
     @UriParam(label = "common", defaultValue = "false")
     private boolean createContainerIfNotExists;
+    @UriParam(label = "common, advanced")
+    private IndexingPolicy indexingPolicy;
     @UriParam(label = "common")
     private ThroughputProperties throughputProperties;
     @UriParam(label = "consumer", defaultValue = "false")
@@ -81,13 +85,16 @@ public class CosmosDbConfiguration implements Cloneable {
     @UriParam(label = "producer")
     private String query;
     @UriParam(label = "producer")
-    private PartitionKey itemPartitionKey;
+    private String itemPartitionKey;
     @UriParam(label = "producer")
     private String itemId;
     @UriParam(label = "producer")
     private CosmosQueryRequestOptions queryRequestOptions;
     @UriParam(label = "producer", defaultValue = "listDatabases")
     private CosmosDbOperationsDefinition operation = CosmosDbOperationsDefinition.listDatabases;
+    @UriParam(label = "security", enums = "SHARED_ACCOUNT_KEY,AZURE_IDENTITY",
+              defaultValue = "SHARED_ACCOUNT_KEY")
+    private CredentialType credentialType = SHARED_ACCOUNT_KEY;
 
     public CosmosDbConfiguration() {
     }
@@ -127,6 +134,17 @@ public class CosmosDbConfiguration implements Cloneable {
         this.accountKey = accountKey;
     }
 
+    public CredentialType getCredentialType() {
+        return credentialType;
+    }
+
+    /**
+     * Determines the credential strategy to adopt
+     */
+    public void setCredentialType(CredentialType credentialType) {
+        this.credentialType = credentialType;
+    }
+
     /**
      * Sets the Azure Cosmos database endpoint the component will connect to.
      */
@@ -153,11 +171,11 @@ public class CosmosDbConfiguration implements Cloneable {
      * Sets partition key. Represents a partition key value in the Azure Cosmos DB database service. A partition key
      * identifies the partition where the item is stored in.
      */
-    public PartitionKey getItemPartitionKey() {
+    public String getItemPartitionKey() {
         return itemPartitionKey;
     }
 
-    public void setItemPartitionKey(PartitionKey itemPartitionKey) {
+    public void setItemPartitionKey(String itemPartitionKey) {
         this.itemPartitionKey = itemPartitionKey;
     }
 
@@ -454,6 +472,18 @@ public class CosmosDbConfiguration implements Cloneable {
 
     public void setOperation(CosmosDbOperationsDefinition operation) {
         this.operation = operation;
+    }
+
+    /**
+     * The CosmosDB Indexing Policy that will be set in case of container creation, this option is related to
+     * {@link createLeaseContainerIfNotExists} and it will be taken into account when the latter is true.
+     */
+    public IndexingPolicy getIndexingPolicy() {
+        return indexingPolicy;
+    }
+
+    public void setIndexingPolicy(IndexingPolicy indexingPolicy) {
+        this.indexingPolicy = indexingPolicy;
     }
 
     // *************************************************

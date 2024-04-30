@@ -50,19 +50,19 @@ public class PulsarCustomMessageReceiptIT extends PulsarITSupport {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PulsarCustomMessageReceiptIT.class);
 
-    private static final String TOPIC_URI = "persistent://public/default/camel-topic";
+    private static final String TOPIC_URI = "persistent://public/default/camel-topic/PulsarCustomMessageReceiptIT";
     private static final String PRODUCER = "camel-producer-1";
 
     public PulsarMessageReceiptFactory mockPulsarMessageReceiptFactory = mock(PulsarMessageReceiptFactory.class);
 
     public PulsarMessageReceipt mockPulsarMessageReceipt = mock(PulsarMessageReceipt.class);
 
-    @EndpointInject(uri = "pulsar:" + TOPIC_URI + "?numberOfConsumers=1&subscriptionType=Exclusive"
-                          + "&subscriptionName=camel-subscription&consumerQueueSize=1&consumerName=camel-consumer"
-                          + "&allowManualAcknowledgement=true" + "&ackTimeoutMillis=1000")
+    @EndpointInject("pulsar:" + TOPIC_URI + "?numberOfConsumers=1&subscriptionType=Exclusive"
+                    + "&subscriptionName=camel-subscription&consumerQueueSize=1&consumerName=camel-consumer"
+                    + "&allowManualAcknowledgement=true" + "&ackTimeoutMillis=1000")
     private Endpoint from;
 
-    @EndpointInject(uri = "mock:result")
+    @EndpointInject("mock:result")
     private MockEndpoint to;
 
     private Producer<String> producer;

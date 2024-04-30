@@ -23,6 +23,7 @@ import java.util.Map;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.Message;
+import org.apache.camel.support.ExchangeHelper;
 import org.jsmpp.bean.DataCodings;
 import org.jsmpp.bean.ESMClass;
 import org.jsmpp.bean.GSMSpecificFeature;
@@ -35,6 +36,7 @@ import org.jsmpp.bean.SMSCDeliveryReceipt;
 import org.jsmpp.bean.SubmitSm;
 import org.jsmpp.bean.TypeOfNumber;
 import org.jsmpp.session.SMPPSession;
+import org.jsmpp.session.SubmitSmResult;
 
 public class SmppSubmitSmCommand extends SmppSmCommand {
 
@@ -47,15 +49,16 @@ public class SmppSubmitSmCommand extends SmppSmCommand {
         SubmitSm[] submitSms = createSubmitSm(exchange);
         List<String> messageIDs = new ArrayList<>(submitSms.length);
 
+        String messageID = null;
         for (int i = 0; i < submitSms.length; i++) {
             SubmitSm submitSm = submitSms[i];
-            String messageID;
+            messageID = null;
             if (log.isDebugEnabled()) {
                 log.debug("Sending short message {} for exchange id '{}'...", i, exchange.getExchangeId());
             }
 
             try {
-                messageID = session.submitShortMessage(
+                SubmitSmResult result = session.submitShortMessage(
                         submitSm.getServiceType(),
                         TypeOfNumber.valueOf(submitSm.getSourceAddrTon()),
                         NumberingPlanIndicator.valueOf(submitSm.getSourceAddrNpi()),
@@ -74,11 +77,16 @@ public class SmppSubmitSmCommand extends SmppSmCommand {
                         (byte) 0,
                         submitSm.getShortMessage(),
                         submitSm.getOptionalParameters());
+                if (result != null) {
+                    messageID = result.getMessageId();
+                }
             } catch (Exception e) {
                 throw new SmppException(e);
             }
 
-            messageIDs.add(messageID);
+            if (messageID != null) {
+                messageIDs.add(messageID);
+            }
         }
 
         if (log.isDebugEnabled()) {
@@ -86,7 +94,7 @@ public class SmppSubmitSmCommand extends SmppSmCommand {
                     exchange.getExchangeId(), messageIDs);
         }
 
-        Message message = getResponseMessage(exchange);
+        Message message = ExchangeHelper.getResultMessage(exchange);
         message.setHeader(SmppConstants.ID, messageIDs);
         message.setHeader(SmppConstants.SENT_MESSAGE_COUNT, messageIDs.size());
     }
@@ -223,12 +231,12 @@ public class SmppSubmitSmCommand extends SmppSmCommand {
         Map<java.lang.Short, Object> optinalParamater = in.getHeader(SmppConstants.OPTIONAL_PARAMETER, Map.class);
         if (optinalParamater != null) {
             List<OptionalParameter> optParams = createOptionalParametersByCode(optinalParamater);
-            submitSm.setOptionalParameters(optParams.toArray(new OptionalParameter[optParams.size()]));
+            submitSm.setOptionalParameters(optParams.toArray(new OptionalParameter[0]));
         } else {
             Map<String, String> optinalParamaters = in.getHeader(SmppConstants.OPTIONAL_PARAMETERS, Map.class);
             if (optinalParamaters != null) {
                 List<OptionalParameter> optParams = createOptionalParametersByName(optinalParamaters);
-                submitSm.setOptionalParameters(optParams.toArray(new OptionalParameter[optParams.size()]));
+                submitSm.setOptionalParameters(optParams.toArray(new OptionalParameter[0]));
             } else {
                 submitSm.setOptionalParameters();
             }

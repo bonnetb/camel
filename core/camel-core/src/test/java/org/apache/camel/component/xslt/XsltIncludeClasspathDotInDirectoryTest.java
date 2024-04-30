@@ -22,7 +22,6 @@ import org.apache.camel.ContextTestSupport;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.util.FileUtil;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
@@ -31,13 +30,6 @@ import org.junit.jupiter.api.Test;
  */
 @Disabled
 public class XsltIncludeClasspathDotInDirectoryTest extends ContextTestSupport {
-
-    @Override
-    @AfterEach
-    public void tearDown() throws Exception {
-        deleteDirectory("target/classes/com.mycompany");
-        super.tearDown();
-    }
 
     @Test
     public void testXsltIncludeClasspath() throws Exception {
@@ -50,12 +42,12 @@ public class XsltIncludeClasspathDotInDirectoryTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
             public void configure() throws Exception {
                 // copy templates to this directory
-                createDirectory("target/classes/com.mycompany");
+                testDirectory("target/classes/com.mycompany", true);
                 FileUtil.copyFile(new File("src/test/resources/org/apache/camel/component/xslt/staff_include_classpath2.xsl"),
                         new File("target/classes/com.mycompany/staff_include_classpath2.xsl"));
                 FileUtil.copyFile(new File("src/test/resources/org/apache/camel/component/xslt/staff_template.xsl"),

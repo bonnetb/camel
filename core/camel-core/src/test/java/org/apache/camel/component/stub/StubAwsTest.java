@@ -19,9 +19,7 @@ package org.apache.camel.component.stub;
 import org.apache.camel.ContextTestSupport;
 import org.apache.camel.builder.RouteBuilder;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.parallel.ResourceLock;
 
-@ResourceLock("VmComponent")
 public class StubAwsTest extends ContextTestSupport {
 
     @Override
@@ -33,7 +31,7 @@ public class StubAwsTest extends ContextTestSupport {
     public void testStub() throws Exception {
         context.addRoutes(new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:start").to("aws-s3:foo").to("mock:result");
             }
         });

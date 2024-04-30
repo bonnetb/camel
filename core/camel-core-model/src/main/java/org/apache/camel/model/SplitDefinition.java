@@ -18,11 +18,11 @@ package org.apache.camel.model;
 
 import java.util.concurrent.ExecutorService;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
 
 import org.apache.camel.AggregationStrategy;
 import org.apache.camel.Expression;
@@ -63,6 +63,9 @@ public class SplitDefinition extends OutputExpressionNode implements ExecutorSer
     @XmlAttribute
     @Metadata(javaType = "java.lang.Boolean")
     private String parallelProcessing;
+    @XmlAttribute
+    @Metadata(javaType = "java.lang.Boolean")
+    private String synchronous;
     @XmlAttribute
     @Metadata(javaType = "java.lang.Boolean")
     private String streaming;
@@ -112,9 +115,11 @@ public class SplitDefinition extends OutputExpressionNode implements ExecutorSer
     // -------------------------------------------------------------------------
 
     /**
-     * Delimiter used in splitting messages. Can be turned off using the value <tt>false</tt>.
+     * Delimiter used in splitting messages. Can be turned off using the value <tt>false</tt>. To force not splitting
+     * then the delimiter can be set to <tt>single</tt> to use the value as a single list, this can be needed in some
+     * special situations.
      * <p/>
-     * The default value is ,
+     * The default value is comma.
      *
      * @param  delimiter the delimiter
      * @return           the builder
@@ -194,6 +199,10 @@ public class SplitDefinition extends OutputExpressionNode implements ExecutorSer
      * all messages has been fully processed, before it continues. It's only processing the sub messages from the
      * splitter which happens concurrently.
      *
+     * When parallel processing is enabled, then the Camel routing engin will continue processing using last used thread
+     * from the parallel thread pool. However, if you want to use the original thread that called the splitter, then
+     * make sure to enable the synchronous option as well.
+     *
      * @return the builder
      */
     public SplitDefinition parallelProcessing() {
@@ -205,6 +214,10 @@ public class SplitDefinition extends OutputExpressionNode implements ExecutorSer
      * all messages has been fully processed, before it continues. It's only processing the sub messages from the
      * splitter which happens concurrently.
      *
+     * When parallel processing is enabled, then the Camel routing engin will continue processing using last used thread
+     * from the parallel thread pool. However, if you want to use the original thread that called the splitter, then
+     * make sure to enable the synchronous option as well.
+     *
      * @return the builder
      */
     public SplitDefinition parallelProcessing(boolean parallelProcessing) {
@@ -215,6 +228,10 @@ public class SplitDefinition extends OutputExpressionNode implements ExecutorSer
      * If enabled then processing each split messages occurs concurrently. Note the caller thread will still wait until
      * all messages has been fully processed, before it continues. It's only processing the sub messages from the
      * splitter which happens concurrently.
+     *
+     * When parallel processing is enabled, then the Camel routing engin will continue processing using last used thread
+     * from the parallel thread pool. However, if you want to use the original thread that called the splitter, then
+     * make sure to enable the synchronous option as well.
      *
      * @return the builder
      */
@@ -257,6 +274,37 @@ public class SplitDefinition extends OutputExpressionNode implements ExecutorSer
      */
     public SplitDefinition parallelAggregate(String parallelAggregate) {
         setParallelAggregate(parallelAggregate);
+        return this;
+    }
+
+    /**
+     * Sets whether synchronous processing should be strictly used. When enabled then the same thread is used to
+     * continue routing after the split is complete, even if parallel processing is enabled.
+     *
+     * @return the builder
+     */
+    public SplitDefinition synchronous() {
+        return synchronous(true);
+    }
+
+    /**
+     * Sets whether synchronous processing should be strictly used. When enabled then the same thread is used to
+     * continue routing after the split is complete, even if parallel processing is enabled.
+     *
+     * @return the builder
+     */
+    public SplitDefinition synchronous(boolean synchronous) {
+        return synchronous(Boolean.toString(synchronous));
+    }
+
+    /**
+     * Sets whether synchronous processing should be strictly used. When enabled then the same thread is used to
+     * continue routing after the split is complete, even if parallel processing is enabled.
+     *
+     * @return the builder
+     */
+    public SplitDefinition synchronous(String synchronous) {
+        setSynchronous(synchronous);
         return this;
     }
 
@@ -520,6 +568,14 @@ public class SplitDefinition extends OutputExpressionNode implements ExecutorSer
 
     public void setParallelProcessing(String parallelProcessing) {
         this.parallelProcessing = parallelProcessing;
+    }
+
+    public String getSynchronous() {
+        return synchronous;
+    }
+
+    public void setSynchronous(String synchronous) {
+        this.synchronous = synchronous;
     }
 
     public String getStreaming() {

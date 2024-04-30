@@ -40,7 +40,7 @@ public class ToDynamicReifier<T extends ToDynamicDefinition> extends ProcessorRe
         String uri;
         Expression exp;
         if (definition.getEndpointProducerBuilder() != null) {
-            uri = definition.getEndpointProducerBuilder().getUri();
+            uri = definition.getEndpointProducerBuilder().getRawUri();
             exp = definition.getEndpointProducerBuilder().expr(camelContext);
         } else {
             uri = StringHelper.notEmpty(definition.getUri(), "uri", this);
@@ -56,6 +56,8 @@ public class ToDynamicReifier<T extends ToDynamicDefinition> extends ProcessorRe
         SendDynamicProcessor processor = new SendDynamicProcessor(uri, exp);
         processor.setCamelContext(camelContext);
         processor.setPattern(parse(ExchangePattern.class, definition.getPattern()));
+        processor.setVariableSend(parseString(definition.getVariableSend()));
+        processor.setVariableReceive(parseString(definition.getVariableReceive()));
         Integer num = parseInt(definition.getCacheSize());
         if (num != null) {
             processor.setCacheSize(num);
@@ -76,7 +78,7 @@ public class ToDynamicReifier<T extends ToDynamicDefinition> extends ProcessorRe
         // make sure to parse property placeholders
         uri = EndpointHelper.resolveEndpointUriPropertyPlaceholders(camelContext, uri);
 
-        // we use simple language by default but you can configure a different language
+        // we use simple language by default, but you can configure a different language
         String language = "simple";
         if (uri.startsWith("language:")) {
             String value = StringHelper.after(uri, "language:");

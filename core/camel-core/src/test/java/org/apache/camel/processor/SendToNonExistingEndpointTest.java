@@ -26,12 +26,12 @@ import static org.junit.jupiter.api.Assertions.fail;
 public class SendToNonExistingEndpointTest extends ContextTestSupport {
 
     @Test
-    public void testSendToNonExistingEndpoint() throws Exception {
+    public void testSendToNonExistingEndpoint() {
         try {
             template.sendBody("thisUriDoesNotExist", "<hello>world!</hello>");
             fail("Should have failed to send this message!");
         } catch (NoSuchEndpointException e) {
-            log.debug("Caught expected exception: " + e, e);
+            log.debug("Caught expected exception: {}", e.getMessage(), e);
             assertEquals("thisUriDoesNotExist", e.getUri(), "uri");
         }
     }

@@ -31,9 +31,10 @@ import java.util.concurrent.TimeUnit;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.sqs.SqsClient;
+import software.amazon.awssdk.services.sqs.SqsServiceClientConfiguration;
 import software.amazon.awssdk.services.sqs.model.BatchResultErrorEntry;
-import software.amazon.awssdk.services.sqs.model.ChangeMessageVisibilityRequest;
-import software.amazon.awssdk.services.sqs.model.ChangeMessageVisibilityResponse;
+import software.amazon.awssdk.services.sqs.model.ChangeMessageVisibilityBatchRequest;
+import software.amazon.awssdk.services.sqs.model.ChangeMessageVisibilityBatchResponse;
 import software.amazon.awssdk.services.sqs.model.CreateQueueRequest;
 import software.amazon.awssdk.services.sqs.model.CreateQueueResponse;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
@@ -47,7 +48,6 @@ import software.amazon.awssdk.services.sqs.model.ListQueuesResponse;
 import software.amazon.awssdk.services.sqs.model.Message;
 import software.amazon.awssdk.services.sqs.model.PurgeQueueRequest;
 import software.amazon.awssdk.services.sqs.model.PurgeQueueResponse;
-import software.amazon.awssdk.services.sqs.model.QueueDoesNotExistException;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
 import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequest;
@@ -63,12 +63,18 @@ public class AmazonSQSClientMock implements SqsClient {
 
     List<Message> messages = new ArrayList<>();
     Map<String, Map<String, String>> queueAttributes = new HashMap<>();
-    List<ChangeMessageVisibilityRequest> changeMessageVisibilityRequests = new CopyOnWriteArrayList<>();
+    List<ChangeMessageVisibilityBatchRequest> changeMessageVisibilityBatchRequests = new CopyOnWriteArrayList<>();
     private Map<String, CreateQueueRequest> queues = new LinkedHashMap<>();
     private Map<String, ScheduledFuture<?>> inFlight = new LinkedHashMap<>();
     private ScheduledExecutorService scheduler;
+    private String queueName;
+    private boolean verifyQueueUrl;
 
     public AmazonSQSClientMock() {
+    }
+
+    public AmazonSQSClientMock(String queueName) {
+        this.queueName = queueName;
     }
 
     @Override
@@ -80,8 +86,12 @@ public class AmazonSQSClientMock implements SqsClient {
     public ListQueuesResponse listQueues(ListQueuesRequest request) {
         ListQueuesResponse.Builder result = ListQueuesResponse.builder();
         List<String> queues = new ArrayList<>();
-        queues.add("queue1");
-        queues.add("queue2");
+        if (queueName != null) {
+            queues.add("/" + queueName);
+        } else {
+            queues.add("/queue1");
+            queues.add("/queue2");
+        }
         result.queueUrls(queues);
         return result.build();
     }
@@ -97,6 +107,9 @@ public class AmazonSQSClientMock implements SqsClient {
 
     @Override
     public SendMessageResponse sendMessage(SendMessageRequest sendMessageRequest) {
+        if (verifyQueueUrl && sendMessageRequest.queueUrl() == null) {
+            throw new RuntimeException("QueueUrl can not be null.");
+        }
         Message.Builder message = Message.builder();
         message.body(sendMessageRequest.messageBody());
         message.md5OfBody("6a1559560f67c5e7a7d5d838bf0272ee");
@@ -115,7 +128,7 @@ public class AmazonSQSClientMock implements SqsClient {
 
     @Override
     public ReceiveMessageResponse receiveMessage(ReceiveMessageRequest receiveMessageRequest) {
-        Integer maxNumberOfMessages = receiveMessageRequest.maxNumberOfMessages() != null
+        int maxNumberOfMessages = receiveMessageRequest.maxNumberOfMessages() != null
                 ? receiveMessageRequest.maxNumberOfMessages() : Integer.MAX_VALUE;
         ReceiveMessageResponse.Builder result = ReceiveMessageResponse.builder();
         Collection<Message> resultMessages = new ArrayList<>();
@@ -187,12 +200,18 @@ public class AmazonSQSClientMock implements SqsClient {
 
     @Override
     public PurgeQueueResponse purgeQueue(PurgeQueueRequest purgeQueueRequest) {
+        if (purgeQueueRequest.queueUrl() == null) {
+            throw SqsException.builder().message("Queue name must be specified.").build();
+        }
         return PurgeQueueResponse.builder().build();
     }
 
     @Override
     public DeleteQueueResponse deleteQueue(DeleteQueueRequest deleteQueueRequest)
-            throws AwsServiceException, SdkClientException, SqsException {
+            throws AwsServiceException, SdkClientException {
+        if (deleteQueueRequest.queueUrl() == null) {
+            throw SqsException.builder().message("Queue name must be specified.").build();
+        }
         return DeleteQueueResponse.builder().build();
     }
 
@@ -210,10 +229,15 @@ public class AmazonSQSClientMock implements SqsClient {
     }
 
     @Override
-    public ChangeMessageVisibilityResponse changeMessageVisibility(
-            ChangeMessageVisibilityRequest changeMessageVisibilityRequest) {
-        this.changeMessageVisibilityRequests.add(changeMessageVisibilityRequest);
-        return ChangeMessageVisibilityResponse.builder().build();
+    public SqsServiceClientConfiguration serviceClientConfiguration() {
+        return null;
+    }
+
+    @Override
+    public ChangeMessageVisibilityBatchResponse changeMessageVisibilityBatch(
+            ChangeMessageVisibilityBatchRequest changeMessageVisibilityBatchRequest) {
+        this.changeMessageVisibilityBatchRequests.add(changeMessageVisibilityBatchRequest);
+        return ChangeMessageVisibilityBatchResponse.builder().build();
     }
 
     @Override
@@ -252,9 +276,17 @@ public class AmazonSQSClientMock implements SqsClient {
 
     @Override
     public GetQueueUrlResponse getQueueUrl(GetQueueUrlRequest getQueueUrlRequest)
-            throws QueueDoesNotExistException, AwsServiceException, SdkClientException, SqsException {
+            throws AwsServiceException, SdkClientException {
         return GetQueueUrlResponse.builder()
                 .queueUrl("https://queue.amazonaws.com/queue/camel-836")
                 .build();
+    }
+
+    public void setVerifyQueueUrl(boolean verifyQueueUrl) {
+        this.verifyQueueUrl = verifyQueueUrl;
+    }
+
+    public void setQueueName(String queueName) {
+        this.queueName = queueName;
     }
 }

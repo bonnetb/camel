@@ -28,7 +28,7 @@ import static org.apache.camel.Exchange.HTTP_QUERY;
 public class NettyHttpHeaderFilterStrategyRemovalTest extends BaseNettyTest {
 
     @BindToRegistry("headerFilterStrategy")
-    NettyHttpHeaderFilterStrategy headerFilterStrategy = new NettyHttpHeaderFilterStrategy();
+    final NettyHttpHeaderFilterStrategy headerFilterStrategy = new NettyHttpHeaderFilterStrategy();
 
     @EndpointInject("mock:test")
     MockEndpoint mockEndpoint;
@@ -41,7 +41,7 @@ public class NettyHttpHeaderFilterStrategyRemovalTest extends BaseNettyTest {
 
         template.sendBody("netty-http:http://localhost:" + getPort() + "/?" + options, "message");
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Test
@@ -55,7 +55,7 @@ public class NettyHttpHeaderFilterStrategyRemovalTest extends BaseNettyTest {
         template.sendBodyAndHeader("netty-http:http://localhost:" + getPort() + "/?" + options, "message", headerToFilter,
                 "headerValue");
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     @Override

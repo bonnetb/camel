@@ -5,6 +5,7 @@
 :description: Call and expose remote procedures (RPC) with Apache Thrift data format and serialization mechanism.
 :since: 2.20
 :supportlevel: Stable
+:tabs-sync-option:
 :component-header: Both producer and consumer are supported
 //Manually maintained attributes
 :camel-spring-boot-name: thrift
@@ -50,12 +51,16 @@ include::partial$component-endpoint-options.adoc[]
 
 // endpoint options: END
 
+// component headers: START
+include::partial$component-endpoint-headers.adoc[]
+// component headers: END
 
 == Thrift method parameters mapping
 
 Parameters in the called procedure must be passed as a list of objects inside the message body. The primitives are converted from the objects on the fly.
-In order to correctly find the corresponding method, all types must be transmitted regardless of the values. Please see an exmaple below, how to pass
-different parameters to the method with the Camel body
+To correctly find the corresponding method, all types must be transmitted regardless of the values. Please see an example below, how to pass
+different parameters to the method with the Camel body:
+
 [source,java]
 -------------------------------------------------------------------------------
 List requestBody = new ArrayList();
@@ -69,7 +74,7 @@ requestBody.add((double)THRIFT_TEST_NUM1);
 requestBody.add("empty"); // String parameter
 requestBody.add(ByteBuffer.allocate(10)); // binary parameter
 requestBody.add(new Work(THRIFT_TEST_NUM1, THRIFT_TEST_NUM2, Operation.MULTIPLY)); // Struct parameter
-requestBody.add(new ArrayList<Integer>()); // list paramater 
+requestBody.add(new ArrayList<Integer>()); // list parameter
 requestBody.add(new HashSet<String>()); // set parameter
 requestBody.add(new HashMap<String, Long>()); // map parameter 
 
@@ -77,17 +82,6 @@ Object responseBody = template.requestBody("direct:thrift-alltypes", requestBody
 -------------------------------------------------------------------------------
 
 Incoming parameters in the service consumer will also be passed to the message body as a list of objects.
-
-
-== Thrift consumer headers (will be installed after the consumer invocation)
-
-[width="100%",cols="25%,50,25%",options="header",]
-|=======================================================================
-|Header name |Description|Possible values
-
-|*CamelThriftMethodName*|Method name handled by the consumer service|
-
-|=======================================================================
 
 == Examples
 

@@ -5,7 +5,8 @@
 :description: Perform operations on Kubernetes Jobs.
 :since: 2.23
 :supportlevel: Stable
-:component-header: Both producer and consumer are supported
+:tabs-sync-option:
+:component-header: Only producer is supported
 //Manually maintained attributes
 :group: Kubernetes
 :camel-spring-boot-name: kubernetes
@@ -15,7 +16,7 @@
 *{component-header}*
 
 The Kubernetes Job component is one of xref:kubernetes-summary.adoc[Kubernetes Components] which
-provides a producer to execute kubernetes Job operations and a consumer to consume events related to Job objects.
+provides a producer to execute kubernetes Job operations.
 
 
 // component-configure options: START
@@ -41,11 +42,12 @@ include::partial$component-endpoint-headers.adoc[]
 - listJobByLabels
 - getJob
 - createJob
+- updateJob
 - deleteJob
 
 == Kubernetes Job Producer Examples
 
-- listJob: this operation list the jobs on a kubernetes cluster
+- listJob: this operation lists the jobs on a kubernetes cluster
 
 [source,java]
 --------------------------------------------------------------------------------
@@ -54,9 +56,9 @@ from("direct:list").
     to("mock:result");
 --------------------------------------------------------------------------------
 
-This operation return a List of Job from your cluster
+This operation returns a List of Jobs from your cluster
 
-- listJobByLabels:  this operation list the jobs by labels on a kubernetes cluster
+- listJobByLabels:  this operation lists the jobs by labels on a kubernetes cluster
 
 [source,java]
 --------------------------------------------------------------------------------
@@ -73,9 +75,9 @@ from("direct:listByLabels").process(new Processor() {
     to("mock:result");
 --------------------------------------------------------------------------------
 
-This operation return a List of Jobs from your cluster, using a label selector (with key1 and key2, with value value1 and value2)
+This operation returns a List of Jobs from your cluster, using a label selector (with key1 and key2, with value value1 and value2)
 
-- createJob: This operation create a job on a Kubernetes Cluster
+- createJob: This operation creates a job on a Kubernetes Cluster
 
 We have a wonderful example of this operation thanks to https://github.com/Emmerson-Miranda[Emmerson Miranda] from this https://github.com/Emmerson-Miranda/camel/blob/master/camel3-cdi/cdi-k8s-pocs/src/main/java/edu/emmerson/camel/k8s/jobs/camel_k8s_jobs/KubernetesCreateJob.java[Java test]
 

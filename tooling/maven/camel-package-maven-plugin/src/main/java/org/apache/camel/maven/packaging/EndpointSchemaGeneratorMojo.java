@@ -27,18 +27,14 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
-import java.net.URI;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Date;
-import java.util.Deque;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -52,6 +48,7 @@ import java.util.stream.Stream;
 import org.apache.camel.Category;
 import org.apache.camel.maven.packaging.generics.ClassUtil;
 import org.apache.camel.maven.packaging.generics.GenericsUtil;
+import org.apache.camel.maven.packaging.generics.PackagePluginUtils;
 import org.apache.camel.spi.ApiMethod;
 import org.apache.camel.spi.ApiParam;
 import org.apache.camel.spi.ApiParams;
@@ -95,7 +92,6 @@ import org.jboss.forge.roaster.model.source.MethodSource;
 import org.jboss.jandex.AnnotationInstance;
 import org.jboss.jandex.AnnotationTarget;
 import org.jboss.jandex.DotName;
-import org.jboss.jandex.IndexReader;
 import org.jboss.jandex.IndexView;
 
 import static java.lang.reflect.Modifier.isStatic;
@@ -158,20 +154,18 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
         // make sure we sort the classes in case one inherit from the other
         classes.sort(this::compareClasses);
 
-        Map<Class, ComponentModel> models = new HashMap<>();
+        Map<Class<?>, ComponentModel> models = new HashMap<>();
         for (Class<?> classElement : classes) {
             UriEndpoint uriEndpoint = classElement.getAnnotation(UriEndpoint.class);
             String scheme = uriEndpoint.scheme();
             String extendsScheme = uriEndpoint.extendsScheme();
             String title = uriEndpoint.title();
             Category[] categories = uriEndpoint.category();
-            String label;
+            String label = null;
             if (categories.length > 0) {
                 label = Arrays.stream(categories)
                         .map(Category::getValue)
                         .collect(Collectors.joining(","));
-            } else {
-                label = uriEndpoint.label();
             }
             validateSchemaName(scheme, classElement);
             // support multiple schemes separated by comma, which maps to
@@ -187,7 +181,8 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
     }
 
     private void processSchemas(
-            Map<Class, ComponentModel> models, Class<?> classElement, UriEndpoint uriEndpoint, String label, String[] schemes,
+            Map<Class<?>, ComponentModel> models, Class<?> classElement, UriEndpoint uriEndpoint, String label,
+            String[] schemes,
             String[] titles, String[] extendsSchemes) {
         for (int i = 0; i < schemes.length; i++) {
             final String alias = schemes[i];
@@ -201,27 +196,36 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
             }
             final String aliasTitle = aTitle;
 
-            ComponentModel parentData = null;
-            Class<?> superclass = classElement.getSuperclass();
-            if (superclass != null) {
-                parentData = models.get(superclass);
-                if (parentData == null) {
-                    UriEndpoint parentUriEndpoint = superclass.getAnnotation(UriEndpoint.class);
-                    if (parentUriEndpoint != null) {
-                        String parentScheme = parentUriEndpoint.scheme().split(",")[0];
-                        String superClassName = superclass.getName();
-                        String packageName = superClassName.substring(0, superClassName.lastIndexOf('.'));
-                        String fileName = packageName.replace('.', '/') + "/" + parentScheme + ".json";
-                        String json = loadResource(fileName);
-                        parentData = JsonMapper.generateComponentModel(json);
-                    }
-                }
-            }
+            ComponentModel parentData = collectParentData(models, classElement);
 
             ComponentModel model = writeJSonSchemeAndPropertyConfigurer(classElement, uriEndpoint, aliasTitle, alias,
                     extendsAlias, label, schemes, parentData);
+
             models.put(classElement, model);
         }
+    }
+
+    private ComponentModel collectParentData(Map<Class<?>, ComponentModel> models, Class<?> classElement) {
+        ComponentModel parentData = null;
+        final Class<?> superclass = classElement.getSuperclass();
+
+        if (superclass != null) {
+            parentData = models.get(superclass);
+            if (parentData == null) {
+                UriEndpoint parentUriEndpoint = superclass.getAnnotation(UriEndpoint.class);
+                if (parentUriEndpoint != null) {
+                    String parentScheme = parentUriEndpoint.scheme().split(",")[0];
+                    String superClassName = superclass.getName();
+                    String packageName = superClassName.substring(0, superClassName.lastIndexOf('.'));
+                    String fileName
+                            = "META-INF/" + packageName.replace('.', '/') + "/" + parentScheme + PackageHelper.JSON_SUFIX;
+                    String json = loadResource(fileName);
+                    parentData = JsonMapper.generateComponentModel(json);
+                }
+            }
+        }
+
+        return parentData;
     }
 
     private int compareClasses(Class<?> c1, Class<?> c2) {
@@ -286,6 +290,9 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
             enhanceComponentModelWithApiModel(componentModel);
         }
 
+        SchemaHelper.addModelMetadata(componentModel, project);
+        SchemaHelper.addModelMetadata(componentModel, classElement.getAnnotation(Metadata.class));
+
         String json = JsonMapper.createParameterJsonSchema(componentModel);
 
         // write json schema
@@ -293,7 +300,7 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
         String packageName = name.substring(0, name.lastIndexOf('.'));
         String fileName = scheme + PackageHelper.JSON_SUFIX;
 
-        String file = packageName.replace('.', '/') + "/" + fileName;
+        String file = "META-INF/" + packageName.replace('.', '/') + "/" + fileName;
         updateResource(resourcesOutputDir.toPath(), file, json);
 
         generateEndpointConfigurer(classElement, uriEndpoint, scheme, schemes, componentModel, parentData);
@@ -319,20 +326,7 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
             getLog().debug(String.format("The endpoint %s has not defined any headers class", uriEndpoint.scheme()));
             return;
         }
-        // A header class has been defined
-        boolean foundHeader = false;
-        final Deque<Class<?>> classes = new ArrayDeque<>();
-        classes.add(headersClass);
-        Class<?> currentHeadersClass;
-        while ((currentHeadersClass = classes.poll()) != null) {
-            foundHeader |= addEndpointHeaders(componentModel, scheme, currentHeadersClass);
-            final Class<?> superclass = currentHeadersClass.getSuperclass();
-            if (superclass != null && !superclass.equals(Object.class)) {
-                classes.add(superclass);
-            }
-            classes.addAll(Arrays.asList(currentHeadersClass.getInterfaces()));
-        }
-        if (!foundHeader) {
+        if (!addEndpointHeaders(componentModel, scheme, headersClass, uriEndpoint.headersNameProvider())) {
             getLog().debug(String.format("No headers have been detected in the headers class %s", headersClass.getName()));
         }
     }
@@ -344,29 +338,38 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
      * <p/>
      * Only headers applicable for the given scheme are added.
      *
-     * @param  componentModel the component model to which the headers should be added.
-     * @param  scheme         the scheme for which we want to add the headers.
-     * @param  headersClass   the class from which we extract the headers.
-     * @return                {@code true} if at least one header has been added, {@code false} otherwise.
+     * @param  componentModel      the component model to which the headers should be added.
+     * @param  scheme              the scheme for which we want to add the headers.
+     * @param  headersClass        the class from which we extract the headers.
+     * @param  headersNameProvider the name of the field to get or the name of the method to invoke to get the name of
+     *                             the headers.
+     * @return                     {@code true} if at least one header has been added, {@code false} otherwise.
      */
-    private boolean addEndpointHeaders(ComponentModel componentModel, String scheme, Class<?> headersClass) {
+    private boolean addEndpointHeaders(
+            ComponentModel componentModel, String scheme, Class<?> headersClass, String headersNameProvider) {
         final boolean isEnum = headersClass.isEnum();
         boolean foundHeader = false;
-        for (Field field : headersClass.getDeclaredFields()) {
+        for (Field field : headersClass.getFields()) {
             if ((isEnum || isStatic(field.getModifiers()) && field.getType() == String.class)
                     && field.isAnnotationPresent(Metadata.class)) {
-                getLog().debug(
-                        String.format("Trying to add the constant %s in the class %s as header.", field.getName(),
-                                headersClass.getName()));
-                if (addEndpointHeader(componentModel, field, scheme)) {
+
+                if (getLog().isDebugEnabled()) {
+                    getLog().debug(
+                            String.format("Trying to add the constant %s in the class %s as header.", field.getName(),
+                                    headersClass.getName()));
+                }
+                if (addEndpointHeader(componentModel, scheme, field, headersNameProvider)) {
                     foundHeader = true;
                     continue;
                 }
             }
-            getLog().debug(
-                    String.format(
-                            "The field %s of the class %s is not considered as a name of a header, thus it is skipped",
-                            field.getName(), headersClass.getName()));
+
+            if (getLog().isDebugEnabled()) {
+                getLog().debug(
+                        String.format(
+                                "The field %s of the class %s is not considered as a name of a header, thus it is skipped",
+                                field.getName(), headersClass.getName()));
+            }
         }
         return foundHeader;
     }
@@ -377,23 +380,31 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
      * model.
      * <p/>
      * The header is only added if it is applicable for the given scheme.
-     * 
-     * @param  componentModel the component to which the header should be added.
-     * @param  field          the field corresponding to the constant from which the metadata should be extracted.
-     * @param  scheme         the scheme for which we want to add the header.
-     * @return                {@code true} if the header has been added, {@code false} otherwise.
+     *
+     * @param  componentModel      the component to which the header should be added.
+     * @param  scheme              the scheme for which we want to add the header.
+     * @param  field               the field corresponding to the constant from which the metadata should be extracted.
+     * @param  headersNameProvider the name of the field to get or the name of the method to invoke to get the name of
+     *                             the headers.
+     * @return                     {@code true} if the header has been added, {@code false} otherwise.
      */
-    private boolean addEndpointHeader(ComponentModel componentModel, Field field, String scheme) {
+    private boolean addEndpointHeader(ComponentModel componentModel, String scheme, Field field, String headersNameProvider) {
         final Metadata metadata = field.getAnnotation(Metadata.class);
         if (metadata == null) {
-            getLog().debug(String.format("The field %s in class %s has no Metadata", field.getName(),
-                    field.getDeclaringClass().getName()));
+
+            if (getLog().isDebugEnabled()) {
+                getLog().debug(String.format("The field %s in class %s has no Metadata", field.getName(),
+                        field.getDeclaringClass().getName()));
+            }
             return false;
         }
         final String[] applicableFor = metadata.applicableFor();
         if (applicableFor.length > 0 && Arrays.stream(applicableFor).noneMatch(s -> s.equals(scheme))) {
-            getLog().debug(String.format("The field %s in class %s is not applicable for %s", field.getName(),
-                    field.getDeclaringClass().getName(), scheme));
+
+            if (getLog().isDebugEnabled()) {
+                getLog().debug(String.format("The field %s in class %s is not applicable for %s", field.getName(),
+                        field.getDeclaringClass().getName(), scheme));
+            }
             return false;
         }
         final EndpointHeaderModel header = new EndpointHeaderModel();
@@ -416,19 +427,94 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
         try {
             header.setEnums(getEnums(metadata, header.getJavaType().isEmpty() ? null : loadClass(header.getJavaType())));
         } catch (NoClassDefFoundError e) {
-            getLog().debug(String.format("The java type %s could not be found", header.getJavaType()), e);
+            if (getLog().isDebugEnabled()) {
+                getLog().debug(String.format("The java type %s could not be found", header.getJavaType()), e);
+            }
         }
         try {
-            field.trySetAccessible();
-            // The name of the header is either the name of the field in case of an enum, otherwise it is the value
-            // of the field as we assume that it is a String constant
-            header.setName(field.getType().isEnum() ? field.getName() : (String) field.get(null));
+            setHeaderNames(header, field, headersNameProvider);
             componentModel.addEndpointHeader(header);
-        } catch (IllegalAccessException e) {
-            getLog().debug(String.format("The field %s in class %s cannot be accessed", field.getName(),
-                    field.getDeclaringClass().getName()));
+        } catch (Exception e) {
+            if (getLog().isDebugEnabled()) {
+                getLog().debug(
+                        String.format("The name of the header corresponding to the field %s in class %s cannot be retrieved",
+                                field.getName(),
+                                field.getDeclaringClass().getName()));
+            }
         }
         return true;
+    }
+
+    /**
+     * Set the name of the header and the name of the constant corresponding to the header.
+     * <p/>
+     * The name of the header and the name of the constant are set as follows:
+     * <ul>
+     * <li><u>In case of an interface or a class:</u> <b>The name of the header</b> is the value of the field as we
+     * assume that it is a {@code String} constant and <b>the name of the constant</b> is in the following format
+     * <i>${declaring-class-name}#${constant-name}</i></li>
+     * <li><u>In case of an enum:</u>
+     * <ul>
+     * <li><u>If {@code headersNameProvider} is set to a name of field:</u> <b>The name of the header</b> is the value
+     * of this particular field for the corresponding enum constant and <b>the name of the constant</b> is in the
+     * following format <i>${declaring-class-name}#${enum-constant-name}@${field-name}</i></li>
+     * <li><u>If {@code headersNameProvider} is set to a name of method:</u> <b>The name of the header</b> is the
+     * returned value of this particular method for the corresponding enum constant and <b>the name of the constant</b>
+     * is in the following format <i>${declaring-class-name}#${enum-constant-name}@${method-name}()</i></li>
+     * <li><u>Otherwise:</u> <b>The name of the header</b> is the name of the enum constant and <b>the name of the
+     * constant</b> is in the following format <i>${declaring-class-name}#${enum-constant-name}</i></li>
+     * </ul>
+     * </li>
+     * </ul>
+     *
+     * @param  header              the header in which the name of the header and its corresponding constant should be
+     *                             set.
+     * @param  field               the field corresponding to the name of a header.
+     * @param  headersNameProvider the name of the field to get or the name of the method to invoke to get the name of
+     *                             the headers.
+     * @throws Exception           if an error occurred while getting the name of the header
+     */
+    private void setHeaderNames(EndpointHeaderModel header, Field field, String headersNameProvider) throws Exception {
+        final Class<?> declaringClass = field.getDeclaringClass();
+        if (field.getType().isEnum()) {
+            if (!headersNameProvider.isEmpty()) {
+                final Optional<?> value = Arrays.stream(declaringClass.getEnumConstants())
+                        .filter(c -> ((Enum<?>) c).name().equals(field.getName()))
+                        .findAny();
+                if (value.isPresent()) {
+                    getLog().debug(String.format("The headers name provider has been set to %s", headersNameProvider));
+                    final Optional<Field> headersNameProviderField = Arrays.stream(declaringClass.getFields())
+                            .filter(f -> f.getName().equals(headersNameProvider))
+                            .findAny();
+                    if (headersNameProviderField.isPresent()) {
+                        getLog().debug("A field corresponding to the headers name provider has been found");
+                        header.setConstantName(
+                                String.format("%s#%s@%s", declaringClass.getName(), field.getName(), headersNameProvider));
+                        header.setName((String) headersNameProviderField.get().get(value.get()));
+                        return;
+                    }
+                    getLog().debug(
+                            String.format("No field %s could be found in the class %s", headersNameProvider, declaringClass));
+                    final Optional<Method> headersNameProviderMethod = Arrays.stream(declaringClass.getMethods())
+                            .filter(m -> m.getName().equals(headersNameProvider) && m.getParameterCount() == 0)
+                            .findAny();
+                    if (headersNameProviderMethod.isPresent()) {
+                        getLog().debug("A method without parameters corresponding to the headers name provider has been found");
+                        header.setConstantName(
+                                String.format("%s#%s@%s()", declaringClass.getName(), field.getName(), headersNameProvider));
+                        header.setName((String) headersNameProviderMethod.get().invoke(value.get()));
+                        return;
+                    }
+                    getLog().debug(String.format("No method %s without parameters could be found in the class %s",
+                            headersNameProvider, declaringClass));
+                }
+            }
+            header.setConstantName(String.format("%s#%s", declaringClass.getName(), field.getName()));
+            header.setName(field.getName());
+            return;
+        }
+        header.setConstantName(String.format("%s#%s", declaringClass.getName(), field.getName()));
+        header.setName((String) field.get(null));
     }
 
     /**
@@ -488,7 +574,7 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
                 if (!Strings.isNullOrEmpty(apiName)) {
                     final UriParams uriParams = classElement.getAnnotation(UriParams.class);
                     String extraPrefix = uriParams != null ? uriParams.prefix() : "";
-                    findClassProperties(componentModel, classElement, Collections.EMPTY_SET, extraPrefix,
+                    findClassProperties(componentModel, classElement, Collections.emptySet(), extraPrefix,
                             null, null, false);
                 }
             }
@@ -536,6 +622,8 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
                     = componentModel.getComponentOptions().stream().map(BaseOptionModel::getName).collect(Collectors.toSet());
             Set<String> endpointOptionNames
                     = componentModel.getEndpointOptions().stream().map(BaseOptionModel::getName).collect(Collectors.toSet());
+            Set<String> headerNames
+                    = componentModel.getEndpointHeaders().stream().map(BaseOptionModel::getName).collect(Collectors.toSet());
             Collections.addAll(componentOptionNames, excludedComponentProperties.split(","));
             Collections.addAll(endpointOptionNames, excludedEndpointProperties.split(","));
             parentData.getComponentOptions().stream()
@@ -544,6 +632,9 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
             parentData.getEndpointOptions().stream()
                     .filter(option -> !endpointOptionNames.contains(option.getName()))
                     .forEach(option -> componentModel.getEndpointOptions().add(option));
+            parentData.getEndpointHeaders().stream()
+                    .filter(header -> !headerNames.contains(header.getName()))
+                    .forEach(header -> componentModel.getEndpointHeaders().add(header));
         }
     }
 
@@ -599,6 +690,7 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
     private void generateComponentConfigurer(
             UriEndpoint uriEndpoint, String scheme, String[] schemes, ComponentModel componentModel,
             ComponentModel parentData) {
+
         if (!uriEndpoint.generateConfigurer()) {
             return;
         }
@@ -608,8 +700,9 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
         }
         String pfqn;
         boolean hasSuper;
-        if (parentData != null
-                && loadClass(componentModel.getJavaType()).getSuperclass() == loadClass(parentData.getJavaType())) {
+
+        Class<?> superClazz = loadClass(componentModel.getJavaType()).getSuperclass();
+        if (parentData != null && superClazz.getName().equals(parentData.getJavaType())) {
             // special for activemq and amqp scheme which should reuse jms
             pfqn = parentData.getJavaType() + "Configurer";
             hasSuper = true;
@@ -630,7 +723,7 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
             Set<String> parentOptionsNames = parentData.getComponentOptions().stream()
                     .map(ComponentOptionModel::getName).collect(Collectors.toSet());
             options = componentModel.getComponentOptions().stream().filter(o -> !parentOptionsNames.contains(o.getName()))
-                    .collect(Collectors.toList());
+                    .toList();
         } else {
             options = componentModel.getComponentOptions();
         }
@@ -657,10 +750,12 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
         if (isFirstScheme(scheme, schemes)) {
             return;
         }
+
+        Class<?> superClazz = loadClass(componentModel.getJavaType()).getSuperclass();
+
         String pfqn;
         boolean hasSuper;
-        if (parentData != null
-                && loadClass(componentModel.getJavaType()).getSuperclass() == loadClass(parentData.getJavaType())) {
+        if (parentData != null && superClazz.getName().equals(parentData.getJavaType())) {
             try {
                 pfqn = classElement.getSuperclass().getName() + "Configurer";
                 hasSuper = true;
@@ -686,7 +781,7 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
                     .map(EndpointOptionModel::getName).collect(Collectors.toSet());
             options = componentModel.getEndpointParameterOptions().stream()
                     .filter(o -> !parentOptionsNames.contains(o.getName()))
-                    .collect(Collectors.toList());
+                    .toList();
         } else {
             options = componentModel.getEndpointParameterOptions();
         }
@@ -721,6 +816,7 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
         model.setConsumerOnly(uriEndpoint.consumerOnly());
         model.setProducerOnly(uriEndpoint.producerOnly());
         model.setLenientProperties(uriEndpoint.lenientProperties());
+        model.setRemote(uriEndpoint.remote());
         model.setAsync(loadClass("org.apache.camel.AsyncEndpoint").isAssignableFrom(endpointClassElement));
         model.setApi(loadClass("org.apache.camel.ApiEndpoint").isAssignableFrom(endpointClassElement));
         model.setApiSyntax(uriEndpoint.apiSyntax());
@@ -770,13 +866,15 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
         if (endpointClassElement.getAnnotation(Metadata.class) != null) {
             deprecationNote = endpointClassElement.getAnnotation(Metadata.class).deprecationNote();
         }
-        model.setDeprecationNote(deprecationNote);
+        if (!isNullOrEmpty(deprecationNote)) {
+            model.setDeprecationNote(deprecationNote);
+        }
         model.setDeprecatedSince(project.getProperties().getProperty("deprecatedSince"));
 
-        // these information is not available at compile time and we enrich
+        // this information is not available at compile time, and we enrich
         // these later during the camel-package-maven-plugin
         if (model.getJavaType() == null) {
-            throw new IllegalStateException("Could not find component java type");
+            throw new IllegalStateException("Could not find @Component(\"" + scheme + "\") annotated class.");
         }
 
         // favor to use endpoint class javadoc as description
@@ -814,7 +912,7 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
 
             // if the component has options with annotations then we only want to generate options that are annotated
             // as ideally components should favour doing this, so we can control what is an option and what is not
-            List<Field> fields = Stream.of(classElement.getDeclaredFields()).collect(Collectors.toList());
+            List<Field> fields = Stream.of(classElement.getDeclaredFields()).toList();
             boolean annotationBasedOptions = fields.stream().anyMatch(f -> f.getAnnotation(Metadata.class) != null)
                     || methods.stream().anyMatch(m -> m.getAnnotation(Metadata.class) != null);
 
@@ -863,7 +961,7 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
                         }
                         nestedTypeName = fieldTypeName;
                         nestedFieldName = fieldElement.getName();
-                        findClassProperties(componentModel, fieldTypeElement, Collections.EMPTY_SET, nestedPrefix,
+                        findClassProperties(componentModel, fieldTypeElement, Collections.emptySet(), nestedPrefix,
                                 nestedTypeName, nestedFieldName, true);
                         nestedTypeName = null;
                         nestedFieldName = null;
@@ -875,6 +973,9 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
                 String label = metadata != null ? metadata.label() : null;
                 boolean secret = metadata != null && metadata.secret();
                 boolean autowired = metadata != null && metadata.autowired();
+                boolean supportFileReference = metadata != null && metadata.supportFileReference();
+                boolean largeInput = metadata != null && metadata.largeInput();
+                String inputLanguage = metadata != null ? metadata.inputLanguage() : null;
 
                 // we do not yet have default values / notes / as no annotation
                 // support yet
@@ -974,7 +1075,7 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
                     option.setKind("property");
                     option.setName(name);
                     option.setDisplayName(displayName);
-                    option.setType(getType(fieldTypeName, false, isDuration));
+                    option.setType(MojoHelper.getType(fieldTypeName, false, isDuration));
                     option.setJavaType(fieldTypeName);
                     option.setRequired(required);
                     option.setDefaultValue(defaultValue);
@@ -990,6 +1091,9 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
                     option.setNestedType(nestedType);
                     option.setConfigurationClass(nestedTypeName);
                     option.setConfigurationField(nestedFieldName);
+                    option.setSupportFileReference(supportFileReference);
+                    option.setLargeInput(largeInput);
+                    option.setInputLanguage(inputLanguage);
                     componentModel.addComponentOption(option);
                 }
             }
@@ -1008,7 +1112,7 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
         List<String> enums = null;
         if (metadata != null && !Strings.isNullOrEmpty(metadata.enums())) {
             String[] values = metadata.enums().split(",");
-            enums = Stream.of(values).map(String::trim).collect(Collectors.toList());
+            enums = Stream.of(values).map(String::trim).toList();
         } else if (fieldType != null && fieldType.isEnum()) {
             enums = new ArrayList<>();
             for (Object val : fieldType.getEnumConstants()) {
@@ -1032,7 +1136,7 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
     }
 
     private List<Method> findCandidateClassMethods(Class<?> classElement) {
-        List<Method> methods = Stream.of(classElement.getDeclaredMethods()).filter(method -> {
+        return Stream.of(classElement.getDeclaredMethods()).filter(method -> {
             Metadata metadata = method.getAnnotation(Metadata.class);
             String methodName = method.getName();
             if (metadata != null && metadata.skip()) {
@@ -1060,7 +1164,6 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
             }
             return true;
         }).collect(Collectors.toList());
-        return methods;
     }
 
     private void processMetadataClassAnnotation(ComponentModel componentModel, Class<?> classElement, Set<String> excludes) {
@@ -1073,7 +1176,6 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
         }
     }
 
-    // CHECKSTYLE:OFF
     protected void findClassProperties(
             ComponentModel componentModel, Class<?> classElement,
             Set<String> excludes, String prefix,
@@ -1093,15 +1195,10 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
                 }
             }
 
-            String excludedProperties = getExcludedEnd(classElement.getAnnotation(Metadata.class));
+            collectExcludes(classElement, excludes);
+
             Metadata metadata;
-
-            final UriEndpoint uriEndpoint = classElement.getAnnotation(UriEndpoint.class);
-            if (uriEndpoint != null) {
-                Collections.addAll(excludes, excludedProperties.split(","));
-            }
-            for (Field fieldElement : classElement.getDeclaredFields()) {
-
+            for (final Field fieldElement : classElement.getDeclaredFields()) {
                 metadata = fieldElement.getAnnotation(Metadata.class);
                 if (metadata != null && metadata.skip()) {
                     continue;
@@ -1113,125 +1210,16 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
                 }
                 Boolean secret = metadata != null ? metadata.secret() : null;
 
-                UriPath path = fieldElement.getAnnotation(UriPath.class);
-                String fieldName = fieldElement.getName();
-                // component options should not include @UriPath as they are for endpoints only
-                if (!componentOption && path != null) {
-                    String name = prefix + (Strings.isNullOrEmpty(path.name()) ? fieldName : path.name());
-
-                    // should we exclude the name?
-                    if (excludes.contains(name)) {
-                        continue;
-                    }
-
-                    Object defaultValue = path.defaultValue();
-                    if ("".equals(defaultValue) && metadata != null) {
-                        defaultValue = metadata.defaultValue();
-                    }
-                    String defaultValueNote = path.defaultValueNote();
-                    boolean required = metadata != null && metadata.required();
-                    String label = path.label();
-                    if (Strings.isNullOrEmpty(label) && metadata != null) {
-                        label = metadata.label();
-                    }
-                    String displayName = path.displayName();
-                    if (Strings.isNullOrEmpty(displayName)) {
-                        displayName = metadata != null ? metadata.displayName() : null;
-                    }
-                    // compute a display name if we don't have anything
-                    if (Strings.isNullOrEmpty(displayName)) {
-                        displayName = Strings.asTitle(name);
-                    }
-
-                    Class<?> fieldTypeElement = fieldElement.getType();
-                    String fieldTypeName = getTypeName(GenericsUtil.resolveType(orgClassElement, fieldElement));
-
-                    String docComment = path.description();
-                    if (Strings.isNullOrEmpty(docComment)) {
-                        docComment = findJavaDoc(fieldElement, fieldName, name, classElement, false);
-                    }
-
-                    // gather enums
-                    List<String> enums = gatherEnums(path, fieldTypeElement);
-
-                    // the field type may be overloaded by another type
-                    boolean isDuration = false;
-                    if (!Strings.isNullOrEmpty(path.javaType())) {
-                        String mjt = path.javaType();
-                        if ("java.time.Duration".equals(mjt)) {
-                            isDuration = true;
-                        } else {
-                            fieldTypeName = mjt;
-                        }
-                    }
-
-                    // prepare default value so its value is correct according to its type
-                    defaultValue = getDefaultValue(defaultValue, fieldTypeName, isDuration);
-
-                    boolean isSecret = secret != null && secret || path.secret();
-                    boolean isAutowired = metadata != null && metadata.autowired();
-                    String group = EndpointHelper.labelAsGroupName(label, componentModel.isConsumerOnly(),
-                            componentModel.isProducerOnly());
-
-                    // generics for collection types
-                    String nestedType = null;
-                    String desc = fieldTypeName;
-                    if (desc.contains("<") && desc.contains(">")) {
-                        desc = Strings.between(desc, "<", ">");
-                        // if it has additional nested types, then we only want the outer type
-                        int pos = desc.indexOf('<');
-                        if (pos != -1) {
-                            desc = desc.substring(0, pos);
-                        }
-                        // if its a map then it has a key/value, so we only want the last part
-                        pos = desc.indexOf(',');
-                        if (pos != -1) {
-                            desc = desc.substring(pos + 1);
-                        }
-                        desc = desc.replace('$', '.');
-                        desc = desc.trim();
-                        // skip if the type is generic or a wildcard
-                        if (!desc.isEmpty() && desc.indexOf('?') == -1 && !desc.contains(" extends ")) {
-                            nestedType = desc;
-                        }
-                    }
-
-                    BaseOptionModel option;
-                    if (componentOption) {
-                        option = new ComponentOptionModel();
-                    } else {
-                        option = new EndpointOptionModel();
-                    }
-                    option.setName(name);
-                    option.setKind("path");
-                    option.setDisplayName(displayName);
-                    option.setType(getType(fieldTypeName, false, isDuration));
-                    option.setJavaType(fieldTypeName);
-                    option.setRequired(required);
-                    option.setDefaultValue(defaultValue);
-                    option.setDefaultValueNote(defaultValueNote);
-                    option.setDescription(docComment.trim());
-                    option.setDeprecated(deprecated);
-                    option.setDeprecationNote(deprecationNote);
-                    option.setSecret(isSecret);
-                    option.setAutowired(isAutowired);
-                    option.setGroup(group);
-                    option.setLabel(label);
-                    option.setEnums(enums);
-                    option.setNestedType(nestedType);
-                    option.setConfigurationClass(nestedTypeName);
-                    option.setConfigurationField(nestedFieldName);
-                    if (componentModel.getEndpointOptions().stream().noneMatch(opt -> name.equals(opt.getName()))) {
-                        componentModel.addEndpointOption((EndpointOptionModel) option);
-                    }
+                if (collectUriPathProperties(componentModel, classElement, excludes, prefix, nestedTypeName, nestedFieldName,
+                        componentOption, orgClassElement, metadata, fieldElement, deprecated, deprecationNote, secret)) {
+                    continue;
                 }
+                String fieldName;
 
                 UriParam param = fieldElement.getAnnotation(UriParam.class);
                 if (param != null) {
-                    ApiParam apiParam = fieldElement.getAnnotation(ApiParam.class);
                     fieldName = fieldElement.getName();
                     String name = prefix + (Strings.isNullOrEmpty(param.name()) ? fieldName : param.name());
-
                     // should we exclude the name?
                     if (excludes.contains(name)) {
                         continue;
@@ -1277,156 +1265,12 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
                         nestedTypeName = null;
                         nestedFieldName = null;
                     } else {
-                        String docComment = param.description();
-                        if (Strings.isNullOrEmpty(docComment)) {
-                            docComment = findJavaDoc(fieldElement, fieldName, name, classElement, false);
-                        }
-                        if (Strings.isNullOrEmpty(docComment)) {
-                            docComment = "";
-                        }
+                        ApiParam apiParam = fieldElement.getAnnotation(ApiParam.class);
 
-                        // gather enums
-                        List<String> enums = gatherEnums(param, fieldTypeElement);
-
-                        // the field type may be overloaded by another type
-                        boolean isDuration = false;
-                        if (!Strings.isNullOrEmpty(param.javaType())) {
-                            String jt = param.javaType();
-                            if ("java.time.Duration".equals(jt)) {
-                                isDuration = true;
-                            } else {
-                                fieldTypeName = param.javaType();
-                            }
-                        }
-
-                        // prepare default value so its value is correct according to its type
-                        defaultValue = getDefaultValue(defaultValue, fieldTypeName, isDuration);
-
-                        boolean isSecret = secret != null && secret || param.secret();
-                        boolean isAutowired = metadata != null && metadata.autowired();
-                        String group = EndpointHelper.labelAsGroupName(label, componentModel.isConsumerOnly(),
-                                componentModel.isProducerOnly());
-
-                        // generics for collection types
-                        String nestedType = null;
-                        String desc = fieldTypeName;
-                        if (desc.contains("<") && desc.contains(">")) {
-                            desc = Strings.between(desc, "<", ">");
-                            // if it has additional nested types, then we only want the outer type
-                            int pos = desc.indexOf('<');
-                            if (pos != -1) {
-                                desc = desc.substring(0, pos);
-                            }
-                            // if its a map then it has a key/value, so we only want the last part
-                            pos = desc.indexOf(',');
-                            if (pos != -1) {
-                                desc = desc.substring(pos + 1);
-                            }
-                            desc = desc.replace('$', '.');
-                            desc = desc.trim();
-                            // skip if the type is generic or a wildcard
-                            if (!desc.isEmpty() && desc.indexOf('?') == -1 && !desc.contains(" extends ")) {
-                                nestedType = desc;
-                            }
-                        }
-
-                        BaseOptionModel option;
-                        if (componentOption) {
-                            option = new ComponentOptionModel();
-                        } else if (apiOption) {
-                            option = new ApiOptionModel();
-                        } else {
-                            option = new EndpointOptionModel();
-                        }
-                        option.setName(name);
-                        option.setDisplayName(displayName);
-                        option.setType(getType(fieldTypeName, false, isDuration));
-                        option.setJavaType(fieldTypeName);
-                        option.setRequired(required);
-                        option.setDefaultValue(defaultValue);
-                        option.setDefaultValueNote(defaultValueNote);
-                        option.setDescription(docComment.trim());
-                        option.setDeprecated(deprecated);
-                        option.setDeprecationNote(deprecationNote);
-                        option.setSecret(isSecret);
-                        option.setAutowired(isAutowired);
-                        option.setGroup(group);
-                        option.setLabel(label);
-                        option.setEnums(enums);
-                        option.setNestedType(nestedType);
-                        option.setConfigurationClass(nestedTypeName);
-                        option.setConfigurationField(nestedFieldName);
-                        option.setPrefix(paramPrefix);
-                        option.setOptionalPrefix(paramOptionalPrefix);
-                        option.setMultiValue(multiValue);
-                        if (componentOption) {
-                            option.setKind("property");
-                            componentModel.addComponentOption((ComponentOptionModel) option);
-                        } else if (apiOption && apiParam != null) {
-                            option.setKind("parameter");
-                            final String targetApiName = apiName;
-                            ApiModel api;
-                            Optional<ApiModel> op = componentModel.getApiOptions().stream()
-                                    .filter(o -> o.getName().equals(targetApiName))
-                                    .findFirst();
-                            if (!op.isPresent()) {
-                                api = new ApiModel();
-                                api.setName(apiName);
-                                componentModel.getApiOptions().add(api);
-                                if (apiParams != null) {
-                                    for (String alias : apiParams.aliases()) {
-                                        api.addAlias(alias);
-                                    }
-                                }
-                                if (apiParams != null) {
-                                    api.setDescription(apiParams.description());
-                                    // component model takes precedence
-                                    api.setConsumerOnly(componentModel.isConsumerOnly() || apiParams.consumerOnly());
-                                    api.setProducerOnly(componentModel.isProducerOnly() || apiParams.producerOnly());
-                                }
-                            } else {
-                                api = op.get();
-                            }
-                            for (ApiMethod method : apiParam.apiMethods()) {
-                                ApiMethodModel apiMethod = null;
-                                for (ApiMethodModel m : api.getMethods()) {
-                                    if (m.getName().equals(method.methodName())) {
-                                        apiMethod = m;
-                                        break;
-                                    }
-                                }
-                                if (apiMethod == null) {
-                                    apiMethod = api.newMethod(method.methodName());
-                                }
-                                // the method description is stored on @ApiParams
-                                if (apiParams != null) {
-                                    for (ApiMethod m : apiParams.apiMethods()) {
-                                        if (m.methodName().equals(method.methodName())) {
-                                            apiMethod.setDescription(m.description());
-                                            for (String sig : m.signatures()) {
-                                                apiMethod.addSignature(sig);
-                                            }
-                                            break;
-                                        }
-                                    }
-                                }
-                                // copy the option and override with the correct description
-                                ApiOptionModel copy = ((ApiOptionModel) option).copy();
-                                apiMethod.addApiOptionModel(copy);
-                                // the option description is stored on @ApiMethod
-                                copy.setDescription(method.description());
-                                // whether we are consumer or producer only
-                                group = EndpointHelper.labelAsGroupName(copy.getLabel(), api.isConsumerOnly(),
-                                        api.isProducerOnly());
-                                copy.setGroup(group);
-                                copy.setOptional(apiParam.optional());
-                            }
-                        } else {
-                            option.setKind("parameter");
-                            if (componentModel.getEndpointOptions().stream().noneMatch(opt -> name.equals(opt.getName()))) {
-                                componentModel.addEndpointOption((EndpointOptionModel) option);
-                            }
-                        }
+                        collectNonNestedField(componentModel, classElement, nestedTypeName, nestedFieldName, componentOption,
+                                apiName, apiOption, apiParams, metadata, fieldElement, deprecated, deprecationNote, secret,
+                                fieldName, param, apiParam, name, paramOptionalPrefix, paramPrefix, multiValue, defaultValue,
+                                defaultValueNote, required, label, displayName, fieldTypeElement, fieldTypeName);
                     }
                 }
             }
@@ -1447,6 +1291,301 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
         }
     }
 
+    private void collectNonNestedField(
+            ComponentModel componentModel, Class<?> classElement, String nestedTypeName, String nestedFieldName,
+            boolean componentOption, String apiName, boolean apiOption, ApiParams apiParams, Metadata metadata,
+            Field fieldElement, boolean deprecated, String deprecationNote, Boolean secret, String fieldName, UriParam param,
+            ApiParam apiParam, String name, String paramOptionalPrefix, String paramPrefix, boolean multiValue,
+            Object defaultValue, String defaultValueNote, boolean required, String label, String displayName,
+            Class<?> fieldTypeElement, String fieldTypeName) {
+        String docComment = param.description();
+        if (Strings.isNullOrEmpty(docComment)) {
+            docComment = findJavaDoc(fieldElement, fieldName, name, classElement, false);
+        }
+        if (Strings.isNullOrEmpty(docComment)) {
+            docComment = "";
+        }
+
+        // gather enums
+        List<String> enums = gatherEnums(param, fieldTypeElement);
+
+        // the field type may be overloaded by another type
+        boolean isDuration = false;
+        if (!Strings.isNullOrEmpty(param.javaType())) {
+            String jt = param.javaType();
+            if ("java.time.Duration".equals(jt)) {
+                isDuration = true;
+            } else {
+                fieldTypeName = param.javaType();
+            }
+        }
+
+        // prepare default value so its value is correct according to its type
+        defaultValue = getDefaultValue(defaultValue, fieldTypeName, isDuration);
+
+        boolean isSecret = secret != null && secret || param.secret();
+        boolean isAutowired = metadata != null && metadata.autowired();
+        boolean supportFileReference = metadata != null && metadata.supportFileReference();
+        String group = EndpointHelper.labelAsGroupName(label, componentModel.isConsumerOnly(),
+                componentModel.isProducerOnly());
+
+        // generics for collection types
+        String nestedType = null;
+        String desc = fieldTypeName;
+        if (desc.contains("<") && desc.contains(">")) {
+            desc = Strings.between(desc, "<", ">");
+            // if it has additional nested types, then we only want the outer type
+            int pos = desc.indexOf('<');
+            if (pos != -1) {
+                desc = desc.substring(0, pos);
+            }
+            // if its a map then it has a key/value, so we only want the last part
+            pos = desc.indexOf(',');
+            if (pos != -1) {
+                desc = desc.substring(pos + 1);
+            }
+            desc = desc.replace('$', '.');
+            desc = desc.trim();
+            // skip if the type is generic or a wildcard
+            if (!desc.isEmpty() && desc.indexOf('?') == -1 && !desc.contains(" extends ")) {
+                nestedType = desc;
+            }
+        }
+
+        BaseOptionModel option;
+        if (componentOption) {
+            option = new ComponentOptionModel();
+        } else if (apiOption) {
+            option = new ApiOptionModel();
+        } else {
+            option = new EndpointOptionModel();
+        }
+        option.setName(name);
+        option.setDisplayName(displayName);
+        option.setType(MojoHelper.getType(fieldTypeName, false, isDuration));
+        option.setJavaType(fieldTypeName);
+        option.setRequired(required);
+        option.setDefaultValue(defaultValue);
+        option.setDefaultValueNote(defaultValueNote);
+        option.setDescription(docComment.trim());
+        option.setDeprecated(deprecated);
+        option.setDeprecationNote(deprecationNote);
+        option.setSecret(isSecret);
+        option.setAutowired(isAutowired);
+        option.setGroup(group);
+        option.setLabel(label);
+        option.setEnums(enums);
+        option.setNestedType(nestedType);
+        option.setConfigurationClass(nestedTypeName);
+        option.setConfigurationField(nestedFieldName);
+        option.setPrefix(paramPrefix);
+        option.setOptionalPrefix(paramOptionalPrefix);
+        option.setMultiValue(multiValue);
+        option.setSupportFileReference(supportFileReference);
+        if (componentOption) {
+            option.setKind("property");
+            componentModel.addComponentOption((ComponentOptionModel) option);
+        } else if (apiOption && apiParam != null) {
+            option.setKind("parameter");
+            final String targetApiName = apiName;
+            ApiModel api;
+            Optional<ApiModel> op = componentModel.getApiOptions().stream()
+                    .filter(o -> o.getName().equals(targetApiName))
+                    .findFirst();
+            if (!op.isPresent()) {
+                api = new ApiModel();
+                api.setName(apiName);
+                componentModel.getApiOptions().add(api);
+                if (apiParams != null) {
+                    for (String alias : apiParams.aliases()) {
+                        api.addAlias(alias);
+                    }
+                }
+                if (apiParams != null) {
+                    api.setDescription(apiParams.description());
+                    // component model takes precedence
+                    api.setConsumerOnly(componentModel.isConsumerOnly() || apiParams.consumerOnly());
+                    api.setProducerOnly(componentModel.isProducerOnly() || apiParams.producerOnly());
+                }
+            } else {
+                api = op.get();
+            }
+            for (ApiMethod method : apiParam.apiMethods()) {
+                ApiMethodModel apiMethod = null;
+                for (ApiMethodModel m : api.getMethods()) {
+                    if (m.getName().equals(method.methodName())) {
+                        apiMethod = m;
+                        break;
+                    }
+                }
+                if (apiMethod == null) {
+                    apiMethod = api.newMethod(method.methodName());
+                }
+                // the method description is stored on @ApiParams
+                if (apiParams != null) {
+                    for (ApiMethod m : apiParams.apiMethods()) {
+                        if (m.methodName().equals(method.methodName())) {
+                            apiMethod.setDescription(m.description());
+                            for (String sig : m.signatures()) {
+                                apiMethod.addSignature(sig);
+                            }
+                            break;
+                        }
+                    }
+                }
+                // copy the option and override with the correct description
+                ApiOptionModel copy = ((ApiOptionModel) option).copy();
+                apiMethod.addApiOptionModel(copy);
+                // the option description is stored on @ApiMethod
+                copy.setDescription(method.description());
+                // whether we are consumer or producer only
+                group = EndpointHelper.labelAsGroupName(copy.getLabel(), api.isConsumerOnly(),
+                        api.isProducerOnly());
+                copy.setGroup(group);
+                copy.setOptional(apiParam.optional());
+            }
+        } else {
+            option.setKind("parameter");
+            if (componentModel.getEndpointOptions().stream().noneMatch(opt -> name.equals(opt.getName()))) {
+                componentModel.addEndpointOption((EndpointOptionModel) option);
+            }
+        }
+    }
+
+    private boolean collectUriPathProperties(
+            ComponentModel componentModel, Class<?> classElement, Set<String> excludes, String prefix, String nestedTypeName,
+            String nestedFieldName, boolean componentOption, Class<?> orgClassElement, Metadata metadata, Field fieldElement,
+            boolean deprecated, String deprecationNote, Boolean secret) {
+        UriPath path = fieldElement.getAnnotation(UriPath.class);
+        String fieldName = fieldElement.getName();
+        // component options should not include @UriPath as they are for endpoints only
+        if (!componentOption && path != null) {
+            String name = prefix + (Strings.isNullOrEmpty(path.name()) ? fieldName : path.name());
+
+            // should we exclude the name?
+            if (excludes.contains(name)) {
+                return true;
+            }
+
+            Object defaultValue = path.defaultValue();
+            if ("".equals(defaultValue) && metadata != null) {
+                defaultValue = metadata.defaultValue();
+            }
+            String defaultValueNote = path.defaultValueNote();
+            boolean required = metadata != null && metadata.required();
+            String label = path.label();
+            if (Strings.isNullOrEmpty(label) && metadata != null) {
+                label = metadata.label();
+            }
+            String displayName = path.displayName();
+            if (Strings.isNullOrEmpty(displayName)) {
+                displayName = metadata != null ? metadata.displayName() : null;
+            }
+            // compute a display name if we don't have anything
+            if (Strings.isNullOrEmpty(displayName)) {
+                displayName = Strings.asTitle(name);
+            }
+
+            Class<?> fieldTypeElement = fieldElement.getType();
+            String fieldTypeName = getTypeName(GenericsUtil.resolveType(orgClassElement, fieldElement));
+
+            String docComment = path.description();
+            if (Strings.isNullOrEmpty(docComment)) {
+                docComment = findJavaDoc(fieldElement, fieldName, name, classElement, false);
+            }
+
+            // gather enums
+            List<String> enums = gatherEnums(path, fieldTypeElement);
+
+            // the field type may be overloaded by another type
+            boolean isDuration = false;
+            if (!Strings.isNullOrEmpty(path.javaType())) {
+                String mjt = path.javaType();
+                if ("java.time.Duration".equals(mjt)) {
+                    isDuration = true;
+                } else {
+                    fieldTypeName = mjt;
+                }
+            }
+
+            // prepare default value so its value is correct according to its type
+            defaultValue = getDefaultValue(defaultValue, fieldTypeName, isDuration);
+
+            boolean isSecret = secret != null && secret || path.secret();
+            boolean isAutowired = metadata != null && metadata.autowired();
+            boolean supportFileReference = metadata != null && metadata.supportFileReference();
+            boolean largeInput = metadata != null && metadata.largeInput();
+            String inputLanguage = metadata != null ? metadata.inputLanguage() : null;
+            String group = EndpointHelper.labelAsGroupName(label, componentModel.isConsumerOnly(),
+                    componentModel.isProducerOnly());
+
+            // generics for collection types
+            String nestedType = null;
+            String desc = fieldTypeName;
+            if (desc.contains("<") && desc.contains(">")) {
+                desc = Strings.between(desc, "<", ">");
+                // if it has additional nested types, then we only want the outer type
+                int pos = desc.indexOf('<');
+                if (pos != -1) {
+                    desc = desc.substring(0, pos);
+                }
+                // if its a map then it has a key/value, so we only want the last part
+                pos = desc.indexOf(',');
+                if (pos != -1) {
+                    desc = desc.substring(pos + 1);
+                }
+                desc = desc.replace('$', '.');
+                desc = desc.trim();
+                // skip if the type is generic or a wildcard
+                if (!desc.isEmpty() && desc.indexOf('?') == -1 && !desc.contains(" extends ")) {
+                    nestedType = desc;
+                }
+            }
+
+            BaseOptionModel option;
+            if (componentOption) {
+                option = new ComponentOptionModel();
+            } else {
+                option = new EndpointOptionModel();
+            }
+            option.setName(name);
+            option.setKind("path");
+            option.setDisplayName(displayName);
+            option.setType(MojoHelper.getType(fieldTypeName, false, isDuration));
+            option.setJavaType(fieldTypeName);
+            option.setRequired(required);
+            option.setDefaultValue(defaultValue);
+            option.setDefaultValueNote(defaultValueNote);
+            option.setDescription(docComment.trim());
+            option.setDeprecated(deprecated);
+            option.setDeprecationNote(deprecationNote);
+            option.setSecret(isSecret);
+            option.setAutowired(isAutowired);
+            option.setGroup(group);
+            option.setLabel(label);
+            option.setEnums(enums);
+            option.setNestedType(nestedType);
+            option.setConfigurationClass(nestedTypeName);
+            option.setConfigurationField(nestedFieldName);
+            option.setSupportFileReference(supportFileReference);
+            option.setLargeInput(largeInput);
+            option.setInputLanguage(inputLanguage);
+            if (componentModel.getEndpointOptions().stream().noneMatch(opt -> name.equals(opt.getName()))) {
+                componentModel.addEndpointOption((EndpointOptionModel) option);
+            }
+        }
+        return false;
+    }
+
+    private void collectExcludes(Class<?> classElement, Set<String> excludes) {
+        final UriEndpoint uriEndpoint = classElement.getAnnotation(UriEndpoint.class);
+        if (uriEndpoint != null) {
+            String excludedProperties = getExcludedEnd(classElement.getAnnotation(Metadata.class));
+
+            Collections.addAll(excludes, excludedProperties.split(","));
+        }
+    }
+
     private static List<String> doGatherFromEnum(Class<?> fieldTypeElement) {
         final List<String> enums = new ArrayList<>();
 
@@ -1463,7 +1602,7 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
     private static List<String> gatherEnums(UriParam param, Class<?> fieldTypeElement) {
         if (!Strings.isNullOrEmpty(param.enums())) {
             String[] values = param.enums().split(",");
-            return Stream.of(values).map(String::trim).collect(Collectors.toList());
+            return Stream.of(values).map(String::trim).toList();
         } else if (fieldTypeElement.isEnum()) {
             return doGatherFromEnum(fieldTypeElement);
         }
@@ -1474,14 +1613,13 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
     private static List<String> gatherEnums(UriPath path, Class<?> fieldTypeElement) {
         if (!Strings.isNullOrEmpty(path.enums())) {
             String[] values = path.enums().split(",");
-            return Stream.of(values).map(String::trim).collect(Collectors.toList());
+            return Stream.of(values).map(String::trim).toList();
         } else if (fieldTypeElement.isEnum()) {
             return doGatherFromEnum(fieldTypeElement);
         }
 
         return null;
     }
-    // CHECKSTYLE:ON
 
     private static boolean isNullOrEmpty(Object value) {
         return value == null || "".equals(value) || "null".equals(value);
@@ -1500,8 +1638,6 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
         return false;
     }
 
-    // CHECKSTYLE:ON
-
     private static boolean isGroovyMetaClassProperty(final Method method) {
         final String methodName = method.getName();
 
@@ -1519,9 +1655,24 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
 
         try {
             boolean extended = model.isApi(); // if the component is api then the generated configurer should be an extended configurer
-            String source = PropertyConfigurerGenerator.generatePropertyConfigurer(pn, cn, en, pfqn, psn, hasSuper, component,
-                    extended, false,
-                    options, model);
+
+            options = options.stream().sorted(Comparator.comparing(BaseOptionModel::getName)).collect(Collectors.toList());
+
+            Map<String, Object> ctx = new HashMap<>();
+            ctx.put("generatorClass", getClass().getName());
+            ctx.put("package", pn);
+            ctx.put("className", cn);
+            ctx.put("type", en);
+            ctx.put("pfqn", pfqn);
+            ctx.put("psn", psn);
+            ctx.put("hasSuper", hasSuper);
+            ctx.put("component", component);
+            ctx.put("extended", extended);
+            ctx.put("bootstrap", false);
+            ctx.put("options", options);
+            ctx.put("model", model);
+            ctx.put("mojo", this);
+            String source = velocity("velocity/property-configurer.vm", ctx);
 
             updateResource(sourcesOutputDir.toPath(), fqn.replace('.', '/') + ".java", source);
         } catch (Exception e) {
@@ -1542,13 +1693,9 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
 
     private IndexView getIndex() {
         if (indexView == null) {
-            Path output = Paths.get(project.getBuild().getOutputDirectory());
-            try (InputStream is = Files.newInputStream(output.resolve("META-INF/jandex.idx"))) {
-                indexView = new IndexReader(is).read();
-            } catch (IOException e) {
-                throw new RuntimeException("IOException: " + e.getMessage(), e);
-            }
+            indexView = PackagePluginUtils.readJandexIndexQuietly(project);
         }
+
         return indexView;
     }
 
@@ -1662,6 +1809,7 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
         if (source != null && !jd.tags().isEmpty()) {
             ASTNode n = (ASTNode) jd.tags().get(0);
             String txt = source.substring(n.getStartPosition(), n.getStartPosition() + n.getLength());
+
             return txt
                     .replaceAll(" *\n *\\* *\n", "\n\n")
                     .replaceAll(" *\n *\\* +", "\n");
@@ -1682,7 +1830,7 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
         if (sourceRoots == null) {
             sourceRoots = project.getCompileSourceRoots().stream()
                     .map(Paths::get)
-                    .collect(Collectors.toList());
+                    .toList();
         }
         return sourceRoots;
     }
@@ -1738,79 +1886,6 @@ public class EndpointSchemaGeneratorMojo extends AbstractGeneratorMojo {
         String fieldTypeName = new GenericType(fieldType).toString();
         fieldTypeName = fieldTypeName.replace('$', '.');
         return fieldTypeName;
-    }
-
-    /**
-     * Gets the JSON schema type.
-     *
-     * @param  type the java type
-     * @return      the json schema type, is never null, but returns <tt>object</tt> as the generic type
-     */
-    public static String getType(String type, boolean enumType, boolean isDuration) {
-        if (enumType) {
-            return "enum";
-        } else if (isDuration) {
-            return "duration";
-        } else if (type == null) {
-            // return generic type for unknown type
-            return "object";
-        } else if (type.equals(URI.class.getName()) || type.equals(URL.class.getName())) {
-            return "string";
-        } else if (type.equals(File.class.getName())) {
-            return "string";
-        } else if (type.equals(Date.class.getName())) {
-            return "string";
-        } else if (type.startsWith("java.lang.Class")) {
-            return "string";
-        } else if (type.startsWith("java.util.List") || type.startsWith("java.util.Collection")) {
-            return "array";
-        }
-
-        String primitive = getPrimitiveType(type);
-        if (primitive != null) {
-            return primitive;
-        }
-
-        return "object";
-    }
-
-    /**
-     * Gets the JSON schema primitive type.
-     *
-     * @param  name the java type
-     * @return      the json schema primitive type, or <tt>null</tt> if not a primitive
-     */
-    public static String getPrimitiveType(String name) {
-        // special for byte[] or Object[] as its common to use
-        if ("java.lang.byte[]".equals(name) || "byte[]".equals(name)) {
-            return "string";
-        } else if ("java.lang.Byte[]".equals(name) || "Byte[]".equals(name)) {
-            return "array";
-        } else if ("java.lang.Object[]".equals(name) || "Object[]".equals(name)) {
-            return "array";
-        } else if ("java.lang.String[]".equals(name) || "String[]".equals(name)) {
-            return "array";
-        } else if ("java.lang.Character".equals(name) || "Character".equals(name) || "char".equals(name)) {
-            return "string";
-        } else if ("java.lang.String".equals(name) || "String".equals(name)) {
-            return "string";
-        } else if ("java.lang.Boolean".equals(name) || "Boolean".equals(name) || "boolean".equals(name)) {
-            return "boolean";
-        } else if ("java.lang.Integer".equals(name) || "Integer".equals(name) || "int".equals(name)) {
-            return "integer";
-        } else if ("java.lang.Long".equals(name) || "Long".equals(name) || "long".equals(name)) {
-            return "integer";
-        } else if ("java.lang.Short".equals(name) || "Short".equals(name) || "short".equals(name)) {
-            return "integer";
-        } else if ("java.lang.Byte".equals(name) || "Byte".equals(name) || "byte".equals(name)) {
-            return "integer";
-        } else if ("java.lang.Float".equals(name) || "Float".equals(name) || "float".equals(name)) {
-            return "number";
-        } else if ("java.lang.Double".equals(name) || "Double".equals(name) || "double".equals(name)) {
-            return "number";
-        }
-
-        return null;
     }
 
     /**

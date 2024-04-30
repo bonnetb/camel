@@ -38,7 +38,7 @@ import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 import software.amazon.awssdk.services.s3.model.PutBucketPolicyRequest;
 
 /**
- * Store and retrieve objects from AWS S3 Storage Service using AWS SDK version 2.x.
+ * Store and retrieve objects from AWS S3 Storage Service.
  */
 @UriEndpoint(firstVersion = "3.2.0", scheme = "aws2-s3", title = "AWS S3 Storage Service",
              syntax = "aws2-s3://bucketNameOrArn", category = { Category.CLOUD, Category.FILE },
@@ -79,6 +79,11 @@ public class AWS2S3Endpoint extends ScheduledPollEndpoint {
         } else {
             return new AWS2S3StreamUploadProducer(this);
         }
+    }
+
+    @Override
+    public AWS2S3Component getComponent() {
+        return (AWS2S3Component) super.getComponent();
     }
 
     @Override

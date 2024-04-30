@@ -18,6 +18,7 @@ package org.apache.camel.language;
 
 import org.apache.camel.ContextTestSupport;
 import org.apache.camel.builder.RouteBuilder;
+import org.apache.camel.util.StopWatch;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,12 +46,12 @@ public class XPathRouteConcurrentBigTest extends ContextTestSupport {
     }
 
     private void doSendMessages(int messageCount) throws Exception {
-        LOG.info("Sending " + messageCount + " messages");
+        LOG.info("Sending {} messages", messageCount);
 
         int forResult = (messageCount * 2 / 3) + messageCount % 3;
         int forOther = messageCount - forResult;
 
-        long now = System.currentTimeMillis();
+        StopWatch watch = new StopWatch();
 
         // give more time on slow servers
         getMockEndpoint("mock:result").setResultWaitTime(30000);
@@ -75,18 +76,18 @@ public class XPathRouteConcurrentBigTest extends ContextTestSupport {
             }
         }
 
-        LOG.info("Sent {} messages in {} ms", messageCount, System.currentTimeMillis() - now);
+        LOG.info("Sent {} messages in {} ms", messageCount, watch.taken());
 
         assertMockEndpointsSatisfied();
 
-        LOG.info("Processed {} messages in {} ms", messageCount, System.currentTimeMillis() - now);
+        LOG.info("Processed {} messages in {} ms", messageCount, watch.taken());
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("seda:foo?concurrentConsumers=50&size=250000").choice().when()
                         .xpath("//messageType = 'AAA' or " + "//messageType = 'AAB' or " + "//messageType = 'AAC' or "
                                + "//messageType = 'AAD' or " + "//messageType = 'AAE' or "
@@ -97,8 +98,7 @@ public class XPathRouteConcurrentBigTest extends ContextTestSupport {
                                + "//messageType = 'AAP' or " + "//messageType = 'AAQ' or " + "//messageType = 'AAR' or "
                                + "//messageType = 'AAS' or " + "//messageType = 'AAT' or "
                                + "//messageType = 'AAU' or " + "//messageType = 'AAV' or " + "//messageType = 'AAW' or "
-                               + "//messageType = 'AAX' or " + "//messageType = 'AAY' or "
-                               + "//messageType = 'AAZ'")
+                               + "//messageType = 'AAX' or " + "//messageType = 'AAY'")
                         .to("mock:result").otherwise().to("mock:other").end();
             }
         };

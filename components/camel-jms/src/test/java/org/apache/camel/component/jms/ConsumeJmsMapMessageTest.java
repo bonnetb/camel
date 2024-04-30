@@ -19,31 +19,41 @@ package org.apache.camel.component.jms;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.jms.ConnectionFactory;
-import javax.jms.MapMessage;
+import jakarta.jms.ConnectionFactory;
+import jakarta.jms.MapMessage;
 
 import org.apache.camel.CamelContext;
+import org.apache.camel.ConsumerTemplate;
 import org.apache.camel.Exchange;
+import org.apache.camel.ProducerTemplate;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.support.ExchangeHelper;
-import org.apache.camel.test.junit5.CamelTestSupport;
+import org.apache.camel.test.infra.core.CamelContextExtension;
+import org.apache.camel.test.infra.core.DefaultCamelContextExtension;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jms.core.JmsTemplate;
 
-import static org.apache.camel.component.jms.JmsComponent.jmsComponentAutoAcknowledge;
 import static org.apache.camel.test.junit5.TestSupport.assertIsInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-public class ConsumeJmsMapMessageTest extends CamelTestSupport {
+public class ConsumeJmsMapMessageTest extends AbstractJMSTest {
+    @Order(2)
+    @RegisterExtension
+    public static CamelContextExtension camelContextExtension = new DefaultCamelContextExtension();
 
     private static final Logger LOG = LoggerFactory.getLogger(ConsumeJmsMapMessageTest.class);
 
     protected JmsTemplate jmsTemplate;
+    protected CamelContext context;
+    protected ProducerTemplate template;
+    protected ConsumerTemplate consumer;
     private MockEndpoint endpoint;
 
     @Test
@@ -70,7 +80,7 @@ public class ConsumeJmsMapMessageTest extends CamelTestSupport {
         assertNotNull(in);
 
         Map<?, ?> map = exchange.getIn().getBody(Map.class);
-        LOG.info("Received map: " + map);
+        LOG.info("Received map: {}", map);
 
         assertNotNull(map, "Should have received a map message!");
         assertIsInstanceOf(MapMessage.class, in.getJmsMessage());
@@ -94,22 +104,22 @@ public class ConsumeJmsMapMessageTest extends CamelTestSupport {
         assertCorrectMapReceived();
     }
 
-    @Override
     @BeforeEach
     public void setUp() throws Exception {
-        super.setUp();
         endpoint = getMockEndpoint("mock:result");
     }
 
     @Override
-    protected CamelContext createCamelContext() throws Exception {
-        CamelContext camelContext = super.createCamelContext();
+    protected String getComponentName() {
+        return "activemq";
+    }
 
-        ConnectionFactory connectionFactory = CamelJmsTestHelper.createConnectionFactory();
+    @Override
+    protected JmsComponent setupComponent(
+            CamelContext camelContext, ConnectionFactory connectionFactory, String componentName) {
         jmsTemplate = new JmsTemplate(connectionFactory);
-        camelContext.addComponent("activemq", jmsComponentAutoAcknowledge(connectionFactory));
 
-        return camelContext;
+        return super.setupComponent(camelContext, connectionFactory, componentName);
     }
 
     @Override
@@ -120,5 +130,17 @@ public class ConsumeJmsMapMessageTest extends CamelTestSupport {
                 from("direct:test").to("activemq:test.map");
             }
         };
+    }
+
+    @Override
+    public CamelContextExtension getCamelContextExtension() {
+        return camelContextExtension;
+    }
+
+    @BeforeEach
+    void setUpRequirements() {
+        context = camelContextExtension.getContext();
+        template = camelContextExtension.getProducerTemplate();
+        consumer = camelContextExtension.getConsumerTemplate();
     }
 }

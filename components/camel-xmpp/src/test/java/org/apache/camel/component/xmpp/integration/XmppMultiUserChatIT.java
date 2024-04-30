@@ -16,25 +16,42 @@
  */
 package org.apache.camel.component.xmpp.integration;
 
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.mock.MockEndpoint;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 
-public class XmppMultiUserChatIT extends XmppBaseIT {
+@DisabledIfSystemProperty(named = "ci.env.name", matches = "github.com",
+                          disabledReason = "Github environment has trouble running the XMPP test container and/or component")
+class XmppMultiUserChatIT extends XmppBaseIT {
 
-    protected MockEndpoint consumerEndpoint;
-    protected String body1 = "the first message";
-    protected String body2 = "the second message";
+    private static final String BODY_1 = "the first message";
+    private static final String BODY_2 = "the second message";
+
+    private CountDownLatch latch = new CountDownLatch(2);
+
+    @BeforeEach
+    void doSetup() {
+        template.sendBody("direct:toProducer", BODY_1);
+        template.sendBody("direct:toProducer", BODY_2);
+    }
 
     @Test
-    public void testXmppChat() throws Exception {
-        consumerEndpoint = context.getEndpoint("mock:out", MockEndpoint.class);
-        consumerEndpoint.expectedBodiesReceived(body1, body2);
+    void testXmppChat() throws Exception {
 
-        //will send chat messages to the room
-        template.sendBody("direct:toProducer", body1);
-        Thread.sleep(50);
-        template.sendBody("direct:toProducer", body2);
+        MockEndpoint consumerEndpoint = context.getEndpoint("mock:out", MockEndpoint.class);
+        consumerEndpoint.expectedBodiesReceived(BODY_1, BODY_2);
+
+        if (!latch.await(5, TimeUnit.SECONDS)) {
+            Assertions.fail("Some error");
+        }
+
+        consumerEndpoint.setResultWaitTime(TimeUnit.MINUTES.toMillis(1));
 
         consumerEndpoint.assertIsSatisfied();
     }
@@ -45,6 +62,7 @@ public class XmppMultiUserChatIT extends XmppBaseIT {
             public void configure() {
 
                 from("direct:toProducer")
+                        .process(e -> latch.countDown())
                         .to(getProducerUri());
 
                 from(getConsumerUri())
@@ -54,7 +72,7 @@ public class XmppMultiUserChatIT extends XmppBaseIT {
     }
 
     protected String getProducerUri() {
-        // the nickname parameter is necessary in these URLs because the '@' in the user name can not be parsed by
+        // the nickname parameter is necessary in these URLs because the '@' in the username can not be parsed by
         // vysper during chat room message routing.
 
         // here on purpose we provide the room query parameter without the domain name as 'camel-test', and Camel

@@ -24,7 +24,7 @@
     <parent>
         <artifactId>components</artifactId>
         <groupId>org.apache.camel</groupId>
-        <version>3.17.0-SNAPSHOT</version>
+        <version>4.6.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>camel-slack</artifactId>
@@ -51,7 +51,6 @@
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
-            <version>${gson-version}</version>
         </dependency>
 
         <!-- forcing okhttp v3.x related to https://issues.apache.org/jira/browse/CAMEL-16336 -->
@@ -59,6 +58,14 @@
             <groupId>com.squareup.okhttp3</groupId>
             <artifactId>okhttp</artifactId>
             <version>${squareup-okhttp-version}</version>
+        </dependency>
+
+        <!-- optional CloudEvent support -->
+        <dependency>
+            <groupId>org.apache.camel</groupId>
+            <artifactId>camel-cloudevents</artifactId>
+            <scope>provided</scope>
+            <optional>true</optional>
         </dependency>
 
         <!-- test dependencies -->
@@ -69,18 +76,7 @@
         </dependency>
         <dependency>
             <groupId>org.apache.camel</groupId>
-            <artifactId>camel-core-catalog</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.camel</groupId>
             <artifactId>camel-undertow</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <!-- logging -->
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-slf4j-impl</artifactId>
             <scope>test</scope>
         </dependency>
 

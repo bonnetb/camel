@@ -35,13 +35,11 @@ import org.optaplanner.core.api.solver.SolverFactory;
 /**
  * Solve planning problems with OptaPlanner.
  */
-@UriEndpoint(firstVersion = "2.13.0", scheme = "optaplanner", title = "OptaPlanner", syntax = "optaplanner:configFile",
-             category = { Category.ENGINE, Category.PLANNING }, headersClass = OptaPlannerConstants.class)
+@UriEndpoint(firstVersion = "2.13.0", scheme = "optaplanner", title = "OptaPlanner", syntax = "optaplanner:problemName",
+             category = { Category.WORKFLOW }, headersClass = OptaPlannerConstants.class)
 public class OptaPlannerEndpoint extends DefaultEndpoint {
     private static final Map<String, Solver<Object>> SOLVERS = new HashMap<>();
-    private static final Map<Long, Set<OptaplannerSolutionEventListener>> SOLUTION_LISTENER = new HashMap();
-
-    private SolverFactory<Object> solverFactory;
+    private static final Map<Long, Set<OptaplannerSolutionEventListener>> SOLUTION_LISTENER = new HashMap<>();
 
     @UriParam
     private OptaPlannerConfiguration configuration;
@@ -63,7 +61,7 @@ public class OptaPlannerEndpoint extends DefaultEndpoint {
 
     protected Solver<Object> createSolver() {
         ClassLoader classLoader = getCamelContext().getApplicationContextClassLoader();
-        solverFactory = SolverFactory.createFromXmlResource(configuration.getConfigFile(), classLoader);
+        SolverFactory<Object> solverFactory = SolverFactory.createFromXmlResource(configuration.getConfigFile(), classLoader);
         return solverFactory.buildSolver();
     }
 

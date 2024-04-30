@@ -67,7 +67,7 @@ public abstract class RemoteFileEndpoint<T> extends GenericFileEndpoint<T> {
                                                          + "not be downloaded.")
     private boolean download = true;
 
-    public RemoteFileEndpoint() {
+    protected RemoteFileEndpoint() {
         // ftp must be synchronous as the ftp-client is not thread-safe
         setSynchronous(true);
         // no args constructor for spring bean endpoint configuration
@@ -79,7 +79,7 @@ public abstract class RemoteFileEndpoint<T> extends GenericFileEndpoint<T> {
         setPollStrategy(new RemoteFilePollingConsumerPollStrategy());
     }
 
-    public RemoteFileEndpoint(String uri, RemoteFileComponent<T> component, RemoteFileConfiguration configuration) {
+    protected RemoteFileEndpoint(String uri, RemoteFileComponent<T> component, RemoteFileConfiguration configuration) {
         super(uri, component);
         this.configuration = configuration;
         // ftp must be synchronous as the ftp-client is not thread-safe
@@ -147,7 +147,7 @@ public abstract class RemoteFileEndpoint<T> extends GenericFileEndpoint<T> {
         }
 
         // if idempotent and no repository set then create a default one
-        if (isIdempotentSet() && isIdempotent() && idempotentRepository == null) {
+        if (isIdempotentSet() && Boolean.TRUE.equals(isIdempotent()) && idempotentRepository == null) {
             LOG.info("Using default memory based idempotent repository with cache max size: {}", DEFAULT_IDEMPOTENT_CACHE_SIZE);
             idempotentRepository = MemoryIdempotentRepository.memoryIdempotentRepository(DEFAULT_IDEMPOTENT_CACHE_SIZE);
         }

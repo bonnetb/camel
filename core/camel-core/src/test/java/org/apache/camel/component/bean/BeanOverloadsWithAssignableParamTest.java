@@ -32,11 +32,11 @@ public class BeanOverloadsWithAssignableParamTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
-                from("direct:stringParam").bean(new MyOtherFooBean(), "toString(String)").to("mock:stringParamResult");
+            public void configure() {
+                from("direct:stringParam").bean(new MyOtherFooBean(), "toString(String.class)").to("mock:stringParamResult");
             }
         };
     }

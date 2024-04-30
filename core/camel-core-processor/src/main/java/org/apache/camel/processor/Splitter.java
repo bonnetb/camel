@@ -23,6 +23,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 
 import org.apache.camel.AggregationStrategy;
@@ -32,7 +34,6 @@ import org.apache.camel.CamelContext;
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePropertyKey;
 import org.apache.camel.Expression;
-import org.apache.camel.ExtendedExchange;
 import org.apache.camel.Message;
 import org.apache.camel.Processor;
 import org.apache.camel.Route;
@@ -58,6 +59,7 @@ public class Splitter extends MulticastProcessor implements AsyncProcessor, Trac
     private static final Logger LOG = LoggerFactory.getLogger(Splitter.class);
 
     private static final String IGNORE_DELIMITER_MARKER = "false";
+    private static final String SINGLE_DELIMITER_MARKER = "single";
     private final Expression expression;
     private final String delimiter;
 
@@ -94,9 +96,6 @@ public class Splitter extends MulticastProcessor implements AsyncProcessor, Trac
     @Override
     protected void doBuild() throws Exception {
         super.doBuild();
-        // eager load classes
-        Object dummy = new SplitterIterable();
-        LOG.trace("Loaded {}", dummy.getClass().getName());
     }
 
     @Override
@@ -188,20 +187,25 @@ public class Splitter extends MulticastProcessor implements AsyncProcessor, Trac
 
             if (IGNORE_DELIMITER_MARKER.equalsIgnoreCase(delimiter)) {
                 this.iterator = ObjectHelper.createIterator(value, null);
+            } else if (SINGLE_DELIMITER_MARKER.equalsIgnoreCase(delimiter)) {
+                // force single element
+                this.iterator = ObjectHelper.createIterator(List.of(value));
             } else {
                 this.iterator = ObjectHelper.createIterator(value, delimiter);
             }
 
-            this.copy = copyAndPrepareSubExchange(exchange, true);
+            this.copy = copyAndPrepareSubExchange(exchange);
             this.route = ExchangeHelper.getRoute(exchange);
         }
 
         @Override
         public Iterator<ProcessorExchangePair> iterator() {
-            return new Iterator<ProcessorExchangePair>() {
+            return new Iterator<>() {
                 private final Processor processor = getProcessors().iterator().next();
                 private int index;
                 private boolean closed;
+
+                private Map<String, Object> txData;
 
                 public boolean hasNext() {
                     if (closed) {
@@ -228,7 +232,15 @@ public class Splitter extends MulticastProcessor implements AsyncProcessor, Trac
                         // create a correlated copy as the new exchange to be routed in the splitter from the copy
                         // and do not share the unit of work
                         Exchange newExchange = processorExchangeFactory.createCorrelatedCopy(copy, false);
-                        newExchange.adapt(ExtendedExchange.class).setTransacted(original.isTransacted());
+                        newExchange.getExchangeExtension().setTransacted(original.isTransacted());
+                        // If we are in a transaction, set TRANSACTION_CONTEXT_DATA property for new exchanges to share txData
+                        // during the transaction.
+                        if (original.isTransacted() && newExchange.getProperty(Exchange.TRANSACTION_CONTEXT_DATA) == null) {
+                            if (txData == null) {
+                                txData = new ConcurrentHashMap<>();
+                            }
+                            newExchange.setProperty(Exchange.TRANSACTION_CONTEXT_DATA, txData);
+                        }
                         // If the splitter has an aggregation strategy
                         // then the StreamCache created by the child routes must not be
                         // closed by the unit of work of the child route, but by the unit of
@@ -317,12 +329,10 @@ public class Splitter extends MulticastProcessor implements AsyncProcessor, Trac
         return expression;
     }
 
-    private Exchange copyAndPrepareSubExchange(Exchange exchange, boolean preserveExchangeId) {
+    private Exchange copyAndPrepareSubExchange(Exchange exchange) {
         Exchange answer = processorExchangeFactory.createCopy(exchange);
-        if (preserveExchangeId) {
-            // must preserve exchange id
-            answer.setExchangeId(exchange.getExchangeId());
-        }
+        // must preserve exchange id
+        answer.setExchangeId(exchange.getExchangeId());
         if (exchange.getContext().isMessageHistory()) {
             // we do not want to copy the message history for split sub-messages
             answer.removeProperty(ExchangePropertyKey.MESSAGE_HISTORY);

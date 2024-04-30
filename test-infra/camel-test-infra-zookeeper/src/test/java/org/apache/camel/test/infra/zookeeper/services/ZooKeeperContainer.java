@@ -22,8 +22,7 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.containers.wait.strategy.Wait;
 
-public class ZooKeeperContainer extends GenericContainer {
-    public static final String CONTAINER_IMAGE = "zookeeper:3.5";
+public class ZooKeeperContainer extends GenericContainer<ZooKeeperContainer> {
     public static final String CONTAINER_NAME = "zookeeper";
     public static final int CLIENT_PORT = 2181;
 
@@ -42,18 +41,18 @@ public class ZooKeeperContainer extends GenericContainer {
 
         setWaitStrategy(Wait.forListeningPort());
 
-        withNetworkAliases(name);
-        withExposedPorts(CLIENT_PORT);
-        withLogConsumer(new Slf4jLogConsumer(LOGGER));
+        withNetworkAliases(name)
+                .withExposedPorts(CLIENT_PORT)
+                .withLogConsumer(new Slf4jLogConsumer(LOGGER));
     }
 
     public ZooKeeperContainer(String name, int clientPort) {
-        super(CONTAINER_IMAGE);
+        super(name);
 
         setWaitStrategy(Wait.forListeningPort());
 
-        withNetworkAliases(name);
-        withLogConsumer(new Slf4jLogConsumer(LOGGER));
+        withNetworkAliases(name)
+                .withLogConsumer(new Slf4jLogConsumer(LOGGER));
 
         if (clientPort > 0) {
             addFixedExposedPort(clientPort, CLIENT_PORT);
@@ -63,6 +62,6 @@ public class ZooKeeperContainer extends GenericContainer {
     }
 
     public String getConnectionString() {
-        return String.format("%s:%d", getContainerIpAddress(), getMappedPort(CLIENT_PORT));
+        return String.format("%s:%d", getHost(), getMappedPort(CLIENT_PORT));
     }
 }

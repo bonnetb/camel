@@ -24,9 +24,9 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 
 import org.apache.camel.ContextTestSupport;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.converter.jaxp.XmlConverter;
+import org.apache.camel.support.PluginHelper;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -45,8 +45,7 @@ public class DumpModelAsXmlFromRouteTemplateTest extends ContextTestSupport {
         map.put("whereto", "Moes");
         context.addRouteFromTemplate("foo", "myTemplate", map);
 
-        ExtendedCamelContext ecc = context.adapt(ExtendedCamelContext.class);
-        String xml = ecc.getModelToXMLDumper().dumpModelAsXml(context, context.getRouteDefinition("foo"));
+        String xml = PluginHelper.getModelToXMLDumper(context).dumpModelAsXml(context, context.getRouteDefinition("foo"));
         assertNotNull(xml);
         log.info(xml);
 
@@ -82,8 +81,8 @@ public class DumpModelAsXmlFromRouteTemplateTest extends ContextTestSupport {
         map.put("whereto", "Jacks");
         context.addRouteFromTemplate("bar2", "myTemplate", map);
 
-        ExtendedCamelContext ecc = context.adapt(ExtendedCamelContext.class);
-        String xml = ecc.getModelToXMLDumper().dumpModelAsXml(context, context.getRouteDefinition("bar"), true, false);
+        String xml = PluginHelper.getModelToXMLDumper(context).dumpModelAsXml(context, context.getRouteDefinition("bar"), true,
+                true);
         assertNotNull(xml);
         log.info(xml);
 
@@ -105,7 +104,7 @@ public class DumpModelAsXmlFromRouteTemplateTest extends ContextTestSupport {
         node = (Element) nodes.item(0);
         assertEquals("bar", node.getAttribute("id"));
 
-        xml = ecc.getModelToXMLDumper().dumpModelAsXml(context, context.getRouteDefinition("bar2"), true, false);
+        xml = PluginHelper.getModelToXMLDumper(context).dumpModelAsXml(context, context.getRouteDefinition("bar2"), true, true);
         assertNotNull(xml);
         log.info(xml);
 
@@ -129,10 +128,10 @@ public class DumpModelAsXmlFromRouteTemplateTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 routeTemplate("myTemplate").templateParameter("bar").templateParameter("greeting").templateParameter("whereto")
                         .from("direct:{{bar}}").transform(simple("{{greeting}}")).to("mock:{{whereto}}");
             }

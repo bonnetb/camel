@@ -16,7 +16,6 @@
  */
 package org.apache.camel.component.box;
 
-import java.io.FileNotFoundException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -59,7 +58,7 @@ public class BoxCollaborationsManagerIT extends AbstractBoxITSupport {
     private BoxCollaboration testCollaboration;
 
     @Test
-    public void testAddFolderCollaborationByEmail() throws Exception {
+    public void testAddFolderCollaborationByEmail() {
         // delete collaborator created by setupTest
         deleteTestCollaborator();
 
@@ -75,12 +74,12 @@ public class BoxCollaborationsManagerIT extends AbstractBoxITSupport {
                 testFolder.getID(), headers);
 
         assertNotNull(result, "addFolderCollaboration result");
-        LOG.debug("addFolderCollaboration: " + result);
+        LOG.debug("addFolderCollaboration: {}", result);
     }
 
     @Disabled //creation of app users could be used only with JWT authentication, which is not possible in this time
     @Test
-    public void testAddFolderCollaboration() throws Exception {
+    public void testAddFolderCollaboration() {
         // delete collaborator created by setupTest
         deleteTestCollaborator();
         BoxUser user = null;
@@ -101,7 +100,7 @@ public class BoxCollaborationsManagerIT extends AbstractBoxITSupport {
             final com.box.sdk.BoxCollaboration result = requestBodyAndHeaders("direct://ADDFOLDERCOLLABORATION",
                     testFolder.getID(), headers);
             assertNotNull(result, "addFolderCollaboration result");
-            LOG.debug("addFolderCollaboration: " + result);
+            LOG.debug("addFolderCollaboration: {}", result);
         } catch (BoxAPIException e) {
             throw new RuntimeCamelException(
                     String.format("Box API returned the error code %d\n\n%s", e.getResponseCode(), e.getResponse()), e);
@@ -113,36 +112,36 @@ public class BoxCollaborationsManagerIT extends AbstractBoxITSupport {
     }
 
     @Test
-    public void testGetCollaborationInfo() throws Exception {
+    public void testGetCollaborationInfo() {
         // using String message body for single parameter "collaborationId"
         final com.box.sdk.BoxCollaboration.Info result = requestBody("direct://GETCOLLABORATIONINFO",
                 testCollaboration.getID());
 
         assertNotNull(result, "getCollaborationInfo result");
-        LOG.debug("getCollaborationInfo: " + result);
+        LOG.debug("getCollaborationInfo: {}", result);
     }
 
     @Test
-    public void testGetFolderCollaborations() throws Exception {
+    public void testGetFolderCollaborations() {
         // using String message body for single parameter "folderId"
         @SuppressWarnings("rawtypes")
         final java.util.Collection result = requestBody("direct://GETFOLDERCOLLABORATIONS", testFolder.getID());
 
         assertNotNull(result, "getFolderCollaborations result");
-        LOG.debug("getFolderCollaborations: " + result);
+        LOG.debug("getFolderCollaborations: {}", result);
     }
 
     @SuppressWarnings("rawtypes")
     @Test
-    public void testGetPendingCollaborations() throws Exception {
+    public void testGetPendingCollaborations() {
         final java.util.Collection result = requestBody("direct://GETPENDINGCOLLABORATIONS", null);
 
         assertNotNull(result, "getPendingCollaborations result");
-        LOG.debug("getPendingCollaborations: " + result);
+        LOG.debug("getPendingCollaborations: {}", result);
     }
 
     @Test
-    public void testUpdateCollaborationInfo() throws Exception {
+    public void testUpdateCollaborationInfo() {
         final Map<String, Object> headers = new HashMap<>();
         // parameter type is String
         headers.put("CamelBox.collaborationId", testCollaboration.getID());
@@ -158,11 +157,11 @@ public class BoxCollaborationsManagerIT extends AbstractBoxITSupport {
         assertNotNull(result, "updateCollaborationInfo result");
         assertNotNull(result.getInfo(), "updateCollaborationInfo info");
         assertEquals(BoxCollaboration.Role.PREVIEWER, result.getInfo().getRole(), "updateCollaborationInfo info");
-        LOG.debug("updateCollaborationInfo: " + result);
+        LOG.debug("updateCollaborationInfo: {}", result);
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             public void configure() {
 
@@ -213,7 +212,7 @@ public class BoxCollaborationsManagerIT extends AbstractBoxITSupport {
         return endpoint.getBoxConnection();
     }
 
-    private void createTestFolder() throws FileNotFoundException {
+    private void createTestFolder() {
         BoxFolder rootFolder = BoxFolder.getRootFolder(getConnection());
         testFolder = rootFolder.createFolder(CAMEL_TEST_FOLDER).getResource();
     }

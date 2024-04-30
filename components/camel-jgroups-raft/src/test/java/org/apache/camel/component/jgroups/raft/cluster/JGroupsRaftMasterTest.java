@@ -91,11 +91,11 @@ public class JGroupsRaftMasterTest extends JGroupsRaftClusterAbstractTest {
 
         DefaultCamelContext context = new DefaultCamelContext();
         context.disableJMX();
-        context.setName("context-" + id);
+        context.getCamelContextExtension().setName("context-" + id);
         context.addService(service);
         context.addRoutes(new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("master:jgr:timer:master?delay=1000&period=1000")
                         .routeId("route-" + id)
                         .log("From ${routeId}");

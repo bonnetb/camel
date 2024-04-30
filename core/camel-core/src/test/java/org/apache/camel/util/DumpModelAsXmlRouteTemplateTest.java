@@ -21,9 +21,9 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 
 import org.apache.camel.ContextTestSupport;
-import org.apache.camel.ExtendedCamelContext;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.converter.jaxp.XmlConverter;
+import org.apache.camel.support.PluginHelper;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -36,8 +36,8 @@ public class DumpModelAsXmlRouteTemplateTest extends ContextTestSupport {
 
     @Test
     public void testDumpModelAsXml() throws Exception {
-        ExtendedCamelContext ecc = context.adapt(ExtendedCamelContext.class);
-        String xml = ecc.getModelToXMLDumper().dumpModelAsXml(context, context.getRouteTemplateDefinition("myTemplate"));
+        String xml = PluginHelper.getModelToXMLDumper(context).dumpModelAsXml(context,
+                context.getRouteTemplateDefinition("myTemplate"));
         assertNotNull(xml);
         log.info(xml);
 
@@ -68,10 +68,10 @@ public class DumpModelAsXmlRouteTemplateTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 routeTemplate("myTemplate").templateParameter("greeting").templateParameter("whereto")
                         .from("direct:start").transform(simple("{{greeting}}")).to("mock:{{whereto}}");
             }

@@ -51,7 +51,7 @@ import org.apache.camel.util.ObjectHelper;
  * You can append query options to the URI in the following format, ?options=value&option2=value&...
  */
 @UriEndpoint(firstVersion = "2.6.0", scheme = "jmx", title = "JMX", syntax = "jmx:serverURL", consumerOnly = true,
-             category = { Category.MONITORING }, headersClass = JMXConstants.class)
+             remote = false, category = { Category.MONITORING }, headersClass = JMXConstants.class)
 public class JMXEndpoint extends DefaultEndpoint {
 
     // error messages as constants so they can be asserted on from unit tests
@@ -558,8 +558,7 @@ public class JMXEndpoint extends DefaultEndpoint {
             StringBuilder sb = new StringBuilder(getObjectDomain()).append(':').append("name=").append(getObjectName());
             objectName = new ObjectName(sb.toString());
         } else {
-            Hashtable<String, String> ht = new Hashtable<>();
-            ht.putAll(getObjectProperties());
+            Hashtable<String, String> ht = new Hashtable<>(getObjectProperties());
             objectName = new ObjectName(getObjectDomain(), ht);
         }
         return objectName;

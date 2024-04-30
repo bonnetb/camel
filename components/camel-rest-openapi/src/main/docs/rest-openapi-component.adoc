@@ -2,10 +2,11 @@
 :doctitle: REST OpenApi
 :shortname: rest-openapi
 :artifactid: camel-rest-openapi
-:description: Configure REST producers based on an OpenAPI specification document delegating to a component implementing the RestProducerFactory interface.
+:description: To call REST services using OpenAPI specification as contract.
 :since: 3.1
 :supportlevel: Stable
-:component-header: Only producer is supported
+:tabs-sync-option:
+:component-header: Both producer and consumer are supported
 //Manually maintained attributes
 :camel-spring-boot-name: rest-openapi
 
@@ -14,14 +15,17 @@
 
 *{component-header}*
 
-The REST OpenApi* configures rest producers from
+The REST OpenApi configures rest producers from
 https://www.openapis.org/[OpenApi] (Open API) specification document and
 delegates to a component implementing the _RestProducerFactory_
-interface. Currently known working components are:
+interface. Currently, known working components are:
 
 * xref:http-component.adoc[http]
 * xref:netty-http-component.adoc[netty-http]
 * xref:undertow-component.adoc[undertow]
+* xref:vertx-http-component.adoc[vertx-http]
+
+IMPORTANT: Only OpenAPI spec version 3.x is supported. You cannot use the old Swagger 2.0 spec.
 
 Maven users will need to add the following dependency to their
 `pom.xml` for this component:
@@ -55,16 +59,18 @@ load the resource, which means that you can use CLASSPATH resources
 (`bean:nameOfBean.methodName`) to get the specification resource,
 failing that OpenApi's own resource loading support.
 
-This component does not act as a HTTP client, it delegates that to
-another component mentioned above. The lookup mechanism searches for a
-single component that implements the _RestProducerFactory_ interface and
-uses that. If the CLASSPATH contains more than one, then the property
+This component does not act as an HTTP client.
+It delegates that to another component mentioned above.
+The lookup mechanism searches for a single component that
+implements the _RestProducerFactory_ interface and
+uses that.
+If the CLASSPATH contains more than one, then the property
 `componentName` should be set to indicate which component to delegate
 to.
 
-Most of the configuration is taken from the OpenApi specification but
+Most of the configuration is taken from the OpenApi specification, but
 the option exists to override those by specifying them on the component
-or on the endpoint. Typically you would just need to override the 
+or on the endpoint. Typically, you would need to override the
 `host` or `basePath` if those differ from the specification.
 
 [NOTE]
@@ -87,7 +93,7 @@ the _RestProducerFactory_ interface for this to work.
 This component's endpoint URI is lenient which means that in addition
 to message headers you can specify REST operation's parameters as
 endpoint parameters, these will be constant for all subsequent
-invocations so it makes sense to use this feature only for parameters
+invocations, so it makes sense to use this feature only for parameters
 that are indeed constant for all invocations -- for example API version
 in path such as `/api/\{version}/users/\{id}`.
 
@@ -107,16 +113,16 @@ include::partial$component-endpoint-options.adoc[]
 
 == Example: PetStore
 
-Checkout the example in the `camel-example-rest-openapi` project in
-the `examples` directory.
+Checkout the `rest-openapi-simple` example project in
+the https://github.com/apache/camel-spring-boot-examples repository.
 
-For example if you wanted to use the 
+For example, if you wanted to use the
 https://petstore3.swagger.io/api/v3/[_PetStore_] provided REST API simply
 reference the specification URI and desired operation id from the
 OpenApi specification or download the specification and store it as
 `openapi.json` (in the root) of CLASSPATH that way it will be 
-automaticaly used. Let's use the xref:undertow-component.adoc[Undertow]
-component to perform all the requests and Camels excelent support for 
+automatically used. Let's use the xref:http-component.adoc[HTTP]
+component to perform all the requests and Camel's excellent support for 
 Spring Boot.
 
 Here are our dependencies defined in Maven POM file:
@@ -125,7 +131,7 @@ Here are our dependencies defined in Maven POM file:
 ----
 <dependency>
   <groupId>org.apache.camel.springboot</groupId>
-  <artifactId>camel-undertow-starter</artifactId>
+  <artifactId>camel-http-starter</artifactId>
 </dependency>
 
 <dependency>
@@ -134,17 +140,15 @@ Here are our dependencies defined in Maven POM file:
 </dependency>
 ----
 
-Start by defining the _Undertow_ component and the
-_RestOpenApiComponent_:
+Start by defining a _RestOpenApiComponent_ bean:
 
 [source,java]
 ----
 @Bean
-public Component petstore(CamelContext camelContext, UndertowComponent undertow) {
+public Component petstore(CamelContext camelContext) {
     RestOpenApiComponent petstore = new RestOpenApiComponent(camelContext);
     petstore.setSpecificationUri("https://petstore3.swagger.io/api/v3/openapi.json");
-    petstore.setDelegate(undertow);
-
+    petstore.setHost("https://petstore3.swagger.io");
     return petstore;
 }
 ----
@@ -152,13 +156,20 @@ public Component petstore(CamelContext camelContext, UndertowComponent undertow)
 [NOTE]
 ====
 Support in Camel for Spring Boot will auto create the 
-`UndertowComponent` Spring bean, and you can configure it using
+`HttpComponent` Spring bean, and you can configure it using
 `application.properties` (or `application.yml`) using prefix
-`camel.component.undertow.`. We are defining the `petstore`
-component here in order to have a named component in the Camel context
+`camel.component.http.`. We are defining the `petstore`
+component here to have a named component in the Camel context
 that we can use to interact with the PetStore REST API, if this is the
 only `rest-openapi` component used we might configure it in the same
 manner (using `application.properties`).
+
+In this example, there is no need to explicitly associate the `petstore`
+component with the `HttpComponent` as Camel will use the first class on 
+the CLASSPATH that implements `RestProducerFactory`. However, if a different
+component is required, then calling `petstore.setComponentName("http")` 
+would use the named component from the Camel registry.
+
 ====
 
 Now in our application we can simply use the `ProducerTemplate` to
@@ -170,9 +181,30 @@ invoke PetStore REST methods:
 ProducerTemplate template;
 
 String getPetJsonById(int petId) {
-    return template.requestBodyAndHeaders("petstore:getPetById", null, "petId", petId);
+    return template.requestBodyAndHeader("petstore:getPetById", null, "petId", petId);
 }
 ----
 
+== Request validation
 
-include::spring-boot:partial$starter.adoc[]
+API requests can be validated against the configured OpenAPI specification before they are sent by setting the `requestValidationEnabled` option to `true`.
+Validation is provided by the https://bitbucket.org/atlassian/swagger-request-validator/src/master/[swagger-request-validator].
+
+The validator checks for the following conditions:
+
+* request body - Checks if the request body is required and whether there is any body on the Camel Exchange.
+
+* valid json - Checks if the content-type is `application/json` that the message body can be parsed as valid JSon.
+
+* content-type - Validates whether the `Content-Type` header for the request is valid for the API operation.
+The value is taken from the `Content-Type` Camel message exchange header.
+
+* request parameters - Validates whether an HTTP header required by the API operation is present. The header is
+expected to be present among the Camel message exchange headers.
+
+* query parameters - Validates whether an HTTP query parameter required by the API operation is present. The query parameter is
+expected to be present among the Camel message exchange headers.
+
+If any of the validation checks fail, then a `RestOpenApiValidationException` is thrown. The exception object
+has a `getValidationErrors` method that returns the error messages from the validator.
+

@@ -20,11 +20,13 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.camel.builder.NotifyBuilder;
 import org.apache.camel.test.mllp.Hl7TestMessageGenerator;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@Disabled("https://issues.apache.org/jira/browse/CAMEL-20215")
 public class MllpTcpServerConsumerOptionalEndOfDataWithValidationTest
         extends TcpServerConsumerEndOfDataAndValidationTestSupport {
 
@@ -43,7 +45,7 @@ public class MllpTcpServerConsumerOptionalEndOfDataWithValidationTest
     public void testInvalidMessage() {
         expectedInvalidCount = 1;
 
-        assertDoesNotThrow(() -> runInvalidMessage());
+        assertDoesNotThrow(this::runInvalidMessage);
     }
 
     @Override
@@ -51,7 +53,7 @@ public class MllpTcpServerConsumerOptionalEndOfDataWithValidationTest
     public void testNthInvalidMessage() {
         expectedInvalidCount = 1;
 
-        assertDoesNotThrow(() -> runNthInvalidMessage());
+        assertDoesNotThrow(this::runNthInvalidMessage);
     }
 
     @Override
@@ -59,7 +61,7 @@ public class MllpTcpServerConsumerOptionalEndOfDataWithValidationTest
     public void testMessageContainingEmbeddedStartOfBlock() {
         expectedInvalidCount = 1;
 
-        assertDoesNotThrow(() -> runMessageContainingEmbeddedStartOfBlock());
+        assertDoesNotThrow(this::runMessageContainingEmbeddedStartOfBlock);
     }
 
     @Override
@@ -67,7 +69,7 @@ public class MllpTcpServerConsumerOptionalEndOfDataWithValidationTest
     public void testNthMessageContainingEmbeddedStartOfBlock() {
         expectedInvalidCount = 1;
 
-        assertDoesNotThrow(() -> runNthMessageContainingEmbeddedStartOfBlock());
+        assertDoesNotThrow(this::runNthMessageContainingEmbeddedStartOfBlock);
     }
 
     @Override
@@ -90,7 +92,7 @@ public class MllpTcpServerConsumerOptionalEndOfDataWithValidationTest
     public void testInvalidMessageContainingEmbeddedEndOfBlock() {
         expectedInvalidCount = 1;
 
-        assertDoesNotThrow(() -> runInvalidMessageContainingEmbeddedEndOfBlock());
+        assertDoesNotThrow(this::runInvalidMessageContainingEmbeddedEndOfBlock);
     }
 
     @Override
@@ -98,7 +100,7 @@ public class MllpTcpServerConsumerOptionalEndOfDataWithValidationTest
     public void testNthMessageContainingEmbeddedEndOfBlock() {
         expectedInvalidCount = 1;
 
-        assertDoesNotThrow(() -> runNthMessageContainingEmbeddedEndOfBlock());
+        assertDoesNotThrow(this::runNthMessageContainingEmbeddedEndOfBlock);
     }
 
     @Override
@@ -106,6 +108,6 @@ public class MllpTcpServerConsumerOptionalEndOfDataWithValidationTest
     public void testMessageWithoutEndOfDataByte() {
         expectedCompleteCount = 1;
 
-        assertDoesNotThrow(() -> runMessageWithoutEndOfDataByte());
+        assertDoesNotThrow(this::runMessageWithoutEndOfDataByte);
     }
 }

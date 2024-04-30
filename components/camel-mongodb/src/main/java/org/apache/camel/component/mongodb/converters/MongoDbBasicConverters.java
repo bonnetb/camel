@@ -27,6 +27,7 @@ import java.util.Map;
 import org.apache.camel.Converter;
 import org.apache.camel.Exchange;
 import org.apache.camel.converter.IOConverter;
+import org.apache.camel.support.ExchangeHelper;
 import org.apache.camel.util.IOHelper;
 import org.bson.BsonArray;
 import org.bson.BsonValue;
@@ -49,6 +50,8 @@ import org.slf4j.LoggerFactory;
 public final class MongoDbBasicConverters {
 
     private static final Logger LOG = LoggerFactory.getLogger(MongoDbBasicConverters.class);
+    private static final DocumentCodec DOCUMENT_CODEC = new DocumentCodec();
+    private static final DecoderContext DECODER_CONTEXT = DecoderContext.builder().build();
 
     private MongoDbBasicConverters() {
     }
@@ -69,6 +72,11 @@ public final class MongoDbBasicConverters {
     }
 
     @Converter
+    public static Bson fromStringToBson(String s) {
+        return Document.parse(s);
+    }
+
+    @Converter
     public static ObjectId fromStringToObjectId(String s) {
         return new ObjectId(s);
     }
@@ -76,6 +84,26 @@ public final class MongoDbBasicConverters {
     @Converter
     public static Document fromFileToDocument(File f, Exchange exchange) throws Exception {
         return fromInputStreamToDocument(new FileInputStream(f), exchange);
+    }
+
+    @Converter
+    public static Document fromByteArrayToDocument(byte[] data, Exchange exchange) throws Exception {
+        final Document answer;
+        final String input = new String(data, ExchangeHelper.getCharsetName(exchange));
+
+        if (isBson(data)) {
+            JsonReader reader = new JsonReader(input);
+            answer = DOCUMENT_CODEC.decode(reader, DECODER_CONTEXT);
+        } else {
+            answer = Document.parse(input);
+        }
+
+        return answer;
+    }
+
+    @Converter
+    public static Bson fromInputStreamToBson(InputStream is, Exchange exchange) throws Exception {
+        return fromInputStreamToDocument(is, exchange);
     }
 
     @Converter

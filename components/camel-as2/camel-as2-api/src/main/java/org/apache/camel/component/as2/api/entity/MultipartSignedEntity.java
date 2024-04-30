@@ -16,77 +16,29 @@
  */
 package org.apache.camel.component.as2.api.entity;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
-import java.security.cert.X509Certificate;
-import java.util.Collection;
+import java.io.IOException;
 
 import org.apache.camel.component.as2.api.AS2SignedDataGenerator;
-import org.apache.http.HttpException;
-import org.bouncycastle.cert.X509CertificateHolder;
-import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
-import org.bouncycastle.cms.CMSProcessable;
-import org.bouncycastle.cms.CMSProcessableByteArray;
-import org.bouncycastle.cms.CMSSignedData;
-import org.bouncycastle.cms.SignerInformation;
-import org.bouncycastle.cms.SignerInformationStore;
-import org.bouncycastle.cms.jcajce.JcaSimpleSignerInfoVerifierBuilder;
-import org.bouncycastle.util.Store;
+import org.apache.camel.component.as2.api.util.EntityUtils;
+import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.http.HttpException;
 
 public class MultipartSignedEntity extends MultipartMimeEntity {
 
     public MultipartSignedEntity(MimeEntity data, AS2SignedDataGenerator signer, String signatureCharSet,
                                  String signatureTransferEncoding, boolean isMainBody, String boundary) throws HttpException {
-        super(null, isMainBody, boundary);
-        setContentType(signer.createMultipartSignedContentType(this.boundary));
+        super(signer, isMainBody, (boundary == null) ? EntityUtils.createBoundaryValue() : boundary);
         addPart(data);
         ApplicationPkcs7SignatureEntity signature
                 = new ApplicationPkcs7SignatureEntity(data, signer, signatureCharSet, signatureTransferEncoding, false);
         addPart(signature);
     }
 
-    protected MultipartSignedEntity(String boundary, boolean isMainBody) {
+    protected MultipartSignedEntity(ContentType contentType, String contentTransferEncoding, String boundary,
+                                    boolean isMainBody) {
+        super(contentType, contentTransferEncoding);
         this.boundary = boundary;
         this.isMainBody = isMainBody;
-    }
-
-    public boolean isValid() {
-        MimeEntity signedEntity = getSignedDataEntity();
-        ApplicationPkcs7SignatureEntity applicationPkcs7SignatureEntity = getSignatureEntity();
-
-        if (signedEntity == null || applicationPkcs7SignatureEntity == null) {
-            return false;
-        }
-
-        try {
-            ByteArrayOutputStream outstream = new ByteArrayOutputStream();
-            signedEntity.writeTo(outstream);
-            CMSProcessable signedContent = new CMSProcessableByteArray(outstream.toByteArray());
-
-            byte[] signature = applicationPkcs7SignatureEntity.getSignature();
-            InputStream is = new ByteArrayInputStream(signature);
-
-            CMSSignedData signedData = new CMSSignedData(signedContent, is);
-
-            Store<X509CertificateHolder> store = signedData.getCertificates();
-            SignerInformationStore signers = signedData.getSignerInfos();
-
-            for (SignerInformation signer : signers.getSigners()) {
-                @SuppressWarnings("unchecked")
-                Collection<X509CertificateHolder> certCollection = store.getMatches(signer.getSID());
-
-                X509CertificateHolder certHolder = certCollection.iterator().next();
-                X509Certificate cert = new JcaX509CertificateConverter().setProvider("BC").getCertificate(certHolder);
-                if (!signer.verify(new JcaSimpleSignerInfoVerifierBuilder().setProvider("BC").build(cert))) {
-                    return false;
-                }
-            }
-        } catch (Exception e) {
-            return false;
-        }
-
-        return true;
     }
 
     public MimeEntity getSignedDataEntity() {
@@ -105,4 +57,8 @@ public class MultipartSignedEntity extends MultipartMimeEntity {
         return null;
     }
 
+    @Override
+    public void close() throws IOException {
+        // do nothing
+    }
 }

@@ -22,6 +22,7 @@ import org.apache.camel.component.bean.ProxyHelper;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 public class ProxyReturnNullIssueTest extends ContextTestSupport {
 
@@ -34,14 +35,14 @@ public class ProxyReturnNullIssueTest extends ContextTestSupport {
     @Test
     public void testEchoNull() throws Exception {
         Echo service = ProxyHelper.createProxy(context.getEndpoint("direct:echo"), Echo.class);
-        assertEquals(null, service.echo(null));
+        assertNull(service.echo(null));
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:echo").bean(new MyEchoBean());
             }
         };

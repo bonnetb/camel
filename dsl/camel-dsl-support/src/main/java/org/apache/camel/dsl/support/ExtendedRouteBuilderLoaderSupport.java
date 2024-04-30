@@ -42,8 +42,7 @@ public abstract class ExtendedRouteBuilderLoaderSupport extends RouteBuilderLoad
 
     @Override
     public Collection<RoutesBuilder> loadRoutesBuilders(Collection<Resource> resources) throws Exception {
-        Collection<RoutesBuilder> answer = doLoadRoutesBuilders(resources);
-        return answer;
+        return doLoadRoutesBuilders(resources);
     }
 
     protected abstract Collection<RoutesBuilder> doLoadRoutesBuilders(Collection<Resource> resources) throws Exception;

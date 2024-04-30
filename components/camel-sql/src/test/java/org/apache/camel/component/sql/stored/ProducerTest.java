@@ -51,7 +51,9 @@ public class ProducerTest extends CamelTestSupport {
     @AfterEach
     public void tearDown() throws Exception {
         super.tearDown();
-        db.shutdown();
+        if (db != null) {
+            db.shutdown();
+        }
     }
 
     @Test
@@ -64,7 +66,7 @@ public class ProducerTest extends CamelTestSupport {
         headers.put("num2", 2);
         template.requestBodyAndHeaders("direct:query", null, headers);
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
 
         Exchange exchange = mock.getExchanges().get(0);
 

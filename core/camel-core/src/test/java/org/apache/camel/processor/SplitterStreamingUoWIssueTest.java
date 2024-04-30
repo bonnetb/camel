@@ -49,15 +49,15 @@ public class SplitterStreamingUoWIssueTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from(fileUri("?initialDelay=0&delay=10&delete=true&sortBy=file:name")).routeId("start")
                         .autoStartup(false)
                         .log("Start of file ${file:name}")
                         .split(body().tokenize(",")).streaming().process(e -> {
-                            log.info("Stackframe size: " + Thread.currentThread().getStackTrace().length);
+                            log.info("Stackframe size: {}", Thread.currentThread().getStackTrace().length);
                         }).to("seda:queue").end()
                         .log("End of file ${file:name}").to("mock:result");
 

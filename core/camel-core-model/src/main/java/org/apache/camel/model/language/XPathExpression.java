@@ -16,11 +16,13 @@
  */
 package org.apache.camel.model.language;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
+
+// TODO: camel4 (need jakarta api)
 import javax.xml.xpath.XPathFactory;
 
 import org.apache.camel.Expression;
@@ -37,16 +39,14 @@ public class XPathExpression extends NamespaceAwareExpression {
     @XmlTransient
     private Class<?> documentType;
     @XmlTransient
-    private Class<?> resultType;
-    @XmlTransient
     private XPathFactory xpathFactory;
 
     @XmlAttribute(name = "documentType")
     @Metadata(label = "advanced")
     private String documentTypeName;
-    @XmlAttribute(name = "resultType")
+    @XmlAttribute(name = "resultQName")
     @Metadata(defaultValue = "NODESET", enums = "NUMBER,STRING,BOOLEAN,NODESET,NODE")
-    private String resultTypeName;
+    private String resultQName;
     @XmlAttribute
     @Metadata(label = "advanced", javaType = "java.lang.Boolean")
     private String saxon;
@@ -59,9 +59,6 @@ public class XPathExpression extends NamespaceAwareExpression {
     @XmlAttribute
     @Metadata(label = "advanced", javaType = "java.lang.Boolean")
     private String logNamespaces;
-    @XmlAttribute
-    @Metadata(label = "advanced")
-    private String headerName;
     @XmlAttribute
     @Metadata(label = "advanced", javaType = "java.lang.Boolean")
     private String threadSafety;
@@ -78,6 +75,20 @@ public class XPathExpression extends NamespaceAwareExpression {
 
     public XPathExpression(Expression expression) {
         setExpressionValue(expression);
+    }
+
+    private XPathExpression(Builder builder) {
+        super(builder);
+        this.documentType = builder.documentType;
+        this.xpathFactory = builder.xpathFactory;
+        this.documentTypeName = builder.documentTypeName;
+        this.resultQName = builder.resultQName;
+        this.saxon = builder.saxon;
+        this.factoryRef = builder.factoryRef;
+        this.objectModel = builder.objectModel;
+        this.logNamespaces = builder.logNamespaces;
+        this.threadSafety = builder.threadSafety;
+        this.preCompile = builder.preCompile;
     }
 
     @Override
@@ -111,30 +122,15 @@ public class XPathExpression extends NamespaceAwareExpression {
         this.documentTypeName = documentTypeName;
     }
 
-    public Class<?> getResultType() {
-        return resultType;
+    public String getResultQName() {
+        return resultQName;
     }
 
     /**
-     * Sets the class of the result type (type from output).
-     * <p/>
-     * The default result type is NodeSet
+     * Sets the output type supported by XPath.
      */
-    public void setResultType(Class<?> resultType) {
-        this.resultType = resultType;
-    }
-
-    public String getResultTypeName() {
-        return resultTypeName;
-    }
-
-    /**
-     * Sets the class name of the result type (type from output)
-     * <p/>
-     * The default result type is NodeSet
-     */
-    public void setResultTypeName(String resultTypeName) {
-        this.resultTypeName = resultTypeName;
+    public void setResultQName(String resultQName) {
+        this.resultQName = resultQName;
     }
 
     /**
@@ -181,17 +177,6 @@ public class XPathExpression extends NamespaceAwareExpression {
         return logNamespaces;
     }
 
-    public String getHeaderName() {
-        return headerName;
-    }
-
-    /**
-     * Name of header to use as input, instead of the message body
-     */
-    public void setHeaderName(String headerName) {
-        this.headerName = headerName;
-    }
-
     public XPathFactory getXPathFactory() {
         return xpathFactory;
     }
@@ -224,12 +209,194 @@ public class XPathExpression extends NamespaceAwareExpression {
     /**
      * Whether to enable pre-compiling the xpath expression during initialization phase. pre-compile is enabled by
      * default.
-     *
+     * <p>
      * This can be used to turn off, for example in cases the compilation phase is desired at the starting phase, such
      * as if the application is ahead of time compiled (for example with camel-quarkus) which would then load the xpath
      * factory of the built operating system, and not a JVM runtime.
      */
     public void setPreCompile(String preCompile) {
         this.preCompile = preCompile;
+    }
+
+    /**
+     * {@code Builder} is a specific builder for {@link XPathExpression}.
+     */
+    @XmlTransient
+    public static class Builder extends AbstractNamespaceAwareBuilder<Builder, XPathExpression> {
+
+        private Class<?> documentType;
+        private XPathFactory xpathFactory;
+        private String documentTypeName;
+        private String resultQName;
+        private String saxon;
+        private String factoryRef;
+        private String objectModel;
+        private String logNamespaces;
+        private String threadSafety;
+        private String preCompile;
+
+        /**
+         * Class for document type to use
+         * <p/>
+         * The default value is org.w3c.dom.Document
+         */
+        public Builder documentType(Class<?> documentType) {
+            this.documentType = documentType;
+            return this;
+        }
+
+        public Builder xpathFactory(XPathFactory xpathFactory) {
+            this.xpathFactory = xpathFactory;
+            return this;
+        }
+
+        /**
+         * Name of class for document type
+         * <p/>
+         * The default value is org.w3c.dom.Document
+         */
+        public Builder documentTypeName(String documentTypeName) {
+            this.documentTypeName = documentTypeName;
+            return this;
+        }
+
+        /**
+         * Sets the class name of the result type (type from output)
+         * <p/>
+         * The default result type is NodeSet
+         */
+        public Builder resultQName(String resultQName) {
+            this.resultQName = resultQName;
+            return this;
+        }
+
+        /**
+         * Sets the class name of the result type (type from output)
+         * <p/>
+         * The default result type is NodeSet
+         */
+        public Builder resultQName(ResultQName resultQName) {
+            this.resultQName = resultQName == null ? null : resultQName.name();
+            return this;
+        }
+
+        /**
+         * Whether to use Saxon.
+         */
+        public Builder saxon(String saxon) {
+            this.saxon = saxon;
+            return this;
+        }
+
+        /**
+         * Whether to use Saxon.
+         */
+        public Builder saxon(boolean saxon) {
+            this.saxon = Boolean.toString(saxon);
+            return this;
+        }
+
+        /**
+         * References to a custom XPathFactory to lookup in the registry
+         */
+        public Builder factoryRef(String factoryRef) {
+            this.factoryRef = factoryRef;
+            return this;
+        }
+
+        /**
+         * The XPath object model to use
+         */
+        public Builder objectModel(String objectModel) {
+            this.objectModel = objectModel;
+            return this;
+        }
+
+        /**
+         * Whether to log namespaces which can assist during troubleshooting
+         */
+        public Builder logNamespaces(String logNamespaces) {
+            this.logNamespaces = logNamespaces;
+            return this;
+        }
+
+        /**
+         * Whether to log namespaces which can assist during troubleshooting
+         */
+        public Builder logNamespaces(boolean logNamespaces) {
+            this.logNamespaces = Boolean.toString(logNamespaces);
+            return this;
+        }
+
+        /**
+         * Whether to enable thread-safety for the returned result of the xpath expression. This applies to when using
+         * NODESET as the result type, and the returned set has multiple elements. In this situation there can be
+         * thread-safety issues if you process the NODESET concurrently such as from a Camel Splitter EIP in parallel
+         * processing mode. This option prevents concurrency issues by doing defensive copies of the nodes.
+         * <p/>
+         * It is recommended to turn this option on if you are using camel-saxon or Saxon in your application. Saxon has
+         * thread-safety issues which can be prevented by turning this option on.
+         */
+        public Builder threadSafety(String threadSafety) {
+            this.threadSafety = threadSafety;
+            return this;
+        }
+
+        /**
+         * Whether to enable thread-safety for the returned result of the xpath expression. This applies to when using
+         * NODESET as the result type, and the returned set has multiple elements. In this situation there can be
+         * thread-safety issues if you process the NODESET concurrently such as from a Camel Splitter EIP in parallel
+         * processing mode. This option prevents concurrency issues by doing defensive copies of the nodes.
+         * <p/>
+         * It is recommended to turn this option on if you are using camel-saxon or Saxon in your application. Saxon has
+         * thread-safety issues which can be prevented by turning this option on.
+         */
+        public Builder threadSafety(boolean threadSafety) {
+            this.threadSafety = Boolean.toString(threadSafety);
+            return this;
+        }
+
+        /**
+         * Whether to enable pre-compiling the xpath expression during initialization phase. pre-compile is enabled by
+         * default.
+         * <p>
+         * This can be used to turn off, for example in cases the compilation phase is desired at the starting phase,
+         * such as if the application is ahead of time compiled (for example with camel-quarkus) which would then load
+         * the xpath factory of the built operating system, and not a JVM runtime.
+         */
+        public Builder preCompile(String preCompile) {
+            this.preCompile = preCompile;
+            return this;
+        }
+
+        /**
+         * Whether to enable pre-compiling the xpath expression during initialization phase. pre-compile is enabled by
+         * default.
+         * <p>
+         * This can be used to turn off, for example in cases the compilation phase is desired at the starting phase,
+         * such as if the application is ahead of time compiled (for example with camel-quarkus) which would then load
+         * the xpath factory of the built operating system, and not a JVM runtime.
+         */
+        public Builder preCompile(boolean preCompile) {
+            this.preCompile = Boolean.toString(preCompile);
+            return this;
+        }
+
+        @Override
+        public XPathExpression end() {
+            return new XPathExpression(this);
+        }
+    }
+
+    /**
+     * {@code ResultQName} defines the possible class name of the result types that can be used.
+     */
+    @XmlTransient
+    public enum ResultQName {
+        NUMBER,
+        STRING,
+        BOOLEAN,
+        NODESET,
+        NODE
     }
 }

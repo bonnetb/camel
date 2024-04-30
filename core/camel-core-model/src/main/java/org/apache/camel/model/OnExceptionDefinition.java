@@ -18,22 +18,20 @@ package org.apache.camel.model;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlElementRef;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlElementRef;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
 
 import org.apache.camel.Expression;
 import org.apache.camel.LoggingLevel;
 import org.apache.camel.Predicate;
 import org.apache.camel.Processor;
 import org.apache.camel.builder.ExpressionBuilder;
-import org.apache.camel.processor.errorhandler.RedeliveryPolicy;
 import org.apache.camel.spi.AsPredicate;
 import org.apache.camel.spi.Metadata;
 import org.apache.camel.support.ExpressionToPredicateAdapter;
@@ -98,7 +96,7 @@ public class OnExceptionDefinition extends OutputDefinition<OnExceptionDefinitio
     }
 
     public OnExceptionDefinition(List<Class<? extends Throwable>> exceptionClasses) {
-        this.exceptions.addAll(exceptionClasses.stream().map(Class::getName).collect(Collectors.toList()));
+        this.exceptions.addAll(exceptionClasses.stream().map(Class::getName).toList());
     }
 
     public OnExceptionDefinition(Class<? extends Throwable> exceptionType) {
@@ -374,7 +372,6 @@ public class OnExceptionDefinition extends OutputDefinition<OnExceptionDefinitio
     /**
      * Allow asynchronous delayed redelivery.
      *
-     * @see    RedeliveryPolicy#setAsyncDelayedRedelivery(boolean)
      * @return the builder
      */
     public OnExceptionDefinition asyncDelayedRedelivery() {
@@ -631,7 +628,7 @@ public class OnExceptionDefinition extends OutputDefinition<OnExceptionDefinitio
     }
 
     /**
-     * Sets a reference to a {@link RedeliveryPolicy} to lookup in the {@link org.apache.camel.spi.Registry} to be used.
+     * Sets a reference to a redelivery policy to lookup in the {@link org.apache.camel.spi.Registry} to be used.
      *
      * @param  redeliveryPolicyRef reference to use for lookup
      * @return                     the builder
@@ -670,6 +667,14 @@ public class OnExceptionDefinition extends OutputDefinition<OnExceptionDefinitio
      * with custom headers and include the original message body. The former wont let you do this, as its using the
      * original message body and headers as they are. You cannot enable both useOriginalMessage and useOriginalBody.
      * <p/>
+     * The original input message is defensively copied, and the copied message body is converted to
+     * {@link org.apache.camel.StreamCache} if possible (stream caching is enabled, can be disabled globally or on the
+     * original route), to ensure the body can be read when the original message is being used later. If the body is
+     * converted to {@link org.apache.camel.StreamCache} then the message body on the current
+     * {@link org.apache.camel.Exchange} is replaced with the {@link org.apache.camel.StreamCache} body. If the body is
+     * not converted to {@link org.apache.camel.StreamCache} then the body will not be able to re-read when accessed
+     * later.
+     * <p/>
      * <b>Important:</b> The original input means the input message that are bounded by the current
      * {@link org.apache.camel.spi.UnitOfWork}. An unit of work typically spans one route, or multiple routes if they
      * are connected using internal endpoints such as direct or seda. When messages is passed via external endpoints
@@ -706,6 +711,14 @@ public class OnExceptionDefinition extends OutputDefinition<OnExceptionDefinitio
      * and headers, where as the latter only includes the original body. You can use the latter to enrich the message
      * with custom headers and include the original message body. The former wont let you do this, as its using the
      * original message body and headers as they are. You cannot enable both useOriginalMessage and useOriginalBody.
+     * <p/>
+     * The original input message is defensively copied, and the copied message body is converted to
+     * {@link org.apache.camel.StreamCache} if possible (stream caching is enabled, can be disabled globally or on the
+     * original route), to ensure the body can be read when the original message is being used later. If the body is
+     * converted to {@link org.apache.camel.StreamCache} then the message body on the current
+     * {@link org.apache.camel.Exchange} is replaced with the {@link org.apache.camel.StreamCache} body. If the body is
+     * not converted to {@link org.apache.camel.StreamCache} then the body will not be able to re-read when accessed
+     * later.
      * <p/>
      * <b>Important:</b> The original input means the input message that are bounded by the current
      * {@link org.apache.camel.spi.UnitOfWork}. An unit of work typically spans one route, or multiple routes if they

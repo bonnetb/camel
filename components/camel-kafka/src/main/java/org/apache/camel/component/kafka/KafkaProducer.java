@@ -35,19 +35,24 @@ import org.apache.camel.component.kafka.producer.support.KafkaProducerCallBack;
 import org.apache.camel.component.kafka.producer.support.KafkaProducerMetadataCallBack;
 import org.apache.camel.component.kafka.producer.support.KeyValueHolderIterator;
 import org.apache.camel.component.kafka.producer.support.ProducerUtil;
+import org.apache.camel.component.kafka.producer.support.PropagatedHeadersProvider;
 import org.apache.camel.component.kafka.serde.KafkaHeaderSerializer;
 import org.apache.camel.health.HealthCheckHelper;
+import org.apache.camel.health.WritableHealthCheckRepository;
 import org.apache.camel.spi.HeaderFilterStrategy;
 import org.apache.camel.support.DefaultAsyncProducer;
+import org.apache.camel.support.SynchronizationAdapter;
 import org.apache.camel.util.KeyValueHolder;
 import org.apache.camel.util.ObjectHelper;
 import org.apache.camel.util.ReflectionHelper;
 import org.apache.camel.util.URISupport;
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.NetworkClient;
+import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.slf4j.Logger;
@@ -62,8 +67,9 @@ public class KafkaProducer extends DefaultAsyncProducer {
     @SuppressWarnings("rawtypes")
     private org.apache.kafka.clients.producer.Producer kafkaProducer;
     private KafkaProducerHealthCheck producerHealthCheck;
-    private KafkaHealthCheckRepository healthCheckRepository;
+    private WritableHealthCheckRepository healthCheckRepository;
     private String clientId;
+    private String transactionId;
     private final KafkaEndpoint endpoint;
     private final KafkaConfiguration configuration;
     private ExecutorService workerPool;
@@ -155,11 +161,23 @@ public class KafkaProducer extends DefaultAsyncProducer {
             createProducer(props);
         }
 
+        // init kafka transaction
+        transactionId = props.getProperty(ProducerConfig.TRANSACTIONAL_ID_CONFIG);
+        if (transactionId != null) {
+            kafkaProducer.initTransactions();
+        }
+
         // if we are in asynchronous mode we need a worker pool
         if (!configuration.isSynchronous() && workerPool == null) {
-            workerPool = endpoint.createProducerExecutor();
-            // we create a thread pool so we should also shut it down
-            shutdownWorkerPool = true;
+            // If custom worker pool is provided, then use it, else create a new one.
+            if (configuration.getWorkerPool() != null) {
+                workerPool = configuration.getWorkerPool();
+                shutdownWorkerPool = false;
+            } else {
+                workerPool = endpoint.createProducerExecutor();
+                // we create a thread pool so we should also shut it down
+                shutdownWorkerPool = true;
+            }
         }
 
         // init client id which we may need to get from the kafka producer via reflection
@@ -177,10 +195,14 @@ public class KafkaProducer extends DefaultAsyncProducer {
         }
 
         // health-check is optional so discover and resolve
-        healthCheckRepository = HealthCheckHelper.getHealthCheckRepository(endpoint.getCamelContext(), "camel-kafka",
-                KafkaHealthCheckRepository.class);
+        healthCheckRepository = HealthCheckHelper.getHealthCheckRepository(
+                endpoint.getCamelContext(),
+                "producers",
+                WritableHealthCheckRepository.class);
+
         if (healthCheckRepository != null) {
             producerHealthCheck = new KafkaProducerHealthCheck(this, clientId);
+            producerHealthCheck.setEnabled(getEndpoint().getComponent().isHealthCheckProducerEnabled());
             healthCheckRepository.addHealthCheck(producerHealthCheck);
         }
     }
@@ -226,14 +248,14 @@ public class KafkaProducer extends DefaultAsyncProducer {
             Exchange exchange, Message message) {
         String topic = evaluateTopic(message);
 
-        // extracting headers which need to be propagated
-        List<Header> propagatedHeaders = getPropagatedHeaders(exchange, message);
+        PropagatedHeadersProvider propagatedHeadersProvider
+                = new PropagatedHeadersProvider(this, configuration, exchange, message);
 
         Object body = message.getBody();
 
         Iterator<Object> iterator = getObjectIterator(body);
 
-        return new KeyValueHolderIterator(iterator, exchange, configuration, topic, propagatedHeaders);
+        return new KeyValueHolderIterator(iterator, exchange, configuration, topic, propagatedHeadersProvider);
     }
 
     protected ProducerRecord<Object, Object> createRecord(Exchange exchange, Message message) {
@@ -288,9 +310,10 @@ public class KafkaProducer extends DefaultAsyncProducer {
     private String evaluateTopic(Message message) {
         // must remove header so it's not propagated.
         Object overrideTopic = message.removeHeader(KafkaConstants.OVERRIDE_TOPIC);
-        if (overrideTopic != null) {
-            LOG.debug("Using override topic: {}", overrideTopic);
-            return overrideTopic.toString();
+        String overrideTopicString = endpoint.getCamelContext().getTypeConverter().tryConvertTo(String.class, overrideTopic);
+        if (overrideTopicString != null) {
+            LOG.debug("Using override topic: {}", overrideTopicString);
+            return overrideTopicString;
         }
 
         String topic = configuration.getTopic();
@@ -319,7 +342,7 @@ public class KafkaProducer extends DefaultAsyncProducer {
         return iterator;
     }
 
-    private List<Header> getPropagatedHeaders(Exchange exchange, Message message) {
+    public List<Header> getPropagatedHeaders(Exchange exchange, Message message) {
         Map<String, Object> messageHeaders = message.getHeaders();
         List<Header> propagatedHeaders = new ArrayList<>(messageHeaders.size());
 
@@ -365,6 +388,10 @@ public class KafkaProducer extends DefaultAsyncProducer {
         // is the message body a list or something that contains multiple values
         Message message = exchange.getIn();
 
+        if (transactionId != null) {
+            startKafkaTransaction(exchange);
+        }
+
         if (isIterable(message.getBody())) {
             processIterableSync(exchange, message);
         } else {
@@ -389,7 +416,7 @@ public class KafkaProducer extends DefaultAsyncProducer {
         // This sets an empty metadata for the very first message on the batch
         List<RecordMetadata> recordMetadata = new ArrayList<>();
         if (configuration.isRecordMetadata()) {
-            exchange.getMessage().setHeader(KafkaConstants.KAFKA_RECORDMETA, recordMetadata);
+            exchange.getMessage().setHeader(KafkaConstants.KAFKA_RECORD_META, recordMetadata);
         }
 
         while (recordIterable.hasNext()) {
@@ -427,7 +454,7 @@ public class KafkaProducer extends DefaultAsyncProducer {
             return metadataList;
         }
 
-        return Collections.EMPTY_LIST;
+        return Collections.emptyList();
     }
 
     @Override
@@ -437,6 +464,10 @@ public class KafkaProducer extends DefaultAsyncProducer {
 
         Message message = exchange.getMessage();
         Object body = message.getBody();
+
+        if (transactionId != null) {
+            startKafkaTransaction(exchange);
+        }
 
         try {
             // is the message body a list or something that contains multiple values
@@ -490,6 +521,51 @@ public class KafkaProducer extends DefaultAsyncProducer {
             kafkaProducer.send(record, delegatingCallback);
         } else {
             kafkaProducer.send(record, cb);
+        }
+    }
+
+    private void startKafkaTransaction(Exchange exchange) {
+        exchange.getUnitOfWork().beginTransactedBy(transactionId);
+        kafkaProducer.beginTransaction();
+        exchange.getUnitOfWork().addSynchronization(new KafkaTransactionSynchronization(transactionId, kafkaProducer));
+    }
+}
+
+class KafkaTransactionSynchronization extends SynchronizationAdapter {
+    private static final Logger LOG = LoggerFactory.getLogger(KafkaTransactionSynchronization.class);
+    private final String transactionId;
+    private final Producer kafkaProducer;
+
+    public KafkaTransactionSynchronization(String transactionId, Producer kafkaProducer) {
+        this.transactionId = transactionId;
+        this.kafkaProducer = kafkaProducer;
+    }
+
+    @Override
+    public void onDone(Exchange exchange) {
+        try {
+            if (exchange.getException() != null || exchange.isRollbackOnly()) {
+                if (exchange.getException() instanceof KafkaException) {
+                    LOG.warn("Catch {} and will close kafka producer with transaction {} ", exchange.getException(),
+                            transactionId);
+                    kafkaProducer.close();
+                } else {
+                    LOG.warn("Abort kafka transaction {} with exchange {}", transactionId, exchange.getExchangeId());
+                    kafkaProducer.abortTransaction();
+                }
+            } else {
+                LOG.debug("Commit kafka transaction {} with exchange {}", transactionId, exchange.getExchangeId());
+                kafkaProducer.commitTransaction();
+            }
+        } catch (KafkaException e) {
+            exchange.setException(e);
+        } catch (Exception e) {
+            exchange.setException(e);
+            LOG.warn("Abort kafka transaction {} with exchange {} due to {} ", transactionId, exchange.getExchangeId(),
+                    e.getMessage(), e);
+            kafkaProducer.abortTransaction();
+        } finally {
+            exchange.getUnitOfWork().endTransactedBy(transactionId);
         }
     }
 }

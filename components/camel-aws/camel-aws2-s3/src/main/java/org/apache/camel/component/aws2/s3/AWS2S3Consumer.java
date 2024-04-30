@@ -28,7 +28,6 @@ import org.apache.camel.AsyncCallback;
 import org.apache.camel.Exchange;
 import org.apache.camel.ExchangePattern;
 import org.apache.camel.ExchangePropertyKey;
-import org.apache.camel.ExtendedExchange;
 import org.apache.camel.Message;
 import org.apache.camel.Processor;
 import org.apache.camel.RuntimeCamelException;
@@ -86,7 +85,7 @@ public class AWS2S3Consumer extends ScheduledBatchPollingConsumer {
                 return;
             } catch (AwsServiceException ase) {
                 /* 404 means the bucket doesn't exist */
-                if (!(ase.awsErrorDetails().sdkHttpResponse().statusCode() == 404)) {
+                if (ase.awsErrorDetails().sdkHttpResponse().statusCode() != 404) {
                     throw ase;
                 }
             }
@@ -148,7 +147,7 @@ public class AWS2S3Consumer extends ScheduledBatchPollingConsumer {
 
             ListObjectsResponse listObjects = getAmazonS3Client().listObjects(listObjectsRequest.build());
 
-            if (listObjects.isTruncated()) {
+            if (Boolean.TRUE.equals(listObjects.isTruncated())) {
                 marker = listObjects.nextMarker();
                 LOG.trace("Returned list is truncated, so setting next marker: {}", marker);
             } else {
@@ -161,6 +160,10 @@ public class AWS2S3Consumer extends ScheduledBatchPollingConsumer {
 
             exchanges = createExchanges(listObjects.contents());
         }
+
+        // okay we have some response from azure so lets mark the consumer as ready
+        forceConsumerAsReady();
+
         return processBatch(CastUtils.cast(exchanges));
     }
 
@@ -248,7 +251,7 @@ public class AWS2S3Consumer extends ScheduledBatchPollingConsumer {
             return true;
         } else {
             // Config says to ignore folders/directories
-            return !Optional.of(((GetObjectResponse) s3Object.response()).contentType()).orElse("")
+            return !Optional.of(s3Object.response().contentType()).orElse("")
                     .toLowerCase().startsWith("application/x-directory");
         }
     }
@@ -269,7 +272,7 @@ public class AWS2S3Consumer extends ScheduledBatchPollingConsumer {
             pendingExchanges = total - index - 1;
 
             // add on completion to handle after work when the exchange is done
-            exchange.adapt(ExtendedExchange.class).addOnCompletion(new Synchronization() {
+            exchange.getExchangeExtension().addOnCompletion(new Synchronization() {
                 public void onComplete(Exchange exchange) {
                     processCommit(exchange);
                 }
@@ -317,7 +320,9 @@ public class AWS2S3Consumer extends ScheduledBatchPollingConsumer {
                 }
                 getAmazonS3Client().copyObject(CopyObjectRequest.builder().destinationKey(builder.toString())
                         .destinationBucket(getConfiguration().getDestinationBucket())
-                        .copySource(bucketName + "/" + key).build());
+                        .sourceBucket(bucketName)
+                        .sourceKey(key)
+                        .build());
 
                 LOG.trace("Moved object from bucket {} with key {} to bucket {}...", bucketName, key,
                         getConfiguration().getDestinationBucket());
@@ -421,7 +426,7 @@ public class AWS2S3Consumer extends ScheduledBatchPollingConsumer {
             IOHelper.close(s3Object);
         } else {
             if (getConfiguration().isAutocloseBody()) {
-                exchange.adapt(ExtendedExchange.class).addOnCompletion(new SynchronizationAdapter() {
+                exchange.getExchangeExtension().addOnCompletion(new SynchronizationAdapter() {
                     @Override
                     public void onDone(Exchange exchange) {
                         IOHelper.close(s3Object);

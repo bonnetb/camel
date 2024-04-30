@@ -16,7 +16,6 @@
  */
 package org.apache.camel.component.bean;
 
-import org.apache.camel.CamelContext;
 import org.apache.camel.ContextTestSupport;
 import org.apache.camel.Exchange;
 import org.apache.camel.builder.RouteBuilder;
@@ -26,19 +25,13 @@ import org.junit.jupiter.api.Test;
 
 public class BeanChoseMethodWithMatchingTypeAndSkipSettersTest extends ContextTestSupport {
 
-    private OrderServiceBean service = new OrderServiceBean();
+    private final OrderServiceBean service = new OrderServiceBean();
 
     @Override
-    protected Registry createRegistry() throws Exception {
-        Registry jndi = super.createRegistry();
+    protected Registry createCamelRegistry() throws Exception {
+        Registry jndi = super.createCamelRegistry();
         jndi.bind("orderService", service);
         return jndi;
-    }
-
-    @Override
-    protected CamelContext createCamelContext() throws Exception {
-        CamelContext context = super.createCamelContext();
-        return context;
     }
 
     @Test
@@ -64,10 +57,10 @@ public class BeanChoseMethodWithMatchingTypeAndSkipSettersTest extends ContextTe
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 service.setConverter(context.getTypeConverter());
 
                 from(fileUri("?initialDelay=0&delay=10")).bean("orderService").to("mock:queue:order");

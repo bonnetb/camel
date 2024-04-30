@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Test;
 public class OnExceptionWithTwoBeansTest extends ContextTestSupport {
 
     @Override
-    protected Registry createRegistry() throws Exception {
+    protected Registry createCamelRegistry() {
         Registry registry = new DefaultRegistry();
         registry.bind("checkin", new MyBean1());
         registry.bind("handler", new MyBean2());
@@ -51,10 +51,10 @@ public class OnExceptionWithTwoBeansTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 onException(IllegalArgumentException.class).handled(true).setBody().constant("Handled").to("mock:error").end();
 
                 from("direct:start").to("bean:checkin").to("mock:bean").to("bean:handler").to("mock:result");
@@ -62,7 +62,7 @@ public class OnExceptionWithTwoBeansTest extends ContextTestSupport {
         };
     }
 
-    public class MyBean1 {
+    public static class MyBean1 {
 
         public String checkin(String message) {
             if ("illegal".equals(message)) {
@@ -72,7 +72,7 @@ public class OnExceptionWithTwoBeansTest extends ContextTestSupport {
         }
     }
 
-    public class MyBean2 {
+    public static class MyBean2 {
         public String handle(String message) {
             if ("handle".equals(message)) {
                 throw new IllegalArgumentException();

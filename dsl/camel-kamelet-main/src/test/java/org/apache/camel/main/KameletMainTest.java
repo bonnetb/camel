@@ -16,50 +16,73 @@
  */
 package org.apache.camel.main;
 
-import org.apache.camel.StartupSummaryLevel;
-import org.junit.jupiter.api.Disabled;
+import java.util.function.BiConsumer;
+
+import org.apache.camel.CamelContext;
+import org.apache.camel.component.mock.MockEndpoint;
+import org.apache.camel.main.app.Bean1;
+import org.apache.camel.main.app.Bean2;
+import org.apache.camel.support.ShortUuidGenerator;
 import org.junit.jupiter.api.Test;
 
-@Disabled("Manual test")
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
+
 public class KameletMainTest {
 
     @Test
-    public void testKameletMain() throws Exception {
-        KameletMain main = new KameletMain();
-        main.setDownload(true);
-        main.configure().withDurationMaxSeconds(5);
-        main.configure().withRoutesIncludePattern("file:src/test/resources/my-route.yaml");
+    public void testRouteWithSpringProcessor() throws Exception {
+        doTestMain("classpath:org/apache/camel/main/xml/spring-camel1.xml", (main, camelContext) -> {
+            try {
+                MockEndpoint endpoint = camelContext.getEndpoint("mock:finish", MockEndpoint.class);
+                endpoint.expectedBodiesReceived("Hello World (2147483647)");
 
-        main.run();
+                main.getCamelTemplate().sendBody("direct:start", "I'm World");
+
+                endpoint.assertIsSatisfied();
+
+                assertTrue(camelContext.getUuidGenerator() instanceof ShortUuidGenerator);
+
+                Bean1 bean1 = main.lookupByType(Bean1.class).get("bean1");
+                Bean2 bean2 = bean1.getBean();
+                assertSame(bean1, bean2.getBean());
+            } catch (Exception e) {
+                fail(e.getMessage());
+            }
+        });
     }
 
     @Test
-    public void testReload() throws Exception {
-        KameletMain main = new KameletMain();
-        main.configure().setStartupSummaryLevel(StartupSummaryLevel.Verbose);
-        main.setDownload(true);
-        main.configure().withDurationMaxMessages(10);
-        main.configure().withDurationMaxAction("stop");
-        main.configure().withRoutesIncludePattern("file:src/test/resources/my-route.yaml");
-        main.configure().withRoutesReloadEnabled(true);
-        main.configure().withRoutesReloadDirectory("src/test/resources");
-        main.configure().withRoutesReloadPattern("my-route.yaml");
+    public void testRouteWithSpringBeansAndCamelDependencies() throws Exception {
+        doTestMain("classpath:org/apache/camel/main/xml/spring-camel2.xml", (main, camelContext) -> {
+            try {
+                MockEndpoint endpoint = camelContext.getEndpoint("mock:finish", MockEndpoint.class);
+                endpoint.expectedBodiesReceived("Hello World (" + System.identityHashCode(camelContext) + ")");
 
-        main.run();
+                main.getCamelTemplate().sendBody("direct:start", "I'm World");
+
+                endpoint.assertIsSatisfied();
+            } catch (Exception e) {
+                fail(e.getMessage());
+            }
+        });
     }
 
-    @Test
-    public void testReloadCamelK() throws Exception {
+    protected void doTestMain(String includes, BiConsumer<KameletMain, CamelContext> consumer) throws Exception {
         KameletMain main = new KameletMain();
-        main.setDownload(true);
-        main.configure().withShutdownTimeout(5);
-        main.configure().withDurationMaxMessages(10);
-        main.configure().withDurationMaxAction("stop");
-        main.configure().withRoutesIncludePattern("file:src/test/resources/my-camel-k.yaml");
-        main.configure().withRoutesReloadEnabled(true);
-        main.configure().withRoutesReloadDirectory("src/test/resources");
-        main.configure().withRoutesReloadPattern("my-camel-k.yaml");
 
-        main.run();
+        main.configure().withRoutesIncludePattern(includes);
+        main.configure().withAutoConfigurationEnabled(true);
+        main.start();
+
+        CamelContext camelContext = main.getCamelContext();
+        assertNotNull(camelContext);
+
+        consumer.accept(main, camelContext);
+
+        main.stop();
     }
+
 }

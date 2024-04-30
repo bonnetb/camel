@@ -42,8 +42,7 @@ public class SlackConsumerTest extends CamelTestSupport {
     @BeforeEach
     public void setUp() throws Exception {
         token = System.getProperty("SLACK_TOKEN");
-        hook = System.getProperty("SLACK_HOOK",
-                "https://hooks.slack.com/services/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");
+        hook = System.getProperty("SLACK_HOOK");
 
         assumeCredentials();
         super.setUp();
@@ -58,7 +57,7 @@ public class SlackConsumerTest extends CamelTestSupport {
         mock.expectedMessageCount(1);
         mock.message(0).simple("${body.getText()}").isEqualTo(message);
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
     }
 
     private void assumeCredentials() {
@@ -83,10 +82,10 @@ public class SlackConsumerTest extends CamelTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from(String.format("slack://general?token=RAW(%s)&maxResults=1", token))
                         .to("mock:result");
             }

@@ -29,7 +29,7 @@ public final class Strings {
      * Returns true if the given text is null or empty string or has <tt>null</tt> as the value
      */
     public static boolean isNullOrEmpty(String text) {
-        return text == null || text.length() == 0 || "null".equals(text);
+        return text == null || text.isEmpty() || "null".equals(text);
     }
 
     public static String cutLastZeroDigit(String version) {
@@ -57,7 +57,7 @@ public final class Strings {
 
     /**
      * To wrap a big line by words.
-     * 
+     *
      * @param line          the big line
      * @param wordSep       the word separator
      * @param lineSep       the new line to use when breaking into a new line

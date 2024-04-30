@@ -19,6 +19,7 @@ package org.apache.camel;
 import java.util.Map;
 
 import org.apache.camel.support.service.ServiceSupport;
+import org.apache.camel.util.StringHelper;
 
 /**
  * An <a href="http://camel.apache.org/endpoint.html">endpoint</a> implements the
@@ -28,7 +29,7 @@ import org.apache.camel.support.service.ServiceSupport;
  * @see Exchange
  * @see Message
  */
-public interface Endpoint extends IsSingleton, Service {
+public interface Endpoint extends IsSingleton, Service, ComponentAware {
 
     /**
      * Returns the string representation of the endpoint URI
@@ -47,11 +48,8 @@ public interface Endpoint extends IsSingleton, Service {
      */
     default String getEndpointBaseUri() {
         String value = getEndpointUri();
-        int pos = value.indexOf('?');
-        if (pos > 0) {
-            value = value.substring(0, pos);
-        }
-        return value;
+
+        return StringHelper.before(value, "?", value);
     }
 
     /**
@@ -162,7 +160,7 @@ public interface Endpoint extends IsSingleton, Service {
 
     /**
      * Configure properties on this endpoint.
-     * 
+     *
      * @param options the options (properties)
      */
     void configureProperties(Map<String, Object> options);

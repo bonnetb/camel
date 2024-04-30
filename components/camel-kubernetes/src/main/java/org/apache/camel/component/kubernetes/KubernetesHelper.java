@@ -20,8 +20,8 @@ import java.util.function.Supplier;
 
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.ConfigBuilder;
-import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.fabric8.kubernetes.client.Watch;
 import org.apache.camel.Exchange;
 import org.apache.camel.support.MessageHelper;
@@ -42,11 +42,13 @@ public final class KubernetesHelper {
     public static KubernetesClient getKubernetesClient(KubernetesConfiguration configuration) {
         if (configuration.getKubernetesClient() != null) {
             return configuration.getKubernetesClient();
-        } else if (configuration.getMasterUrl() != null) {
-            return createKubernetesClient(configuration);
+        }
+        String master = configuration.getMasterUrl();
+        if (master == null || "local".equals(master) || "client".equals(master)) {
+            LOG.info("Creating default local Kubernetes client without applying configuration");
+            return new KubernetesClientBuilder().build();
         } else {
-            LOG.info("Creating default kubernetes client without applying configuration");
-            return new DefaultKubernetesClient();
+            return createKubernetesClient(configuration);
         }
     }
 
@@ -76,7 +78,7 @@ public final class KubernetesHelper {
         ObjectHelper.ifNotEmpty(configuration.getNamespace(), builder::withNamespace);
 
         Config conf = builder.build();
-        return new DefaultKubernetesClient(conf);
+        return new KubernetesClientBuilder().withConfig(conf).build();
     }
 
     public static void close(Runnable runnable, Supplier<Watch> watchGetter) {

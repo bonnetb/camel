@@ -34,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  */
 public class NavigateRouteTest extends ContextTestSupport {
 
-    private static List<Processor> processors = new ArrayList<>();
+    private final List<Processor> processors = new ArrayList<>();
 
     @Test
     public void testNavigateRoute() throws Exception {
@@ -81,10 +81,10 @@ public class NavigateRouteTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:start").convertBodyTo(String.class).split(body().tokenize(" ")).to("mock:result");
             }
         };

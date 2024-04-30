@@ -29,6 +29,7 @@ import org.apache.camel.CamelContext;
 import org.apache.camel.Endpoint;
 import org.apache.camel.Processor;
 import org.apache.camel.RuntimeCamelException;
+import org.apache.camel.ServiceStatus;
 import org.apache.camel.VetoCamelContextStartException;
 import org.apache.camel.model.ModelCamelContext;
 import org.apache.camel.model.RouteDefinition;
@@ -40,12 +41,15 @@ import org.apache.camel.support.LifecycleStrategySupport;
 import org.apache.camel.support.RouteTemplateHelper;
 import org.apache.camel.support.service.ServiceHelper;
 import org.apache.camel.util.StopWatch;
+import org.apache.camel.util.URISupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.apache.camel.component.kamelet.Kamelet.NO_ERROR_HANDLER;
 import static org.apache.camel.component.kamelet.Kamelet.PARAM_LOCATION;
 import static org.apache.camel.component.kamelet.Kamelet.PARAM_ROUTE_ID;
 import static org.apache.camel.component.kamelet.Kamelet.PARAM_TEMPLATE_ID;
+import static org.apache.camel.component.kamelet.Kamelet.PARAM_UUID;
 
 /**
  * Materialize route templates
@@ -74,6 +78,8 @@ public class KameletComponent extends DefaultComponent {
     private boolean block = true;
     @Metadata(label = "producer", defaultValue = "30000")
     private long timeout = 30000L;
+    @Metadata(label = "advanced", defaultValue = "true")
+    private boolean noErrorHandler = true;
 
     @Metadata
     private Map<String, Properties> templateProperties;
@@ -100,12 +106,20 @@ public class KameletComponent extends DefaultComponent {
     @Override
     protected Endpoint createEndpoint(String uri, String remaining, Map<String, Object> parameters) throws Exception {
         final String templateId = Kamelet.extractTemplateId(getCamelContext(), remaining, parameters);
-        final String routeId = Kamelet.extractRouteId(getCamelContext(), remaining, parameters);
+        final String uuid = Kamelet.extractUuid();
+        final String routeId = Kamelet.extractRouteId(getCamelContext(), remaining, parameters, uuid);
         final String loc = Kamelet.extractLocation(getCamelContext(), parameters);
 
         parameters.remove(PARAM_TEMPLATE_ID);
         parameters.remove(PARAM_ROUTE_ID);
         parameters.remove(PARAM_LOCATION);
+        parameters.remove(PARAM_UUID);
+
+        // manually need to resolve raw parameters as input to the kamelet because
+        // resolveRawParameterValues is false
+        // this ensures that parameters such as passwords are used as-is and not encoded
+        // but this requires to use RAW() syntax in the kamelet template.
+        URISupport.resolveRawParameterValues(parameters);
 
         final KameletEndpoint endpoint;
 
@@ -133,6 +147,7 @@ public class KameletComponent extends DefaultComponent {
             endpoint = new KameletEndpoint(uri, this, templateId, routeId);
 
             // forward component properties
+            endpoint.setNoErrorHandler(noErrorHandler);
             endpoint.setBlock(block);
             endpoint.setTimeout(timeout);
             // endpoint specific location
@@ -154,6 +169,7 @@ public class KameletComponent extends DefaultComponent {
             };
 
             // forward component properties
+            endpoint.setNoErrorHandler(noErrorHandler);
             endpoint.setBlock(block);
             endpoint.setTimeout(timeout);
             // endpoint specific location
@@ -211,15 +227,17 @@ public class KameletComponent extends DefaultComponent {
             //
             kameletProperties.put(PARAM_TEMPLATE_ID, templateId);
             kameletProperties.put(PARAM_ROUTE_ID, routeId);
+            kameletProperties.put(PARAM_UUID, uuid);
+            kameletProperties.put(NO_ERROR_HANDLER, endpoint.isNoErrorHandler());
 
             // set kamelet specific properties
             endpoint.setKameletProperties(kameletProperties);
 
             //
             // Add a custom converter to convert a RouteTemplateDefinition to a RouteDefinition
-            // and make sure consumerU URIs are unique.
+            // and make sure consumer URIs are unique.
             //
-            getCamelContext().adapt(ModelCamelContext.class).addRouteTemplateDefinitionConverter(
+            ((ModelCamelContext) getCamelContext()).addRouteTemplateDefinitionConverter(
                     templateId,
                     Kamelet::templateToRoute);
         }
@@ -230,6 +248,18 @@ public class KameletComponent extends DefaultComponent {
     @Override
     protected boolean resolveRawParameterValues() {
         return false;
+    }
+
+    public boolean isNoErrorHandler() {
+        return noErrorHandler;
+    }
+
+    /**
+     * Kamelets, by default, will not do fine-grained error handling, but works in no-error-handler mode. This can be
+     * turned off, to use old behaviour in earlier versions of Camel.
+     */
+    public void setNoErrorHandler(boolean noErrorHandler) {
+        this.noErrorHandler = noErrorHandler;
     }
 
     public boolean isBlock() {
@@ -385,10 +415,11 @@ public class KameletComponent extends DefaultComponent {
         }
 
         public void createRouteForEndpoint(KameletEndpoint endpoint) throws Exception {
-            final ModelCamelContext context = getCamelContext().adapt(ModelCamelContext.class);
+            final ModelCamelContext context = (ModelCamelContext) getCamelContext();
             final String templateId = endpoint.getTemplateId();
             final String routeId = endpoint.getRouteId();
             final String loc = endpoint.getLocation() != null ? endpoint.getLocation() : getLocation();
+            final String uuid = (String) endpoint.getKameletProperties().get(PARAM_UUID);
 
             if (context.getRouteTemplateDefinition(templateId) == null && loc != null) {
                 LOGGER.debug("Loading route template={} from {}", templateId, loc);
@@ -398,10 +429,13 @@ public class KameletComponent extends DefaultComponent {
 
             LOGGER.debug("Creating route from template={} and id={}", templateId, routeId);
             try {
-                String id = context.addRouteFromTemplate(routeId, templateId, endpoint.getKameletProperties());
+                String id = context.addRouteFromTemplate(routeId, templateId, uuid, endpoint.getKameletProperties());
                 RouteDefinition def = context.getRouteDefinition(id);
 
-                if (!def.isPrepared()) {
+                // start the route if not already started
+                ServiceStatus status = context.getRouteController().getRouteStatus(id);
+                boolean started = status != null && status.isStarted();
+                if (!started) {
                     context.startRouteDefinitions(Collections.singletonList(def));
                 }
 

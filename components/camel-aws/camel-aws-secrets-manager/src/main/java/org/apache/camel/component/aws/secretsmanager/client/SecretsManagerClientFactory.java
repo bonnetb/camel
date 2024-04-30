@@ -18,6 +18,8 @@ package org.apache.camel.component.aws.secretsmanager.client;
 
 import org.apache.camel.component.aws.secretsmanager.SecretsManagerConfiguration;
 import org.apache.camel.component.aws.secretsmanager.client.impl.SecretsManagerClientIAMOptimized;
+import org.apache.camel.component.aws.secretsmanager.client.impl.SecretsManagerClientIAMProfileOptimized;
+import org.apache.camel.component.aws.secretsmanager.client.impl.SecretsManagerClientSessionTokenImpl;
 import org.apache.camel.component.aws.secretsmanager.client.impl.SecretsManagerClientStandardImpl;
 
 /**
@@ -30,12 +32,19 @@ public final class SecretsManagerClientFactory {
 
     /**
      * Return the correct aws Secrets Manager client (based on remote vs local).
-     * 
+     *
      * @param  configuration configuration
      * @return               SecretsManagerClient
      */
     public static SecretsManagerInternalClient getSecretsManagerClient(SecretsManagerConfiguration configuration) {
-        return configuration.isUseDefaultCredentialsProvider()
-                ? new SecretsManagerClientIAMOptimized(configuration) : new SecretsManagerClientStandardImpl(configuration);
+        if (Boolean.TRUE.equals(configuration.isUseDefaultCredentialsProvider())) {
+            return new SecretsManagerClientIAMOptimized(configuration);
+        } else if (Boolean.TRUE.equals(configuration.isUseProfileCredentialsProvider())) {
+            return new SecretsManagerClientIAMProfileOptimized(configuration);
+        } else if (Boolean.TRUE.equals(configuration.isUseSessionCredentials())) {
+            return new SecretsManagerClientSessionTokenImpl(configuration);
+        } else {
+            return new SecretsManagerClientStandardImpl(configuration);
+        }
     }
 }

@@ -22,6 +22,7 @@ import org.apache.camel.ContextTestSupport;
 import org.apache.camel.Endpoint;
 import org.apache.camel.Exchange;
 import org.apache.camel.builder.RouteBuilder;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
 
 public class FileConsumerIdempotentKeyChangedIssue2Test extends ContextTestSupport {
@@ -44,19 +45,18 @@ public class FileConsumerIdempotentKeyChangedIssue2Test extends ContextTestSuppo
 
         // wait a bit to allow the consumer to poll once and see a non-changed
         // file
-        Thread.sleep(50);
-
-        template.sendBodyAndHeader(endpoint, "Hello World Again", Exchange.FILE_NAME, "hello.txt");
-
-        assertMockEndpointsSatisfied();
+        Awaitility.await().pollDelay(250, TimeUnit.MILLISECONDS).untilAsserted(() -> {
+            template.sendBodyAndHeader(endpoint, "Hello World Again", Exchange.FILE_NAME, "hello.txt");
+            assertMockEndpointsSatisfied();
+        });
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
-                endpoint = endpoint(fileUri("?noop=true&initialDelay=0&delay=10"
+            public void configure() {
+                endpoint = endpoint(fileUri("?noop=true&initialDelay=0&delay=100"
                                             + "&idempotentKey=${file:name}-${file:size}-${file:modified}"));
 
                 from(endpoint).noAutoStartup().convertBodyTo(String.class).to("log:file").to("mock:file");

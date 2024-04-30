@@ -113,9 +113,11 @@ public class RestConfigurationProperties extends RestConfiguration implements Bo
     }
 
     /**
-     * Whether to use X-Forward headers for Host and related setting.
-     * <p/>
-     * The default value is true.
+     * Whether to use X-Forward headers to set host etc. for OpenApi.
+     *
+     * This may be needed in special cases involving reverse-proxy and networking going from HTTP to HTTPS etc. Then the
+     * proxy can send X-Forward headers (X-Forwarded-Proto) that influences the host names in the OpenAPI schema that
+     * camel-openapi-java generates from Rest DSL routes.
      */
     public RestConfigurationProperties withUseXForwardHeaders(boolean useXForwardHeaders) {
         setUseXForwardHeaders(useXForwardHeaders);
@@ -137,7 +139,7 @@ public class RestConfigurationProperties extends RestConfiguration implements Bo
 
     /**
      * Sets the location of the api document (swagger api) the REST producer will use to validate the REST uri and query
-     * parameters are valid accordingly to the api document. This requires adding camel-swagger-java to the classpath,
+     * parameters are valid accordingly to the api document. This requires adding camel-openapi-java to the classpath,
      * and any miss configuration will let Camel fail on startup and report the error(s).
      * <p/>
      * The location of the api document is loaded from classpath by default, but you can use <tt>file:</tt> or
@@ -172,6 +174,16 @@ public class RestConfigurationProperties extends RestConfiguration implements Bo
     }
 
     /**
+     * Sets the route id to use for the route that services the REST API.
+     * <p/>
+     * The route will by default use an auto assigned route id.
+     */
+    public RestConfigurationProperties withApiContextRouteId(String apiContextRouteId) {
+        setApiContextRouteId(apiContextRouteId);
+        return this;
+    }
+
+    /**
      * Whether vendor extension is enabled in the Rest APIs. If enabled then Camel will include additional information
      * as vendor extension (eg keys starting with x-) such as route ids, class names etc. Not all 3rd party API gateways
      * and tools supports vendor-extensions when importing your API docs.
@@ -197,6 +209,15 @@ public class RestConfigurationProperties extends RestConfiguration implements Bo
      */
     public RestConfigurationProperties withBindingMode(String bindingMode) {
         setBindingMode(bindingMode);
+        return this;
+    }
+
+    /**
+     * Package name to use as base (offset) for classpath scanning of POJO classes are located when using binding mode
+     * is enabled for JSon or XML. Multiple package names can be separated by comma.
+     */
+    public RestConfigurationProperties withBindingPackageScan(String bindingPackageScan) {
+        setBindingPackageScan(bindingPackageScan);
         return this;
     }
 
@@ -229,6 +250,20 @@ public class RestConfigurationProperties extends RestConfiguration implements Bo
      */
     public RestConfigurationProperties withEnableCORS(boolean enableCORS) {
         setEnableCORS(enableCORS);
+        return this;
+    }
+
+    /**
+     * Inline routes in rest-dsl which are linked using direct endpoints.
+     *
+     * By default, each service in Rest DSL is an individual route, meaning that you would have at least two routes per
+     * service (rest-dsl, and the route linked from rest-dsl). Enabling this allows Camel to optimize and inline this as
+     * a single route, however this requires to use direct endpoints, which must be unique per service.
+     *
+     * This option is default <tt>false</tt>.
+     */
+    public RestConfigurationProperties withInlineRoutes(boolean inlineRoutes) {
+        setInlineRoutes(inlineRoutes);
         return this;
     }
 

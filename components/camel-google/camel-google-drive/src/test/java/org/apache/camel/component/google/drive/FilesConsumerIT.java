@@ -48,7 +48,7 @@ public class FilesConsumerIT extends AbstractGoogleDriveTestSupport {
         File testFile = uploadTestFile();
         String fileId = testFile.getId();
 
-        assertMockEndpointsSatisfied();
+        MockEndpoint.assertIsSatisfied(context);
 
         FileList fileList
                 = mock.getReceivedExchanges().get(0).getIn().getBody(com.google.api.services.drive.model.FileList.class);
@@ -57,7 +57,7 @@ public class FilesConsumerIT extends AbstractGoogleDriveTestSupport {
     }
 
     private boolean fileInList(String fileId, FileList fileList) {
-        for (File f : fileList.getItems()) {
+        for (File f : fileList.getFiles()) {
             if (f.getId().equals(fileId)) {
                 return true;
             }

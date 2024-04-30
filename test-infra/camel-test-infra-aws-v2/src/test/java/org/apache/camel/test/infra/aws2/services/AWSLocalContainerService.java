@@ -23,6 +23,7 @@ import java.util.Properties;
 import org.apache.camel.test.infra.aws.common.AWSConfigs;
 import org.apache.camel.test.infra.aws.common.AWSProperties;
 import org.apache.camel.test.infra.aws.common.services.AWSService;
+import org.apache.camel.test.infra.common.LocalPropertyResolver;
 import org.apache.camel.test.infra.common.services.ContainerService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,7 +35,7 @@ public abstract class AWSLocalContainerService implements AWSService, ContainerS
     private final AWSContainer container;
 
     public AWSLocalContainerService(Service... services) {
-        this(System.getProperty(AWSProperties.AWS_CONTAINER, AWSContainer.LOCALSTACK_CONTAINER), services);
+        this(LocalPropertyResolver.getProperty(AWSContainer.class, AWSProperties.AWS_CONTAINER), services);
     }
 
     public AWSLocalContainerService(AWSContainer container) {
@@ -102,6 +103,7 @@ public abstract class AWSLocalContainerService implements AWSService, ContainerS
     @Override
     public void initialize() {
         LOG.debug("Trying to start the container");
+        container.withStartupAttempts(5);
         container.start();
 
         registerProperties();

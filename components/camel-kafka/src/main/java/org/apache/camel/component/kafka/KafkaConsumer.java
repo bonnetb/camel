@@ -23,34 +23,44 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.apache.camel.Processor;
-import org.apache.camel.ResumeAware;
-import org.apache.camel.component.kafka.consumer.support.KafkaConsumerResumeStrategy;
+import org.apache.camel.Suspendable;
+import org.apache.camel.component.kafka.consumer.errorhandler.KafkaConsumerListener;
 import org.apache.camel.health.HealthCheckAware;
 import org.apache.camel.health.HealthCheckHelper;
+import org.apache.camel.health.HealthCheckRepository;
+import org.apache.camel.resume.ConsumerListenerAware;
+import org.apache.camel.resume.ResumeAware;
+import org.apache.camel.resume.ResumeStrategy;
 import org.apache.camel.spi.StateRepository;
 import org.apache.camel.support.BridgeExceptionHandlerToErrorHandler;
 import org.apache.camel.support.DefaultConsumer;
 import org.apache.camel.support.service.ServiceHelper;
 import org.apache.camel.support.service.ServiceSupport;
 import org.apache.camel.util.ObjectHelper;
+import org.apache.kafka.clients.ClientDnsLookup;
+import org.apache.kafka.clients.ClientUtils;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class KafkaConsumer extends DefaultConsumer implements ResumeAware<KafkaConsumerResumeStrategy>, HealthCheckAware {
+public class KafkaConsumer extends DefaultConsumer
+        implements ResumeAware<ResumeStrategy>, HealthCheckAware, ConsumerListenerAware<KafkaConsumerListener>,
+        Suspendable {
 
     private static final Logger LOG = LoggerFactory.getLogger(KafkaConsumer.class);
 
     protected ExecutorService executor;
     private final KafkaEndpoint endpoint;
     private KafkaConsumerHealthCheck consumerHealthCheck;
-    private KafkaHealthCheckRepository healthCheckRepository;
+    private HealthCheckRepository healthCheckRepository;
     // This list helps to work around the infinite loop of KAFKA-1894
     private final List<KafkaFetchRecords> tasks = new ArrayList<>();
     private volatile boolean stopOffsetRepo;
-    private KafkaConsumerResumeStrategy resumeStrategy;
+    private ResumeStrategy resumeStrategy;
+    private KafkaConsumerListener consumerListener;
 
     public KafkaConsumer(KafkaEndpoint endpoint, Processor processor) {
         super(endpoint, processor);
@@ -58,18 +68,23 @@ public class KafkaConsumer extends DefaultConsumer implements ResumeAware<KafkaC
     }
 
     @Override
-    public void setResumeStrategy(KafkaConsumerResumeStrategy resumeStrategy) {
+    public void setResumeStrategy(ResumeStrategy resumeStrategy) {
         this.resumeStrategy = resumeStrategy;
     }
 
     @Override
-    public KafkaConsumerResumeStrategy getResumeStrategy() {
+    public ResumeStrategy getResumeStrategy() {
         return resumeStrategy;
     }
 
     @Override
-    protected void doBuild() throws Exception {
-        super.doBuild();
+    public KafkaConsumerListener getConsumerListener() {
+        return consumerListener;
+    }
+
+    @Override
+    public void setConsumerListener(KafkaConsumerListener consumerListener) {
+        this.consumerListener = consumerListener;
     }
 
     @Override
@@ -99,10 +114,6 @@ public class KafkaConsumer extends DefaultConsumer implements ResumeAware<KafkaC
         return props;
     }
 
-    List<KafkaFetchRecords> getTasks() {
-        return tasks;
-    }
-
     @Override
     protected void doStart() throws Exception {
         LOG.info("Starting Kafka consumer on topic: {} with breakOnFirstError: {}", endpoint.getConfiguration().getTopic(),
@@ -110,11 +121,15 @@ public class KafkaConsumer extends DefaultConsumer implements ResumeAware<KafkaC
         super.doStart();
 
         // health-check is optional so discover and resolve
-        healthCheckRepository = HealthCheckHelper.getHealthCheckRepository(endpoint.getCamelContext(), "camel-kafka",
-                KafkaHealthCheckRepository.class);
+        healthCheckRepository = HealthCheckHelper.getHealthCheckRepository(
+                endpoint.getCamelContext(),
+                "consumers",
+                HealthCheckRepository.class);
+
         if (healthCheckRepository != null) {
             consumerHealthCheck = new KafkaConsumerHealthCheck(this, getRouteId());
-            healthCheckRepository.addHealthCheck(consumerHealthCheck);
+            consumerHealthCheck.setEnabled(getEndpoint().getComponent().isHealthCheckConsumerEnabled());
+            setHealthCheck(consumerHealthCheck);
         }
 
         // is the offset repository already started?
@@ -137,10 +152,20 @@ public class KafkaConsumer extends DefaultConsumer implements ResumeAware<KafkaC
             pattern = Pattern.compile(topic);
         }
 
+        // validate configuration eager in case bad configuration
+        if (endpoint.getConfiguration().isPreValidateHostAndPort()) {
+            String brokers = getEndpoint().getConfiguration().getBrokers();
+            if (ObjectHelper.isEmpty(brokers)) {
+                throw new IllegalArgumentException("URL to the Kafka brokers must be configured with the brokers option.");
+            }
+            ClientUtils.parseAndValidateAddresses(List.of(brokers.split(",")), ClientDnsLookup.USE_ALL_DNS_IPS.toString());
+        }
+
         BridgeExceptionHandlerToErrorHandler bridge = new BridgeExceptionHandlerToErrorHandler(this);
         for (int i = 0; i < endpoint.getConfiguration().getConsumersCount(); i++) {
             KafkaFetchRecords task = new KafkaFetchRecords(
-                    this, bridge, topic, pattern, i + "", getProps());
+                    this, bridge, topic, pattern, Integer.toString(i), getProps(), consumerListener);
+
             executor.submit(task);
 
             tasks.add(task);
@@ -156,7 +181,6 @@ public class KafkaConsumer extends DefaultConsumer implements ResumeAware<KafkaC
         }
 
         if (healthCheckRepository != null && consumerHealthCheck != null) {
-            healthCheckRepository.removeHealthCheck(consumerHealthCheck);
             consumerHealthCheck = null;
         }
 
@@ -195,5 +219,34 @@ public class KafkaConsumer extends DefaultConsumer implements ResumeAware<KafkaC
         }
 
         super.doStop();
+    }
+
+    @Override
+    protected void doSuspend() throws Exception {
+        for (KafkaFetchRecords task : tasks) {
+            LOG.info("Pausing Kafka record fetcher task running client ID {}", task.healthState().getClientId());
+            task.pause();
+        }
+
+        super.doSuspend();
+    }
+
+    @Override
+    protected void doResume() throws Exception {
+        for (KafkaFetchRecords task : tasks) {
+            LOG.info("Resuming Kafka record fetcher task running client ID {}", task.healthState().getClientId());
+            task.resume();
+        }
+
+        super.doResume();
+    }
+
+    public List<TaskHealthState> healthStates() {
+        return tasks.stream().map(t -> t.healthState()).collect(Collectors.toList());
+    }
+
+    @Override
+    public String adapterFactoryService() {
+        return "kafka-adapter-factory";
     }
 }

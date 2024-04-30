@@ -34,7 +34,7 @@ public class StartAndStopRoutesTest extends ContextTestSupport {
     protected Endpoint endpointA;
     protected Endpoint endpointB;
     protected Endpoint endpointC;
-    protected Object expectedBody = "<hello>world!</hello>";
+    protected final Object expectedBody = "<hello>world!</hello>";
 
     @Test
     public void testStartRouteThenStopMutateAndStartRouteAgain() throws Exception {
@@ -60,7 +60,7 @@ public class StartAndStopRoutesTest extends ContextTestSupport {
         // lets mutate the route...
         FromDefinition fromType = route.getInput();
         fromType.setUri("direct:test.C");
-        context.getExtension(Model.class).addRouteDefinition(route);
+        context.getCamelContextExtension().getContextPlugin(Model.class).addRouteDefinition(route);
 
         // now lets check it works
         // send from C over B to results
@@ -74,10 +74,10 @@ public class StartAndStopRoutesTest extends ContextTestSupport {
     }
 
     @Override
-    protected RouteBuilder createRouteBuilder() throws Exception {
+    protected RouteBuilder createRouteBuilder() {
         return new RouteBuilder() {
             @Override
-            public void configure() throws Exception {
+            public void configure() {
                 from("direct:test.a").to("seda:test.b").to("mock:results");
             }
         };

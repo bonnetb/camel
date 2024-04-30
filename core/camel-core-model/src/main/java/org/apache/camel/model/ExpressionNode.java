@@ -19,10 +19,10 @@ package org.apache.camel.model;
 import java.util.Collections;
 import java.util.List;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlElementRef;
-import javax.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlElementRef;
+import jakarta.xml.bind.annotation.XmlTransient;
 
 import org.apache.camel.Expression;
 import org.apache.camel.ExpressionFactory;
@@ -56,6 +56,11 @@ public abstract class ExpressionNode extends ProcessorDefinition<ExpressionNode>
 
     public ExpressionNode(Predicate predicate) {
         setPredicate(predicate);
+    }
+
+    protected ExpressionNode(ExpressionNode source) {
+        super(source);
+        this.expression = source.expression;
     }
 
     public ExpressionDefinition getExpression() {

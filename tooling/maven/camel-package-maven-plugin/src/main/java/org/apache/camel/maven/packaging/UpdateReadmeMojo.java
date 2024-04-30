@@ -55,6 +55,7 @@ import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.project.MavenProjectHelper;
+import org.codehaus.plexus.build.BuildContext;
 import org.jboss.forge.roaster.Roaster;
 import org.jboss.forge.roaster._shade.org.eclipse.jdt.core.dom.ASTNode;
 import org.jboss.forge.roaster._shade.org.eclipse.jdt.core.dom.AnnotationTypeMemberDeclaration;
@@ -62,7 +63,6 @@ import org.jboss.forge.roaster._shade.org.eclipse.jdt.core.dom.Javadoc;
 import org.jboss.forge.roaster.model.source.AnnotationElementSource;
 import org.jboss.forge.roaster.model.source.JavaAnnotationSource;
 import org.mvel2.templates.TemplateRuntime;
-import org.sonatype.plexus.build.incremental.BuildContext;
 
 import static org.apache.camel.tooling.util.PackageHelper.findCamelDirectory;
 
@@ -178,7 +178,7 @@ public class UpdateReadmeMojo extends AbstractGeneratorMojo {
                     String title = asComponentTitle(model.getScheme(), model.getTitle());
                     model.setTitle(title);
 
-                    boolean updated = updateHeader(componentName, file, model, " Component", kind);
+                    boolean updated = updateHeader(componentName, file, model, " Component");
 
                     checkComponentHeader(file);
                     checkSince(file);
@@ -234,7 +234,7 @@ public class UpdateReadmeMojo extends AbstractGeneratorMojo {
                     File file = new File(componentDocDir, componentName + ".adoc");
                     boolean exists = file.exists();
 
-                    boolean updated = updateHeader(componentName, file, model, " Component", kind);
+                    boolean updated = updateHeader(componentName, file, model, " Component");
                     checkSince(file);
 
                     if (updated) {
@@ -289,7 +289,7 @@ public class UpdateReadmeMojo extends AbstractGeneratorMojo {
                     model.setTitle(title);
 
                     boolean exists = file.exists();
-                    boolean updated = updateHeader(dataFormatName, file, model, " DataFormat", kind);
+                    boolean updated = updateHeader(dataFormatName, file, model, " DataFormat");
                     checkSince(file);
 
                     String options = evaluateTemplate("dataformat-options.mvel", model);
@@ -354,7 +354,7 @@ public class UpdateReadmeMojo extends AbstractGeneratorMojo {
 
                     LanguageModel model = JsonMapper.generateLanguageModel(json);
 
-                    boolean updated = updateHeader(languageName, file, model, " Language", kind);
+                    boolean updated = updateHeader(languageName, file, model, " Language");
                     checkSince(file);
 
                     String options = evaluateTemplate("language-options.mvel", model);
@@ -390,7 +390,7 @@ public class UpdateReadmeMojo extends AbstractGeneratorMojo {
         File coreDir = findCamelDirectory(project.getBasedir(), "camel-core-model");
 
         if (coreDir.isDirectory()) {
-            File target = new File(coreDir, "src/generated/resources/org/apache/camel/model");
+            File target = new File(coreDir, "src/generated/resources/META-INF/org/apache/camel/model");
             PackageHelper.findJsonFiles(target, jsonFiles);
         }
 
@@ -416,7 +416,7 @@ public class UpdateReadmeMojo extends AbstractGeneratorMojo {
                     File file = new File(eipDocDir, eipName + "-" + kind + ".adoc");
                     boolean exists = file.exists();
 
-                    boolean updated = updateHeader(eipName, file, model, " EIP", kind);
+                    boolean updated = updateHeader(eipName, file, model, " EIP");
 
                     String options = evaluateTemplate("eip-options.mvel", model);
                     updated |= updateOptionsIn(file, kind, options);
@@ -471,8 +471,7 @@ public class UpdateReadmeMojo extends AbstractGeneratorMojo {
     }
 
     private boolean updateHeader(
-            String name, final File file, final BaseModel<? extends BaseOptionModel> model, String titleSuffix,
-            String kind)
+            String name, final File file, final BaseModel<? extends BaseOptionModel> model, String titleSuffix)
             throws MojoExecutionException {
         if (getLog().isDebugEnabled()) {
             getLog().debug("updateHeader " + file);
@@ -497,7 +496,7 @@ public class UpdateReadmeMojo extends AbstractGeneratorMojo {
             // find manual attributes
             Map<String, String> manualAttributes = new LinkedHashMap<>();
             for (String line : lines) {
-                if (!RELOCATE_MANUAL_ATTRIBUTES && line.length() == 0) {
+                if (!RELOCATE_MANUAL_ATTRIBUTES && line.isEmpty()) {
                     break;
                 }
                 for (Pattern attrName : MANUAL_ATTRIBUTES) {
@@ -531,6 +530,7 @@ public class UpdateReadmeMojo extends AbstractGeneratorMojo {
             if (model.isDeprecated()) {
                 newLines.add(":deprecated: *deprecated*");
             }
+            newLines.add(":tabs-sync-option:");
             if (model instanceof ComponentModel) {
                 newLines.add(":component-header: " + generateComponentHeader((ComponentModel) model));
                 if (Arrays.asList(model.getLabel().split(",")).contains("core")) {
@@ -560,7 +560,7 @@ public class UpdateReadmeMojo extends AbstractGeneratorMojo {
             boolean copy = false;
             if (updated || RELOCATE_MANUAL_ATTRIBUTES) {
                 outer: for (String line : lines) {
-                    if (!copy && line.isEmpty()) {
+                    if (!copy && line.isBlank()) {
                         copy = true;
                     } else if (copy) {
 
@@ -796,8 +796,7 @@ public class UpdateReadmeMojo extends AbstractGeneratorMojo {
     }
 
     private OtherModel generateOtherModel(String json) {
-        OtherModel other = JsonMapper.generateOtherModel(json);
-        return other;
+        return JsonMapper.generateOtherModel(json);
     }
 
     private DataFormatModel generateDataFormatModel(String json) {

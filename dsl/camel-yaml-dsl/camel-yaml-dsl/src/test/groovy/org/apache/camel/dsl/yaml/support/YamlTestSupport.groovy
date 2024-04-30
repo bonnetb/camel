@@ -18,20 +18,20 @@ package org.apache.camel.dsl.yaml.support
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
-import com.github.fge.jackson.JsonLoader
-import com.github.fge.jsonschema.main.JsonSchemaFactory
+import com.networknt.schema.JsonSchemaFactory
+import com.networknt.schema.SchemaValidatorsConfig
+import com.networknt.schema.SpecVersionDetector
 import groovy.util.logging.Slf4j
 import org.apache.camel.CamelContext
 import org.apache.camel.FluentProducerTemplate
 import org.apache.camel.builder.RouteBuilder
 import org.apache.camel.component.mock.MockEndpoint
 import org.apache.camel.dsl.yaml.KameletRoutesBuilderLoader
-import org.apache.camel.dsl.yaml.YamlRoutesBuilderLoader
-import org.apache.camel.dsl.yaml.common.YamlDeserializationMode
 import org.apache.camel.impl.DefaultCamelContext
 import org.apache.camel.model.RouteTemplateDefinition
 import org.apache.camel.spi.HasCamelContext
 import org.apache.camel.spi.Resource
+import org.apache.camel.support.PluginHelper
 import org.apache.camel.support.ResourceHelper
 import spock.lang.AutoCleanup
 import spock.lang.Specification
@@ -41,23 +41,30 @@ import java.nio.charset.StandardCharsets
 @Slf4j
 class YamlTestSupport extends Specification implements HasCamelContext {
     static def MAPPER = new ObjectMapper(new YAMLFactory())
-    static def SCHEMA_RES = JsonLoader.fromResource('/camel-yaml-dsl.json')
-    static def SCHEMA = JsonSchemaFactory.byDefault().getJsonSchema(SCHEMA_RES)
+    static def SCHEMA_NODE = MAPPER.readTree(ResourceHelper.getResourceAsStream('/schema/camelYamlDsl.json'))
+    static def FACTORY = JsonSchemaFactory.getInstance(SpecVersionDetector.detect(SCHEMA_NODE))
+    static def SCHEMA_VALIDATORS_CONFIG = {
+        SchemaValidatorsConfig config = new SchemaValidatorsConfig()
+        config.setLocale(Locale.ENGLISH)
+        return config
+    }()
+    static def SCHEMA = FACTORY.getSchema(SCHEMA_NODE, SCHEMA_VALIDATORS_CONFIG)
 
     @AutoCleanup
     def context = new DefaultCamelContext()
 
-    def loadRoutes(Collection<Resource> resources) {
-        for (def resource: resources) {
-            def target = MAPPER.readTree(resource.inputStream)
-            def report = SCHEMA.validate(target)
-
-            if (!report.isSuccess()) {
-                throw new IllegalArgumentException("${report}")
+    def loadRoutes(Collection<Resource> resources, boolean validate = true) {
+        if (validate) {
+            for (def resource : resources) {
+                def target = MAPPER.readTree(resource.inputStream)
+                def report = SCHEMA.validate(target)
+                if (!report.isEmpty()) {
+                    throw new IllegalArgumentException("${report}")
+                }
             }
         }
 
-        context.routesLoader.loadRoutes(resources)
+        PluginHelper.getRoutesLoader(context).loadRoutes(resources)
     }
 
     def addTemplate(String name, @DelegatesTo(RouteTemplateDefinition) Closure<?> closure) {
@@ -76,12 +83,26 @@ class YamlTestSupport extends Specification implements HasCamelContext {
     }
 
     def loadRoutes(String... resources) {
+        loadRoutesExt("yaml", resources)
+    }
+
+    def loadRoutesExt(String ext, String... resources) {
+        int index = 0
+
+        loadRoutes(
+                resources.collect {
+                    it -> ResourceHelper.fromString("route-${index++}." + ext, it.stripIndent())
+                }
+        )
+    }
+
+    def loadRoutesNoValidate(String... resources) {
         int index = 0
 
         loadRoutes(
             resources.collect {
                 it -> ResourceHelper.fromString("route-${index++}.yaml", it.stripIndent())
-            }
+            }, false
         )
     }
 
@@ -99,7 +120,7 @@ class YamlTestSupport extends Specification implements HasCamelContext {
     def loadKamelets(String... resources) {
         int index = 0
 
-        context.routesLoader.loadRoutes(
+        PluginHelper.getRoutesLoader(context).loadRoutes(
             resources.collect {
                 it -> ResourceHelper.fromString("route-${index++}.kamelet.yaml", it.stripIndent())
             }
@@ -109,7 +130,7 @@ class YamlTestSupport extends Specification implements HasCamelContext {
     def loadIntegrations(String... resources) {
         int index = 0
 
-        context.routesLoader.loadRoutes(
+        PluginHelper.getRoutesLoader(context).loadRoutes(
             resources.collect {
                 it -> ResourceHelper.fromString("integration-${index++}.yaml", it.stripIndent())
             }
@@ -119,9 +140,19 @@ class YamlTestSupport extends Specification implements HasCamelContext {
     def loadBindings(String... resources) {
         int index = 0
 
-        context.routesLoader.loadRoutes(
+        PluginHelper.getRoutesLoader(context).loadRoutes(
             resources.collect {
                 it -> ResourceHelper.fromString("binding-${index++}.yaml", it.stripIndent())
+            }
+        )
+    }
+
+    def loadBindingsExt(String ext, String... resources) {
+        int index = 0
+
+        PluginHelper.getRoutesLoader(context).loadRoutes(
+            resources.collect {
+                it -> ResourceHelper.fromString("binding-${index++}." + ext, it.stripIndent())
             }
         )
     }
@@ -175,10 +206,6 @@ class YamlTestSupport extends Specification implements HasCamelContext {
                 return location
             }
         }
-    }
-
-    def setFlowMode(YamlDeserializationMode mode) {
-        context.globalOptions[YamlRoutesBuilderLoader.DESERIALIZATION_MODE] = mode.name()
     }
 
     // ***********************************
